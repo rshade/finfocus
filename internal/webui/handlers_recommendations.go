@@ -75,6 +75,7 @@ func (s *Server) fetchRecommendations(
 	defer done()
 	result, err := s.session.opts.Recommendations(ctx, includeDismissed)
 	if err != nil || result == nil {
+		done()
 		s.writeError(w, http.StatusBadGateway, "recommendations_unavailable", "recommendation data unavailable")
 		return nil, false
 	}
