@@ -350,6 +350,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   cookie, no bearer token) after a connection failure. A 401 stops retries
   and tells the user to open the link printed in the terminal. `close`
   aborts that check. Other failures keep the capped backoff.
+  `GET /api/estimate/baseline` is the exception to a plain `{error, code}`
+  body: a provider failure is still 502 `estimate_unavailable`, and the body
+  also carries redacted `display.properties` with no deltas, `pricingModes`
+  from `DiscoverPricingSpec`, and `resource`. `400 invalid_pricing_mode`
+  stays `{error, code}` only. The editor must not treat that 502 as success.
   `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.

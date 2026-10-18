@@ -104,6 +104,11 @@ snooze, or undismiss a recommendation. Results are paged at 250 rows.
 | Pricing mode | **Automatic provider**, or a mode from a plugin's pricing spec. Choosing a mode recalculates through that plugin. |
 | Current value | Edit a property value and press `Enter` to recalculate. |
 
+If the baseline price fails, the property rows and pricing modes still appear,
+the comparison stays empty, and the error is shown inline. Editing a value or
+choosing a mode tries the price again. An unknown pricing mode is rejected
+without those rows.
+
 ### Config controls
 
 | Control | Effect |

@@ -57,12 +57,13 @@ export function el(tag, attrs = {}, ...children) {
 }
 
 export class ApiError extends Error {
-  constructor(message, { status, code, fields } = {}) {
+  constructor(message, { status, code, fields, data } = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
     this.fields = Array.isArray(fields) ? fields : [];
+    this.data = data && typeof data === 'object' ? data : null;
   }
 }
 
@@ -98,7 +99,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
         : `Request failed with status ${resp.status}.`;
     const code = data && typeof data.code === 'string' ? data.code : 'http_error';
     const fields = data && Array.isArray(data.fields) ? data.fields : [];
-    throw new ApiError(message, { status: resp.status, code, fields });
+    throw new ApiError(message, { status: resp.status, code, fields, data });
   }
   return data;
 }
