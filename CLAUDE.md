@@ -400,11 +400,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   cookie, no bearer token) after a connection failure. A 401 stops retries
   and tells the user to open the link printed in the terminal. `close`
   aborts that check. Other failures keep the capped backoff.
-  `GET /api/estimate/baseline` is the exception to a plain `{error, code}`
-  body: a provider failure is still 502 `estimate_unavailable`, and the body
-  also carries redacted `display.properties` with no deltas, `pricingModes`
-  from `DiscoverPricingSpec`, and `resource`. `400 invalid_pricing_mode`
-  stays `{error, code}` only. The editor must not treat that 502 as success.
+  `GET /api/estimate/baseline` returns a provider failure as HTTP 200 with
+  `status: "unavailable"`, `error`, `code: "estimate_unavailable"`, redacted
+  `display.properties` with no deltas, `pricingModes` from
+  `DiscoverPricingSpec`, and `resource`. Never a 5xx that carries data. The
+  editor must treat the marker as a failure, not a success. Request and
+  server errors, `400 invalid_pricing_mode`, and recalculate failures stay a
+  plain `{error, code}` 4xx/5xx.
   Web overview learns state-only from `pipe.OnStateOnly`
   (`Session.SetStateOnly`). Snapshot and the `run_status` event carry
   `stateOnly`, `previewLoaded`, and `detectFailed` (a boolean; the error text stays in

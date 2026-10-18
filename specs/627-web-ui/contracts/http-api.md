@@ -260,13 +260,17 @@ identity. Advisory price options never replace the primary estimate.
 `EstimateCost` requirement for nonempty overrides. The TUI uses the same
 provider-aware request and baseline helper; the plain CLI can select that
 provider with its existing `--adapter` option. A provider failure on
-`GET /api/estimate/baseline` returns `502` / `estimate_unavailable` and also
-`resource`, `pricingModes`, and `display.properties`. Those rows come from
+`GET /api/estimate/baseline` returns `200` with `status: "unavailable"`,
+`error`, `code: "estimate_unavailable"`, `resource`, `pricingModes`, and
+`display.properties`. A success carries no `status`; the browser treats the
+marker as a failed estimate. Those rows come from
 `viewmodel.BuildEstimatePropertyRows` with no cost deltas, and the comparison
 strings stay empty. `eng.DiscoverPricingSpec` still runs on that failure, on
 its own deadline. The body goes through the same redaction as a successful
 estimate. `400` / `invalid_pricing_mode` stays `{ error, code }` only.
-Recalculation failures stay a plain `502` / `estimate_unavailable`. The browser
+Request and server errors (unknown resource `404`, source failure `502`) stay
+`{ error, code }`. Recalculation failures stay a plain `502` /
+`estimate_unavailable`. The browser
 shows the inline error, keeps the returned rows and modes, leaves the
 comparison empty, and does not claim the estimate succeeded. Editing a value
 or choosing a mode sends that attempt again. Requests inherit both browser
