@@ -126,6 +126,7 @@ instead of running Pulumi CLI commands.`,
 		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
 	cmd.Flags().BoolVar(&params.stateOnly, "state-only", false,
 		"skip pulumi preview (faster, but won't detect pending changes)")
+	cmd.Flags().String("profile", "", usageProfileFlagHelp)
 	cmd.MarkFlagsMutuallyExclusive("state-only", "pulumi-json")
 	addAccessibilityFlags(cmd)
 
@@ -172,6 +173,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// Load config once and share across all history operations.
 	if params.cfg == nil {
 		params.cfg = config.New()
+	}
+	if _, err := resolveUsageProfile(cmd, usageProfileSource(params.cfg)); err != nil {
+		return toValidationError(ctx, err)
 	}
 
 	// 1. Validate flags

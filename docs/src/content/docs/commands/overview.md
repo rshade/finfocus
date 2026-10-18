@@ -41,6 +41,7 @@ the command auto-detects your Pulumi project and stack from the current director
 | `--exit-code` | Exit code for a threshold breach (0-255) | 1 |
 | `--notify` | Send [budget notifications](../guides/budgets.md#budget-notifications) for exceeded thresholds. Unset uses `FINFOCUS_NOTIFY` | false |
 | `--state-only` | Skip pulumi preview (faster, no pending change detection). Mutually exclusive with `--pulumi-json` | false |
+| `--profile` | Workload hint for projected cost and recommendations: `dev`, `prod`, `burst`, or `default`. Overrides `FINFOCUS_PROFILE` and `cost.profile` | no preference |
 | `--budget-scope` | Filter budget scopes: global, provider, tag, type | All |
 
 ## Auto-Detection

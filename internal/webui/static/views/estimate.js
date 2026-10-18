@@ -30,8 +30,6 @@ export function mount(container, { api, stream }) {
     if (err.status === 503) { status.textContent = 'Waiting for stack data…'; return; }
     error.textContent = err.message; error.hidden = false; status.textContent = 'Unable to calculate estimate.';
     comparison.replaceChildren();
-    // A provider failure still carries rows and modes. Absence of a price is
-    // not an empty editor, and it is not a successful comparison.
     if (err.data?.display || err.data?.pricingModes) renderFailure(err.data);
   }
   function finish(current) { if (alive && current === generation) table.setAttribute('aria-busy', 'false'); }
@@ -90,7 +88,10 @@ export function mount(container, { api, stream }) {
       const result = Object.keys(changes).length
         ? await api.post('/api/estimate/recalculate', { urn: resource.value, overrides: changes, pricingMode: mode.value }, { signal })
         : await api.get(`/api/estimate/baseline?urn=${encodeURIComponent(resource.value)}&pricingMode=${encodeURIComponent(mode.value)}`, { signal });
-      if (alive && current === generation) render(result, focusKey);
+      if (!alive || current !== generation) return;
+      // An unavailable baseline is a 200 that still carries rows and modes. It is not a successful comparison.
+      if (result.status === 'unavailable') failed(Object.assign(new Error(result.error), { data: result }), current);
+      else render(result, focusKey);
     } catch (err) { failed(err, current); }
     finally { finish(current); }
   }

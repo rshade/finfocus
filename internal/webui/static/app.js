@@ -111,6 +111,42 @@ export const api = {
   del: (path, body, opts) => request(path, { ...opts, method: 'DELETE', body: body ?? {} }),
 };
 
+// mergeRunStatus applies a snapshot or run_status payload to the three
+// state-only flags. Fields that are not booleans are ignored; a loaded
+// preview clears detectFailed.
+export function mergeRunStatus(current, data) {
+  const next = {
+    stateOnly: current.stateOnly === true,
+    previewLoaded: current.previewLoaded === true,
+    detectFailed: current.detectFailed === true,
+  };
+  for (const key of Object.keys(next)) {
+    if (typeof data?.[key] === 'boolean') next[key] = data[key];
+  }
+  if (data?.previewLoaded) next.detectFailed = false;
+  return next;
+}
+
+const SESSION_CHECK_TIMEOUT_MS = 5000;
+
+const STREAM_TRANSITIONS = {
+  idle: { start: 'connecting', close: 'closed' },
+  connecting: { start: 'connecting', open: 'open', error: 'authenticating', close: 'closed' },
+  open: { start: 'connecting', error: 'authenticating', close: 'closed' },
+  authenticating: {
+    start: 'connecting',
+    open: 'open',
+    recovered: 'reconnecting',
+    exhausted: 'backoff',
+    unauthorized: 'failed',
+    close: 'closed',
+  },
+  reconnecting: { start: 'connecting', open: 'open', error: 'authenticating', close: 'closed' },
+  backoff: { start: 'connecting', retry: 'connecting', close: 'closed' },
+  failed: { close: 'closed' },
+  closed: {},
+};
+
 // OverviewStream multiplexes named SSE events from /api/overview/stream.
 // EventSource reconnects automatically while the stream stays open; when the
 // browser reports the connection closed we recreate it with backoff so a
@@ -129,8 +165,8 @@ export class OverviewStream {
     this.source = null;
     this.retryTimer = null;
     this.authAbort = null;
-    this.authFailed = false;
-    this.closed = false;
+    this.authTimer = null;
+    this.state = 'idle';
     this.snapshot = null;
     this.passphraseGeneration = 0;
   }
@@ -189,14 +225,9 @@ export class OverviewStream {
       snapshot[event] = data;
     } else if (event === 'run_status') {
       // A later preview clears state-only. Remounts read this snapshot, not the live view.
-      if (typeof data.stateOnly === 'boolean') snapshot.stateOnly = data.stateOnly;
-      if (typeof data.previewLoaded === 'boolean') snapshot.previewLoaded = data.previewLoaded;
-      if (typeof data.detectFailed === 'boolean') snapshot.detectFailed = data.detectFailed;
+      Object.assign(snapshot, mergeRunStatus(snapshot, data));
       if (typeof data.footnote === 'string') snapshot.footnote = data.footnote;
-      if (data.previewLoaded) {
-        snapshot.detectFailed = false;
-        snapshot.footnote = '';
-      }
+      if (data.previewLoaded) snapshot.footnote = '';
     } else if (event === 'error') {
       snapshot.errors = [...(snapshot.errors ?? []).filter((error) => error.phase !== data.phase), data];
     }
@@ -217,15 +248,32 @@ export class OverviewStream {
   }
 
   start() {
-    if (this.closed || this.authFailed) return;
+    this.dispatch('start');
+  }
+
+  close() {
+    this.dispatch('close');
+  }
+
+  // dispatch is the only place the connection state changes. A source that
+  // errors is never restarted until the session check says it may be.
+  dispatch(event) {
+    const next = STREAM_TRANSITIONS[this.state]?.[event];
+    if (!next) return;
+    this.state = next;
+    this[`enter_${next}`]();
+  }
+
+  enter_connecting() {
     clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    this.abortSessionCheck();
     if (this.source) this.source.close();
     const source = new EventSource(this.url);
     this.source = source;
 
     source.addEventListener('open', () => {
-      this.retryDelayMs = 1000;
-      this.setStatus('Live', 'live');
+      if (source === this.source) this.dispatch('open');
     });
     for (const event of OVERVIEW_STREAM_EVENTS) {
       if (event === 'error') continue; // handled below, disambiguated
@@ -255,79 +303,73 @@ export class OverviewStream {
         this.emit('error', data);
         return;
       }
-      if (this.closed || this.authFailed || source !== this.source) return;
-      if (source.readyState === EventSource.CONNECTING) {
-        // EventSource is retrying on its own. Still confirm the cookie,
-        // because a restarted server answers 401 on every reconnect.
-        this.setStatus('Reconnecting…', 'reconnecting');
-        this.confirmSession();
-        return;
-      }
-      // CLOSED: confirm the session before scheduling another connection.
-      this.setStatus('Reconnecting…', 'reconnecting');
-      this.confirmSession();
+      if (source === this.source) this.dispatch('error');
     });
   }
 
-  // confirmSession uses the existing session cookie. It does not send a bearer
-  // token. A 401 means the printed link is stale; anything else may retry.
-  confirmSession() {
-    if (this.closed || this.authFailed || this.authAbort) return;
-    const controller = new AbortController();
-    this.authAbort = controller;
-    fetch('/api/overview/budget', { credentials: 'same-origin', signal: controller.signal })
-      .then((resp) => {
-        if (controller.signal.aborted || this.closed || this.authFailed) return;
-        if (resp.status === 401) {
-          if (this.source?.readyState === EventSource.OPEN) return;
-          this.failAuthentication();
-          return;
-        }
-        this.resumeAfterDisconnect();
-      })
-      .catch((err) => {
-        if (controller.signal.aborted || this.closed || this.authFailed || err?.name === 'AbortError') return;
-        this.resumeAfterDisconnect();
-      })
-      .finally(() => {
-        if (this.authAbort === controller) this.authAbort = null;
-      });
+  enter_open() {
+    this.retryDelayMs = 1000;
+    this.abortSessionCheck();
+    this.setStatus('Live', 'live');
   }
 
-  resumeAfterDisconnect() {
-    if (this.closed || this.authFailed || !this.source) return;
-    if (this.source.readyState !== EventSource.CLOSED) return;
+  // The check uses the existing session cookie and no bearer token. A 401
+  // means the printed link is stale; anything else, including a timeout, may
+  // retry. The timeout settles the check itself because a hung fetch may
+  // never reject.
+  enter_authenticating() {
+    this.setStatus('Reconnecting…', 'reconnecting');
+    const controller = new AbortController();
+    this.authAbort = controller;
+    const settle = (outcome) => {
+      if (this.authAbort !== controller) return;
+      this.abortSessionCheck();
+      if (outcome === 'unauthorized') {
+        this.dispatch('unauthorized');
+      } else {
+        this.dispatch(this.source?.readyState === EventSource.CLOSED ? 'exhausted' : 'recovered');
+      }
+    };
+    this.authTimer = setTimeout(() => settle('failed'), SESSION_CHECK_TIMEOUT_MS);
+    fetch('/api/overview/budget', { credentials: 'same-origin', signal: controller.signal })
+      .then((resp) => settle(resp.status === 401 ? 'unauthorized' : 'ok'))
+      .catch(() => settle('failed'));
+  }
+
+  enter_reconnecting() {}
+
+  enter_backoff() {
     this.setStatus('Disconnected — retrying…', 'down');
-    clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(() => {
       this.retryDelayMs = Math.min(this.retryDelayMs * 2, this.maxRetryDelayMs);
-      this.start();
+      this.dispatch('retry');
     }, this.retryDelayMs);
   }
 
-  failAuthentication() {
-    this.authFailed = true;
-    clearTimeout(this.retryTimer);
-    this.retryTimer = null;
-    const abort = this.authAbort;
-    this.authAbort = null;
-    abort?.abort();
-    if (this.source) {
-      this.source.close();
-      this.source = null;
-    }
+  enter_failed() {
+    this.shutdown();
+    this.source = null;
     this.setStatus('Sign-in expired. Open the fresh link printed in the terminal.', 'down');
   }
 
-  close() {
-    this.closed = true;
+  enter_closed() {
+    this.shutdown();
+    this.setStatus('', 'down');
+  }
+
+  shutdown() {
     clearTimeout(this.retryTimer);
     this.retryTimer = null;
+    this.abortSessionCheck();
+    if (this.source) this.source.close();
+  }
+
+  abortSessionCheck() {
+    clearTimeout(this.authTimer);
+    this.authTimer = null;
     const abort = this.authAbort;
     this.authAbort = null;
     abort?.abort();
-    if (this.source) this.source.close();
-    this.setStatus('', 'down');
   }
 }
 

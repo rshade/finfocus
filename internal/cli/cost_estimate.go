@@ -388,6 +388,9 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 	// Create engine and estimate
 	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	if profileErr := applyUsageProfile(cmd, eng, usageProfileSource(cfg)); profileErr != nil {
+		return toValidationError(ctx, profileErr)
+	}
 	request := &engine.EstimateRequest{
 		Resource:          resource,
 		PropertyOverrides: overrides,
@@ -448,6 +451,9 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg
 	// Create engine
 	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	if profileErr := applyUsageProfile(cmd, eng, usageProfileSource(cfg)); profileErr != nil {
+		return toValidationError(ctx, profileErr)
+	}
 
 	// Process each resource with modifications
 	var results []*engine.EstimateResult
@@ -875,6 +881,9 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 
 	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	if profileErr := applyUsageProfile(cmd, eng, usageProfileSource(cfg)); profileErr != nil {
+		return toValidationError(ctx, profileErr)
+	}
 
 	model := newInteractiveEstimateModel(ctx, eng, resource)
 	program := tea.NewProgram(model)

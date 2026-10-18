@@ -313,7 +313,9 @@ func enrichProjectedCost(
 				Str("urn", row.URN).
 				Str("notes", costResult.Notes).
 				Msg("skipping projected cost result with error")
-			return costResultFailure(row.URN, costResult)
+			failure := costResultFailure(row.URN, costResult)
+			row.ProjectedPricingFailed = failure == nil && firstPluginFailure(result.Errors) != nil
+			return failure
 		}
 		row.ProjectedCost = &ProjectedCostData{
 			MonthlyCost: costResult.Monthly,

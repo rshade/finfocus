@@ -196,3 +196,33 @@ test('a stale 401 after the source reopened does not close the live stream', asy
   assert.equal(t.status.dataset.state, 'live');
   assert.doesNotMatch(t.status.textContent, /terminal/i);
 });
+
+test('a hung session check times out and falls back to bounded backoff', async () => {
+  const t = await setup();
+  const stream = new t.OverviewStream('/api/overview/stream', t.status);
+  stream.start();
+  const source = t.EventSource.all.at(-1);
+  connectionError(source);
+  assert.equal(t.fetches.length, 1);
+  assert.equal(t.timers.size, 1);
+  const [timeout] = [...t.timers.values()];
+  timeout();
+  await flush();
+  assert.equal(t.fetches[0].init.signal.aborted, true);
+  assert.equal(t.status.dataset.state, 'down');
+  assert.doesNotMatch(t.status.textContent, /terminal/i);
+  assert.equal(t.timers.size, 1);
+  const before = t.EventSource.all.length;
+  for (const callback of [...t.timers.values()]) callback();
+  assert.equal(t.EventSource.all.length, before + 1);
+});
+
+test('a second connection error while the session check is pending does not start another check', async () => {
+  const t = await setup();
+  const stream = new t.OverviewStream('/api/overview/stream', t.status);
+  stream.start();
+  const source = t.EventSource.all.at(-1);
+  connectionError(source);
+  connectionError(source);
+  assert.equal(t.fetches.length, 1);
+});

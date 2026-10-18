@@ -331,6 +331,11 @@ type OverviewRow struct {
 	Recommendations       []Recommendation   `json:"recommendations,omitempty"`
 	CostDrift             *CostDriftData     `json:"costDrift,omitempty"`
 	Error                 *OverviewRowError  `json:"error,omitempty"`
+	// ProjectedPricingFailed is set when a plugin call failed and no price came
+	// from any source. The engine reports that as NO_COST_DATA, so Error stays
+	// nil and the Warn column is unchanged; callers that must tell a failed
+	// price from an unpriced type read this flag.
+	ProjectedPricingFailed bool `json:"-"`
 	// Warnings lists overview conditions in derivation order: drift, error, new.
 	// estimate and stale are not derived yet.
 	Warnings      []OverviewWarning `json:"warnings,omitempty"`

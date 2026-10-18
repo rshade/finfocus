@@ -810,6 +810,8 @@ type RecommendationsResult struct {
 	Scoring         *ScoringSummary       `json:"scoring,omitempty"`
 	TotalSavings    float64               `json:"totalSavings"`
 	Currency        string                `json:"currency"`
+	// Profile is the resolved usage profile. "default" is no preference.
+	Profile string `json:"profile,omitempty"`
 }
 
 // HasErrors returns true if any errors were encountered.

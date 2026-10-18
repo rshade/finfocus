@@ -31,8 +31,16 @@ func RenderProjectedDiff(w io.Writer, format OutputFormat, diff *DiffResult, sho
 	}
 }
 
+func displayedProfile(profile string) string {
+	if profile == "" {
+		return "default"
+	}
+	return profile
+}
+
 func renderDiffTable(w io.Writer, diff *DiffResult, showBreakdown bool) error {
 	tw := tabwriter.NewWriter(w, 0, 0, defaultTabPadding, ' ', 0)
+	fmt.Fprintf(tw, "Profile: %s\n", displayedProfile(diff.Profile))
 	fmt.Fprintln(tw, "COST DIFF")
 	fmt.Fprintf(tw, "Before\t%.2f %s\n", diff.Summary.TotalBefore, diff.Summary.Currency)
 	fmt.Fprintf(tw, "After\t%.2f %s\n", diff.Summary.TotalAfter, diff.Summary.Currency)
@@ -141,6 +149,7 @@ type projectedDiffDocument struct {
 	Summary   CostSummary             `json:"summary"`
 	Resources []projectedDiffResource `json:"resources"`
 	Diff      DiffSummary             `json:"diff"`
+	Profile   string                  `json:"profile"`
 	Errors    []diffErrorJSON         `json:"errors,omitempty"`
 }
 
@@ -159,6 +168,7 @@ func renderDiffJSON(w io.Writer, diff *DiffResult) error {
 		Summary:   aggregated.Summary,
 		Resources: make([]projectedDiffResource, 0, len(diff.Entries)),
 		Diff:      diff.Summary,
+		Profile:   displayedProfile(diff.Profile),
 		Errors:    diffErrorsJSON(diff.Errors),
 	}
 	for i := range diff.Entries {

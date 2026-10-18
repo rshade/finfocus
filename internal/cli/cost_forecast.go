@@ -300,6 +300,9 @@ func forecastCosts(
 	defer cleanup()
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	defer cacheCleanup()
+	if profileErr := applyUsageProfile(cmd, eng, cfg); profileErr != nil {
+		return nil, toValidationError(ctx, profileErr)
+	}
 	eng = eng.WithJobs(jobs)
 	resources = prepareForecastResources(ctx, cmd, params.terraformState, clients, cacheStore, resources)
 	diff, err := eng.GetProjectedCostDiff(ctx, resources)

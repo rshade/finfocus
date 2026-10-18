@@ -44,6 +44,8 @@ type DiffResult struct {
 	Entries []DiffEntry
 	Summary DiffSummary
 	Errors  []ErrorDetail
+	// Profile is the resolved usage profile for this diff. "default" is no preference.
+	Profile string
 }
 
 // AfterCosts returns the after-change cost of every entry.

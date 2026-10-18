@@ -225,7 +225,7 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `EstimateCost` attributes. Do not add a second rule.
 - Anything new sent to a plugin must be in the projected cache key; that is
   why keys end in `/tags-`, `/refs-`, `/attrs-` digests and feature suffixes
-  (`/pricing-spec`, `/growth-v1`, `/penv-`). `/penv-` is the digest of the
+  (`/pricing-spec`, `/growth-v1`, `/penv-`, `/profile-dev|prod|burst`). `/penv-` is the digest of the
   clients that engine retained at construction. A settings or validate probe
   must not update another engine's key. An empty digest omits the suffix.
   Tests of the process-wide helper must not run in parallel and must call
@@ -400,18 +400,28 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   The overview EventSource checks `GET /api/overview/budget` (same-origin
   cookie, no bearer token) after a connection failure. A 401 stops retries
   and tells the user to open the link printed in the terminal. `close`
-  aborts that check. Other failures keep the capped backoff.
-  `GET /api/estimate/baseline` is the exception to a plain `{error, code}`
-  body: a provider failure is still 502 `estimate_unavailable`, and the body
-  also carries redacted `display.properties` with no deltas, `pricingModes`
-  from `DiscoverPricingSpec`, and `resource`. `400 invalid_pricing_mode`
-  stays `{error, code}` only. The editor must not treat that 502 as success.
+  aborts that check. Other failures, and a check that takes over 5s, keep the
+  capped backoff. `OverviewStream` moves through explicit states
+  (`connecting`, `open`, `authenticating`, `reconnecting`, `backoff`, `failed`,
+  `closed`) only via `dispatch`.
+  `GET /api/estimate/baseline` returns a provider failure as HTTP 200 with
+  `status: "unavailable"`, `error`, `code: "estimate_unavailable"`, redacted
+  `display.properties` with no deltas, `pricingModes` from
+  `DiscoverPricingSpec`, and `resource`. Never a 5xx that carries data. The
+  editor must treat the marker as a failure, not a success. Request and
+  server errors, `400 invalid_pricing_mode`, and recalculate failures stay a
+  plain `{error, code}` 4xx/5xx.
   Web overview learns state-only from `pipe.OnStateOnly`
-  (`Session.SetStateOnly`). Snapshot and the `run_status` event carry
-  `stateOnly`, `previewLoaded`, and `detectFailed` (a boolean; the error text stays in
-  the terminal log and never reaches the browser). `POST /api/overview/preview`
+  (`Session.SetStateOnly`). The three flags are one `webui.RunStatus` on the
+  session (browser: `mergeRunStatus` in `app.js`); the snapshot and the
+  `run_status` event carry `stateOnly`, `previewLoaded`, and `detectFailed` (a
+  boolean; the error text stays in the terminal log and never reaches the
+  browser). `POST /api/overview/preview`
   is 409 unless the run is state-only and a preview has not been applied. A
-  successful preview clears that status. Do not keep a second store beside
+  successful preview clears that status. A preview whose added rows fail to
+  price (`appendPreviewRows` returns `errPreviewPricing`; a row has `Error` or
+  `ProjectedPricingFailed`) is an error, not loaded, so Run preview can retry;
+  an unpriced type that only reports `NO_COST_DATA` is not a failure. Do not keep a second store beside
   those session fields.
   `--pulumi-state` without `--pulumi-json` is state-only too, like the TUI.
   After a preview adds rows, `appendPreviewRows` applies the dismissal delta to
@@ -502,6 +512,21 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`
   resolution. Unpriced `pulumi:` types are left out.
+- Usage profile (`specs/630-usage-profile/`): `--profile`, then
+  `FINFOCUS_PROFILE`, then `cost.profile` on the merged config
+  (`InitializedGlobalConfig`). `config.New` has no project overlay, so
+  estimate, overview, and the dashboard must not read the profile from it.
+  An omitted `cost.profile` is no preference. A present empty value fails
+  validation. The interactive recommendations view names the same profile.
+  The environment variable is not
+  copied into the config file. Opt-in engines are projected, recommendations,
+  forecast, estimate, cluster run-rate, overview, the dashboard engine, and
+  `analyzer serve`. `cost actual` and `cost history collect` stay unspecified.
+  The hourly-rate lookup inside actual cost passes UNSPECIFIED even when the
+  engine has a profile. A set profile skips projected `BatchCost` because
+  `BatchCostRequest` has no field, and appends `/profile-dev|prod|burst`
+  after the other cache suffixes. Unspecified adds nothing. Do not set the
+  profile inside `newEngineWithCache`.
 - Cost history (`internal/history`, `cost history *`): files are
   `<project>@<stack>.history.db`, separate from the resource-observation
   `history.db`. Both use one directory: `FINFOCUS_HISTORY_DIR`, then
@@ -509,7 +534,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   A project-tier `cost.history.directory` is ignored with a warning when it
   is absolute, has `..`, or resolves (symlinks followed on the deepest existing
   ancestor, against the working directory) outside the project root, or when
-  `history.db` or a `*.history.db` in it is a symlink or not a regular file
+  an entry named `history.db*` or containing `.history.db` (including the
+  `.compact-*` compaction temp) is a symlink or not a regular file
   (rechecked after `MkdirAll`; a swap after the check is not covered). The gate
   takes the project dir that built the config (`initHistoryFromConfig`'s
   `projectDir`; the analyzer passes its own, never the process-global one) and
@@ -662,6 +688,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 630-usage-profile: `--profile` / `FINFOCUS_PROFILE` / `cost.profile` sent on projected cost and recommendations (`specs/630-usage-profile/`)
 - 629-web-plugin-page: Plugins page in `finfocus --web` (catalog, install, settings)
 - 628-web-config-page: dashboard Config page and `config set` patch `config.hujson` in place
 - 626-cost-forecast: `cost forecast` projects plugin GrowthType with finfocus-spec `pricing.ApplyGrowth`

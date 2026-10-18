@@ -76,3 +76,4 @@ then one `point` line per month, then `warning` lines.
 | `--adapter` | One adapter plugin | all |
 | `--spec-dir` | Pricing spec directory | config |
 | `--jobs`, `-j` | Parallel workers. 0 is automatic | 0 |
+| `--profile` | Workload hint passed to projected pricing: `dev`, `prod`, `burst`, or `default`. Inherited from `cost` | no preference |

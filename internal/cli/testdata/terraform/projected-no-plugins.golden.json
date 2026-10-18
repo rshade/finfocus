@@ -10,6 +10,7 @@
       "unchanged": 14,
       "updates": 0
     },
+    "profile": "default",
     "resources": [
       {
         "adapter": "none",
