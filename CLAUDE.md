@@ -297,6 +297,22 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 ### CLI (`internal/cli/`)
 
+- Overview TUI quit waits at most `overviewShutdownGrace` (2s) for the
+  enrichment goroutine, then `overviewCleanupHandoff` (100ms) for the plugin
+  cleanup callback. The budget fetch's done channel is joined before that
+  cleanup runs (`Run` joins it itself). A plugin call that ignores cancel is
+  abandoned after the grace period so quit cannot hang. The cleanup is
+  published when the engine is built (`newCleanupPublisher`), so the abandon
+  path still closes plugins before the process exits; a detached goroutine
+  (`runLateOverviewCleanup`) covers a cleanup that appears later.
+- `finfocus --web` shuts down on SIGINT and SIGTERM (`serveWebUntilInterrupt`
+  and `webui.Server.Run`). That is the path that stops plugin children.
+  `server_sigterm_test.go` is `//go:build unix` because Windows has no
+  `syscall.Kill` or SIGTERM. The interrupt test signals `os.Interrupt`.
+  SIGKILL still only delivers `Pdeathsig` to the direct child; a grandchild
+  the plugin spawned (the aws-public region binary) keeps running. That
+  grandchild case belongs in the plugin. `analyzer serve` already handles
+  both signals.
 - `cost estimate --modify` splits on the last colon before `=`, so a Pulumi
   URN selector keeps its colons. A selector matches the resource ID, the
   logical name (the last `::` segment), or the type, and every matching
@@ -556,6 +572,10 @@ Specs 613-623 hold the details. Invariants:
 
 ### MCP Server (`internal/cli/mcp.go`, `output_mode.go`)
 
+- `mcp-server` does not handle SIGINT or SIGTERM. ax-go `mcp.Serve` runs until
+  its context is canceled, and `main` passes `context.Background()` into
+  `ax.Execute`. ax-go's own example says the adopter cancels on those signals.
+  Do not patch ax-go from this repo.
 - ax-go re-executes the shared root once per `tools/call`, so persistent
   pre/post run per call. Dispatched calls reuse the server's
   `loggingSession` and never close it.
