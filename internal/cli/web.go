@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -199,10 +200,11 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	return nil
 }
 
-// serveWebUntilInterrupt serves until ctx is cancelled or an interrupt
-// arrives, then shuts the server down gracefully.
+// serveWebUntilInterrupt serves until ctx is cancelled or SIGINT/SIGTERM
+// arrives, then shuts the server down gracefully. SIGTERM must share the
+// SIGINT path so plugin cleanup runs; a supervisor stop is SIGTERM.
 func serveWebUntilInterrupt(ctx context.Context, srv *webui.Server) error {
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	serveErr := make(chan error, 1)

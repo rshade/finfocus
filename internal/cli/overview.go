@@ -708,6 +708,7 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 			Custom:     r.Custom,
 			Properties: ingest.MergeProperties(r.Outputs, r.Inputs),
 			CreatedAt:  createdAt,
+			External:   r.External,
 		}
 	}
 	return result
@@ -1137,7 +1138,9 @@ func runInteractiveOverviewWithInit(
 
 	// enrichDone is closed when the background goroutine exits. The cleanup
 	// path waits on this channel so plugin connections are not torn down while
-	// enrichment gRPC calls are still in flight (see issue #716).
+	// enrichment gRPC calls are still in flight (see issue #716). The wait is
+	// bounded by overviewShutdownGrace so a plugin call that ignores cancel
+	// cannot hold quit open (issue #1797).
 	enrichDone := make(chan struct{})
 
 	// Start data loading and enrichment in background
@@ -1150,20 +1153,9 @@ func runInteractiveOverviewWithInit(
 	finalModel, err := p.Run()
 	enrichCancel()
 
-	// Wait for the enrichment goroutine to finish before closing plugin
-	// connections. This prevents a race where cleanup() tears down gRPC
-	// connections while EnrichOverviewRows still has calls in flight.
-	<-enrichDone
-
-	// Drain cleanup from the background goroutine.
-	select {
-	case cleanup := <-cleanupChan:
-		if cleanup != nil {
-			cleanup()
-		}
-	default:
-		// Plugins were never opened (early exit or error before openPlugins).
-	}
+	// Wait for enrichment, then stop plugins. A stuck call is abandoned after
+	// overviewShutdownGrace; cleanup still has a short handoff window.
+	finishInteractiveOverview(ctx, enrichDone, cleanupChan)
 
 	if err != nil {
 		audit.logFailure(ctx, err)
@@ -1259,8 +1251,10 @@ func overviewInitAndEnrich(
 	pipe.OnPhase = func(phase int, name string) {
 		p.Send(tui.OverviewPhaseMsg{Index: phase - 1, Phase: name})
 	}
+	publishCleanup := newCleanupPublisher(pipe, cleanupChan)
 	pipe.OnDataReady = func(rows []engine.OverviewRow, totalCount int, stackName string) {
 		p.Send(tui.OverviewDataReadyMsg{Rows: rows, TotalCount: totalCount, StackName: stackName})
+		publishCleanup()
 	}
 	pipe.OnStateOnly = func(detectErrMsg string) {
 		// On-demand preview command for the 'p' key binding.
@@ -1284,12 +1278,87 @@ func overviewInitAndEnrich(
 	pipe.OnError = func(_ int, err error) { p.Send(tui.OverviewInitErrorMsg{Err: err}) }
 	pipe.OnPassphraseRequired = func() { p.Send(tui.OverviewPassphraseRequiredMsg{}) }
 
+	// Run joins its own budget fetch before returning, so the cleanup sent
+	// below never races a budget call still inside gRPC.
 	_ = pipe.Run(enrichCtx)
 
-	// Hand the combined cleanup to the caller once the pipeline is done;
-	// nothing is sent when the run stopped before plugins opened.
-	if cleanup := pipe.Cleanup(); cleanup != nil {
-		cleanupChan <- cleanup
+	publishCleanup()
+}
+
+// newCleanupPublisher returns a func that hands the pipeline's combined
+// cleanup to cleanupChan at most once, and only when plugins were opened. It
+// runs as soon as the engine exists (OnDataReady), not only after Run returns,
+// so a quit that abandons a stuck enrichment call can still close plugins and
+// the cache before the process exits (issue #1797).
+func newCleanupPublisher(pipe *OverviewPipeline, cleanupChan chan<- func()) func() {
+	var sent atomic.Bool
+	return func() {
+		cleanup := pipe.Cleanup()
+		if cleanup != nil && sent.CompareAndSwap(false, true) {
+			cleanupChan <- cleanup
+		}
+	}
+}
+
+// overviewShutdownGrace bounds how long quit waits for the enrichment
+// goroutine. A plugin call that ignores cancellation must not hold the
+// overview open past this.
+const overviewShutdownGrace = 2 * time.Second
+
+// overviewCleanupHandoff is how long quit waits for the plugin cleanup
+// callback after enrichment stops. It replaces a non-blocking receive so a
+// send that lands just after enrichDone closes is not dropped. It stays
+// short: after #813 the callback is already queued when the goroutine exits,
+// and waiting the old two seconds delayed every quit that never opened plugins.
+const overviewCleanupHandoff = 100 * time.Millisecond
+
+// finishInteractiveOverview waits for enrichment to finish, then runs plugin
+// cleanup. The enrichment wait is capped at overviewShutdownGrace. The
+// cleanup receive is capped at overviewCleanupHandoff. When either cap passes,
+// a detached goroutine still runs the cleanup once enrichment stops.
+func finishInteractiveOverview(ctx context.Context, enrichDone <-chan struct{}, cleanupChan <-chan func()) {
+	grace := time.NewTimer(overviewShutdownGrace)
+	defer grace.Stop()
+	select {
+	case <-enrichDone:
+	case <-grace.C:
+		logging.FromContext(ctx).Warn().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "overview_shutdown").
+			Dur("grace", overviewShutdownGrace).
+			Msg("overview enrichment still running; continuing shutdown")
+	}
+
+	handoff := time.NewTimer(overviewCleanupHandoff)
+	defer handoff.Stop()
+	select {
+	case cleanup := <-cleanupChan:
+		if cleanup != nil {
+			cleanup()
+		}
+	case <-handoff.C:
+		logging.FromContext(ctx).Warn().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "overview_shutdown").
+			Dur("handoff", overviewCleanupHandoff).
+			Msg("overview plugin cleanup was not handed off; will run when enrichment stops")
+		go runLateOverviewCleanup(enrichDone, cleanupChan)
+	}
+}
+
+// runLateOverviewCleanup runs the plugin cleanup for a quit that stopped
+// waiting. The enrichment goroutine queues the callback before it closes
+// enrichDone, so one non-blocking receive after the close is enough.
+func runLateOverviewCleanup(enrichDone <-chan struct{}, cleanupChan <-chan func()) {
+	<-enrichDone
+	select {
+	case cleanup := <-cleanupChan:
+		if cleanup != nil {
+			cleanup()
+		}
+	default:
 	}
 }
 
@@ -1332,11 +1401,15 @@ func buildPreviewCmd(
 	}
 }
 
-// launchBudgetFetch starts a goroutine to fetch budgets from plugins and
-// returns a channel that will receive the result.
-func launchBudgetFetch(ctx context.Context, eng *engine.Engine) <-chan budgetFetchResult {
+// launchBudgetFetch starts a goroutine to fetch budgets from plugins.
+// The result channel carries one value and is then closed. The done channel
+// is closed when that goroutine has left GetBudgets, so callers can join it
+// before closing plugin connections.
+func launchBudgetFetch(ctx context.Context, eng *engine.Engine) (<-chan budgetFetchResult, <-chan struct{}) {
 	ch := make(chan budgetFetchResult, 1)
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		defer close(ch)
 		result, err := eng.GetBudgets(ctx, nil)
 		if err != nil {
@@ -1349,7 +1422,7 @@ func launchBudgetFetch(ctx context.Context, eng *engine.Engine) <-chan budgetFet
 		}
 		ch <- budgetFetchResult{result: result, err: err}
 	}()
-	return ch
+	return ch, done
 }
 
 // budgetFetchResult holds the result of a concurrent budget plugin fetch.

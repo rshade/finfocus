@@ -55,6 +55,7 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 		Provider:   resourcetype.ExtractProvider(row.Type),
 		Properties: row.Properties,
 	}
+	actualResource := actualResourceForRow(*row)
 	projectedResource := ResourceDescriptor{
 		Type:       row.Type,
 		ID:         row.URN,
@@ -72,7 +73,7 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 	// Fetch actual costs (skip for resources being created - they have no history)
 	if row.Status != StatusCreating {
 		wg.Go(func() {
-			actualErr = enrichActualCost(ctx, row, eng, resource, dateRange)
+			actualErr = enrichActualCost(ctx, row, eng, actualResource, dateRange)
 		})
 	}
 
@@ -133,6 +134,37 @@ func deriveWarnings(row *OverviewRow) {
 	}
 }
 
+// actualResourceForRow copies the identity keys cost actual already sends
+// (cloud id, URN, created time) onto the actual-cost descriptor. Overview
+// state rows keep the cloud id on ResourceID, not in Properties.
+func actualResourceForRow(row OverviewRow) ResourceDescriptor {
+	props := cloneProperties(row.Properties)
+	if props == nil {
+		props = map[string]any{}
+	}
+	if row.ResourceID != "" {
+		if existing, ok := props[PropertyPulumiCloudID].(string); !ok || existing == "" {
+			props[PropertyPulumiCloudID] = row.ResourceID
+		}
+	}
+	if row.URN != "" {
+		if existing, ok := props[PropertyPulumiURN].(string); !ok || existing == "" {
+			props[PropertyPulumiURN] = row.URN
+		}
+	}
+	if row.CreatedAt != nil {
+		if existing, ok := props[PropertyPulumiCreated].(string); !ok || existing == "" {
+			props[PropertyPulumiCreated] = row.CreatedAt.UTC().Format(time.RFC3339)
+		}
+	}
+	return ResourceDescriptor{
+		Type:       row.Type,
+		ID:         row.URN,
+		Provider:   resourcetype.ExtractProvider(row.Type),
+		Properties: props,
+	}
+}
+
 func projectedPropertiesForRow(row OverviewRow) map[string]any {
 	if len(row.ProjectedProperties) > 0 {
 		return row.ProjectedProperties
@@ -178,6 +210,22 @@ func enrichBaselineProjectedCost(
 	}
 }
 
+// actualRequestStart returns the start of the actual-cost window for a row.
+// Plugins trust an explicit start over the resource's creation time, so a
+// resource created mid-window must start there or it is charged for hours it
+// did not exist. A creation time outside (Start, End] leaves the window as is,
+// and so does an imported resource, whose timestamp is the import time.
+func actualRequestStart(row *OverviewRow, dateRange DateRange) time.Time {
+	createdAt := row.CreatedAt
+	if row.External {
+		return dateRange.Start
+	}
+	if createdAt != nil && createdAt.After(dateRange.Start) && !createdAt.After(dateRange.End) {
+		return *createdAt
+	}
+	return dateRange.Start
+}
+
 // enrichActualCost fetches actual cost data for a row. It writes to
 // row.ActualCost directly and returns any classified error instead of
 // writing to row.Error, enabling the caller to merge errors
@@ -193,7 +241,7 @@ func enrichActualCost(
 
 	request := ActualCostRequest{
 		Resources: []ResourceDescriptor{resource},
-		From:      dateRange.Start,
+		From:      actualRequestStart(row, dateRange),
 		To:        dateRange.End,
 	}
 
@@ -226,6 +274,9 @@ func enrichActualCost(
 		}
 		if row.ActualCost.Currency == "" {
 			row.ActualCost.Currency = defaultCurrency
+		}
+		if request.From.After(dateRange.Start) {
+			row.ActualCost.BilledDays = request.To.Sub(request.From).Hours() / hoursPerDay
 		}
 	}
 

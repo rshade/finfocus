@@ -57,6 +57,7 @@ func stateResourceToRow(res StateResource) OverviewRow {
 		Status:     StatusActive,
 		Properties: res.Properties,
 		CreatedAt:  res.CreatedAt,
+		External:   res.External,
 	}
 }
 

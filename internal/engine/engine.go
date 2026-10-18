@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -223,17 +224,24 @@ func (e *Engine) getConcurrencyMultiplier() int {
 // checkPluginSupports calls the plugin's Supports() RPC to check if it
 // supports the given resource (provider, type, SKU, and region) for the
 // requested feature. Returns true if the plugin supports it, or if the RPC
-// call fails (fail-open covers plugins built on finfocus-spec SDKs older than
-// v0.6.2 that don't implement Supports yet, and RPC failures). It also fails
-// open when the plugin is built on finfocus-spec v0.6.2+ but never registered
-// a SupportsProvider: the SDK itself then answers Supported:false with
-// pluginsdk.DefaultSupportsNotImplementedReason (see sdk.go), which is not a
-// real capability decision and previously caused such plugins to be silently
-// dropped from every resource they'd have otherwise served.
+// call fails in a way that is not an explicit validation decline (fail-open
+// covers plugins built on finfocus-spec SDKs older than v0.6.2 that don't
+// implement Supports yet, Unimplemented, and transient RPC failures). It also
+// fails open when the plugin is built on finfocus-spec v0.6.2+ but never
+// registered a SupportsProvider: the SDK itself then answers Supported:false
+// with pluginsdk.DefaultSupportsNotImplementedReason (see sdk.go), which is
+// not a real capability decision and previously caused such plugins to be
+// silently dropped from every resource they'd have otherwise served.
+//
+// codes.InvalidArgument is a decline: the plugin rejected the descriptor, so
+// the result is cached as unsupported and no pricing RPC follows. Unavailable,
+// DeadlineExceeded, and Canceled stay fail-open and are not cached, because a
+// later call may succeed. Other RPC errors, including Unimplemented, stay
+// fail-open and are cached as supported.
 //
 // The returned reason is the plugin's human-readable decline reason; it is
-// only non-empty for a genuine decline (Supported:false with a real reason),
-// never for any fail-open case.
+// only non-empty for a genuine decline (Supported:false with a real reason,
+// or InvalidArgument), never for any fail-open case.
 func (e *Engine) checkPluginSupports(
 	ctx context.Context,
 	client *pluginhost.Client,
@@ -276,9 +284,19 @@ func (e *Engine) checkPluginSupports(
 		},
 	})
 	if err != nil {
-		// Fail-open: if plugin doesn't implement Supports() or RPC fails,
-		// assume it supports the feature (backward compatible).
-		e.cacheSupportsResult(cacheKey, supportsResult{supported: true})
+		if status.Code(err) == codes.InvalidArgument {
+			reason := status.Convert(err).Message()
+			if reason == "" {
+				reason = err.Error()
+			}
+			e.cacheSupportsResult(cacheKey, supportsResult{supported: false, reason: reason})
+			return false, reason
+		}
+		// Unimplemented and other non-transient failures stay fail-open and
+		// cached. A transient failure is not a lasting "supported" answer.
+		if !supportsFailureIsTransient(err) {
+			e.cacheSupportsResult(cacheKey, supportsResult{supported: true})
+		}
 		return true, ""
 	}
 
@@ -315,6 +333,13 @@ func (e *Engine) checkPluginSupports(
 	}
 	e.cacheSupportsResult(cacheKey, supportsResult{supported: supported, reason: reason})
 	return supported, reason
+}
+
+// supportsFailureIsTransient reports RPC failures that may succeed on a later
+// call. They stay fail-open and are not stored as a supported answer.
+func supportsFailureIsTransient(err error) bool {
+	code := status.Code(err)
+	return code == codes.Unavailable || code == codes.DeadlineExceeded || code == codes.Canceled
 }
 
 // cacheSupportsResult stores a Supports() result in the engine's cache.
@@ -383,8 +408,9 @@ func declineNotes(base string, declines []pluginDecline) string {
 // the given resource (provider, type, SKU, and region) for the requested
 // feature via the Supports() RPC. It also returns the (plugin, reason) pairs
 // for every genuine decline so callers can surface them when no plugin ends
-// up serving the resource. Fail-open cases (RPC error, unimplemented
-// SupportsProvider) produce no decline entries.
+// up serving the resource. An InvalidArgument from Supports is a decline.
+// Fail-open cases (other RPC errors, unimplemented SupportsProvider) produce
+// no decline entries.
 func (e *Engine) filterUnsupportedPlugins(
 	ctx context.Context,
 	matches []PluginMatch,
@@ -1794,8 +1820,9 @@ func (e *Engine) getHourlyRateForResource(
 	ctx context.Context,
 	resource ResourceDescriptor,
 ) (float64, error) {
-	for _, client := range clientsWithoutScorers(e.clients) {
-		costResult, err := e.getProjectedCostFromPlugin(ctx, client, resource)
+	matches, _ := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
+	for _, match := range matches {
+		costResult, err := e.getProjectedCostFromPlugin(ctx, match.Client, resource)
 		if err != nil {
 			continue
 		}

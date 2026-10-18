@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -487,17 +486,16 @@ func TestInvalidPortRejected(t *testing.T) {
 	}
 }
 
-//nolint:paralleltest // Sends os.Interrupt to the whole test process; must not overlap other tests.
-func TestGracefulShutdownOnInterrupt(t *testing.T) {
+func TestRunReturnsWhenContextCanceled(t *testing.T) {
+	t.Parallel()
 	s, err := New(Options{})
 	require.NoError(t, err)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	done := make(chan error, 1)
-	go func() {
-		done <- s.Run(context.Background())
-	}()
+	go func() { done <- s.Run(ctx) }()
 
-	// Wait until the server answers.
 	require.Eventually(t, func() bool {
 		resp, getErr := noRedirectClient().Get(s.URL())
 		if getErr != nil {
@@ -507,16 +505,14 @@ func TestGracefulShutdownOnInterrupt(t *testing.T) {
 		return resp.StatusCode == http.StatusSeeOther
 	}, 10*time.Second, 25*time.Millisecond)
 
-	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
-
+	cancel()
 	select {
 	case runErr := <-done:
 		require.NoError(t, runErr)
 	case <-time.After(15 * time.Second):
-		require.FailNow(t, "Run did not return after interrupt")
+		require.FailNow(t, "Run did not return after context cancel")
 	}
 
-	// The listener is closed: new connections fail.
 	_, getErr := noRedirectClient().Get(s.URL())
 	require.Error(t, getErr)
 }

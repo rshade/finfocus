@@ -356,14 +356,19 @@ func TestLaunchBudgetFetch_EmptyEngine(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	ch := launchBudgetFetch(ctx, engine.New(nil, nil))
+	ch, done := launchBudgetFetch(ctx, engine.New(nil, nil))
 	select {
 	case got := <-ch:
 		require.NoError(t, got.err)
 		require.NotNil(t, got.result)
 		assert.Empty(t, got.result.Budgets)
 	case <-ctx.Done():
-		t.Fatal("budget fetch did not return")
+		require.Fail(t, "budget fetch did not return")
+	}
+	select {
+	case <-done:
+	case <-ctx.Done():
+		require.Fail(t, "budget fetch goroutine did not finish")
 	}
 }
 

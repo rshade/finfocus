@@ -297,6 +297,22 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 ### CLI (`internal/cli/`)
 
+- Overview TUI quit waits at most `overviewShutdownGrace` (2s) for the
+  enrichment goroutine, then `overviewCleanupHandoff` (100ms) for the plugin
+  cleanup callback. The budget fetch's done channel is joined before that
+  cleanup runs (`Run` joins it itself). A plugin call that ignores cancel is
+  abandoned after the grace period so quit cannot hang. The cleanup is
+  published when the engine is built (`newCleanupPublisher`), so the abandon
+  path still closes plugins before the process exits; a detached goroutine
+  (`runLateOverviewCleanup`) covers a cleanup that appears later.
+- `finfocus --web` shuts down on SIGINT and SIGTERM (`serveWebUntilInterrupt`
+  and `webui.Server.Run`). That is the path that stops plugin children.
+  `server_sigterm_test.go` is `//go:build unix` because Windows has no
+  `syscall.Kill` or SIGTERM. The interrupt test signals `os.Interrupt`.
+  SIGKILL still only delivers `Pdeathsig` to the direct child; a grandchild
+  the plugin spawned (the aws-public region binary) keeps running. That
+  grandchild case belongs in the plugin. `analyzer serve` already handles
+  both signals.
 - On-demand overview preview passes `capturePlan` into `resolveOverviewPlan`
   (the hook is a normal parameter, not a variadic). The web Estimate page
   reads that captured plan. Web Overview appends plan-only creates through
@@ -425,6 +441,23 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - A failed plugin call keeps the gRPC status as `<Code>: <message>`
   (`pluginRPCError`). Only an empty projected result is `no cost data
   available`. Core does not read `aws:region` from provider or stack config.
+  A fixed-cost type with no SKU property, including
+  `aws:ec2/natGateway:NatGateway`, gets one from `skus.ResolveSKU`. An empty
+  SKU is rejected before pricing (`resource.sku is required`) and the row
+  then shows no price.
+- Overview actual enrichment copies `ResourceID` into `pulumi:cloudId`, and
+  fills `pulumi:urn` and `pulumi:created` when those properties are empty,
+  before `GetActualCost`. The row's own properties are not rewritten. Cost
+  actual already receives those keys from `MapStateResource`. Without the
+  cloud id, a plugin can estimate a monthly figure instead of the measured
+  window total the Cost page shows.
+  The request `From` is clamped to the row's `CreatedAt` when that falls
+  inside the window (`actualRequestStart`), because plugins trust an explicit
+  Start over `pulumi:created`; without it a resource made yesterday was
+  charged for the whole month. `ActualCost.Period` keeps the display window.
+  An imported row (`External`) is not clamped: its `CreatedAt` is the import
+  time. A clamped row records `ActualCost.BilledDays`, and the delta
+  extrapolation divides by that instead of the day of month.
 - Projected diff (`cost projected`): replacement steps sharing a URN are
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`
@@ -459,7 +492,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - `checkPluginSupports` caches per client, provider, type, region, SKU,
   feature, and attributes digest. SKU must stay in the key, or one SKU-less
   answer poisons every SKU in that region. The SDK's "not implemented" reason
-  is fail-open, like an RPC error.
+  is fail-open, like `Unimplemented`. `InvalidArgument` from `Supports` is a
+  decline: it is cached as unsupported, the reason is shown, and no pricing
+  RPC follows. `Unavailable`, `DeadlineExceeded`, and `Canceled` stay
+  fail-open and are not cached. Do not add a provider-name table here.
 - Plugin `expires_at` sets a per-entry TTL (capped at 7 days; a past time skips
   caching). A plugin whose price depends on its own environment must send
   `expires_at` = now, because the cache key cannot see it.
@@ -550,6 +586,10 @@ Specs 613-623 hold the details. Invariants:
 
 ### MCP Server (`internal/cli/mcp.go`, `output_mode.go`)
 
+- `mcp-server` does not handle SIGINT or SIGTERM. ax-go `mcp.Serve` runs until
+  its context is canceled, and `main` passes `context.Background()` into
+  `ax.Execute`. ax-go's own example says the adopter cancels on those signals.
+  Do not patch ax-go from this repo.
 - ax-go re-executes the shared root once per `tools/call`, so persistent
   pre/post run per call. Dispatched calls reuse the server's
   `loggingSession` and never close it.
