@@ -389,8 +389,15 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   plugin settings skip `IsCredentialName` unless the descriptor sets `secret`.
   Data-keyed maps keep their keys through `RedactJSON`: use `engine.DataKeyed`
   or the struct tag `datakey:"true"` (trends, breakdowns, and the cost-summary
-  groupings). Values still pass `history.IsPulumiSecret`. Property maps do not
-  get the mark, so `IsHiddenPropertyKey` still drops credential-like names.
+  groupings). `RedactJSON` redacts in one pass (`redaction_walk.go`): it walks
+  the decoded JSON alongside the original Go value, and that value is the only
+  thing that says a map is data-keyed. A data-keyed map's keys are never
+  matched against `IsHiddenPropertyKey`; its values still pass
+  `history.IsPulumiSecret` and recurse, and one that is itself a secret
+  envelope is dropped. Property maps do not get the mark, so
+  `IsHiddenPropertyKey` still drops credential-like names. A Go value with no
+  matching source (a type with its own `MarshalJSON`, an unknown key) is
+  treated as a property map. There is no restore step, so do not add one.
   Do not add a second credential-name list or a payload-specific redactor case.
   `GET /api/recommendations/item` reads the last successful recommendations
   query cached on the session. It does not call the plugin again, because a
