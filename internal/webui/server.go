@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -192,13 +193,15 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return listenerErr
 }
 
-// Run listens, serves, and blocks until ctx is canceled or an interrupt
-// signal arrives, then shuts down gracefully.
+// Run listens, serves, and blocks until ctx is canceled or SIGINT/SIGTERM
+// arrives, then shuts down gracefully. SIGTERM must take this path: it is
+// how process supervisors stop the dashboard, and only this path stops
+// plugin children.
 func (s *Server) Run(ctx context.Context) error {
 	if err := s.Listen(); err != nil {
 		return err
 	}
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	serveErr := make(chan error, 1)

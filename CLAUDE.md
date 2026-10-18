@@ -296,6 +296,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 ### CLI (`internal/cli/`)
 
+- `finfocus --web` shuts down on SIGINT and SIGTERM (`serveWebUntilInterrupt`
+  and `webui.Server.Run`). That is the path that stops plugin children.
+  SIGKILL still only delivers `Pdeathsig` to the direct child; a grandchild
+  the plugin spawned (the aws-public region binary) keeps running. That
+  grandchild case belongs in the plugin. `analyzer serve` already handles
+  both signals.
 - `analyzer serve` prints only the port on stdout (Pulumi handshake); all logs
   go to stderr.
 - **Tests leak into the real `~/.finfocus`** unless they set
@@ -509,6 +515,10 @@ Specs 613-623 hold the details. Invariants:
 
 ### MCP Server (`internal/cli/mcp.go`, `output_mode.go`)
 
+- `mcp-server` does not handle SIGINT or SIGTERM. ax-go `mcp.Serve` runs until
+  its context is canceled, and `main` passes `context.Background()` into
+  `ax.Execute`. ax-go's own example says the adopter cancels on those signals.
+  Do not patch ax-go from this repo.
 - ax-go re-executes the shared root once per `tools/call`, so persistent
   pre/post run per call. Dispatched calls reuse the server's
   `loggingSession` and never close it.
