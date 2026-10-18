@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -138,8 +139,10 @@ func detectHistoryStackContext(ctx context.Context) (history.StackContext, bool)
 //   - directory: FINFOCUS_HISTORY_DIR > cost.history.directory > <ResolveConfigDir()>/history
 //
 // Returns nil when history is disabled or initialization fails (logged at WARN).
+// projectDir is the project-tier directory that built cfg; it decides whether
+// cost.history.directory came from an untrusted project overlay.
 // The caller should defer the returned cleanup function.
-func initHistoryFromConfig(ctx context.Context, cfg *config.Config) (history.Store, func()) {
+func initHistoryFromConfig(ctx context.Context, cfg *config.Config, projectDir string) (history.Store, func()) {
 	log := logging.FromContext(ctx)
 	noopCleanup := func() {}
 
@@ -176,7 +179,7 @@ func initHistoryFromConfig(ctx context.Context, cfg *config.Config) (history.Sto
 		return nil, noopCleanup
 	}
 
-	historyDirectory := resolveHistoryDir(ctx, cfg)
+	historyDirectory := resolveHistoryDir(ctx, cfg, projectDir)
 
 	store, err := history.NewBoltStore(ctx, historyDirectory, true, retentionDays)
 	if err != nil {
@@ -212,10 +215,11 @@ func initHistoryFromConfig(ctx context.Context, cfg *config.Config) (history.Sto
 
 // resolveHistoryDir determines the history directory using the resolution chain:
 // FINFOCUS_HISTORY_DIR, then cost.history.directory, then <ResolveConfigDir()>/history.
-// An absolute or ".."-containing cost.history.directory that came from the
-// project tier is ignored, because a cloned repository controls that file.
-func resolveHistoryDir(ctx context.Context, cfg *config.Config) string {
-	dir, usedFallback := historyDirectory(ctx, cfg)
+// A project-tier cost.history.directory that is absolute, contains "..", or
+// resolves outside the project is ignored, because a cloned repository
+// controls that file.
+func resolveHistoryDir(ctx context.Context, cfg *config.Config, projectDir string) string {
+	dir, usedFallback := historyDirectory(ctx, cfg, projectDir)
 	if usedFallback {
 		logEvent := logging.FromContext(ctx).Warn().Ctx(ctx).
 			Str("component", "history").
@@ -230,13 +234,13 @@ func resolveHistoryDir(ctx context.Context, cfg *config.Config) string {
 
 // historyDirectory is the shared history-directory resolver. It returns the
 // directory and whether it is the working-directory fallback.
-func historyDirectory(ctx context.Context, cfg *config.Config) (string, bool) {
+func historyDirectory(ctx context.Context, cfg *config.Config, projectDir string) (string, bool) {
 	if dir := os.Getenv(config.HistoryEnvDir); dir != "" {
 		return dir, false
 	}
 	if cfg != nil && cfg.Cost.History.Directory != "" {
 		dir := cfg.Cost.History.Directory
-		if !projectHistoryDirectoryRejected(ctx, dir) {
+		if !projectHistoryDirectoryRejected(ctx, projectDir) {
 			return dir, false
 		}
 	}
@@ -250,16 +254,66 @@ func historyDirectory(ctx context.Context, cfg *config.Config) (string, bool) {
 	return dir, true
 }
 
-func projectHistoryDirectoryRejected(ctx context.Context, dir string) bool {
-	if dir != config.ProjectHistoryDirectory(config.GetResolvedProjectDir()) {
-		return false
-	}
-	if !filepath.IsAbs(dir) && !slices.Contains(strings.Split(filepath.ToSlash(dir), "/"), "..") {
+// projectHistoryDirectoryRejected judges the project overlay's own
+// cost.history.directory, never a match against the merged value, so it holds
+// wherever the config was built. A merged value cannot name its tier, but an
+// overlay that sets the key always supplies the merged value.
+func projectHistoryDirectoryRejected(ctx context.Context, projectDir string) bool {
+	dir := config.ProjectHistoryDirectory(projectDir)
+	if dir == "" || projectHistoryDirectorySafe(projectDir, dir) {
 		return false
 	}
 	logging.FromContext(ctx).Warn().Ctx(ctx).
 		Str("component", "history").
 		Str("key", "cost.history.directory").
-		Msg("ignoring absolute or parent-relative history directory from project config")
+		Msg("ignoring history directory from project config that is absolute or leaves the project")
 	return true
+}
+
+// projectHistoryDirectorySafe reports whether a project-tier relative path
+// stays inside the project root (the parent of projectDir). The path is judged
+// where it will be opened, relative to the working directory, with symlinks
+// resolved on its deepest existing ancestor. Any error fails closed.
+func projectHistoryDirectorySafe(projectDir, dir string) bool {
+	if filepath.IsAbs(dir) || filepath.VolumeName(dir) != "" {
+		return false
+	}
+	if runtime.GOOS == goosWindows && (strings.HasPrefix(dir, "/") || strings.HasPrefix(dir, `\`)) {
+		return false
+	}
+	if slices.Contains(strings.Split(filepath.ToSlash(dir), "/"), "..") {
+		return false
+	}
+	root, err := filepath.EvalSymlinks(filepath.Dir(projectDir))
+	if err != nil {
+		return false
+	}
+	target, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	target, ok := evalDeepestExisting(target)
+	if !ok {
+		return false
+	}
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func evalDeepestExisting(path string) (string, bool) {
+	var tail []string
+	for cur := path; ; {
+		if resolved, err := filepath.EvalSymlinks(cur); err == nil {
+			return filepath.Join(append([]string{resolved}, tail...)...), true
+		}
+		parent := filepath.Dir(cur)
+		if parent == cur {
+			return "", false
+		}
+		tail = append([]string{filepath.Base(cur)}, tail...)
+		cur = parent
+	}
 }

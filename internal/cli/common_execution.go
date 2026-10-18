@@ -510,7 +510,7 @@ func newEngineWithCacheAndHistory(
 
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, loader, cfg)
 
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg, config.GetResolvedProjectDir())
 
 	combinedCleanup := func() {
 		historyCleanup()

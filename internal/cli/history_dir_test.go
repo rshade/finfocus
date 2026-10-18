@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -20,12 +21,12 @@ func TestHistoryDir_FinFocusHomeLeavesUserHomeUntouched(t *testing.T) {
 	setHistoryResolutionEnv(t, home, finfocusHome, "", "")
 	cfg := installHistoryConfig(t, "")
 
-	store, cleanup := initHistoryFromConfig(context.Background(), cfg)
+	store, cleanup := initHistoryFromConfig(context.Background(), cfg, "")
 	t.Cleanup(cleanup)
 	require.NotNil(t, store)
 
 	want := filepath.Join(finfocusHome, "history")
-	assert.Equal(t, want, resolveHistoryDir(context.Background(), cfg))
+	assert.Equal(t, want, resolveHistoryDir(context.Background(), cfg, ""))
 	assert.Equal(t, want, historyDir(""))
 	assert.FileExists(t, filepath.Join(want, "history.db"))
 
@@ -78,7 +79,7 @@ func TestHistoryDir_ResolutionOrder(t *testing.T) {
 			cfg := installHistoryConfig(t, tt.configDir)
 
 			want := tt.want
-			got := resolveHistoryDir(context.Background(), cfg)
+			got := resolveHistoryDir(context.Background(), cfg, "")
 			assert.Equal(t, want, got)
 			assert.Equal(t, got, historyDir(""))
 		})
@@ -104,7 +105,6 @@ func installHistoryConfig(t *testing.T, directory string) *config.Config {
 	return cfg
 }
 
-//nolint:paralleltest // t.Setenv and config.SetResolvedProjectDir change process-wide state
 func TestHistoryDir_ProjectTierTrust(t *testing.T) {
 	home := t.TempDir()
 	finfocusHome := t.TempDir()
@@ -114,35 +114,57 @@ func TestHistoryDir_ProjectTierTrust(t *testing.T) {
 	tests := []struct {
 		name       string
 		projectDir string
+		symlink    bool
 		globalDir  string
 		historyEnv string
+		wantRel    string
 		want       string
 	}{
 		{name: "project absolute ignored", projectDir: absDir, want: defaultDir},
 		{name: "project dotdot ignored", projectDir: "../x", want: defaultDir},
-		{name: "project relative accepted", projectDir: "hist/sub", want: "hist/sub"},
+		{name: "project symlink out of project ignored", projectDir: "link/sub", symlink: true, want: defaultDir},
+		{name: "project relative accepted", projectDir: "hist/sub", wantRel: "hist/sub"},
 		{name: "global absolute accepted", globalDir: absDir, want: absDir},
 		{name: "env accepted over project", projectDir: absDir, historyEnv: "/tmp/from-env", want: "/tmp/from-env"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.symlink && runtime.GOOS == goosWindows {
+				t.Skip("creating symlinks needs elevated privileges on Windows")
+			}
 			setHistoryResolutionEnv(t, home, finfocusHome, "", tt.historyEnv)
-			projectCfgDir := t.TempDir()
+			root := t.TempDir()
+			projectCfgDir := filepath.Join(root, ".finfocus")
+			require.NoError(t, os.MkdirAll(projectCfgDir, 0o750))
+			if tt.symlink {
+				require.NoError(t, os.Symlink(t.TempDir(), filepath.Join(root, "link")))
+			}
 			if tt.projectDir != "" {
 				body := `{"cost": {"history": {"directory": ` + strconv.Quote(tt.projectDir) + `}}}`
 				require.NoError(t, os.WriteFile(filepath.Join(projectCfgDir, "config.hujson"), []byte(body), 0o600))
 			}
-			config.SetResolvedProjectDir(projectCfgDir)
+			t.Chdir(root)
+			// The analyzer builds its config from its own project dir while the
+			// process-wide resolved dir is empty or points elsewhere.
+			config.SetResolvedProjectDir("")
 			t.Cleanup(func() { config.SetResolvedProjectDir("") })
 
-			merged := tt.globalDir
+			var cfg *config.Config
 			if tt.projectDir != "" {
-				merged = tt.projectDir
+				cfg = config.NewWithProjectDir(context.Background(), projectCfgDir)
+				require.Equal(t, tt.projectDir, cfg.Cost.History.Directory)
+			} else {
+				cfg = installHistoryConfig(t, tt.globalDir)
 			}
-			cfg := installHistoryConfig(t, merged)
 
-			assert.Equal(t, tt.want, resolveHistoryDir(context.Background(), cfg))
+			want := tt.want
+			if tt.wantRel != "" {
+				want = filepath.FromSlash(tt.wantRel)
+			}
+			assert.Equal(t, want, filepath.FromSlash(resolveHistoryDir(context.Background(), cfg, projectCfgDir)))
+			config.SetResolvedProjectDir(t.TempDir())
+			assert.Equal(t, want, filepath.FromSlash(resolveHistoryDir(context.Background(), cfg, projectCfgDir)))
 		})
 	}
 }
@@ -158,7 +180,7 @@ func TestHistoryDir_WorkingDirFallbackIsAbsolute(t *testing.T) {
 	require.True(t, config.UsesWorkingDirFallback())
 	cfg := installHistoryConfig(t, "")
 
-	got := resolveHistoryDir(context.Background(), cfg)
+	got := resolveHistoryDir(context.Background(), cfg, "")
 	assert.True(t, filepath.IsAbs(got), got)
 	assert.Equal(t, "history", filepath.Base(got))
 }

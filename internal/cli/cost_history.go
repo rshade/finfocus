@@ -85,7 +85,7 @@ func historyDir(dir string) string {
 	if dir != "" {
 		return dir
 	}
-	dir, _ = historyDirectory(context.Background(), config.GetGlobalConfig())
+	dir, _ = historyDirectory(context.Background(), config.GetGlobalConfig(), config.GetResolvedProjectDir())
 	return dir
 }
 

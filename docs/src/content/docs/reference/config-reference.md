@@ -162,9 +162,9 @@ The history directory resolves in this order: `FINFOCUS_HISTORY_DIR`, then
 `./.finfocus` when no home directory can be found). When `FINFOCUS_HOME` and
 `PULUMI_HOME` are unset, the directory is `~/.finfocus/history`.
 
-FinFocus ignores an absolute path, or one containing `..`, in a project-level
-`cost.history.directory` and logs a warning, because a cloned repository
-controls that file. The global config value and `FINFOCUS_HISTORY_DIR` are
+FinFocus ignores a project-level `cost.history.directory` and logs a warning
+when it is absolute, contains `..`, or resolves outside the project (for
+example through a symlink), because a cloned repository controls that file. The global config value and `FINFOCUS_HISTORY_DIR` are
 trusted.
 
 #### Example: History Configuration
