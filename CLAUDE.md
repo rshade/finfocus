@@ -625,10 +625,13 @@ Specs 613-623 hold the details. Invariants:
 
 ### MCP Server (`internal/cli/mcp.go`, `output_mode.go`)
 
-- `mcp-server` does not handle SIGINT or SIGTERM. ax-go `mcp.Serve` runs until
-  its context is canceled, and `main` passes `context.Background()` into
-  `ax.Execute`. ax-go's own example says the adopter cancels on those signals.
-  Do not patch ax-go from this repo.
+- `mcp-server` and `--mcp` cancel their context on SIGINT and SIGTERM
+  (`cancelOnShutdownSignal`, installed only on those two entry points; `main`
+  still passes `context.Background()`). ax-go `mcp.Serve` then drains and
+  returns nil, so the process exits 0 with deferred cleanup run. Do not move the
+  handler into `main`: `analyzer serve`, `--web`, and the TUI commands own their
+  signals. Do not patch ax-go from this repo. `mcp_server_signal_test.go`
+  (`//go:build unix`) pins this.
 - ax-go re-executes the shared root once per `tools/call`, so persistent
   pre/post run per call. Dispatched calls reuse the server's
   `loggingSession` and never close it.
