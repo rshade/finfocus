@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -222,6 +223,17 @@ func TestParseModifications(t *testing.T) {
 			input:       []string{"web-server:=m5.large"},
 			expectError: true,
 			errContains: "property key cannot be empty",
+		},
+		{
+			name: "URN selector keeps colons",
+			input: []string{
+				"urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance:instanceType=t3.large",
+			},
+			expected: map[string]map[string]string{
+				"urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance": {
+					"instanceType": "t3.large",
+				},
+			},
 		},
 	}
 
@@ -591,25 +603,69 @@ func TestCostEstimateCmd_ResourceNotFound(t *testing.T) {
 
 	t.Run("modification for nonexistent resource", func(t *testing.T) {
 		t.Parallel()
-		// When a modification references a resource not in the plan,
-		// the command should skip that resource and continue with others
 		cmd := cli.NewCostEstimateCmd()
 		var out bytes.Buffer
 		cmd.SetOut(&out)
 		cmd.SetErr(&out)
 
 		cmd.SetArgs([]string{
-			"--pulumi-json", "../../test/fixtures/estimate/single-resource.json",
+			"--pulumi-json", "../../test/fixtures/estimate/preview-urn.json",
 			"--modify", "nonexistent-resource:instanceType=m5.large",
 		})
 
-		// The command should execute without error (skipping unknown resources)
-		// or provide a meaningful error about the resource
 		err := cmd.Execute()
-		if err != nil {
-			// If it errors, it should mention the resource or be a plan loading error
-			// not a crash or panic
-			assert.NotContains(t, err.Error(), "panic")
-		}
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no resources matched")
+		assert.Contains(t, err.Error(), "demo-instance")
+		assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
 	})
+}
+
+func TestCostEstimateCmd_ModifyMatchesPlanResource(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	urn := "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance"
+	selectors := []string{
+		"demo-instance:instanceType=t3.large",
+		urn + ":instanceType=t3.large",
+		"aws:ec2/instance:Instance:instanceType=t3.large",
+	}
+	//nolint:paralleltest // parent sets FINFOCUS_HOME
+	for _, selector := range selectors {
+		t.Run(selector, func(t *testing.T) {
+			cmd := cli.NewCostEstimateCmd()
+			var out bytes.Buffer
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			cmd.SetArgs([]string{
+				"--pulumi-json", "../../test/fixtures/estimate/preview-urn.json",
+				"--modify", selector,
+			})
+			err := cmd.Execute()
+			if err != nil {
+				assert.NotContains(t, err.Error(), "no resources matched")
+				return
+			}
+			assert.NotContains(t, out.String(), "No estimation results")
+		})
+	}
+}
+
+func TestCostEstimateCmd_ShortResourceType(t *testing.T) {
+	t.Parallel()
+
+	cmd := cli.NewCostEstimateCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{
+		"--provider", "aws",
+		"--resource-type", "ec2:Instance",
+		"--property", "instanceType=m5.large",
+	})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a full type token")
+	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
 }

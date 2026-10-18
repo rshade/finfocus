@@ -296,6 +296,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 ### CLI (`internal/cli/`)
 
+- `cost estimate --modify` splits on the last colon before `=`, so a Pulumi
+  URN selector keeps its colons. A selector matches the resource ID, the
+  logical name (the last `::` segment), or the type. A selector that matches
+  nothing is a validation error (exit 2) that lists the plan's resources.
+  `--resource-type` must be a full token (`package:module:Type`) whose
+  package matches `--provider`; a short name such as `ec2:Instance` is
+  rejected.
 - `plugin list` orders by name ascending, then installed version descending
   as semver. A version that is not semver uses ascending string order, and
   path breaks remaining ties. Table and JSON use that same order.

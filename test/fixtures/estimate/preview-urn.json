@@ -1,0 +1,15 @@
+{
+  "steps": [
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance",
+      "newState": {
+        "urn": "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance",
+        "type": "aws:ec2/instance:Instance",
+        "inputs": {
+          "instanceType": "t3.micro"
+        }
+      }
+    }
+  ]
+}
