@@ -303,7 +303,7 @@ test('preview is offered only for a ready state-only run and clears after a prev
   assert.equal(projected.textContent, 'Projected');
   t.stream.emit('snapshot', {
     phases: [], rows: [], ready: false, stateOnly: true, previewLoaded: false,
-    detectError: 'detect failed', footnote: '* projected at current state (730h/mo)',
+    detectFailed: true, footnote: '* projected at current state (730h/mo)',
   });
   await flush();
   assert.equal(button.disabled, true);
@@ -313,7 +313,7 @@ test('preview is offered only for a ready state-only run and clears after a prev
   assert.equal(projected.textContent, 'Projected*');
   assert.match(t.container.querySelector('.state-only-footnote').textContent, /730h\/mo/);
   assert.match(t.container.querySelector('.state-only-hint').textContent, /change detection failed/);
-  t.stream.emit('run_status', { stateOnly: false, previewLoaded: true, detectError: '', footnote: '' });
+  t.stream.emit('run_status', { stateOnly: false, previewLoaded: true, detectFailed: false, footnote: '' });
   await flush();
   assert.equal(button.disabled, true);
   assert.equal(projected.textContent, 'Projected');
@@ -326,10 +326,10 @@ test('a remount after preview keeps the preview gate closed', async () => {
   const t = await setup();
   t.stream.emit('snapshot', {
     phases: [], rows: [], ready: false, stateOnly: true, previewLoaded: false,
-    detectError: 'detect failed', footnote: '* projected at current state (730h/mo)',
+    detectFailed: true, footnote: '* projected at current state (730h/mo)',
   });
   t.stream.emit('ready', { totals: {} });
-  t.stream.emit('run_status', { stateOnly: false, previewLoaded: true, detectError: '', footnote: '' });
+  t.stream.emit('run_status', { stateOnly: false, previewLoaded: true, detectFailed: false, footnote: '' });
   await flush();
   t.mounted.unmount();
   const restored = t.document.createElement('div');
@@ -341,7 +341,7 @@ test('a remount after preview keeps the preview gate closed', async () => {
   await flush();
   assert.equal(t.stream.snapshot.previewLoaded, true);
   assert.equal(t.stream.snapshot.stateOnly, false);
-  assert.equal(t.stream.snapshot.detectError, '');
+  assert.equal(t.stream.snapshot.detectFailed, false);
   assert.equal(t.stream.snapshot.footnote, '');
   assert.equal(restored.querySelector('.preview-button').disabled, true);
   assert.equal(restored.querySelectorAll('th')[4].textContent, 'Projected');

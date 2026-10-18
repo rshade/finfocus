@@ -154,7 +154,7 @@ func TestPreviewSingleFlightAndCancellation(t *testing.T) {
 			}
 		}},
 	)
-	session.SetStateOnly("")
+	session.SetStateOnly(false)
 	s := newRunningServer(t, Options{Session: session})
 	assert.Equal(t, 202, overviewRequest(t, s, "POST", "/api/overview/preview", `{}`).StatusCode)
 	<-started
@@ -272,7 +272,7 @@ func TestPreviewCancellationJoinsWorkersAndReportsError(t *testing.T) {
 			return nil, ctx.Err()
 		}},
 	)
-	session.SetStateOnly("")
+	session.SetStateOnly(false)
 	require.NoError(t, session.startPreview())
 	<-started
 	session.Close()
@@ -287,7 +287,7 @@ func TestPreviewCancellationJoinsWorkersAndReportsError(t *testing.T) {
 			return nil, errors.New("private subprocess output")
 		}},
 	)
-	failed.SetStateOnly("detect failed")
+	failed.SetStateOnly(true)
 	defer failed.Close()
 	_, events, unsubscribe := failed.subscribe()
 	defer unsubscribe()
@@ -310,7 +310,7 @@ func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T)
 		},
 	})
 	t.Cleanup(session.Close)
-	session.SetStateOnly("detect failed")
+	session.SetStateOnly(true)
 	session.Phase(previewPhase, "Detecting changes...")
 	require.NoError(t, session.startPreview())
 	require.Eventually(t, func() bool {
@@ -325,7 +325,7 @@ func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T)
 	require.Equal(t, []ErrorEvent{{Message: "Preview failed", Phase: previewPhase}}, snapshot.Errors)
 	assert.NotContains(t, string(first.data), "private subprocess output")
 
-	session.SetStateOnly("")
+	session.SetStateOnly(false)
 	require.NoError(t, session.startPreview())
 	require.Eventually(t, func() bool {
 		session.mu.Lock()
@@ -355,14 +355,14 @@ func TestStateOnlyGatesPreviewAndClearsAfterSuccess(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(body), "preview_not_allowed")
 
-	session.SetStateOnly("detect failed")
+	session.SetStateOnly(true)
 	first, _, stop := session.subscribe()
 	stop()
 	var snapshot OverviewSnapshot
 	require.NoError(t, json.Unmarshal(first.data, &snapshot))
 	assert.True(t, snapshot.StateOnly)
 	assert.False(t, snapshot.PreviewLoaded)
-	assert.Equal(t, "detect failed", snapshot.DetectError)
+	assert.True(t, snapshot.DetectFailed)
 	assert.Contains(t, snapshot.Footnote, "730h/mo")
 	assert.Equal(t, http.StatusAccepted, overviewRequest(t, s, "POST", "/api/overview/preview", `{}`).StatusCode)
 	require.Eventually(t, func() bool {
@@ -372,7 +372,7 @@ func TestStateOnlyGatesPreviewAndClearsAfterSuccess(t *testing.T) {
 		return json.Unmarshal(next.data, &snapshot) == nil && snapshot.PreviewLoaded
 	}, time.Second, time.Millisecond)
 	assert.False(t, snapshot.StateOnly)
-	assert.Empty(t, snapshot.DetectError)
+	assert.False(t, snapshot.DetectFailed)
 	assert.Empty(t, snapshot.Footnote)
 	assert.Equal(t, http.StatusConflict, overviewRequest(t, s, "POST", "/api/overview/preview", `{}`).StatusCode)
 }
@@ -418,5 +418,33 @@ func TestAcceptPassphraseBroadcastsAuthoritativeSnapshot(t *testing.T) {
 		assert.Contains(t, string(event.data), `"passphraseRequired":false`)
 	case <-time.After(100 * time.Millisecond):
 		require.FailNow(t, "accepted unlock did not update other tabs")
+	}
+}
+
+func TestDetectFailureSendsOnlyABoolean(t *testing.T) {
+	t.Parallel()
+	session := NewSession(context.Background(), SessionOptions{})
+	t.Cleanup(session.Close)
+	_, events, unsubscribe := session.subscribe()
+	defer unsubscribe()
+
+	session.SetStateOnly(true)
+
+	runStatus := <-events
+	require.Equal(t, "run_status", runStatus.name)
+	var status map[string]any
+	require.NoError(t, json.Unmarshal(runStatus.data, &status))
+	assert.Equal(t, true, status["detectFailed"])
+	assert.NotContains(t, status, "detectError")
+
+	first, _, stop := session.subscribe()
+	stop()
+	var snapshot map[string]any
+	require.NoError(t, json.Unmarshal(first.data, &snapshot))
+	assert.Equal(t, true, snapshot["detectFailed"])
+	assert.NotContains(t, snapshot, "detectError")
+	for _, payload := range [][]byte{runStatus.data, first.data} {
+		assert.NotContains(t, string(payload), "/home/")
+		assert.NotContains(t, string(payload), "sk-")
 	}
 }

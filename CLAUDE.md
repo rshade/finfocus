@@ -341,7 +341,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `writePlainJSON`. Secret values are absent from the body.
   Web overview learns state-only from `pipe.OnStateOnly`
   (`Session.SetStateOnly`). Snapshot and the `run_status` event carry
-  `stateOnly`, `previewLoaded`, and `detectError`. `POST /api/overview/preview`
+  `stateOnly`, `previewLoaded`, and `detectFailed` (a boolean; the error text stays in
+  the terminal log and never reaches the browser). `POST /api/overview/preview`
   is 409 unless the run is state-only and a preview has not been applied. A
   successful preview clears that status. Do not keep a second store beside
   those session fields.

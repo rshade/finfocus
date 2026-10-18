@@ -77,11 +77,12 @@ type Session struct {
 	previewRunning     bool
 	workers            sync.WaitGroup
 	// stateOnly is set by the overview pipeline when no preview ran. previewLoaded
-	// is set only after an on-demand preview applies. detectError is the change
-	// detection failure that left the run state-only.
+	// is set only after an on-demand preview applies. detectFailed records that a
+	// change-detection failure left the run state-only; the error text stays in
+	// the terminal log and never reaches the browser.
 	stateOnly     bool
 	previewLoaded bool
-	detectError   string
+	detectFailed  bool
 }
 
 // errPreviewNotAllowed is returned when a preview is requested for a run that
@@ -128,7 +129,7 @@ type OverviewSnapshot struct {
 	Errors             []ErrorEvent               `json:"errors"`
 	StateOnly          bool                       `json:"stateOnly"`
 	PreviewLoaded      bool                       `json:"previewLoaded"`
-	DetectError        string                     `json:"detectError,omitempty"`
+	DetectFailed       bool                       `json:"detectFailed"`
 	Footnote           string                     `json:"footnote,omitempty"`
 }
 
@@ -393,21 +394,22 @@ func (s *Session) snapshotLocked() OverviewSnapshot {
 		Errors:             failures,
 		StateOnly:          s.stateOnly,
 		PreviewLoaded:      s.previewLoaded,
-		DetectError:        s.detectError,
+		DetectFailed:       s.detectFailed,
 		Footnote:           s.stateOnlyFootnoteLocked(),
 	}
 }
 
-// SetStateOnly records that this run has no preview yet. detectErr is the
-// change-detection failure, empty when state-only was chosen on purpose.
-func (s *Session) SetStateOnly(detectErr string) {
+// SetStateOnly records that this run has no preview yet. detectFailed is
+// true when a change-detection failure caused it, false when state-only was
+// chosen on purpose. The failure text is never stored.
+func (s *Session) SetStateOnly(detectFailed bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.previewLoaded {
 		return
 	}
 	s.stateOnly = true
-	s.detectError = detectErr
+	s.detectFailed = detectFailed
 	s.publishLocked("run_status", s.runStatusLocked())
 }
 
@@ -415,7 +417,7 @@ func (s *Session) runStatusLocked() map[string]any {
 	return map[string]any{
 		"stateOnly":     s.stateOnly,
 		"previewLoaded": s.previewLoaded,
-		"detectError":   s.detectError,
+		"detectFailed":  s.detectFailed,
 		"footnote":      s.stateOnlyFootnoteLocked(),
 	}
 }
@@ -488,7 +490,7 @@ func (s *Session) runPreview() {
 		s.ready = true
 		s.stateOnly = false
 		s.previewLoaded = true
-		s.detectError = ""
+		s.detectFailed = false
 		s.completePhaseLocked(previewPhase)
 		s.preview.Rows = s.resultLocked().Rows
 		s.publishLocked("ready", map[string]any{"totals": totalsPayload(s.resultLocked().Summary)})

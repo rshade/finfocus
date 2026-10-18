@@ -186,10 +186,10 @@ export class OverviewStream {
       // A later preview clears state-only. Remounts read this snapshot, not the live view.
       if (typeof data.stateOnly === 'boolean') snapshot.stateOnly = data.stateOnly;
       if (typeof data.previewLoaded === 'boolean') snapshot.previewLoaded = data.previewLoaded;
-      if (typeof data.detectError === 'string') snapshot.detectError = data.detectError;
+      if (typeof data.detectFailed === 'boolean') snapshot.detectFailed = data.detectFailed;
       if (typeof data.footnote === 'string') snapshot.footnote = data.footnote;
       if (data.previewLoaded) {
-        snapshot.detectError = '';
+        snapshot.detectFailed = false;
         snapshot.footnote = '';
       }
     } else if (event === 'error') {

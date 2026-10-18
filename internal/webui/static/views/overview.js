@@ -75,7 +75,7 @@ export function mount(container, ctx) {
     previewElapsedMs: null,
     stateOnly: false,
     previewLoaded: false,
-    detectError: '',
+    detectFailed: false,
     footnote: '',
   };
 
@@ -386,7 +386,7 @@ export function mount(container, ctx) {
     const showNote = marked && state.ready && !state.loading;
     stateNote.hidden = !showNote || !state.footnote;
     stateNote.textContent = showNote ? state.footnote : '';
-    const showHint = showNote && Boolean(state.detectError);
+    const showHint = showNote && state.detectFailed;
     detectHint.hidden = !showHint;
     detectHint.textContent = showHint ? '(change detection failed)' : '';
     renderPreviewButton();
@@ -395,8 +395,8 @@ export function mount(container, ctx) {
     if (!data || typeof data !== 'object') return;
     if (typeof data.stateOnly === 'boolean') state.stateOnly = data.stateOnly;
     if (typeof data.previewLoaded === 'boolean') state.previewLoaded = data.previewLoaded;
-    if (typeof data.detectError === 'string') state.detectError = data.detectError;
-    if (data.previewLoaded) state.detectError = '';
+    if (typeof data.detectFailed === 'boolean') state.detectFailed = data.detectFailed;
+    if (data.previewLoaded) state.detectFailed = false;
     state.footnote = typeof data.footnote === 'string' ? data.footnote : state.footnote;
     if (data.previewLoaded) state.footnote = '';
     renderRunStatus();
