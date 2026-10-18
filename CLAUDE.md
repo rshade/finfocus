@@ -508,7 +508,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   A project-tier `cost.history.directory` is ignored with a warning when it
   is absolute, has `..`, or resolves (symlinks followed on the deepest existing
   ancestor, against the working directory) outside the project root, or when
-  `history.db` or a `*.history.db` in it is a symlink or not a regular file
+  an entry named `history.db*` or containing `.history.db` (including the
+  `.compact-*` compaction temp) is a symlink or not a regular file
   (rechecked after `MkdirAll`; a swap after the check is not covered). The gate
   takes the project dir that built the config (`initHistoryFromConfig`'s
   `projectDir`; the analyzer passes its own, never the process-global one) and
