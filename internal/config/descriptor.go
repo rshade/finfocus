@@ -131,16 +131,12 @@ func KnownSettings() []Setting {
 // The flat budget keys are accepted by the command and ignored if written
 // literally, so they are rewritten to the global scope.
 func CanonicalKey(key string) string {
-	switch key {
-	case "cost.budgets.amount":
-		return keyBudgetGlobalAmount
-	case "cost.budgets.currency":
-		return "cost.budgets.global.currency"
-	case "cost.budgets.period":
-		return keyBudgetGlobalPeriod
-	default:
-		return key
+	if field, flat := strings.CutPrefix(key, "cost.budgets."); flat {
+		if _, known := lookupBudgetField(field); known {
+			return "cost.budgets.global." + field
+		}
 	}
+	return key
 }
 
 // LookupSetting reports the descriptor for key, including dynamic plugin

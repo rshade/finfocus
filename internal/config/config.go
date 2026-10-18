@@ -1387,7 +1387,7 @@ func budgetField(parts []string) (string, bool, error) {
 		return "", false, errors.New("invalid cost.budgets key")
 	}
 	if len(parts) == 2 && parts[0] == "global" {
-		if !knownBudgetField(parts[1]) {
+		if _, known := lookupBudgetField(parts[1]); !known {
 			return "", false, fmt.Errorf("unknown cost.budgets setting: %s", parts[1])
 		}
 		return parts[1], false, nil
@@ -1395,23 +1395,13 @@ func budgetField(parts []string) (string, bool, error) {
 	if len(parts) != 1 {
 		return "", false, fmt.Errorf("unknown cost.budgets setting: %s", parts[0])
 	}
-	switch parts[0] {
-	case fieldAlerts:
+	if parts[0] == fieldAlerts {
 		return "", false, errors.New("cost.budgets.alerts must be configured via YAML")
-	case fieldAmount, fieldCurrency, fieldPeriod:
-		return parts[0], true, nil
-	default:
+	}
+	if _, known := lookupBudgetField(parts[0]); !known {
 		return "", false, fmt.Errorf("unknown cost.budgets setting: %s", parts[0])
 	}
-}
-
-func knownBudgetField(field string) bool {
-	switch field {
-	case fieldAmount, fieldCurrency, fieldPeriod:
-		return true
-	default:
-		return false
-	}
+	return parts[0], true, nil
 }
 
 func warnLegacyBudgetKey(field string) {
@@ -1421,35 +1411,62 @@ func warnLegacyBudgetKey(field string) {
 		Msg("flat cost.budgets key is deprecated; use the global scope")
 }
 
-func setBudgetField(budget *ScopedBudget, field, value string) error {
-	switch field {
-	case fieldAmount:
-		amount, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return fmt.Errorf("amount must be a number: %w", err)
+type budgetFieldDef struct {
+	name string
+	set  func(*ScopedBudget, string) error
+	get  func(*ScopedBudget) any
+}
+
+func budgetFieldDefs() []budgetFieldDef {
+	return []budgetFieldDef{
+		{
+			name: fieldAmount,
+			set: func(b *ScopedBudget, value string) error {
+				amount, err := strconv.ParseFloat(value, 64)
+				if err != nil {
+					return fmt.Errorf("amount must be a number: %w", err)
+				}
+				b.Amount = amount
+				return nil
+			},
+			get: func(b *ScopedBudget) any { return b.Amount },
+		},
+		{
+			name: fieldCurrency,
+			set:  func(b *ScopedBudget, value string) error { b.Currency = value; return nil },
+			get:  func(b *ScopedBudget) any { return b.Currency },
+		},
+		{
+			name: fieldPeriod,
+			set:  func(b *ScopedBudget, value string) error { b.Period = value; return nil },
+			get:  func(b *ScopedBudget) any { return b.GetPeriod() },
+		},
+	}
+}
+
+func lookupBudgetField(field string) (budgetFieldDef, bool) {
+	for _, def := range budgetFieldDefs() {
+		if def.name == field {
+			return def, true
 		}
-		budget.Amount = amount
-	case fieldCurrency:
-		budget.Currency = value
-	case fieldPeriod:
-		budget.Period = value
-	default:
+	}
+	return budgetFieldDef{}, false
+}
+
+func setBudgetField(budget *ScopedBudget, field, value string) error {
+	def, ok := lookupBudgetField(field)
+	if !ok {
 		return fmt.Errorf("unknown cost.budgets setting: %s", field)
 	}
-	return nil
+	return def.set(budget, value)
 }
 
 func getBudgetField(budget *ScopedBudget, field string) (any, error) {
-	switch field {
-	case fieldAmount:
-		return budget.Amount, nil
-	case fieldCurrency:
-		return budget.Currency, nil
-	case fieldPeriod:
-		return budget.GetPeriod(), nil
-	default:
+	def, ok := lookupBudgetField(field)
+	if !ok {
 		return nil, fmt.Errorf("unknown cost.budgets setting: %s", field)
 	}
+	return def.get(budget), nil
 }
 
 // GetOutputFormat selects the output format, preferring the provided userChoice over the configured default.
