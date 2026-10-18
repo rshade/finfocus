@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ func TestRunBackgroundPreviewCapturesPlan(t *testing.T) {
 	params := overviewParams{
 		cfg:        &config.Config{},
 		pulumiJSON: "../../test/fixtures/estimate/preview-urn.json",
-		capturePlan: func(plan *ingest.PulumiPlan) {
+		capturePlan: func(_ context.Context, plan *ingest.PulumiPlan) {
 			got = len(plan.GetResources())
 		},
 	}
@@ -42,7 +43,7 @@ func TestAppendPreviewRowsAddsPlanOnlyCreate(t *testing.T) {
 	)
 	require.NoError(t, err)
 	data := &webData{gate: make(chan struct{}, 1)}
-	data.capturePlan(plan)
+	data.capturePlan(context.Background(), plan)
 
 	existing := "urn:pulumi:dev::proj::aws:s3/bucket:Bucket::logs"
 	rows, err := data.appendPreviewRows(context.Background(), []engine.OverviewRow{{
@@ -64,7 +65,7 @@ func TestAppendPreviewRowsKeepsExistingURN(t *testing.T) {
 	)
 	require.NoError(t, err)
 	data := &webData{gate: make(chan struct{}, 1)}
-	data.capturePlan(plan)
+	data.capturePlan(context.Background(), plan)
 	urn := "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance"
 	rows, err := data.appendPreviewRows(context.Background(), []engine.OverviewRow{{
 		URN: urn, Type: "aws:ec2/instance:Instance", Status: engine.StatusUpdating,
@@ -118,7 +119,7 @@ func TestAppendPreviewRowsAppendsOnlyPlanCreates(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			data := &webData{gate: make(chan struct{}, 1)}
-			data.capturePlan(plan)
+			data.capturePlan(context.Background(), plan)
 			rows, err := data.appendPreviewRows(context.Background(), tt.existing)
 			require.NoError(t, err)
 			got := make([]string, 0, len(rows))
@@ -158,7 +159,7 @@ func TestAppendPreviewRowsPricesPlanOnlyCreatesWithZeroDeployedResources(t *test
 	data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
 	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: &previewPricingClient{}}}, nil)
 	data.captureState(nil)
-	data.capturePlan(plan)
+	data.capturePlan(context.Background(), plan)
 
 	rows, err := data.appendPreviewRows(context.Background(), nil)
 	require.NoError(t, err)
@@ -172,4 +173,31 @@ func TestAppendPreviewRowsPricesPlanOnlyCreatesWithZeroDeployedResources(t *test
 	rows[0].Properties["instanceType"] = "changed"
 	assert.Equal(t, "t3.micro", inputs["instanceType"])
 	assert.Equal(t, "t3.micro", data.planned[0].Properties["instanceType"])
+}
+
+func TestCapturePlanHonorsCancellationWhileGateHeld(t *testing.T) {
+	t.Parallel()
+
+	data := &webData{gate: make(chan struct{}, 1)}
+	data.gate <- struct{}{}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		data.capturePlan(ctx, &ingest.PulumiPlan{Steps: []ingest.PulumiStep{
+			{URN: "a", Type: "aws:s3/bucket:Bucket", Op: "create"},
+		}})
+	}()
+	cancel()
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 5*time.Second, time.Millisecond)
+	assert.Empty(t, data.planned)
+	assert.Empty(t, data.planSteps)
+	assert.Len(t, data.gate, 1)
 }

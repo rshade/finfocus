@@ -617,7 +617,7 @@ func TestWebInitialPreviewSourceErrorsAndOwnership(t *testing.T) {
 	ctx := context.Background()
 	data := newWebData(&cobra.Command{}, overviewParams{}, engine.DateRange{}, nil)
 	data.captureState(nil)
-	data.capturePlan(&ingest.PulumiPlan{})
+	data.capturePlan(ctx, &ingest.PulumiPlan{})
 	data.planErr = errors.New("mapping failed")
 	_, err := data.estimateResources(ctx)
 	require.Error(t, err)
@@ -659,7 +659,7 @@ func TestWebInitialPreviewReplacesExistingEstimateMetadata(t *testing.T) {
 			},
 		},
 	}
-	data.capturePlan(plan)
+	data.capturePlan(ctx, plan)
 	mapped, err := ingest.MapResources(plan.GetResources())
 	require.NoError(t, err)
 	estimates, err := data.estimateResources(ctx)

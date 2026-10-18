@@ -74,9 +74,14 @@ func (d *webData) captureState(resources []ingest.StackExportResource) {
 
 // capturePlan keeps only real initial preview sources, before synthetic expansion.
 // The query gate is the same one estimate readers hold.
-func (d *webData) capturePlan(plan *ingest.PulumiPlan) {
-	unlock, err := d.lock(context.Background())
+func (d *webData) capturePlan(ctx context.Context, plan *ingest.PulumiPlan) {
+	unlock, err := d.lock(ctx)
 	if err != nil {
+		logging.FromContext(ctx).Warn().
+			Str("component", "web").
+			Str("operation", "capture_plan").
+			Err(err).
+			Msg("preview plan capture skipped; query gate unavailable")
 		return
 	}
 	defer unlock()

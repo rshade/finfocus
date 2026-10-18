@@ -38,7 +38,7 @@ type fdProvider interface{ Fd() uintptr }
 // overviewParams holds the parameters for the overview command.
 type overviewParams struct {
 	captureState    func([]ingest.StackExportResource)
-	capturePlan     func(*ingest.PulumiPlan)
+	capturePlan     func(context.Context, *ingest.PulumiPlan)
 	pulumiJSON      string
 	pulumiState     string
 	stack           string
@@ -527,7 +527,7 @@ func loadOverviewProjectData(
 // passphrase is injected into the subprocess environment only (never [os.Setenv]).
 func resolveOverviewPlan(
 	ctx context.Context, pulumiJSON, projectDir, stack string, passphrase *string,
-	capture func(*ingest.PulumiPlan),
+	capture func(context.Context, *ingest.PulumiPlan),
 ) ([]engine.PlanStep, error) {
 	log := logging.FromContext(ctx)
 
@@ -537,7 +537,7 @@ func resolveOverviewPlan(
 			return nil, fmt.Errorf("loading Pulumi plan: %w", err)
 		}
 		if capture != nil {
-			capture(plan)
+			capture(ctx, plan)
 		}
 		return convertPlanSteps(plan.Steps), nil
 	}
@@ -557,7 +557,7 @@ func resolveOverviewPlan(
 		return nil, fmt.Errorf("parsing pulumi preview: %w", err)
 	}
 	if capture != nil {
-		capture(plan)
+		capture(ctx, plan)
 	}
 	return convertPlanSteps(plan.Steps), nil
 }
