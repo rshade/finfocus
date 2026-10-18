@@ -1026,7 +1026,7 @@ func TestWebUISharedPresentation(t *testing.T) {
 	assert.Contains(t, text, "Rightsize")
 	assert.NotContains(t, text, "RECOMMENDATION_ACTION_TYPE_RIGHTSIZE")
 	visible, err := page.Evaluate(
-		`() => { const cell=document.querySelector('.recommendations-table tbody td:nth-child(4)');const r=cell.getBoundingClientRect();return r.left>=0 && r.right<=innerWidth; }`,
+		`() => { const cell=document.querySelector('.recommendations-table tbody td:nth-child(4)');const r=cell?.getBoundingClientRect();return !!r && r.left>=0 && r.right<=innerWidth; }`,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, true, visible, "savings column fits the native 1280px viewport")
