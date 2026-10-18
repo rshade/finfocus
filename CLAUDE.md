@@ -337,6 +337,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   groupings). Values still pass `history.IsPulumiSecret`. Property maps do not
   get the mark, so `IsHiddenPropertyKey` still drops credential-like names.
   Do not add a second credential-name list or a payload-specific redactor case.
+  `GET /api/recommendations/item` reads the last successful recommendations
+  query cached on the session. It does not call the plugin again, because a
+  plugin may mint a new `Recommendation.ID` on every call. That ID stays the
+  dismissal id. A later successful query replaces the cache, and an id that
+  was not in it is 404.
   `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.

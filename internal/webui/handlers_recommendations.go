@@ -65,6 +65,11 @@ func (s *Server) handleRecommendationsQuery(w http.ResponseWriter, r *http.Reque
 	for i := range safe.Errors {
 		safe.Errors[i].Error = "Recommendation data unavailable"
 	}
+	presented := viewmodel.FilterRecommendations(
+		append([]engine.Recommendation(nil), safe.Recommendations...),
+		query.Filter,
+	)
+	s.session.setPresentedRecommendations(presented)
 	s.WriteJSON(w, http.StatusOK, viewmodel.BuildRecommendationPage(safe, query.Filter, sort, query.Page))
 }
 
@@ -78,21 +83,12 @@ func (s *Server) handleRecommendationItem(w http.ResponseWriter, r *http.Request
 		s.writeError(w, http.StatusServiceUnavailable, "not_ready", "recommendation data is loading")
 		return
 	}
-	ctx, done, err := s.session.beginQuery(r.Context())
+	items, err := s.session.presentedRecommendations()
 	if err != nil {
 		s.writeError(w, http.StatusServiceUnavailable, "not_ready", "recommendation data is loading")
 		return
 	}
-	defer done()
-	result, err := s.session.opts.Recommendations(ctx, true)
-	if err != nil || result == nil {
-		done()
-		s.writeError(w, http.StatusBadGateway, "recommendations_unavailable", "recommendation data unavailable")
-		return
-	}
-	result = cloneData(result)
-	done()
-	for _, rec := range result.Recommendations {
+	for _, rec := range items {
 		if recommendationMatches(r, rec, id) {
 			s.WriteJSON(
 				w,
