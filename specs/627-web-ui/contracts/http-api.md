@@ -221,7 +221,7 @@ the TUI and browser; JavaScript renders their financial strings verbatim.
 
 | Method | Path | Body / Query | Response |
 |--------|------|--------------|----------|
-| GET | `/api/estimate/resources` | — | `{ resources: ResourceDescriptor[] }`, real source descriptors with current projected properties |
+| GET | `/api/estimate/resources` | optional `showAll=true` | `{ resources: ResourceDescriptor[], billability, hiddenCount, preferredURN }`, eligible real source descriptors with current projected properties; Show all restores confirmed non-billable entries |
 | GET | `/api/estimate/baseline?urn=...` | optional `pricingMode` | `{ resource, result: EstimateResult, pricingModes, pricingMode, display }` |
 | POST | `/api/estimate/recalculate` | `{ urn, overrides: map[string]string, pricingMode? }` | `EstimateResult` fields plus `{ pricingMode, display }` |
 
@@ -260,6 +260,16 @@ identity. Advisory price options never replace the primary estimate.
 `EstimateCost` requirement for nonempty overrides. The TUI uses the same
 provider-aware request and baseline helper; the plain CLI can select that
 provider with its existing `--adapter` option. A provider failure on
+Resource listing hides confirmed non-billable resources by default. The `showAll`
+boolean restores the complete safe list after launch filters; invalid or repeated
+values return 400 `invalid_query`. `billability` maps stable resource IDs to
+`non_billable`, `potentially_billable`, or `unknown`. `hiddenCount` counts entries
+hidden in this response. `preferredURN` recommends the initial selection and is
+empty when no candidates remain. List rendering does not probe pricing plugins;
+missing or conflicting cached metadata remains unknown. Zero cost or rate alone
+never hides a resource. Baseline and recalculation accept safe source URNs even
+when hidden from the default list.
+
 `GET /api/estimate/baseline` returns `502` / `estimate_unavailable` and also
 `resource`, `pricingModes`, and `display.properties`. Those rows come from
 `viewmodel.BuildEstimatePropertyRows` with no cost deltas, and the comparison

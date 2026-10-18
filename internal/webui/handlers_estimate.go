@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/viewmodel"
@@ -63,23 +64,61 @@ func (s *Server) beginEstimate(w http.ResponseWriter, r *http.Request) (context.
 }
 
 func (s *Server) handleEstimateResources(w http.ResponseWriter, r *http.Request) {
+	showAll := false
+	if value, present := r.URL.Query()["showAll"]; present {
+		var err error
+		if len(value) != 1 {
+			s.writeError(w, http.StatusBadRequest, "invalid_query", "showAll must be a boolean")
+			return
+		}
+		showAll, err = strconv.ParseBool(value[0])
+		if err != nil {
+			s.writeError(w, http.StatusBadRequest, "invalid_query", "showAll must be a boolean")
+			return
+		}
+	}
 	ctx, done, ok := s.beginEstimate(w, r)
 	if !ok {
 		return
 	}
 	defer done()
 	resources, err := s.session.estimateResources(ctx)
-	done()
 	if err != nil {
+		done()
 		s.writeEstimateError(w, err)
 		return
 	}
-	if resources == nil {
-		resources = []engine.ResourceDescriptor{}
+	eng, release, err := s.session.estimateEngine(ctx)
+	defer func() {
+		if release != nil {
+			release()
+		}
+	}()
+
+	// Losing optional metadata must not remove estimation candidates.
+	if err != nil {
+		eng = nil
 	}
-	s.WriteJSON(w, http.StatusOK, struct {
-		Resources []engine.ResourceDescriptor `json:"resources"`
-	}{resources})
+	selection := eng.SelectEstimateResources(ctx, resources, showAll)
+	// A positive successful projected baseline is a ranking hint only. Zero or
+	// missing costs never affect visibility or establish non-billability.
+	visible := make(map[string]bool, len(selection.Resources))
+	for _, resource := range selection.Resources {
+		visible[resource.ID] = true
+	}
+	for _, row := range s.session.Rows() {
+		if visible[row.URN] && selection.Billability[row.URN] != engine.NonBillable &&
+			row.Error == nil && row.ProjectedCost != nil && row.ProjectedCost.MonthlyCost > 0 {
+			selection.PreferredURN = row.URN
+			break
+		}
+	}
+	if release != nil {
+		release()
+		release = nil
+	}
+	done()
+	s.WriteJSON(w, http.StatusOK, selection)
 }
 
 func (s *Server) estimateResource(ctx context.Context, urn string) (*engine.ResourceDescriptor, error) {

@@ -1,0 +1,31 @@
+{
+  "version": 3,
+  "deployment": {
+    "resources": [
+      {
+        "urn": "urn:pulumi:dev::picker::pulumi:pulumi:Stack::picker-dev",
+        "type": "pulumi:pulumi:Stack",
+        "inputs": {}
+      },
+      {
+        "urn": "urn:pulumi:dev::picker::pulumi:providers:aws::default",
+        "type": "pulumi:providers:aws",
+        "custom": true,
+        "id": "fixture-provider",
+        "inputs": {
+          "region": "us-east-1"
+        }
+      },
+      {
+        "urn": "urn:pulumi:dev::picker::aws:ec2/instance:Instance::existing",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "id": "i-fixture",
+        "inputs": {
+          "instanceType": "t3.micro",
+          "region": "us-east-1"
+        }
+      }
+    ]
+  }
+}

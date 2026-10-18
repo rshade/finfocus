@@ -143,3 +143,85 @@ test('a plain failure after a successful estimate clears the stale comparison bu
   assert.ok(t.container.querySelectorAll('.estimate-input').length > 0);
   t.mounted.unmount();
 });
+
+test('show all preserves an eligible selection, pricing mode and edits without a new baseline', async () => {
+ const t=await loaded();
+ const picker=t.container.querySelector('#estimate-resource');
+ const toggle=t.container.querySelector('#estimate-show-all');
+ assert.ok(toggle);
+ const input=t.container.querySelectorAll('.estimate-input')[0];input.value='unsaved edit';
+ const mode=t.container.querySelector('#estimate-mode');mode.value='opaque-mode';
+ toggle.checked=true;toggle.dispatch('change');
+ assert.equal(t.calls.at(-1).path,'/api/estimate/resources?showAll=true');
+ const count=t.calls.length;
+ t.calls.at(-1).resolve({resources:[{id:'provider',type:'pulumi:providers:aws'},{id:'urn:real',type:'aws:ec2:Instance'}],preferredURN:'urn:real'});
+ await flush();
+ assert.equal(picker.value,'urn:real');assert.equal(mode.value,'opaque-mode');assert.equal(input.value,'unsaved edit');assert.equal(t.calls.length,count);
+ toggle.checked=false;toggle.dispatch('change');
+ assert.equal(t.calls.at(-1).path,'/api/estimate/resources');
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(picker.value,'urn:real');assert.equal(input.value,'unsaved edit');t.mounted.unmount();
+});
+
+test('filtered empty state offers show all and uses the server preferred resource', async () => {
+ const t=await setup('estimate');
+ t.calls[0].resolve({resources:[],hiddenCount:2,preferredURN:''});await flush();
+ assert.match(t.container.textContent,/known non-billable/);assert.match(t.container.textContent,/Show all resources/);
+ const toggle=t.container.querySelector('#estimate-show-all');toggle.checked=true;toggle.dispatch('change');
+ t.calls.at(-1).resolve({resources:[{id:'provider',type:'pulumi:providers:aws'},{id:'candidate',type:'custom:module:Unknown'}],preferredURN:'candidate'});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource').value,'candidate');
+ assert.match(t.calls.at(-1).path,/baseline\?urn=candidate/);t.mounted.unmount();
+});
+
+test('hiding the selected non-billable resource clears stale editor and pricing details', async () => {
+ const t=await loaded();
+ const toggle=t.container.querySelector('#estimate-show-all');assert.ok(toggle);
+ toggle.checked=false;toggle.dispatch('change');
+ t.calls.at(-1).resolve({resources:[],hiddenCount:1});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource').value,'');
+ assert.equal(t.container.querySelectorAll('.estimate-input').length,0);
+ assert.equal(t.container.querySelector('.totals-bar').textContent,'');
+ assert.equal(t.container.querySelector('#estimate-mode').querySelectorAll('option').length,1);
+ assert.doesNotMatch(t.container.textContent,/server-formatted tier/);t.mounted.unmount();
+});
+
+test('a stale show-all response cannot replace the latest filtered list', async () => {
+ const t=await loaded();const toggle=t.container.querySelector('#estimate-show-all');assert.ok(toggle);
+ toggle.checked=true;toggle.dispatch('change');const older=t.calls.at(-1);
+ toggle.checked=false;toggle.dispatch('change');const newer=t.calls.at(-1);
+ assert.equal(older.options.signal.aborted,true);
+ newer.resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ older.resolve({resources:[{id:'provider',type:'pulumi:providers:aws'}]});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource').value,'urn:real');t.mounted.unmount();
+});
+
+test('toggling during an initial baseline preserves the pending calculation', async () => {
+ const t=await setup('estimate');
+ t.calls[0].resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ const pending=t.calls.at(-1), toggle=t.container.querySelector('#estimate-show-all');
+ toggle.checked=true;toggle.dispatch('change');assert.equal(pending.options.signal.aborted,false);
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ pending.resolve(baseline());await flush();
+ assert.match(t.container.textContent,/Estimate calculated/);t.mounted.unmount();
+});
+
+test('editor recalculation cannot cancel a pending show-all resource list', async () => {
+ const t=await loaded();const toggle=t.container.querySelector('#estimate-show-all');
+ toggle.checked=true;toggle.dispatch('change');const listing=t.calls.at(-1);
+ const input=t.container.querySelectorAll('.estimate-input')[0];input.value='4';input.dispatch('keydown',{key:'Enter'});
+ const calculation=t.calls.at(-1);assert.equal(listing.options.signal.aborted,false);
+ calculation.resolve({display:{...baseline().display,modified:'new comparison'}});await flush();
+ listing.resolve({resources:[{id:'provider',type:'pulumi:providers:aws'},{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource').children.length,2);
+ assert.match(t.container.textContent,/new comparison/);t.mounted.unmount();
+});
+
+test('ready refresh preserves edits for unchanged sources and refreshes changed preview properties', async () => {
+ const t=await loaded();const input=t.container.querySelectorAll('.estimate-input')[0];input.value='unsaved';
+ t.emit('ready',{});const count=t.calls.length;
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(t.calls.length,count);assert.equal(t.container.querySelectorAll('.estimate-input')[0].value,'unsaved');assert.match(t.container.textContent,/Estimate calculated/);
+ t.emit('ready',{});
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance',properties:{instanceType:'changed-by-preview'}}]});await flush();
+ assert.match(t.calls.at(-1).path,/baseline\?urn=/);t.mounted.unmount();
+});

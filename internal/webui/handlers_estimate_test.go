@@ -571,3 +571,155 @@ func TestEstimateBaselineFailureHidesNestedSecrets(t *testing.T) {
 		assert.NotContains(t, string(raw), secret)
 	}
 }
+
+func TestEstimateResourceVisibility(t *testing.T) {
+	t.Parallel()
+	resources := []engine.ResourceDescriptor{
+		{ID: "provider", Type: "pulumi:providers:aws"},
+		{ID: "stack", Type: "pulumi:pulumi:Stack"},
+		{ID: "unknown", Type: "custom:module:Unknown"},
+		{ID: "instance", Type: "aws:ec2:Instance", Provider: "aws", Properties: map[string]any{"size": float64(1)}},
+	}
+	session := NewSession(
+		context.Background(),
+		SessionOptions{
+			EstimateResources: func(context.Context) ([]engine.ResourceDescriptor, error) { return resources, nil },
+		},
+	)
+	session.SetData(
+		engine.New(nil, nil),
+		[]engine.OverviewRow{{URN: "instance", ProjectedCost: &engine.ProjectedCostData{MonthlyCost: 10}}},
+		engine.DateRange{},
+		"",
+	)
+	s := newRunningServer(t, Options{Session: session})
+	for _, tc := range []struct {
+		query   string
+		wantIDs []string
+		hidden  int
+	}{
+		{wantIDs: []string{"unknown", "instance"}, hidden: 2},
+		{query: "?showAll=true", wantIDs: []string{"provider", "stack", "unknown", "instance"}},
+		{query: "?showAll=false", wantIDs: []string{"unknown", "instance"}, hidden: 2},
+	} {
+		t.Run(tc.query, func(t *testing.T) {
+			t.Parallel()
+			resp := overviewRequest(t, s, "GET", "/api/estimate/resources"+tc.query, "")
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			var got engine.EstimateResourceSelection
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+			ids := make([]string, 0, len(got.Resources))
+			for _, r := range got.Resources {
+				ids = append(ids, r.ID)
+			}
+			assert.Equal(t, tc.wantIDs, ids)
+			assert.Equal(t, tc.hidden, got.HiddenCount)
+			assert.Equal(t, "instance", got.PreferredURN)
+			assert.Equal(t, engine.NonBillable, got.Billability["provider"])
+			assert.Equal(t, engine.BillabilityUnknown, got.Billability["unknown"])
+		})
+	}
+	resp := overviewRequest(t, s, "GET", "/api/estimate/resources?showAll=wat", "")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	assert.Len(t, resources, 4)
+}
+
+func TestEstimateResourcesEmptyAfterFiltering(t *testing.T) {
+	t.Parallel()
+	session := NewSession(
+		context.Background(),
+		SessionOptions{EstimateResources: func(context.Context) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{{ID: "provider", Type: "pulumi:providers:aws"}}, nil
+		}},
+	)
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	s := newRunningServer(t, Options{Session: session})
+	resp := overviewRequest(t, s, "GET", "/api/estimate/resources", "")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var got engine.EstimateResourceSelection
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+	assert.Empty(t, got.Resources)
+	assert.Empty(t, got.PreferredURN)
+	assert.Equal(t, 1, got.HiddenCount)
+}
+
+func TestEstimateResourceListUsesCurrentEngineMetadata(t *testing.T) {
+	t.Parallel()
+	resource := engine.ResourceDescriptor{
+		ID:         "cloud",
+		Provider:   "aws",
+		Type:       "aws:ec2:Instance",
+		Properties: map[string]any{"size": float64(1)},
+	}
+	plugin := &pickerPricingPlugin{billingMode: "zero_cost"}
+	current := engine.New([]*pluginhost.Client{{Name: "pricing", API: plugin}}, nil)
+	current.DiscoverPricingSpec(context.Background(), &resource)
+	releases := 0
+	session := NewSession(context.Background(), SessionOptions{
+		EstimateResources: func(context.Context) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{resource}, nil
+		},
+		QueryEngine: func(context.Context) (*engine.Engine, func(), error) { return current, func() { releases++ }, nil },
+	})
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	s := newRunningServer(t, Options{Session: session})
+	for _, query := range []string{"", "?showAll=true"} {
+		resp := overviewRequest(t, s, "GET", "/api/estimate/resources"+query, "")
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		var got engine.EstimateResourceSelection
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+		if query == "" {
+			assert.Empty(t, got.Resources)
+			assert.Equal(t, 1, got.HiddenCount)
+		} else {
+			require.Len(t, got.Resources, 1)
+			assert.Equal(t, "cloud", got.Resources[0].ID)
+		}
+		assert.Equal(t, engine.NonBillable, got.Billability["cloud"])
+	}
+	assert.Equal(t, 2, releases)
+	assert.Equal(t, 1, plugin.calls, "listing reuses metadata and makes no pricing probes")
+	// Direct source lookup is independent of default picker visibility.
+	got, err := s.estimateResource(context.Background(), "cloud")
+	require.NoError(t, err)
+	assert.Equal(t, resource.ID, got.ID)
+}
+
+type pickerPricingPlugin struct {
+	proto.CostSourceClient
+
+	billingMode string
+	calls       int
+}
+
+func (p *pickerPricingPlugin) GetPricingSpec(
+	context.Context,
+	*pbc.GetPricingSpecRequest,
+	...grpc.CallOption,
+) (*pbc.GetPricingSpecResponse, error) {
+	p.calls++
+	return &pbc.GetPricingSpecResponse{Spec: &pbc.PricingSpec{BillingMode: p.billingMode}}, nil
+}
+
+func TestEstimateResourceListEscapesHTML(t *testing.T) {
+	t.Parallel()
+	session := NewSession(
+		context.Background(),
+		SessionOptions{EstimateResources: func(context.Context) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{{ID: "<script>alert(1)</script>", Type: "custom:module:Unknown"}}, nil
+		}},
+	)
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	s := newRunningServer(t, Options{Session: session})
+	resp := overviewRequest(t, s, "GET", "/api/estimate/resources?showAll=true", "")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+	data, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "<script>")
+	assert.Contains(t, string(data), `\u003cscript\u003e`)
+	var got engine.EstimateResourceSelection
+	require.NoError(t, json.Unmarshal(data, &got))
+	require.Len(t, got.Resources, 1)
+	assert.Equal(t, "<script>alert(1)</script>", got.Resources[0].ID)
+}

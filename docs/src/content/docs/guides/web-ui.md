@@ -129,6 +129,27 @@ finishes. Only one preview runs at a time.
 There is no general refresh. To fetch fresh actual costs, stop the session and
 launch it again.
 
+## Choose a What-If resource
+
+The What-If picker hides Pulumi provider and stack bookkeeping by default.
+It also hides resources confirmed non-billable by available, agreeing plugin
+pricing metadata. **Show all resources** restores the complete safe source list,
+within your launch filters. An eligible selected resource and its unsaved edits
+stay selected when you toggle it.
+
+Zero baseline, zero rate, or zero actual spend does not establish non-billability.
+Unsupported resources, missing region or SKU, pricing errors, and unknown
+billability remain available for estimation. Metadata is used only when already
+available for the effective pricing providers; listing resources never triggers
+new pricing probes. A positive projected baseline helps choose the initial
+resource without affecting which resources are visible.
+
+If only known non-billable resources remain, the picker explains the empty list
+and offers **Show all resources**. Planned resources and existing launch filters
+still apply. Interactive plan estimation uses the same default eligibility
+policy; explicit `cost estimate --provider ... --resource-type ...` remains
+available for inspecting a specific type.
+
 ## Open another tab or reconnect
 
 Open the printed URL again to start another tab or browser profile. The URL
