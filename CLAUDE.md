@@ -346,6 +346,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   a default query and present, flagged `Dismissed`, with `includeDismissed`.
   With no successful query yet, the endpoint runs the query once and caches
   it. With several tabs the last query wins.
+  The overview EventSource checks `GET /api/overview/budget` (same-origin
+  cookie, no bearer token) after a connection failure. A 401 stops retries
+  and tells the user to open the link printed in the terminal. `close`
+  aborts that check. Other failures keep the capped backoff.
   `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.

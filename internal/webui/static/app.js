@@ -113,8 +113,10 @@ export const api = {
 // EventSource reconnects automatically while the stream stays open; when the
 // browser reports the connection closed we recreate it with backoff so a
 // server restart (or transient network failure) recovers without a reload.
-// The server sends a `snapshot` event first on every (re)connect, so views
-// recover the current load state from the stream itself.
+// A closed connection first checks the session cookie with a same-origin
+// fetch. A 401 stops the retry loop. The server sends a `snapshot` event
+// first on every (re)connect, so views recover the current load state from
+// the stream itself.
 export class OverviewStream {
   constructor(url = '/api/overview/stream', statusNode = null) {
     this.url = url;
@@ -124,6 +126,8 @@ export class OverviewStream {
     this.maxRetryDelayMs = 15000;
     this.source = null;
     this.retryTimer = null;
+    this.authAbort = null;
+    this.authFailed = false;
     this.closed = false;
     this.snapshot = null;
     this.passphraseGeneration = 0;
@@ -201,7 +205,7 @@ export class OverviewStream {
   }
 
   start() {
-    if (this.closed) return;
+    if (this.closed || this.authFailed) return;
     clearTimeout(this.retryTimer);
     if (this.source) this.source.close();
     const source = new EventSource(this.url);
@@ -239,25 +243,76 @@ export class OverviewStream {
         this.emit('error', data);
         return;
       }
-      if (this.closed) return;
+      if (this.closed || this.authFailed || source !== this.source) return;
       if (source.readyState === EventSource.CONNECTING) {
-        // EventSource is retrying on its own.
+        // EventSource is retrying on its own. Still confirm the cookie,
+        // because a restarted server answers 401 on every reconnect.
         this.setStatus('Reconnecting…', 'reconnecting');
+        this.confirmSession();
         return;
       }
-      // CLOSED: schedule a manual reconnect with backoff.
-      this.setStatus('Disconnected — retrying…', 'down');
-      clearTimeout(this.retryTimer);
-      this.retryTimer = setTimeout(() => {
-        this.retryDelayMs = Math.min(this.retryDelayMs * 2, this.maxRetryDelayMs);
-        this.start();
-      }, this.retryDelayMs);
+      // CLOSED: confirm the session before scheduling another connection.
+      this.setStatus('Reconnecting…', 'reconnecting');
+      this.confirmSession();
     });
+  }
+
+  // confirmSession uses the existing session cookie. It does not send a bearer
+  // token. A 401 means the printed link is stale; anything else may retry.
+  confirmSession() {
+    if (this.closed || this.authFailed || this.authAbort) return;
+    const controller = new AbortController();
+    this.authAbort = controller;
+    fetch('/api/overview/budget', { credentials: 'same-origin', signal: controller.signal })
+      .then((resp) => {
+        if (controller.signal.aborted || this.closed || this.authFailed) return;
+        if (resp.status === 401) {
+          this.failAuthentication();
+          return;
+        }
+        this.resumeAfterDisconnect();
+      })
+      .catch((err) => {
+        if (controller.signal.aborted || this.closed || this.authFailed || err?.name === 'AbortError') return;
+        this.resumeAfterDisconnect();
+      })
+      .finally(() => {
+        if (this.authAbort === controller) this.authAbort = null;
+      });
+  }
+
+  resumeAfterDisconnect() {
+    if (this.closed || this.authFailed || !this.source) return;
+    if (this.source.readyState === EventSource.CONNECTING) return;
+    this.setStatus('Disconnected — retrying…', 'down');
+    clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(() => {
+      this.retryDelayMs = Math.min(this.retryDelayMs * 2, this.maxRetryDelayMs);
+      this.start();
+    }, this.retryDelayMs);
+  }
+
+  failAuthentication() {
+    this.authFailed = true;
+    clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    const abort = this.authAbort;
+    this.authAbort = null;
+    abort?.abort();
+    if (this.source) {
+      this.source.close();
+      this.source = null;
+    }
+    this.setStatus('Sign-in expired. Open the fresh link printed in the terminal.', 'down');
   }
 
   close() {
     this.closed = true;
     clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    const abort = this.authAbort;
+    this.authAbort = null;
+    abort?.abort();
     if (this.source) this.source.close();
     this.setStatus('', 'down');
   }
