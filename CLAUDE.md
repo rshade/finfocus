@@ -298,6 +298,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 - `finfocus --web` shuts down on SIGINT and SIGTERM (`serveWebUntilInterrupt`
   and `webui.Server.Run`). That is the path that stops plugin children.
+  `server_sigterm_test.go` is `//go:build unix` because Windows has no
+  `syscall.Kill` or SIGTERM. The interrupt test signals `os.Interrupt`.
   SIGKILL still only delivers `Pdeathsig` to the direct child; a grandchild
   the plugin spawned (the aws-public region binary) keeps running. That
   grandchild case belongs in the plugin. `analyzer serve` already handles

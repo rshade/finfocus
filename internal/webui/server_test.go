@@ -7,9 +7,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -507,7 +507,9 @@ func TestGracefulShutdownOnInterrupt(t *testing.T) {
 		return resp.StatusCode == http.StatusSeeOther
 	}, 10*time.Second, 25*time.Millisecond)
 
-	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	proc, err := os.FindProcess(os.Getpid())
+	require.NoError(t, err)
+	require.NoError(t, proc.Signal(os.Interrupt))
 
 	select {
 	case runErr := <-done:
