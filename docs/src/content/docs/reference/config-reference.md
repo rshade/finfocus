@@ -209,8 +209,8 @@ Configure budget limits, alerts, and cost calculation preferences.
 
 Default workload hint for projected cost and recommendations. Accepted values
 are `dev`, `development`, `prod`, `production`, `burst`, and `default`.
-An empty or omitted field means no preference. `default` is the same as no
-preference. `--profile` and `FINFOCUS_PROFILE` override this field for one
+An omitted field means no preference. An empty value is a configuration
+error. `default` is the same as no preference. `--profile` and `FINFOCUS_PROFILE` override this field for one
 run and do not rewrite the file. `cost actual` and `cost history collect`
 accept the flag so a bad value fails early, and they do not send the hint.
 

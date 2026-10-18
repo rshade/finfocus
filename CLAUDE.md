@@ -501,6 +501,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `FINFOCUS_PROFILE`, then `cost.profile` on the merged config
   (`InitializedGlobalConfig`). `config.New` has no project overlay, so
   estimate, overview, and the dashboard must not read the profile from it.
+  An omitted `cost.profile` is no preference. A present empty value fails
+  validation. The interactive recommendations view names the same profile.
   The environment variable is not
   copied into the config file. Opt-in engines are projected, recommendations,
   forecast, estimate, cluster run-rate, overview, the dashboard engine, and

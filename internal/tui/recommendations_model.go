@@ -214,6 +214,7 @@ type RecommendationsViewModel struct {
 
 	// Aggregated data
 	summary *RecommendationsSummary
+	profile string
 
 	// Error handling
 	err error
@@ -221,12 +222,22 @@ type RecommendationsViewModel struct {
 
 // NewRecommendationsViewModel creates a new model with the given recommendations.
 func NewRecommendationsViewModel(recs []engine.Recommendation) *RecommendationsViewModel {
+	return NewRecommendationsViewModelWithProfile(recs, "")
+}
+
+// NewRecommendationsViewModelWithProfile creates a model that names the
+// workload hint used for this result. An empty profile is shown as default.
+func NewRecommendationsViewModelWithProfile(
+	recs []engine.Recommendation,
+	profile string,
+) *RecommendationsViewModel {
 	m := &RecommendationsViewModel{
 		state:              ViewStateList,
 		allRecommendations: recs,
 		recommendations:    recs,
 		textInput:          newRecTextInput(),
 		summary:            NewRecommendationsSummary(recs),
+		profile:            profile,
 		width:              defaultWidth,
 		height:             defaultHeight,
 	}
@@ -481,7 +492,8 @@ func (m *RecommendationsViewModel) View() tea.View {
 }
 
 func (m *RecommendationsViewModel) renderListView() string {
-	summary := RenderRecommendationsSummaryTUI(m.summary, m.width)
+	summary := "Profile: " + displayedRecommendationProfile(m.profile) + "\n" +
+		RenderRecommendationsSummaryTUI(m.summary, m.width)
 
 	// Render the virtual list
 	var listView string
@@ -538,6 +550,13 @@ func NewRecommendationsTable(recs []engine.Recommendation, height int) string {
 			rec.ResourceID, rec.Type, savings, desc)
 	}
 	return result.String()
+}
+
+func displayedRecommendationProfile(profile string) string {
+	if profile == "" {
+		return "default"
+	}
+	return profile
 }
 
 // RenderRecommendationsSummaryTUI renders the recommendations summary for TUI display.

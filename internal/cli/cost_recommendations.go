@@ -584,7 +584,7 @@ func RenderRecommendationsOutput(
 
 	switch mode {
 	case tui.OutputModeInteractive:
-		return runInteractiveRecommendations(result.Recommendations)
+		return runInteractiveRecommendations(result.Recommendations, result.Profile)
 
 	case tui.OutputModeStyled:
 		// Styled mode renders the summary with lipgloss styling
@@ -599,8 +599,8 @@ func RenderRecommendationsOutput(
 
 // runInteractiveRecommendations launches the interactive TUI for recommendations.
 // Uses NewRecommendationsViewModel which starts with data already loaded.
-func runInteractiveRecommendations(recommendations []engine.Recommendation) error {
-	model := tui.NewRecommendationsViewModel(recommendations)
+func runInteractiveRecommendations(recommendations []engine.Recommendation, profile string) error {
+	model := tui.NewRecommendationsViewModelWithProfile(recommendations, profile)
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive recommendations TUI: %w", err)

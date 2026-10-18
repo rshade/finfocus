@@ -332,8 +332,11 @@ type CostConfig struct {
 	PricingSpecFallback bool `yaml:"pricing_spec_fallback" json:"pricing_spec_fallback"`
 
 	// Profile is the default usage profile for projected cost and recommendations.
-	// Empty means no preference. Accepted values are dev, prod, burst, and default.
+	// An omitted field means no preference. A present empty value is invalid.
+	// Accepted values are dev, prod, burst, and default.
 	Profile string `yaml:"profile,omitempty" json:"profile,omitempty"`
+	// profileSet is true when decoding saw a profile key, including "".
+	profileSet bool `json:"-" yaml:"-"`
 }
 
 // CacheConfig defines caching behavior for query results.
@@ -380,8 +383,8 @@ func (c CostConfig) Validate() error {
 		return fmt.Errorf("allocation: %w", err)
 	}
 
-	if c.Profile != "" {
-		if _, err := ParseUsageProfile(c.Profile); err != nil {
+	if c.HasProfile() || c.Profile != "" {
+		if _, err := ParseRequiredUsageProfile(c.Profile); err != nil {
 			return fmt.Errorf("profile: %w", err)
 		}
 	}

@@ -17,7 +17,7 @@ const usageProfileFlagHelp = "Workload hint for projected cost and recommendatio
 // An explicit --profile wins, including --profile=default. Otherwise a set
 // FINFOCUS_PROFILE wins, then a non-empty cost.profile. An omitted flag, an
 // unset variable, and an omitted config field are no preference. A present
-// empty value is an error.
+// empty value, including a saved profile of "", is an error.
 func resolveUsageProfile(cmd *cobra.Command, cfg *config.Config) (pbc.UsageProfile, error) {
 	if cmd != nil {
 		if flag := cmd.Flags().Lookup("profile"); flag != nil && flag.Changed {
@@ -27,7 +27,7 @@ func resolveUsageProfile(cmd *cobra.Command, cfg *config.Config) (pbc.UsageProfi
 	if value, ok := os.LookupEnv(config.UsageProfileEnv); ok {
 		return config.ParseRequiredUsageProfile(value)
 	}
-	if cfg != nil && cfg.Cost.Profile != "" {
+	if cfg != nil && (cfg.Cost.HasProfile() || cfg.Cost.Profile != "") {
 		return config.ParseRequiredUsageProfile(cfg.Cost.Profile)
 	}
 	return pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED, nil

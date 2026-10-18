@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -73,6 +74,20 @@ func TestResolveUsageProfileDefaultIsNoPreference(t *testing.T) {
 	cmd.Flags().String("profile", "", usageProfileFlagHelp)
 	require.NoError(t, cmd.ParseFlags([]string{"--profile=default"}))
 	profile, err := resolveUsageProfile(cmd, &config.Config{Cost: config.CostConfig{Profile: "prod"}})
+	require.NoError(t, err)
+	assert.Equal(t, pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED, profile)
+}
+
+func TestResolveUsageProfileRejectsExplicitEmptyConfig(t *testing.T) {
+	t.Parallel()
+	var cfg config.Config
+	require.NoError(t, json.Unmarshal([]byte(`{"cost":{"profile":""}}`), &cfg))
+	_, err := resolveUsageProfile(nil, &cfg)
+	require.ErrorContains(t, err, "usage profile")
+
+	var omitted config.Config
+	require.NoError(t, json.Unmarshal([]byte(`{"cost":{}}`), &omitted))
+	profile, err := resolveUsageProfile(nil, &omitted)
 	require.NoError(t, err)
 	assert.Equal(t, pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED, profile)
 }

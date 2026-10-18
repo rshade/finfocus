@@ -1,10 +1,14 @@
 package config
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
@@ -64,6 +68,50 @@ func TestCostConfigValidateProfile(t *testing.T) {
 	require.ErrorContains(t, err, "profile")
 	err = (CostConfig{Profile: " "}).Validate()
 	require.Error(t, err)
+}
+
+func TestCostConfigRejectsExplicitEmptyProfile(t *testing.T) {
+	t.Parallel()
+
+	var present CostConfig
+	require.NoError(t, json.Unmarshal([]byte(`{"profile":""}`), &present))
+	assert.True(t, present.HasProfile())
+	require.ErrorContains(t, present.Validate(), "profile")
+
+	var omitted CostConfig
+	require.NoError(t, json.Unmarshal([]byte(`{}`), &omitted))
+	assert.False(t, omitted.HasProfile())
+	require.NoError(t, omitted.Validate())
+
+	var fromYAML CostConfig
+	require.NoError(t, yaml.Unmarshal([]byte("profile: \"\"\n"), &fromYAML))
+	assert.True(t, fromYAML.HasProfile())
+	require.ErrorContains(t, fromYAML.Validate(), "profile")
+}
+
+func TestLoadConfigRejectsExplicitEmptyProfile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.hujson")
+	require.NoError(t, os.WriteFile(path, []byte(`{"cost":{"profile":""}}`), 0o600))
+	cfg := &Config{}
+	require.NoError(t, loadConfig(path, cfg))
+	assert.True(t, cfg.Cost.HasProfile())
+	require.ErrorContains(t, cfg.Cost.Validate(), "profile")
+
+	require.NoError(t, os.WriteFile(path, []byte(`{"cost":{"pricing_spec_fallback":false}}`), 0o600))
+	omitted := &Config{}
+	require.NoError(t, loadConfig(path, omitted))
+	assert.False(t, omitted.Cost.HasProfile())
+	require.NoError(t, omitted.Cost.Validate())
+
+	overlay := filepath.Join(dir, "project.yaml")
+	require.NoError(t, os.WriteFile(overlay, []byte("cost:\n  profile: \"\"\n"), 0o600))
+	merged := &Config{}
+	require.NoError(t, ShallowMergeYAML(merged, overlay))
+	assert.True(t, merged.Cost.HasProfile())
+	require.ErrorContains(t, merged.Cost.Validate(), "profile")
 }
 
 func labelFor(profile pbc.UsageProfile) string {

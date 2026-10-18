@@ -1,9 +1,13 @@
 package config
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -40,6 +44,52 @@ func ParseRequiredUsageProfile(value string) (pbc.UsageProfile, error) {
 		return pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED, errUsageProfileEmpty
 	}
 	return ParseUsageProfile(value)
+}
+
+// HasProfile reports whether decoding saw a profile key. An in-memory
+// CostConfig with only Profile set returns false; callers still read Profile.
+func (c CostConfig) HasProfile() bool {
+	return c.profileSet
+}
+
+// UnmarshalJSON records whether profile was present, including an empty string.
+func (c *CostConfig) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		*c = CostConfig{}
+		return nil
+	}
+	var probe map[string]json.RawMessage
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return err
+	}
+	type plain CostConfig
+	var decoded plain
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*c = CostConfig(decoded)
+	_, c.profileSet = probe["profile"]
+	return nil
+}
+
+// UnmarshalYAML records whether profile was present, including an empty string.
+func (c *CostConfig) UnmarshalYAML(value *yaml.Node) error {
+	type plain CostConfig
+	var decoded plain
+	if err := value.Decode(&decoded); err != nil {
+		return err
+	}
+	*c = CostConfig(decoded)
+	if value.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(value.Content); i += 2 {
+		if value.Content[i].Value == "profile" {
+			c.profileSet = true
+			break
+		}
+	}
+	return nil
 }
 
 // UsageProfileLabel is the name printed for a profile. No preference is "default".
