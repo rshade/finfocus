@@ -45,6 +45,7 @@ type orphanFixture struct {
 	binary  string
 	project string
 	pidFile string
+	served  string
 	env     []string
 }
 
@@ -56,8 +57,6 @@ func newOrphanFixture(t *testing.T) orphanFixture {
 	pluginDir := filepath.Join(home, "plugins", "orphanfixture", "0.1.0")
 	require.NoError(t, os.MkdirAll(pluginDir, 0o750))
 	require.NoError(t, os.MkdirAll(project, 0o750))
-	pulumiYAML := []byte("name: orphan\nruntime: yaml\n")
-	require.NoError(t, os.WriteFile(filepath.Join(project, "Pulumi.yaml"), pulumiYAML, 0o600))
 
 	binary := filepath.Join(work, "finfocus")
 	out, err := exec.Command("go", "build",
@@ -82,6 +81,7 @@ func newOrphanFixture(t *testing.T) orphanFixture {
 	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "plugin.manifest.json"), manifest, 0o600))
 
 	pidFile := filepath.Join(work, "pids")
+	served := filepath.Join(work, "served")
 	env := []string{}
 	for _, entry := range os.Environ() {
 		if !strings.HasPrefix(entry, "FINFOCUS_") && !strings.HasPrefix(entry, "PULUMI_") {
@@ -95,8 +95,9 @@ func newOrphanFixture(t *testing.T) orphanFixture {
 		"FINFOCUS_CACHE_ENABLED=false",
 		"FINFOCUS_SKIP_MIGRATION_CHECK=1",
 		"ORPHAN_PID_FILE="+pidFile,
+		"ORPHAN_SERVED_FILE="+served,
 	)
-	return orphanFixture{binary: binary, project: project, pidFile: pidFile, env: env}
+	return orphanFixture{binary: binary, project: project, pidFile: pidFile, served: served, env: env}
 }
 
 type orphanWeb struct {
@@ -184,6 +185,10 @@ func TestWebSIGTERM_StopsPluginAndItsChild(t *testing.T) {
 		_, scanErr := fmt.Sscan(string(data), &pluginPID, &childPID)
 		return scanErr == nil
 	}, orphanWait, 50*time.Millisecond, "fixture plugin never started; stderr:\n%s", web.stderr())
+	require.Eventually(t, func() bool {
+		_, statErr := os.Stat(f.served)
+		return statErr == nil
+	}, orphanWait, 50*time.Millisecond, "plugin never served a pricing request; stderr:\n%s", web.stderr())
 	require.True(t, processAlive(t, pluginPID))
 	require.True(t, processAlive(t, childPID))
 

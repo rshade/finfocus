@@ -24,6 +24,19 @@ func (p *plugin) Supports(context.Context, *pbc.SupportsRequest) (*pbc.SupportsR
 	return &pbc.SupportsResponse{Supported: true}, nil
 }
 
+func (p *plugin) GetProjectedCost(
+	_ context.Context, _ *pbc.GetProjectedCostRequest,
+) (*pbc.GetProjectedCostResponse, error) {
+	_ = os.WriteFile(os.Getenv("ORPHAN_SERVED_FILE"), []byte("served"), 0o600)
+	return &pbc.GetProjectedCostResponse{
+		Currency:      "USD",
+		CostPerMonth:  1,
+		UnitPrice:     1,
+		CostBreakdown: map[string]float64{"compute": 1},
+		BillingDetail: "orphan fixture",
+	}, nil
+}
+
 func main() {
 	name := strings.TrimPrefix(os.Args[0][strings.LastIndex(os.Args[0], "/")+1:], "finfocus-plugin-")
 
