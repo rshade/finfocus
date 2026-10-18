@@ -67,7 +67,7 @@ func toTestableRecommendations(recs []engine.Recommendation) []TestableRecommend
 // RenderRecommendationsSummaryForTest is a test export for renderRecommendationsSummary.
 func RenderRecommendationsSummaryForTest(w io.Writer, recs []TestableRecommendation) {
 	engineRecs := toEngineRecommendations(recs)
-	renderRecommendationsSummary(w, engineRecs)
+	renderRecommendationsSummary(w, engineRecs, "")
 }
 
 // SortRecommendationsBySavingsForTest is a test export for sortRecommendationsBySavings.

@@ -76,9 +76,12 @@ Completed Milestones, 2026-Q4).
         ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
 - [ ] **Contextual Profiles ("Dev Mode")**
       ([#368](https://github.com/rshade/finfocus/issues/368)) [L]
-  - [ ] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
+  - [x] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
         to plugins
-  - [ ] Configuration: Allow default profile definition in `finfocus.yaml`
+  - [x] Configuration: Allow default profile definition in `finfocus.yaml`
+        (`cost.profile` in `config.hujson`; `FINFOCUS_PROFILE` overrides it)
+  - Plugin pricing heuristics (shorter hours, burstable classes) stay in the
+    plugins. Core only forwards the hint.
   - *Spec ready:* `UsageProfile` enum (PROD/DEV/BURST) available in
     finfocus-spec v0.5.5 — core-only implementation
 - [ ] **Spec v0.5.7 Features**

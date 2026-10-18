@@ -188,6 +188,10 @@ func (d *webData) reloadPlugins(ctx context.Context) error {
 	eng := engine.New(clients, nil).
 		WithRouter(createRouterForEngine(ctx, cfg, clients)).
 		WithPricingSpecFallback(cfg.Cost.PricingSpecFallback)
+	if profileErr := applyUsageProfile(d.cmd, eng, usageProfileSource(cfg)); profileErr != nil {
+		pluginCleanup()
+		return profileErr
+	}
 	if d.cache != nil {
 		eng = eng.WithCache(d.cache)
 	}

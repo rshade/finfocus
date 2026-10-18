@@ -100,7 +100,7 @@ func (e *Engine) selectedProjectedCost(
 	ctx, cancel := context.WithTimeout(ctx, perResourceTimeout)
 	defer cancel()
 	resource.Properties = redactedProperties(ctx, resource.Properties)
-	result, err := e.getProjectedCostFromPlugin(ctx, client, resource)
+	result, err := e.getProjectedCostFromPlugin(ctx, client, resource, e.usageProfile)
 	if err != nil {
 		return nil, err
 	}

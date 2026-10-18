@@ -71,6 +71,18 @@ func GetGlobalConfig() *Config {
 	return GlobalConfig
 }
 
+// InitializedGlobalConfig returns the process config after a successful
+// InitGlobalConfigWithProject call. It does not initialize the singleton.
+// A nil result means no command has loaded the project overlay yet.
+func InitializedGlobalConfig() *Config {
+	globalConfigMu.RLock()
+	defer globalConfigMu.RUnlock()
+	if !globalConfigInit {
+		return nil
+	}
+	return GlobalConfig
+}
+
 // GetDefaultOutputFormat returns the configured default output format.
 func GetDefaultOutputFormat() string {
 	cfg := GetGlobalConfig()

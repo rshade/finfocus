@@ -139,6 +139,7 @@ type Engine struct {
 	dismissalStore        *config.DismissalStore // Optional dismissal store; if nil, created on demand
 	jobs                  int                    // Override worker count; 0 means auto (default)
 	pricingSpecFallback   bool                   // GetPricingSpec after a projected-cost miss; default off
+	usageProfile          pbc.UsageProfile       // workload hint; zero is no preference
 	explainPricing        bool                   // --explain display; does not change the calculated cost
 	pricingSpecTimeout    time.Duration          // GetPricingSpec deadline; zero uses perResourceTimeout
 	pricingDiscoveryMu    sync.Mutex             // Guards pricingDiscoveryCache
@@ -197,6 +198,20 @@ func (e *Engine) WithRouter(router Router) *Engine {
 // This is optional - if not set, a store is created on demand per call.
 func (e *Engine) WithDismissalStore(store *config.DismissalStore) *Engine {
 	e.dismissalStore = store
+	return e
+}
+
+// WithUsageProfile sets the workload hint sent on projected-cost and
+// recommendation requests. An unknown value is no preference. The zero value
+// leaves the plugin request unset and the cache key unchanged.
+func (e *Engine) WithUsageProfile(profile pbc.UsageProfile) *Engine {
+	if e == nil {
+		return nil
+	}
+	if !pluginsdk.IsValidUsageProfile(profile) {
+		profile = pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED
+	}
+	e.usageProfile = profile
 	return e
 }
 
@@ -640,7 +655,8 @@ func (e *Engine) GetProjectedCost(
 
 	batchHandled := make(map[int][]CostResult) // index → results for batch-handled resources
 
-	if e.hasBatchCapableClient() {
+	// BatchCostRequest has no usage profile. A set profile must use the unary RPC.
+	if e.hasBatchCapableClient() && e.usageProfile == pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED {
 		batchGroups := e.groupResourcesByPlugin(ctx, resources)
 		for _, pluginBatch := range batchGroups {
 			if !pluginBatch.hasBatch {
@@ -774,7 +790,7 @@ func (e *Engine) GetProjectedCost(
 
 				// Apply per-resource timeout for plugin calls
 				resourceCtx, resourceCancel := context.WithTimeout(ctx, perResourceTimeout)
-				result, err := e.getProjectedCostFromPlugin(resourceCtx, client, resource)
+				result, err := e.getProjectedCostFromPlugin(resourceCtx, client, resource, e.usageProfile)
 				resourceCancel()
 				if err != nil {
 					pluginErrs = append(pluginErrs, ErrorDetail{
@@ -982,7 +998,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 				}
 
 				client := match.Client
-				pluginResult, err := e.getProjectedCostFromPlugin(ctx, client, resource)
+				pluginResult, err := e.getProjectedCostFromPlugin(ctx, client, resource, e.usageProfile)
 				if err != nil {
 					// Check if fallback is enabled for this plugin
 					if !match.Fallback {
@@ -1822,7 +1838,10 @@ func (e *Engine) getHourlyRateForResource(
 ) (float64, error) {
 	matches, _ := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
 	for _, match := range matches {
-		costResult, err := e.getProjectedCostFromPlugin(ctx, match.Client, resource)
+		// Actual cost's hourly lookup must not carry a planning hint.
+		costResult, err := e.getProjectedCostFromPlugin(
+			ctx, match.Client, resource, pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED,
+		)
 		if err != nil {
 			continue
 		}
@@ -1837,6 +1856,7 @@ func (e *Engine) getProjectedCostFromPlugin(
 	ctx context.Context,
 	client *pluginhost.Client,
 	resource ResourceDescriptor,
+	profile pbc.UsageProfile,
 ) (*CostResult, error) {
 	// Try to get pricing from plugin first
 	req := &proto.GetProjectedCostRequest{
@@ -1849,6 +1869,7 @@ func (e *Engine) getProjectedCostFromPlugin(
 				Attributes: BuildAttributes(ctx, resource.Properties),
 			},
 		},
+		UsageProfile: profile,
 	}
 
 	// Note: Utilization from ctx (ContextKeyUtilization) is available for future use
@@ -3517,6 +3538,7 @@ func (e *Engine) getRecommendationsForResources(
 	log := logging.FromContext(ctx)
 	result := &RecommendationsResult{
 		Currency: defaultCurrency,
+		Profile:  config.UsageProfileLabel(e.usageProfile),
 	}
 
 	if len(resources) == 0 {
@@ -3653,9 +3675,9 @@ func (e *Engine) recommendationsCacheKey(
 ) string {
 	key := e.generateRecommendationsCacheKey(resources, excludedIDs)
 	if includeDismissed {
-		return key + "/include-dismissed"
+		key += "/include-dismissed"
 	}
-	return key
+	return key + e.usageProfileCacheSuffix()
 }
 
 // isScorerOnly reports whether a plugin advertises recommendation scoring without
@@ -3702,7 +3724,7 @@ func (e *Engine) routeRecommendationTargets(
 // recommendationsRequest builds the plugin request for one recommendations fetch.
 // includeDismissed asks the plugin to return recommendations it has dismissed.
 // excluded IDs are still sent, and a plugin that honors both omits those IDs.
-func recommendationsRequest(
+func (e *Engine) recommendationsRequest(
 	resources []ResourceDescriptor,
 	excludedIDs []string,
 	includeDismissed bool,
@@ -3720,6 +3742,7 @@ func recommendationsRequest(
 		TargetResources:  targetResources,
 		ProjectionPeriod: "monthly",
 		IncludeDismissed: includeDismissed,
+		UsageProfile:     e.usageProfile,
 	}
 	if len(excludedIDs) > 0 {
 		req.ExcludedRecommendationIDs = excludedIDs
@@ -3738,7 +3761,7 @@ func (e *Engine) fetchRecommendationsSequential(
 ) error {
 	log := logging.FromContext(ctx)
 
-	req := recommendationsRequest(resources, excludedIDs, includeDismissed)
+	req := e.recommendationsRequest(resources, excludedIDs, includeDismissed)
 
 	resp, err := client.API.GetRecommendations(ctx, req)
 	if err != nil {
@@ -3786,7 +3809,7 @@ func (e *Engine) fetchRecommendationsWithBatching(
 		ctx,
 		resources,
 		func(ctx context.Context, batchResources []ResourceDescriptor, batchIndex int) error {
-			req := recommendationsRequest(batchResources, excludedIDs, includeDismissed)
+			req := e.recommendationsRequest(batchResources, excludedIDs, includeDismissed)
 
 			resp, recErr := client.API.GetRecommendations(ctx, req)
 			if recErr != nil {
@@ -4176,7 +4199,19 @@ func (e *Engine) projectedCostCacheKey(resource ResourceDescriptor) (string, err
 	if e.pricingSpecFallback {
 		key += pricingSpecCacheSuffix
 	}
+	key += e.usageProfileCacheSuffix()
 	return key, nil
+}
+
+func (e *Engine) usageProfileCacheSuffix() string {
+	if e == nil {
+		return ""
+	}
+	label := config.UsageProfileLabel(e.usageProfile)
+	if label == "default" {
+		return ""
+	}
+	return "/profile-" + label
 }
 
 // projectedGrowthCacheSuffix versions cached projected results for GrowthType.

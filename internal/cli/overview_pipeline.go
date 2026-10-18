@@ -495,6 +495,12 @@ func (p *OverviewPipeline) startEngine(
 
 	p.emitPhase(OverviewPhasePrepareEngine, overviewPhasePrepareEngineName)
 	eng, cacheCleanup := p.newEngine(ctx, clients)
+	if err := applyUsageProfile(p.cfg.cmd, eng, usageProfileSource(p.cfg.params.cfg)); err != nil {
+		cacheCleanup()
+		pluginCleanup()
+		p.emitError(&PhaseError{Phase: OverviewPhasePrepareEngine, Err: err})
+		return nil, nil, false, err
+	}
 	p.mu.Lock()
 	p.result.Engine = eng
 	p.cleanup = func() { cacheCleanup(); pluginCleanup() }
