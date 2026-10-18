@@ -146,6 +146,8 @@ type overviewPipelineConfig struct {
 // overview phases — load stack state, detect changes, merge resources, start
 // plugins, prepare the engine, enrich resources (with cluster expansion and
 // budget fetch) — and reports every step through the callback fields below.
+// Plugin processes start before stack loading so startup overlaps that work.
+// Phase events stay in order: phase 4 is reported when the open is joined.
 // All callbacks are optional; nil callbacks are skipped. Callbacks run on the
 // goroutine that called [OverviewPipeline.Run] and must not block.
 type OverviewPipeline struct {
@@ -273,26 +275,48 @@ func (p *OverviewPipeline) emitError(err error) {
 // emitting events through the configured callbacks. Fatal errors are reported
 // via OnError and returned; recoverable per-row failures surface on the rows
 // themselves, as engine.EnrichOverviewRows records them.
+//
+// Plugin opening starts immediately and overlaps passphrase resolution and
+// stack loading. The two sides do not share writes. A plugin failure cancels
+// the load, and a load failure cancels plugin startup. Clients are released
+// before Run returns unless both succeeded.
 func (p *OverviewPipeline) Run(ctx context.Context) error {
-	// Pre-check: resolve a stack passphrase before loading when the pipeline
-	// accepts passphrases.
-	pw, passphraseErr := p.resolvePassphrase(ctx)
+	// runCtx cancels only the load. Plugin processes keep a child of ctx so
+	// joining the load cannot kill them; see startPluginOpen.
+	runCtx, cancelRun := context.WithCancel(ctx)
+	defer cancelRun()
+	opened := p.startPluginOpen(ctx, cancelRun)
+
+	pw, passphraseErr := p.resolvePassphrase(runCtx)
 	if passphraseErr != nil {
-		p.emitError(&PhaseError{Phase: OverviewPhaseLoadStackState, Err: passphraseErr})
-		return passphraseErr
+		return p.finishEarly(opened, passphraseErr, OverviewPhaseLoadStackState)
 	}
 	p.mu.Lock()
 	p.passphrase = pw
 	p.mu.Unlock()
 
-	data, loadErr := p.loadWithPassphraseRetry(ctx)
+	data, loadErr := p.loadWithPassphraseRetry(runCtx)
 	if p.cfg.transientPassphrase {
 		p.clearPassphrase()
 	}
 	if loadErr != nil {
-		p.emitError(loadErr)
-		return loadErr
+		return p.finishEarly(opened, loadErr, 0)
 	}
+	return p.finishLoaded(ctx, opened, data)
+}
+
+// finishLoaded joins a successful stack load with plugin startup and runs
+// engine preparation, enrichment, and the ready event.
+func (p *OverviewPipeline) finishLoaded(
+	ctx context.Context, opened *pluginOpen, data *OverviewPipelineData,
+) error {
+	clients, pluginCleanup, pluginErr := opened.wait()
+	if pluginErr != nil {
+		pluginCleanup()
+		p.emitError(&PhaseError{Phase: OverviewPhaseStartPlugins, Err: pluginErr})
+		return pluginErr
+	}
+
 	// Capture the stack identity early so RunPreview works while enrichment
 	// is still in flight (the TUI 'p' key is live as soon as OnStateOnly fires).
 	p.mu.Lock()
@@ -300,7 +324,7 @@ func (p *OverviewPipeline) Run(ctx context.Context) error {
 	p.result.ProjectDir = data.ProjectDir
 	p.mu.Unlock()
 
-	clients, eng, proceed, startErr := p.startEngine(ctx, data)
+	clients, eng, proceed, startErr := p.startEngine(ctx, data, clients, pluginCleanup)
 	if startErr != nil {
 		return startErr
 	}
@@ -360,18 +384,100 @@ func (p *OverviewPipeline) Run(ctx context.Context) error {
 	return nil
 }
 
-// startEngine runs phases 4-5: open plugins, the optional pre-flight
-// confirmation, engine construction, and the data-ready/state-only events.
-// proceed is false when the confirmation declined; the pipeline then stops
-// quietly (no error, no ready event).
+// pluginOpen is an in-flight openPlugins call overlapped with stack loading.
+// Its context is a child of the caller's context and is canceled only when
+// startup fails or the owner releases the clients. Canceling it at the end of
+// a successful wait would kill plugin processes before enrichment.
+type pluginOpen struct {
+	cancel context.CancelFunc
+	done   chan pluginOpenResult
+}
+
+type pluginOpenResult struct {
+	clients []*pluginhost.Client
+	cleanup func()
+	err     error
+}
+
+// startPluginOpen launches plugins immediately. A startup error cancels
+// cancelLoad so passphrase resolution and stack loading unblock.
+func (p *OverviewPipeline) startPluginOpen(parent context.Context, cancelLoad context.CancelFunc) *pluginOpen {
+	pluginCtx, cancel := context.WithCancel(parent)
+	op := &pluginOpen{cancel: cancel, done: make(chan pluginOpenResult, 1)}
+	go func() {
+		clients, cleanup, err := p.openPlugins(pluginCtx)
+		if err != nil {
+			cancelLoad()
+		}
+		op.done <- pluginOpenResult{clients: clients, cleanup: cleanup, err: err}
+	}()
+	return op
+}
+
+// stop cancels startup, waits for it, and releases any clients that opened.
+func (op *pluginOpen) stop() error {
+	op.cancel()
+	res := <-op.done
+	if res.cleanup != nil {
+		res.cleanup()
+	}
+	return res.err
+}
+
+// wait returns the opened clients. cleanup closes them and then cancels the
+// launch context, so a successful open stays alive until the pipeline owner
+// releases it.
+func (op *pluginOpen) wait() ([]*pluginhost.Client, func(), error) {
+	res := <-op.done
+	cleanup := func() {
+		if res.cleanup != nil {
+			res.cleanup()
+		}
+		op.cancel()
+	}
+	return res.clients, cleanup, res.err
+}
+
+// finishEarly stops plugin startup and reports the originating failure.
+// fallbackPhase labels a plain error (passphrase resolution). A load error
+// already carries its phase. A real plugin error replaces a cancellation it
+// caused.
+func (p *OverviewPipeline) finishEarly(op *pluginOpen, primary error, fallbackPhase int) error {
+	pluginErr := op.stop()
+	if pluginOpenIsCause(primary, pluginErr) {
+		p.emitError(&PhaseError{Phase: OverviewPhaseStartPlugins, Err: pluginErr})
+		return pluginErr
+	}
+	if fallbackPhase != 0 {
+		if _, ok := errors.AsType[*PhaseError](primary); !ok {
+			p.emitError(&PhaseError{Phase: fallbackPhase, Err: primary})
+			return primary
+		}
+	}
+	p.emitError(primary)
+	return primary
+}
+
+// pluginOpenIsCause is true when plugin startup failed on its own and the
+// load side only observed that cancellation.
+func pluginOpenIsCause(primary, pluginErr error) bool {
+	if pluginErr == nil || errors.Is(pluginErr, context.Canceled) {
+		return false
+	}
+	return primary == nil || errors.Is(primary, context.Canceled)
+}
+
+// startEngine runs phases 4-5: the optional pre-flight confirmation, engine
+// construction, and the data-ready/state-only events. clients were opened
+// concurrently with stack loading. proceed is false when the confirmation
+// declined; the pipeline then stops quietly (no error, no ready event).
 func (p *OverviewPipeline) startEngine(
 	ctx context.Context, data *OverviewPipelineData,
+	clients []*pluginhost.Client, pluginCleanup func(),
 ) ([]*pluginhost.Client, *engine.Engine, bool, error) {
 	p.emitPhase(OverviewPhaseStartPlugins, overviewPhaseStartPluginsName)
-	clients, pluginCleanup, pluginErr := p.openPlugins(ctx)
-	if pluginErr != nil {
-		p.emitError(&PhaseError{Phase: OverviewPhaseStartPlugins, Err: pluginErr})
-		return nil, nil, false, pluginErr
+	if pluginCleanup == nil {
+		pluginCleanup = func() {}
 	}
 
 	if p.ConfirmEnrichment != nil {
