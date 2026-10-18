@@ -195,6 +195,8 @@ func TestHistoryDir_ProjectTierSymlinkedDatabase(t *testing.T) {
 		{name: "project history file symlink rejected", fileName: "proj@dev.history.db", symlink: true},
 		{name: "uppercase HISTORY.DB symlink rejected", fileName: "HISTORY.DB", symlink: true},
 		{name: "uppercase suffix symlink rejected", fileName: "proj@dev.HISTORY.DB", symlink: true},
+		{name: "compact temp symlink rejected", fileName: "proj@dev.history.db.compact", symlink: true},
+		{name: "history.db sidecar symlink rejected", fileName: "history.db.compact", symlink: true},
 		{name: "regular history.db accepted", fileName: "history.db"},
 	}
 
