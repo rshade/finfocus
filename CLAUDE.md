@@ -370,6 +370,29 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   that bus runs `RedactJSON` and drops slow subscribers. Settings GET uses
   `writePlainJSON`. Secret values are absent from the body. Bool and enum
   plugin settings skip `IsCredentialName` unless the descriptor sets `secret`.
+  Data-keyed maps keep their keys through `RedactJSON`: use `engine.DataKeyed`
+  or the struct tag `datakey:"true"` (trends, breakdowns, and the cost-summary
+  groupings). Values still pass `history.IsPulumiSecret`. Property maps do not
+  get the mark, so `IsHiddenPropertyKey` still drops credential-like names.
+  Do not add a second credential-name list or a payload-specific redactor case.
+  `GET /api/recommendations/item` reads the last successful recommendations
+  query cached on the session. It does not call the plugin again, because a
+  plugin may mint a new `Recommendation.ID` on every call. That ID stays the
+  dismissal id. A later successful query replaces the cache, and an id that
+  was not in it is 404. The web UI has no dismiss action, so a dismissal
+  made elsewhere shows only on the next query: dismissed items are absent from
+  a default query and present, flagged `Dismissed`, with `includeDismissed`.
+  With no successful query yet, the endpoint runs the query once and caches
+  it. With several tabs the last query wins.
+  The overview EventSource checks `GET /api/overview/budget` (same-origin
+  cookie, no bearer token) after a connection failure. A 401 stops retries
+  and tells the user to open the link printed in the terminal. `close`
+  aborts that check. Other failures keep the capped backoff.
+  `GET /api/estimate/baseline` is the exception to a plain `{error, code}`
+  body: a provider failure is still 502 `estimate_unavailable`, and the body
+  also carries redacted `display.properties` with no deltas, `pricingModes`
+  from `DiscoverPricingSpec`, and `resource`. `400 invalid_pricing_mode`
+  stays `{error, code}` only. The editor must not treat that 502 as success.
   Web overview learns state-only from `pipe.OnStateOnly`
   (`Session.SetStateOnly`). Snapshot and the `run_status` event carry
   `stateOnly`, `previewLoaded`, and `detectFailed` (a boolean; the error text stays in

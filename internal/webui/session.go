@@ -76,6 +76,11 @@ type Session struct {
 	preview            PreviewEvent
 	previewRunning     bool
 	workers            sync.WaitGroup
+	// presentedRecs is the last recommendations query shown to the browser.
+	// Detail reads this instead of calling the plugin again: a plugin may mint
+	// a new Recommendation.ID on every call, and that ID stays the dismissal id.
+	presentedRecs []engine.Recommendation
+	presentedSet  bool
 	// stateOnly is set by the overview pipeline when no preview ran. previewLoaded
 	// is set only after an on-demand preview applies. detectFailed records that a
 	// change-detection failure left the run state-only; the error text stays in
@@ -355,6 +360,38 @@ func (s *Session) RequirePassphrase(stack string) {
 
 // SubscriberCount reports active streams, including bounded slow-client eviction.
 func (s *Session) SubscriberCount() int { s.mu.Lock(); defer s.mu.Unlock(); return len(s.subscribers) }
+
+// setPresentedRecommendations replaces the recommendations the last successful
+// query showed, even when that query was empty. A later query, including one
+// that drops a dismissed item, invalidates the previous set; with several
+// tabs the last query wins.
+func (s *Session) setPresentedRecommendations(items []engine.Recommendation) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.presentedRecs = append([]engine.Recommendation{}, items...)
+	s.presentedSet = true
+}
+
+// initPresentedRecommendations stores items only when no query has populated
+// the cache, and returns the set the cache holds afterwards. A fallback fetch
+// that finishes after a real query must not replace that query's results.
+func (s *Session) initPresentedRecommendations(items []engine.Recommendation) []engine.Recommendation {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.presentedSet {
+		s.presentedRecs = append([]engine.Recommendation{}, items...)
+		s.presentedSet = true
+	}
+	return s.presentedRecs
+}
+
+// presentedRecommendations returns the last presented set and whether any
+// query has succeeded yet. Callers must not modify the slice.
+func (s *Session) presentedRecommendations() ([]engine.Recommendation, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.presentedRecs, s.presentedSet
+}
 
 // Close cancels preview work and disconnects streams before engine cleanup.
 func (s *Session) Close() {

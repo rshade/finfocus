@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
@@ -24,9 +25,13 @@ func RedactProperties(ctx context.Context, props map[string]any) map[string]any 
 // RedactValue walks a decoded-JSON-shaped value (map[string]any, []any, or a
 // scalar) and drops credential-like and "__" property names and Pulumi secret
 // values at any depth, using the same shared rules the engine applies:
-// engine.IsHiddenPropertyKey and history.IsPulumiSecret. Non-sensitive values
-// are returned unchanged.
+// engine.IsHiddenPropertyKey and history.IsPulumiSecret. An engine.DataKeyed
+// map keeps its keys; its values still pass history.IsPulumiSecret.
+// Non-sensitive values are returned unchanged.
 func RedactValue(value any) any {
+	if _, ok := value.(dataKeyedMap); ok {
+		return redactKeepingKeys(reflect.ValueOf(value), nil, 0)
+	}
 	switch typed := value.(type) {
 	case map[string]any:
 		if sensitiveRecord(typed) || history.IsPulumiSecret(typed) {
@@ -64,18 +69,10 @@ func RedactJSON(v any) ([]byte, error) {
 		return nil, fmt.Errorf("webui: decode payload for redaction: %w", uerr)
 	}
 	safe := RedactValue(decoded)
-	// Only this typed response contains engine-computed numeric domain maps.
-	// Preserve their canonical labels after recursive redaction, while resource
-	// properties, breakdowns and arbitrary dictionaries retain the shared rules.
-	if response, ok := v.(actualCostQueryResponse); ok {
-		if object, isObject := safe.(map[string]any); isObject {
-			if summary, isSummary := object["summary"].(map[string]any); isSummary {
-				summary["byService"] = response.Summary.ByService
-				summary["byProvider"] = response.Summary.ByProvider
-				summary["byAdapter"] = response.Summary.ByAdapter
-			}
-		}
-	}
+	// JSON decoding erases engine.DataKeyed and datakey struct tags. Put those
+	// maps back from the original value so domain keys survive and property
+	// maps still follow engine.IsHiddenPropertyKey.
+	safe = preserveDataKeys(v, safe)
 	// Only the typed session snapshot carries this operational boolean. Raw
 	// property dictionaries still follow engine credential-name redaction.
 	if snapshot, ok := v.(OverviewSnapshot); ok {
@@ -128,13 +125,17 @@ func sensitiveRecord(record map[string]any) bool {
 	return false
 }
 
+func droppedFromArray(item any) bool {
+	if record, ok := item.(map[string]any); ok && sensitiveRecord(record) {
+		return true
+	}
+	return history.IsPulumiSecret(item)
+}
+
 func redactArray(items []any) []any {
 	out := make([]any, 0, len(items))
 	for _, item := range items {
-		if record, ok := item.(map[string]any); ok && sensitiveRecord(record) {
-			continue
-		}
-		if history.IsPulumiSecret(item) {
+		if droppedFromArray(item) {
 			continue
 		}
 		out = append(out, RedactValue(item))

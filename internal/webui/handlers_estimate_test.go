@@ -386,6 +386,83 @@ func TestEstimateHTTPSourceReadinessAndFailure(t *testing.T) {
 	}
 }
 
+func TestEstimateBaselineFailureKeepsRedactedRowsAndModes(t *testing.T) {
+	t.Parallel()
+	s, session, _, _ := estimateHTTPFixture(t)
+	session.SetData(
+		engine.New(
+			[]*pluginhost.Client{
+				{
+					Name: "bad",
+					API:  &webEstimatePlugin{rate: 10, failure: status.Error(codes.Unavailable, "credential-value")},
+				},
+			},
+			nil,
+		),
+		[]engine.OverviewRow{{
+			URN:  "urn:real",
+			Type: "aws:ec2:Instance",
+			ProjectedProperties: map[string]any{
+				"size":     float64(2),
+				"password": "projected-credential",
+				"private":  pulumiSecretFixture("projected-secret"),
+				"verbatim": "old",
+			},
+		}},
+		engine.DateRange{},
+		"",
+	)
+	resp := overviewRequest(
+		t,
+		s,
+		"GET",
+		"/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`),
+		"",
+	)
+	require.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	for _, secret := range []string{"credential-value", "projected-credential", "secret-value", "projected-secret", "password", "private"} {
+		assert.NotContains(t, string(raw), secret)
+	}
+	var got struct {
+		Error    string                     `json:"error"`
+		Code     string                     `json:"code"`
+		Display  viewmodel.EstimateDisplay  `json:"display"`
+		Modes    []estimateMode             `json:"pricingModes"`
+		Resource *engine.ResourceDescriptor `json:"resource"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &got))
+	assert.Equal(t, "estimate_unavailable", got.Code)
+	assert.NotEmpty(t, got.Error)
+	assert.Empty(t, got.Display.Baseline)
+	assert.Empty(t, got.Display.Modified)
+	assert.Empty(t, got.Display.Change)
+	require.NotNil(t, got.Resource)
+	assert.Equal(t, "urn:real", got.Resource.ID)
+	require.Len(t, got.Display.Properties, 2)
+	assert.Equal(t, "size", got.Display.Properties[0].Key)
+	assert.Equal(t, "2", got.Display.Properties[0].OriginalValue)
+	assert.Equal(t, "2", got.Display.Properties[0].CurrentValue)
+	assert.Empty(t, got.Display.Properties[0].Delta)
+	assert.Equal(t, "verbatim", got.Display.Properties[1].Key)
+	assert.Empty(t, got.Display.Properties[1].Delta)
+	require.NotEmpty(t, got.Modes)
+	assert.Equal(t, `["bad","hourly"]`, got.Modes[0].ID)
+	assert.NotEmpty(t, got.Modes[0].Rate)
+
+	plain := overviewRequest(t, s, "GET", "/api/estimate/baseline?urn=urn:real&pricingMode=invalid", "")
+	require.Equal(t, http.StatusBadRequest, plain.StatusCode)
+	plainBody, err := io.ReadAll(plain.Body)
+	require.NoError(t, err)
+	var plainErr map[string]any
+	require.NoError(t, json.Unmarshal(plainBody, &plainErr))
+	assert.Equal(t, "invalid_pricing_mode", plainErr["code"])
+	assert.NotContains(t, plainErr, "display")
+	assert.NotContains(t, plainErr, "pricingModes")
+	assert.NotContains(t, plainErr, "resource")
+}
+
 func TestEstimateHTTPUnavailablePriceIsNotSuccessfulZero(t *testing.T) {
 	t.Parallel()
 	s, session, _, _ := estimateHTTPFixture(t)
@@ -455,5 +532,42 @@ func TestEstimateShutdownDoesNotWaitForResponseWriter(t *testing.T) {
 			<-closed
 			assert.Equal(t, tc.want, writer.Code)
 		})
+	}
+}
+
+func TestEstimateBaselineFailureHidesNestedSecrets(t *testing.T) {
+	t.Parallel()
+	s, session, _, _ := estimateHTTPFixture(t)
+	session.SetData(
+		engine.New(
+			[]*pluginhost.Client{
+				{Name: "bad", API: &webEstimatePlugin{rate: 10, failure: status.Error(codes.Unavailable, "down")}},
+			},
+			nil,
+		),
+		[]engine.OverviewRow{{
+			URN:  "urn:real",
+			Type: "aws:ec2:Instance",
+			ProjectedProperties: map[string]any{
+				"size":   float64(2),
+				"config": map[string]any{"password": "nested-credential", "region": "us-east-1"},
+				"blob":   pulumiSecretFixture("nested-secret"),
+			},
+		}},
+		engine.DateRange{},
+		"",
+	)
+	resp := overviewRequest(
+		t,
+		s,
+		"GET",
+		"/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`),
+		"",
+	)
+	require.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	for _, secret := range []string{"nested-credential", "nested-secret", "4dabf18193072939515e22adb298388d"} {
+		assert.NotContains(t, string(raw), secret)
 	}
 }

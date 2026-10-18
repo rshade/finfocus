@@ -27,8 +27,12 @@ export function mount(container, { api, stream }) {
   }
   function failed(err, current) {
     if (!alive || current !== generation || err.name === 'AbortError') return;
-    if (err.status === 503) status.textContent = 'Waiting for stack data…';
-    else { error.textContent = err.message; error.hidden = false; status.textContent = 'Unable to calculate estimate.'; }
+    if (err.status === 503) { status.textContent = 'Waiting for stack data…'; return; }
+    error.textContent = err.message; error.hidden = false; status.textContent = 'Unable to calculate estimate.';
+    comparison.replaceChildren();
+    // A provider failure still carries rows and modes. Absence of a price is
+    // not an empty editor, and it is not a successful comparison.
+    if (err.data?.display || err.data?.pricingModes) renderFailure(err.data);
   }
   function finish(current) { if (alive && current === generation) table.setAttribute('aria-busy', 'false'); }
   function overrides() {
@@ -38,22 +42,21 @@ export function mount(container, { api, stream }) {
     }
     return values;
   }
-  function render(result, focusKey) {
-    const display = result.display;
-    comparison.replaceChildren(el('p', { text: `Baseline: ${display.baseline}` }),
-      el('p', { text: `Modified: ${display.modified}` }), el('p', { text: `Change: ${display.change}` }));
-    if (result.pricingModes) {
-      mode.replaceChildren(el('option', { value: '', text: 'Automatic provider' }));
-      for (const item of result.pricingModes) mode.append(el('option', { value: item.id, text: `${item.label} (${item.rate})` }));
-      mode.value = result.pricingMode ?? '';
-      pricing.replaceChildren();
-      for (const item of result.pricingModes) {
-        pricing.append(el('p', { text: `${item.label}: ${item.rate}` }));
-        if (item.detailsDisplay) pricing.append(el('pre', { text: item.detailsDisplay }));
-      }
+  function renderModes(result) {
+    if (!result.pricingModes) return;
+    const selected = mode.value;
+    mode.replaceChildren(el('option', { value: '', text: 'Automatic provider' }));
+    for (const item of result.pricingModes) mode.append(el('option', { value: item.id, text: `${item.label} (${item.rate})` }));
+    mode.value = result.pricingMode ?? selected;
+    pricing.replaceChildren();
+    for (const item of result.pricingModes) {
+      pricing.append(el('p', { text: `${item.label}: ${item.rate}` }));
+      if (item.detailsDisplay) pricing.append(el('pre', { text: item.detailsDisplay }));
     }
+  }
+  function renderRows(properties, focusKey) {
     body.replaceChildren();
-    for (const row of display.properties ?? []) {
+    for (const row of properties ?? []) {
       const input = el('input', { class: 'estimate-input filter-input', type: 'text', 'aria-label': `Current ${row.key}`,
         dataset: { key: row.key, original: row.originalValue } });
       input.value = row.currentValue;
@@ -64,8 +67,20 @@ export function mount(container, { api, stream }) {
         el('td', { role: 'cell', 'data-label': 'Cost delta', text: row.delta })));
       if (focusKey === row.key) input.focus();
     }
-    if (!display.properties?.length) body.append(el('tr', {}, el('td', { colspan: '4', text: 'No editable properties.' })));
+    if (!properties?.length) body.append(el('tr', {}, el('td', { colspan: '4', text: 'No editable properties.' })));
+  }
+  function render(result, focusKey) {
+    const display = result.display;
+    comparison.replaceChildren(el('p', { text: `Baseline: ${display.baseline}` }),
+      el('p', { text: `Modified: ${display.modified}` }), el('p', { text: `Change: ${display.change}` }));
+    renderModes(result);
+    renderRows(display.properties, focusKey);
     status.textContent = 'Estimate calculated.';
+  }
+  function renderFailure(result) {
+    comparison.replaceChildren();
+    renderModes(result);
+    renderRows(result.display?.properties);
   }
   async function recalculate(focusKey) {
     if (!resource.value) return;

@@ -57,6 +57,89 @@ test('estimate empty edits select a fresh baseline and errors remain inline',asy
  const t=await loaded();for(const input of t.container.querySelectorAll('.estimate-input'))input.value=input.dataset.original;
  const mode=t.container.querySelector('#estimate-mode');mode.value='opaque-mode';mode.dispatch('change');assert.match(t.calls.at(-1).path,/pricingMode=opaque-mode/);t.calls.at(-1).reject(new Error('Provider unavailable'));await flush();assert.match(t.container.textContent,/Provider unavailable/);assert.match(t.container.textContent,/Unable to calculate/);t.mounted.unmount();
 });
+test('a failed baseline keeps rows and modes, then edits and mode changes retry', async () => {
+  const t = await setup('estimate');
+  t.calls[0].resolve({ resources: [{ id: 'urn:real', type: 'aws:ec2:Instance' }] });
+  await flush();
+  t.calls[1].reject(Object.assign(new Error('estimate data unavailable'), {
+    status: 502,
+    code: 'estimate_unavailable',
+    data: {
+      pricingModes: [{ id: 'hourly', label: 'Hourly provider', rate: 'USD 10/hour' }],
+      display: { properties: [{ key: 'size', originalValue: '2', currentValue: '2', delta: '' }] },
+    },
+  }));
+  await flush();
+  assert.match(t.container.textContent, /estimate data unavailable/);
+  assert.match(t.container.textContent, /Unable to calculate/);
+  assert.doesNotMatch(t.container.textContent, /Estimate calculated/);
+  assert.equal(t.container.querySelector('.totals-bar').textContent, '');
+  const input = t.container.querySelector('.estimate-input');
+  assert.equal(input.dataset.key, 'size');
+  assert.equal(input.value, '2');
+  const mode = t.container.querySelector('#estimate-mode');
+  assert.equal(mode.querySelectorAll('option').length, 2);
+  mode.value = 'hourly';
+  mode.dispatch('change');
+  assert.match(t.calls.at(-1).path, /pricingMode=hourly/);
+  input.value = '4';
+  input.dispatch('keydown', { key: 'Enter' });
+  const edited = t.calls.at(-1);
+  assert.equal(edited.path, '/api/estimate/recalculate');
+  assert.equal(edited.body.pricingMode, 'hourly');
+  assert.deepEqual(JSON.parse(JSON.stringify(edited.body.overrides)), { size: '4' });
+  edited.resolve({
+    pricingMode: 'hourly',
+    display: {
+      baseline: 'USD 20 baseline', modified: 'USD 40 modified', change: '+$20.00 ↑',
+      properties: [{ key: 'size', originalValue: '2', currentValue: '4', delta: '+$20.00 ↑' }],
+    },
+  });
+  await flush();
+  assert.match(t.container.textContent, /USD 40 modified/);
+  assert.match(t.container.textContent, /Estimate calculated/);
+  t.mounted.unmount();
+});
 test('estimate resource loading retries on ready and late responses after unmount are ignored',async()=>{
  const t=await setup('estimate');t.calls[0].reject(Object.assign(new Error('loading'),{status:503}));await flush();t.emit('ready',{});assert.equal(t.calls.length,2);t.mounted.unmount();const before=t.container.textContent;t.calls[1].resolve({resources:[{id:'late',type:'aws:ec2:Instance'}]});await flush();assert.equal(t.container.textContent,before);assert.equal(t.calls[1].options.signal.aborted,true);
+});
+
+test('a failed baseline keeps the selected pricing mode', async () => {
+  const t = await loaded();
+  const mode = t.container.querySelector('#estimate-mode');
+  mode.value = 'opaque-mode';
+  mode.dispatch('change');
+  t.calls.at(-1).reject(Object.assign(new Error('estimate data unavailable'), {
+    status: 502,
+    data: {
+      pricingModes: baseline().pricingModes,
+      display: { properties: baseline().display.properties },
+    },
+  }));
+  await flush();
+  assert.equal(mode.value, 'opaque-mode');
+  const input = t.container.querySelectorAll('.estimate-input')[0];
+  input.value = '5';
+  input.dispatch('keydown', { key: 'Enter' });
+  assert.equal(t.calls.at(-1).body.pricingMode, 'opaque-mode');
+  t.mounted.unmount();
+});
+
+test('a plain failure after a successful estimate clears the stale comparison but keeps rows', async () => {
+  const t = await loaded();
+  const input = t.container.querySelectorAll('.estimate-input')[0];
+  input.value = '4';
+  input.dispatch('keydown', { key: 'Enter' });
+  t.calls.at(-1).resolve({ display: { ...baseline().display, modified: 'good result' } });
+  await flush();
+  assert.match(t.container.textContent, /good result/);
+  const again = t.container.querySelectorAll('.estimate-input')[0];
+  again.value = '5';
+  again.dispatch('keydown', { key: 'Enter' });
+  t.calls.at(-1).reject(Object.assign(new Error('estimate data unavailable'), { status: 502 }));
+  await flush();
+  assert.match(t.container.textContent, /estimate data unavailable/);
+  assert.equal(t.container.querySelector('.totals-bar').textContent, '');
+  assert.ok(t.container.querySelectorAll('.estimate-input').length > 0);
+  t.mounted.unmount();
 });

@@ -181,7 +181,7 @@ type ActualCostData struct {
 	MTDCost   float64            `json:"mtdCost"`
 	Currency  string             `json:"currency"`
 	Period    DateRange          `json:"period"`
-	Breakdown map[string]float64 `json:"breakdown,omitempty"`
+	Breakdown map[string]float64 `json:"breakdown,omitempty" datakey:"true"`
 	// BilledDays is the length of the interval MTDCost covers when it is
 	// shorter than the display window (a resource created mid-window). Zero
 	// means MTDCost covers the whole window.
@@ -211,7 +211,7 @@ func (a *ActualCostData) Validate() error {
 type ProjectedCostData struct {
 	MonthlyCost float64            `json:"monthlyCost"`
 	Currency    string             `json:"currency"`
-	Breakdown   map[string]float64 `json:"breakdown,omitempty"`
+	Breakdown   map[string]float64 `json:"breakdown,omitempty" datakey:"true"`
 }
 
 // Validate checks that the ProjectedCostData fields are consistent.
