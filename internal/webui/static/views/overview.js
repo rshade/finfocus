@@ -11,7 +11,7 @@
 // client only sends the user's interaction state (filter text, sort field,
 // page, expanded set).
 
-import { el } from '../app.js';
+import { el, mergeRunStatus } from '../app.js';
 
 // Sort cycle matches viewmodel.SortField order (cost, name, type, delta) and
 // the wire names used by the contract examples ({"sort":"cost"}).
@@ -73,9 +73,7 @@ export function mount(container, ctx) {
     progress: null,
     previewStatus: null,
     previewElapsedMs: null,
-    stateOnly: false,
-    previewLoaded: false,
-    detectFailed: false,
+    runStatus: { stateOnly: false, previewLoaded: false, detectFailed: false },
     footnote: '',
   };
 
@@ -377,26 +375,23 @@ export function mount(container, ctx) {
   }
 
   function previewAllowed() {
-    return state.stateOnly && !state.previewLoaded && state.ready && !state.loading && state.previewStatus !== 'running';
+    return state.runStatus.stateOnly && !state.runStatus.previewLoaded && state.ready && !state.loading && state.previewStatus !== 'running';
   }
   function renderRunStatus() {
-    const marked = state.stateOnly && !state.previewLoaded;
+    const marked = state.runStatus.stateOnly && !state.runStatus.previewLoaded;
     const projected = headerRow.children[4];
     if (projected) projected.textContent = marked ? 'Projected*' : 'Projected';
     const showNote = marked && state.ready && !state.loading;
     stateNote.hidden = !showNote || !state.footnote;
     stateNote.textContent = showNote ? state.footnote : '';
-    const showHint = showNote && state.detectFailed;
+    const showHint = showNote && state.runStatus.detectFailed;
     detectHint.hidden = !showHint;
     detectHint.textContent = showHint ? '(change detection failed)' : '';
     renderPreviewButton();
   }
   function applyRunStatus(data) {
     if (!data || typeof data !== 'object') return;
-    if (typeof data.stateOnly === 'boolean') state.stateOnly = data.stateOnly;
-    if (typeof data.previewLoaded === 'boolean') state.previewLoaded = data.previewLoaded;
-    if (typeof data.detectFailed === 'boolean') state.detectFailed = data.detectFailed;
-    if (data.previewLoaded) state.detectFailed = false;
+    state.runStatus = mergeRunStatus(state.runStatus, data);
     state.footnote = typeof data.footnote === 'string' ? data.footnote : state.footnote;
     if (data.previewLoaded) state.footnote = '';
     renderRunStatus();

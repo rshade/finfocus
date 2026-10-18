@@ -81,13 +81,45 @@ type Session struct {
 	// a new Recommendation.ID on every call, and that ID stays the dismissal id.
 	presentedRecs []engine.Recommendation
 	presentedSet  bool
-	// stateOnly is set by the overview pipeline when no preview ran. previewLoaded
-	// is set only after an on-demand preview applies. detectFailed records that a
-	// change-detection failure left the run state-only; the error text stays in
-	// the terminal log and never reaches the browser.
-	stateOnly     bool
-	previewLoaded bool
-	detectFailed  bool
+	runStatus     RunStatus
+}
+
+// RunStatus is the state-only status of an overview run. StateOnly is set by
+// the overview pipeline when no preview ran. PreviewLoaded is set only after
+// an on-demand preview applies. DetectFailed records that a change-detection
+// failure left the run state-only; the error text stays in the terminal log
+// and never reaches the browser.
+type RunStatus struct {
+	StateOnly     bool `json:"stateOnly"`
+	PreviewLoaded bool `json:"previewLoaded"`
+	DetectFailed  bool `json:"detectFailed"`
+}
+
+// RunStatusEvent is the run_status event payload.
+type RunStatusEvent struct {
+	RunStatus
+
+	Footnote string `json:"footnote"`
+}
+
+// Marked reports whether projected costs are still at current state.
+func (r RunStatus) Marked() bool { return r.StateOnly && !r.PreviewLoaded }
+
+// PreviewAllowed reports whether an on-demand preview may start.
+func (r RunStatus) PreviewAllowed() bool { return r.Marked() }
+
+// WithStateOnly returns the status after the pipeline reports no preview ran.
+// A loaded preview is never undone.
+func (r RunStatus) WithStateOnly(detectFailed bool) RunStatus {
+	if r.PreviewLoaded {
+		return r
+	}
+	return RunStatus{StateOnly: true, DetectFailed: detectFailed}
+}
+
+// WithPreviewLoaded returns the status after a preview applied.
+func (RunStatus) WithPreviewLoaded() RunStatus {
+	return RunStatus{PreviewLoaded: true}
 }
 
 // errPreviewNotAllowed is returned when a preview is requested for a run that
@@ -132,10 +164,8 @@ type OverviewSnapshot struct {
 	Stack              string                     `json:"stack"`
 	Preview            PreviewEvent               `json:"preview"`
 	Errors             []ErrorEvent               `json:"errors"`
-	StateOnly          bool                       `json:"stateOnly"`
-	PreviewLoaded      bool                       `json:"previewLoaded"`
-	DetectFailed       bool                       `json:"detectFailed"`
-	Footnote           string                     `json:"footnote,omitempty"`
+	RunStatus
+	Footnote string `json:"footnote,omitempty"`
 }
 
 // OverviewTotalsPayload adds canonical display strings to engine totals.
@@ -429,9 +459,7 @@ func (s *Session) snapshotLocked() OverviewSnapshot {
 		Stack:              s.stack,
 		Preview:            s.preview,
 		Errors:             failures,
-		StateOnly:          s.stateOnly,
-		PreviewLoaded:      s.previewLoaded,
-		DetectFailed:       s.detectFailed,
+		RunStatus:          s.runStatus,
 		Footnote:           s.stateOnlyFootnoteLocked(),
 	}
 }
@@ -442,25 +470,19 @@ func (s *Session) snapshotLocked() OverviewSnapshot {
 func (s *Session) SetStateOnly(detectFailed bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.previewLoaded {
+	if s.runStatus.PreviewLoaded {
 		return
 	}
-	s.stateOnly = true
-	s.detectFailed = detectFailed
+	s.runStatus = s.runStatus.WithStateOnly(detectFailed)
 	s.publishLocked("run_status", s.runStatusLocked())
 }
 
-func (s *Session) runStatusLocked() map[string]any {
-	return map[string]any{
-		"stateOnly":     s.stateOnly,
-		"previewLoaded": s.previewLoaded,
-		"detectFailed":  s.detectFailed,
-		"footnote":      s.stateOnlyFootnoteLocked(),
-	}
+func (s *Session) runStatusLocked() RunStatusEvent {
+	return RunStatusEvent{RunStatus: s.runStatus, Footnote: s.stateOnlyFootnoteLocked()}
 }
 
 func (s *Session) stateOnlyFootnoteLocked() string {
-	if !s.stateOnly || s.previewLoaded {
+	if !s.runStatus.Marked() {
 		return ""
 	}
 	return fmt.Sprintf("* projected at current state (%dh/mo)", engine.HoursPerMonth)
@@ -474,7 +496,7 @@ func (s *Session) startPreview() error {
 	if s.opts.Preview == nil {
 		return errors.New("preview unavailable")
 	}
-	if !s.stateOnly || s.previewLoaded {
+	if !s.runStatus.PreviewAllowed() {
 		return errPreviewNotAllowed
 	}
 	if s.previewRunning {
@@ -525,9 +547,7 @@ func (s *Session) runPreview() {
 	} else {
 		s.rows = cloneData(rows)
 		s.ready = true
-		s.stateOnly = false
-		s.previewLoaded = true
-		s.detectFailed = false
+		s.runStatus = s.runStatus.WithPreviewLoaded()
 		s.completePhaseLocked(previewPhase)
 		s.preview.Rows = s.resultLocked().Rows
 		s.publishLocked("ready", map[string]any{"totals": totalsPayload(s.resultLocked().Summary)})

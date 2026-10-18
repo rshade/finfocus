@@ -111,6 +111,22 @@ export const api = {
   del: (path, body, opts) => request(path, { ...opts, method: 'DELETE', body: body ?? {} }),
 };
 
+// mergeRunStatus applies a snapshot or run_status payload to the three
+// state-only flags. Fields that are not booleans are ignored; a loaded
+// preview clears detectFailed.
+export function mergeRunStatus(current, data) {
+  const next = {
+    stateOnly: current.stateOnly === true,
+    previewLoaded: current.previewLoaded === true,
+    detectFailed: current.detectFailed === true,
+  };
+  for (const key of Object.keys(next)) {
+    if (typeof data?.[key] === 'boolean') next[key] = data[key];
+  }
+  if (data?.previewLoaded) next.detectFailed = false;
+  return next;
+}
+
 const SESSION_CHECK_TIMEOUT_MS = 5000;
 
 const STREAM_TRANSITIONS = {
@@ -209,14 +225,9 @@ export class OverviewStream {
       snapshot[event] = data;
     } else if (event === 'run_status') {
       // A later preview clears state-only. Remounts read this snapshot, not the live view.
-      if (typeof data.stateOnly === 'boolean') snapshot.stateOnly = data.stateOnly;
-      if (typeof data.previewLoaded === 'boolean') snapshot.previewLoaded = data.previewLoaded;
-      if (typeof data.detectFailed === 'boolean') snapshot.detectFailed = data.detectFailed;
+      Object.assign(snapshot, mergeRunStatus(snapshot, data));
       if (typeof data.footnote === 'string') snapshot.footnote = data.footnote;
-      if (data.previewLoaded) {
-        snapshot.detectFailed = false;
-        snapshot.footnote = '';
-      }
+      if (data.previewLoaded) snapshot.footnote = '';
     } else if (event === 'error') {
       snapshot.errors = [...(snapshot.errors ?? []).filter((error) => error.phase !== data.phase), data];
     }
