@@ -1,9 +1,11 @@
 package webui
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -373,4 +375,75 @@ func TestRedactJSONPrefersTaggedFieldAmongEqualDepthEmbeddedNames(t *testing.T) 
 	clashed, err := RedactJSON(clash{})
 	require.NoError(t, err)
 	assert.JSONEq(t, `{}`, string(clashed))
+}
+
+func TestRedactValueRedactsGoTypedContainers(t *testing.T) {
+	t.Parallel()
+
+	got := RedactValue(map[string]any{
+		"a":    map[string]string{"password": credentialMarker, "size": "m"},
+		"b":    []map[string]any{{"token": credentialMarker, "size": "s"}},
+		"c":    genLeaf{Name: "x", Props: map[string]any{"apiKey": credentialMarker}},
+		"keep": engine.DataKeyed[string]{"password": "ok"},
+	})
+	data, err := json.Marshal(got)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), credentialMarker)
+	assert.JSONEq(t, `{
+		"a": {"size": "m"},
+		"b": [{"size": "s"}],
+		"c": {"name": "x", "props": {}},
+		"keep": {"password": "ok"}
+	}`, string(data))
+}
+
+func TestRedactJSONWhileSessionStateChanges(t *testing.T) {
+	t.Parallel()
+
+	session := NewSession(context.Background(), SessionOptions{DayOfMonth: 10})
+	row := func(n int) engine.OverviewRow {
+		return engine.OverviewRow{
+			URN:        fmt.Sprintf("urn:pulumi:dev::demo::aws:ec2/instance:Instance::web-%d", n),
+			Type:       "aws:ec2/instance:Instance",
+			Status:     engine.StatusActive,
+			Properties: map[string]any{"password": credentialMarker, "size": "m"},
+			ActualCost: &engine.ActualCostData{
+				MTDCost: 1, Currency: "USD", Breakdown: map[string]float64{"password": 1},
+			},
+		}
+	}
+	rows := []engine.OverviewRow{row(0), row(1), row(2)}
+	session.SetData(nil, rows, engine.DateRange{}, "dev")
+	_, events, cancel := session.subscribe()
+	defer cancel()
+	go func() {
+		for range events {
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for worker := range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range 50 {
+				changed := row(worker)
+				session.Row(i%3, changed)
+				changed.Properties["size"] = fmt.Sprintf("l%d", i)
+				changed.ActualCost.Breakdown["compute"] = float64(i)
+				_, _, drop := session.subscribe()
+				drop()
+			}
+		}()
+	}
+	wg.Wait()
+
+	_, _, drop := session.subscribe()
+	drop()
+	session.mu.Lock()
+	data, err := RedactJSON(session.snapshotLocked())
+	session.mu.Unlock()
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), credentialMarker)
+	assert.Contains(t, string(data), `"password"`)
 }

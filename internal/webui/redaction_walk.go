@@ -46,9 +46,6 @@ var (
 // that produced the node; it is only used to learn which maps are data-keyed
 // and may be invalid, in which case every map is treated as a property map.
 func redactNode(v reflect.Value, node any, keyed bool, depth int) any {
-	if _, ok := node.(dataKeyedMap); ok {
-		return redactTypedDataKeyed(node)
-	}
 	if depth > maxRedactDepth {
 		v, keyed = reflect.Value{}, false
 	}
@@ -73,18 +70,6 @@ func redactNode(v reflect.Value, node any, keyed bool, depth int) any {
 	default:
 		return node
 	}
-}
-
-func redactTypedDataKeyed(node any) any {
-	encoded, err := json.Marshal(node)
-	if err != nil {
-		return nil
-	}
-	var decoded any
-	if json.Unmarshal(encoded, &decoded) != nil {
-		return nil
-	}
-	return redactNode(reflect.ValueOf(node), decoded, true, 0)
 }
 
 func redactObject(v reflect.Value, object map[string]any, depth int) any {
