@@ -1,3 +1,5 @@
+//go:build unix
+
 package cli
 
 import (
@@ -5,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -17,9 +18,6 @@ import (
 
 //nolint:paralleltest // Sends SIGTERM to the whole test process; must not overlap other tests.
 func TestServeWebShutsDownOnSIGTERM(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("SIGTERM delivery is unix-only")
-	}
 	// Hold the signal so a missing handler cannot kill this process.
 	caught := make(chan os.Signal, 1)
 	signal.Notify(caught, syscall.SIGTERM)
