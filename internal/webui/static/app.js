@@ -284,7 +284,7 @@ export class OverviewStream {
 
   resumeAfterDisconnect() {
     if (this.closed || this.authFailed || !this.source) return;
-    if (this.source.readyState === EventSource.CONNECTING) return;
+    if (this.source.readyState !== EventSource.CLOSED) return;
     this.setStatus('Disconnected — retrying…', 'down');
     clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(() => {

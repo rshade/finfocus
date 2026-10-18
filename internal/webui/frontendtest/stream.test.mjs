@@ -160,3 +160,22 @@ test('disposing the overview stream cancels a pending authentication check', asy
   assert.equal(t.EventSource.all.length, before);
   assert.equal(source.closed, true);
 });
+
+test('a source that reopens while the session check is pending is not restarted', async () => {
+  const t = await setup();
+  const stream = new t.OverviewStream('/api/overview/stream', t.status);
+  stream.start();
+  const source = t.EventSource.all.at(-1);
+  source.readyState = t.EventSource.CONNECTING;
+  source.listeners.get('error')({});
+  assert.equal(t.fetches.length, 1);
+  source.readyState = 1;
+  source.listeners.get('open')();
+  const before = t.EventSource.all.length;
+  t.fetches[0].resolve({ status: 200, ok: true });
+  await flush();
+  assert.equal(t.timers.size, 0);
+  assert.equal(t.status.dataset.state, 'live');
+  assert.equal(source.closed, undefined);
+  assert.equal(t.EventSource.all.length, before);
+});
