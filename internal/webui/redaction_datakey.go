@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
 )
 
@@ -67,7 +68,8 @@ func preserveStruct(value reflect.Value, redacted any, depth int) any {
 			continue
 		}
 		if field.Tag.Get("datakey") == "true" || isDataKeyedValue(fieldValue) {
-			if _, exists := object[name]; exists || dataKeyLen(fieldValue) > 0 {
+			_, exists := object[name]
+			if exists || (dataKeyLen(fieldValue) > 0 && !engine.IsHiddenPropertyKey(name)) {
 				object[name] = redactKeepingKeys(fieldValue, object[name], depth+1)
 			}
 			continue
@@ -81,15 +83,40 @@ func preserveStruct(value reflect.Value, redacted any, depth int) any {
 
 func preserveSlice(value reflect.Value, redacted any, depth int) any {
 	items, ok := redacted.([]any)
-	if !ok || value.Len() != len(items) {
-		// A shorter redacted slice has had secret elements removed, so indexes
-		// no longer line up with the original.
+	if !ok {
+		return redacted
+	}
+	indexes := surviving(value, len(items))
+	if indexes == nil {
 		return redacted
 	}
 	for i := range items {
-		items[i] = preserveKeyed(value.Index(i), items[i], depth+1)
+		items[i] = preserveKeyed(value.Index(indexes[i]), items[i], depth+1)
 	}
 	return items
+}
+
+// surviving maps each redacted element back to its original index by replaying
+// the element drop rule of redactArray. It returns nil when the counts disagree.
+func surviving(value reflect.Value, kept int) []int {
+	indexes := make([]int, 0, kept)
+	for i := range value.Len() {
+		encoded, err := json.Marshal(value.Index(i).Interface())
+		if err != nil {
+			return nil
+		}
+		var decoded any
+		if json.Unmarshal(encoded, &decoded) != nil {
+			return nil
+		}
+		if !droppedFromArray(decoded) {
+			indexes = append(indexes, i)
+		}
+	}
+	if len(indexes) != kept {
+		return nil
+	}
+	return indexes
 }
 
 func preserveMap(value reflect.Value, redacted any, depth int) any {

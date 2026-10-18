@@ -125,13 +125,17 @@ func sensitiveRecord(record map[string]any) bool {
 	return false
 }
 
+func droppedFromArray(item any) bool {
+	if record, ok := item.(map[string]any); ok && sensitiveRecord(record) {
+		return true
+	}
+	return history.IsPulumiSecret(item)
+}
+
 func redactArray(items []any) []any {
 	out := make([]any, 0, len(items))
 	for _, item := range items {
-		if record, ok := item.(map[string]any); ok && sensitiveRecord(record) {
-			continue
-		}
-		if history.IsPulumiSecret(item) {
+		if droppedFromArray(item) {
 			continue
 		}
 		out = append(out, RedactValue(item))
