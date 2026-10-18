@@ -30,6 +30,7 @@ type webData struct {
 	clients        []*pluginhost.Client
 	raw            []engine.ResourceDescriptor
 	planned        []engine.ResourceDescriptor
+	plannedCreates map[string]struct{}
 	planErr        error
 	sourceErr      error
 	sourceCaptured bool
@@ -47,6 +48,9 @@ type webData struct {
 	reloadCleanup  func()
 	replaced       bool
 }
+
+// planOpCreate is the Pulumi step op the overview merge treats as a plan-only create.
+const planOpCreate = "create"
 
 func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRange, audit *auditContext) *webData {
 	if params.cfg == nil {
@@ -79,8 +83,15 @@ func (d *webData) capturePlan(plan *ingest.PulumiPlan) {
 		return
 	}
 	defer unlock()
-	d.planned, d.planErr = ingest.MapResources(plan.GetResources())
+	resources := plan.GetResources()
+	d.planned, d.planErr = ingest.MapResources(resources)
 	d.planned = cloneWebResources(d.planned)
+	d.plannedCreates = make(map[string]struct{})
+	for _, res := range resources {
+		if res.Operation == planOpCreate {
+			d.plannedCreates[res.URN] = struct{}{}
+		}
+	}
 }
 
 // appendPreviewRows adds plan-only creates that are not already overview rows.
@@ -95,6 +106,9 @@ func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewR
 		seen[row.URN] = struct{}{}
 	}
 	for _, resource := range d.planned {
+		if _, isCreate := d.plannedCreates[resource.ID]; !isCreate {
+			continue
+		}
 		if _, ok := seen[resource.ID]; ok {
 			continue
 		}
