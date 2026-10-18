@@ -31,9 +31,7 @@ func setupTestConfig(t *testing.T) func() {
 func TestSetupTestConfigDoesNotLeakGlobalConfig(t *testing.T) {
 	t.Cleanup(config.ResetGlobalConfigForTest)
 	polluted := func() *config.Config {
-		cfg := config.New()
-		cfg.Output.DefaultFormat = "invalid"
-		return cfg
+		return &config.Config{Output: config.OutputConfig{DefaultFormat: "invalid"}}
 	}
 
 	t.Run("resets on entry", func(t *testing.T) {
