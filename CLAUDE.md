@@ -300,8 +300,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   enrichment goroutine, then `overviewCleanupHandoff` (100ms) for the plugin
   cleanup callback. The budget fetch's done channel is joined before that
   cleanup runs (`Run` joins it itself). A plugin call that ignores cancel is
-  abandoned after the grace period so quit cannot hang; a detached goroutine
-  (`runLateOverviewCleanup`) still runs the cleanup once enrichment stops.
+  abandoned after the grace period so quit cannot hang. The cleanup is
+  published when the engine is built (`newCleanupPublisher`), so the abandon
+  path still closes plugins before the process exits; a detached goroutine
+  (`runLateOverviewCleanup`) covers a cleanup that appears later.
 - `finfocus --web` shuts down on SIGINT and SIGTERM (`serveWebUntilInterrupt`
   and `webui.Server.Run`). That is the path that stops plugin children.
   `server_sigterm_test.go` is `//go:build unix` because Windows has no

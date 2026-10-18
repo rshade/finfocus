@@ -50,3 +50,39 @@ func TestGracefulShutdownOnSIGTERM(t *testing.T) {
 	_, getErr := noRedirectClient().Get(s.URL())
 	require.Error(t, getErr)
 }
+
+//nolint:paralleltest // Sends os.Interrupt to the whole test process; must not overlap other tests.
+func TestGracefulShutdownOnInterrupt(t *testing.T) {
+	s, err := New(Options{})
+	require.NoError(t, err)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- s.Run(context.Background())
+	}()
+
+	// Wait until the server answers.
+	require.Eventually(t, func() bool {
+		resp, getErr := noRedirectClient().Get(s.URL())
+		if getErr != nil {
+			return false
+		}
+		_ = resp.Body.Close()
+		return resp.StatusCode == http.StatusSeeOther
+	}, 10*time.Second, 25*time.Millisecond)
+
+	proc, err := os.FindProcess(os.Getpid())
+	require.NoError(t, err)
+	require.NoError(t, proc.Signal(os.Interrupt))
+
+	select {
+	case runErr := <-done:
+		require.NoError(t, runErr)
+	case <-time.After(15 * time.Second):
+		require.FailNow(t, "Run did not return after interrupt")
+	}
+
+	// The listener is closed: new connections fail.
+	_, getErr := noRedirectClient().Get(s.URL())
+	require.Error(t, getErr)
+}

@@ -1248,8 +1248,10 @@ func overviewInitAndEnrich(
 	pipe.OnPhase = func(phase int, name string) {
 		p.Send(tui.OverviewPhaseMsg{Index: phase - 1, Phase: name})
 	}
+	publishCleanup := newCleanupPublisher(pipe, cleanupChan)
 	pipe.OnDataReady = func(rows []engine.OverviewRow, totalCount int, stackName string) {
 		p.Send(tui.OverviewDataReadyMsg{Rows: rows, TotalCount: totalCount, StackName: stackName})
+		publishCleanup()
 	}
 	pipe.OnStateOnly = func(detectErrMsg string) {
 		// On-demand preview command for the 'p' key binding.
@@ -1277,10 +1279,21 @@ func overviewInitAndEnrich(
 	// below never races a budget call still inside gRPC.
 	_ = pipe.Run(enrichCtx)
 
-	// Hand the combined cleanup to the caller once the pipeline is done;
-	// nothing is sent when the run stopped before plugins opened.
-	if cleanup := pipe.Cleanup(); cleanup != nil {
-		cleanupChan <- cleanup
+	publishCleanup()
+}
+
+// newCleanupPublisher returns a func that hands the pipeline's combined
+// cleanup to cleanupChan at most once, and only when plugins were opened. It
+// runs as soon as the engine exists (OnDataReady), not only after Run returns,
+// so a quit that abandons a stuck enrichment call can still close plugins and
+// the cache before the process exits (issue #1797).
+func newCleanupPublisher(pipe *OverviewPipeline, cleanupChan chan<- func()) func() {
+	var sent atomic.Bool
+	return func() {
+		cleanup := pipe.Cleanup()
+		if cleanup != nil && sent.CompareAndSwap(false, true) {
+			cleanupChan <- cleanup
+		}
 	}
 }
 

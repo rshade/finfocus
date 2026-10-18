@@ -212,3 +212,27 @@ func TestFinishInteractiveOverview_RunsCleanupOnceAfterLateEnrichment(t *testing
 	}
 	assert.Never(t, func() bool { return calls.Load() > 1 }, 100*time.Millisecond, 10*time.Millisecond)
 }
+
+func TestCleanupPublisher_PublishesOnceBeforeEnrichmentEnds(t *testing.T) {
+	t.Parallel()
+
+	pipe := &OverviewPipeline{}
+	cleanupChan := make(chan func(), 1)
+	publish := newCleanupPublisher(pipe, cleanupChan)
+
+	publish()
+	assert.Empty(t, cleanupChan, "nothing is published before plugins open")
+
+	var calls atomic.Int32
+	pipe.mu.Lock()
+	pipe.cleanup = func() { calls.Add(1) }
+	pipe.mu.Unlock()
+
+	publish()
+	publish()
+	require.Len(t, cleanupChan, 1)
+
+	enrichDone := make(chan struct{})
+	finishInteractiveOverview(context.Background(), enrichDone, cleanupChan)
+	assert.Equal(t, int32(1), calls.Load(), "cleanup must run even though enrichment never finished")
+}
