@@ -193,6 +193,8 @@ func TestHistoryDir_ProjectTierSymlinkedDatabase(t *testing.T) {
 	}{
 		{name: "history.db symlink rejected", fileName: "history.db", symlink: true},
 		{name: "project history file symlink rejected", fileName: "proj@dev.history.db", symlink: true},
+		{name: "uppercase HISTORY.DB symlink rejected", fileName: "HISTORY.DB", symlink: true},
+		{name: "uppercase suffix symlink rejected", fileName: "proj@dev.HISTORY.DB", symlink: true},
 		{name: "regular history.db accepted", fileName: "history.db"},
 	}
 
@@ -232,4 +234,23 @@ func TestHistoryDir_ProjectTierSymlinkedDatabase(t *testing.T) {
 			assert.ErrorIs(t, err, os.ErrNotExist, "the link target must stay untouched")
 		})
 	}
+}
+
+func TestHistoryDir_GlobalDirectorySurvivesUnsafeProjectOverlay(t *testing.T) {
+	finfocusHome := t.TempDir()
+	setHistoryResolutionEnv(t, t.TempDir(), finfocusHome, "")
+	root := t.TempDir()
+	projectCfgDir := filepath.Join(root, ".finfocus")
+	require.NoError(t, os.MkdirAll(projectCfgDir, 0o750))
+	unsafe := filepath.Join(t.TempDir(), "elsewhere")
+	body := `{"cost": {"history": {"directory": ` + strconv.Quote(unsafe) + `}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(projectCfgDir, "config.hujson"), []byte(body), 0o600))
+	t.Chdir(root)
+	config.SetResolvedProjectDir("")
+	t.Cleanup(func() { config.SetResolvedProjectDir("") })
+
+	globalDir := filepath.Join(t.TempDir(), "global-history")
+	cfg := installHistoryConfig(t, globalDir)
+
+	assert.Equal(t, globalDir, resolveHistoryDir(context.Background(), cfg, projectCfgDir))
 }

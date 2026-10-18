@@ -243,7 +243,7 @@ func historyDirectory(ctx context.Context, cfg *config.Config, projectDir string
 	}
 	if cfg != nil && cfg.Cost.History.Directory != "" {
 		dir := cfg.Cost.History.Directory
-		if !projectHistoryDirectoryRejected(ctx, projectDir) {
+		if !historyDirectoryIsProjectTier(cfg, projectDir) || !projectHistoryDirectoryRejected(ctx, projectDir) {
 			return dir, false
 		}
 	}
@@ -255,6 +255,15 @@ func historyDirectory(ctx context.Context, cfg *config.Config, projectDir string
 		dir = abs
 	}
 	return dir, true
+}
+
+// historyDirectoryIsProjectTier reports whether the configured directory is the
+// project overlay's value. A config built without the overlay carries a trusted
+// global value that an unsafe overlay must not discard. The same path in both
+// tiers counts as project-sourced.
+func historyDirectoryIsProjectTier(cfg *config.Config, projectDir string) bool {
+	project := config.ProjectHistoryDirectory(projectDir)
+	return project != "" && filepath.Clean(project) == filepath.Clean(cfg.Cost.History.Directory)
 }
 
 // projectHistoryDirectoryRejected judges the project overlay's own
@@ -309,7 +318,8 @@ func historyDatabaseFilesSafe(dir string) bool {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		if name != "history.db" && !strings.HasSuffix(name, ".history.db") {
+		lower := strings.ToLower(name)
+		if lower != "history.db" && !strings.HasSuffix(lower, ".history.db") {
 			continue
 		}
 		info, lerr := os.Lstat(filepath.Join(dir, name))
