@@ -109,3 +109,21 @@ func TestInteractiveEstimateInitialFailureRemainsEditable(t *testing.T) {
 	assert.Contains(t, model.View().Content, "size")
 	assert.NotContains(t, model.View().Content, "Error:")
 }
+
+func TestInteractivePlanResourceSelection(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	eng := engine.New(nil, nil)
+	resources := []engine.ResourceDescriptor{
+		{ID: "provider", Type: "pulumi:providers:aws"},
+		{ID: "empty", Type: "custom:module:Unknown"},
+		{ID: "instance", Provider: "aws", Type: "aws:ec2:Instance", Properties: map[string]any{"size": float64(2)}},
+	}
+	resource := selectInteractiveEstimateResource(ctx, eng, resources)
+	require.NotNil(t, resource)
+	assert.Equal(t, "instance", resource.ID)
+	assert.Equal(t, eng.SelectEstimateResources(ctx, resources, false).PreferredURN, resource.ID)
+	assert.Nil(t, selectInteractiveEstimateResource(ctx, eng, resources[:1]))
+	assert.Nil(t, selectInteractiveEstimateResource(ctx, eng, nil))
+	assert.Equal(t, "provider", resources[0].ID)
+}

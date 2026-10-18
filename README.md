@@ -166,7 +166,9 @@ The Cost view's group selector and tag filter, and the Recommendations view's
 **Include dismissed** toggle, add browser controls for existing CLI flags.
 The TUI fixes grouping at launch and has no include-dismissed toggle.
 Estimate changes are temporary what-if calculations; the dashboard cannot
-change infrastructure or dismiss recommendations. Use **Run preview** for an
+change infrastructure or dismiss recommendations. What-If hides known non-billable
+resources by default; **Show all resources** restores them. Unknown billability
+and zero-spend resources remain available. Use **Run preview** for an
 on-demand Pulumi preview and restart the session to load fresh actual costs.
 
 Keep the printed URL private: its token opens an authenticated local session.

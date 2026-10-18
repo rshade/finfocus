@@ -531,7 +531,7 @@ func (e *Engine) selectPluginMatchesForResource(
 	// If no router configured, return all clients as matches with fallback enabled
 	if e.router == nil {
 		// Filter internal Pulumi types when no router is configured
-		if strings.HasPrefix(resource.Type, pulumiInternalPrefix) {
+		if IsPulumiInternalType(resource.Type) {
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").
@@ -557,7 +557,7 @@ func (e *Engine) selectPluginMatchesForResource(
 	matches := e.router.SelectPlugins(ctx, resource, feature)
 	if len(matches) == 0 {
 		// Filter internal Pulumi types — do not fall back to all clients
-		if strings.HasPrefix(resource.Type, pulumiInternalPrefix) {
+		if IsPulumiInternalType(resource.Type) {
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").

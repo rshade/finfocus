@@ -1,0 +1,38 @@
+{
+  "steps": [
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::picker::pulumi:pulumi:Stack::picker-dev",
+      "newState": {
+        "urn": "urn:pulumi:dev::picker::pulumi:pulumi:Stack::picker-dev",
+        "type": "pulumi:pulumi:Stack",
+        "inputs": {}
+      }
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::picker::pulumi:providers:aws::default",
+      "newState": {
+        "urn": "urn:pulumi:dev::picker::pulumi:providers:aws::default",
+        "type": "pulumi:providers:aws",
+        "custom": true,
+        "id": "fixture-provider",
+        "inputs": {
+          "region": "us-east-1"
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::picker::aws:ec2/instance:Instance::planned",
+      "newState": {
+        "urn": "urn:pulumi:dev::picker::aws:ec2/instance:Instance::planned",
+        "type": "aws:ec2/instance:Instance",
+        "inputs": {
+          "instanceType": "t3.micro",
+          "region": "us-east-1"
+        }
+      }
+    }
+  ]
+}

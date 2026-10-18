@@ -2,11 +2,14 @@ import { el } from '../app.js';
 
 // Cost values, deltas and pricing labels are computed and formatted by Go.
 export function mount(container, { api, stream }) {
-  let alive = true, generation = 0, requestAbort;
+  let alive = true, generation = 0, requestAbort, resourceAbort, resourceGeneration = 0, calculationPending = false;
+  let sourceVersions = new Map();
   const heading = el('h2', { tabindex: '-1', text: 'What-If Cost Analysis' });
   const resource = el('select', { id: 'estimate-resource' });
   const mode = el('select', { id: 'estimate-mode' });
-  const error = el('p', { class: 'error-banner', role: 'alert' }); error.hidden = true;
+  const showAll = el('input', { id: 'estimate-show-all', type: 'checkbox' });
+  const error = el('p', { id: 'estimate-calculation-error', class: 'error-banner', role: 'alert' }); error.hidden = true;
+  const resourceError = el('p', { id: 'estimate-resource-error', class: 'error-banner', role: 'alert' }); resourceError.hidden = true;
   const status = el('p', { role: 'status', text: 'Loading estimate resources…' });
   const comparison = el('div', { class: 'totals-bar', 'aria-label': 'Estimate comparison' });
   const pricing = el('div', { 'aria-label': 'Pricing details' });
@@ -16,7 +19,8 @@ export function mount(container, { api, stream }) {
     el('thead', {}, el('tr', {}, ...['Property', 'Original', 'Current', 'Cost delta'].map(text => el('th', { scope: 'col', text })))), body);
   container.append(heading, el('div', { class: 'toolbar estimate-toolbar' },
     el('label', { class: 'filter-label', for: 'estimate-resource' }, 'Resource', resource),
-    el('label', { class: 'filter-label', for: 'estimate-mode' }, 'Pricing mode', mode)), error, status, comparison, pricing,
+    el('label', { class: 'filter-label', for: 'estimate-mode' }, 'Pricing mode', mode),
+    el('label', { class: 'filter-label estimate-show-all', for: 'estimate-show-all' }, showAll, 'Show all resources')), resourceError, error, status, comparison, pricing,
     el('div', { class: 'table-wrap' }, table));
 
   function begin(message) {
@@ -84,6 +88,7 @@ export function mount(container, { api, stream }) {
     if (!resource.value) return;
     const changes = overrides();
     const { current, signal } = begin('Calculating estimate…');
+    calculationPending = true;
     try {
       const result = Object.keys(changes).length
         ? await api.post('/api/estimate/recalculate', { urn: resource.value, overrides: changes, pricingMode: mode.value }, { signal })
@@ -93,7 +98,7 @@ export function mount(container, { api, stream }) {
       if (result.status === 'unavailable') failed(Object.assign(new Error(result.error), { data: result }), current);
       else render(result, focusKey);
     } catch (err) { failed(err, current); }
-    finally { finish(current); }
+    finally { if (current === generation) calculationPending = false; finish(current); }
   }
   function selectResource() {
     mode.replaceChildren(el('option', { value: '', text: 'Automatic provider' })); mode.value = '';
@@ -101,25 +106,52 @@ export function mount(container, { api, stream }) {
     recalculate();
   }
   async function loadResources() {
-    const { current, signal } = begin('Loading estimate resources…');
+    resourceAbort?.abort(); resourceAbort = new AbortController();
+    const current = ++resourceGeneration, signal = resourceAbort.signal;
+    const keepingEditor = Boolean(resource.value);
+    if (!keepingEditor) {
+      status.textContent = 'Loading estimate resources…';
+      table.setAttribute('aria-busy', 'true');
+    }
     try {
-      const result = await api.get('/api/estimate/resources', { signal });
-      if (!alive || current !== generation) return;
+      const result = await api.get(`/api/estimate/resources${showAll.checked ? '?showAll=true' : ''}`, { signal });
+      if (!alive || current !== resourceGeneration) return;
+      resourceError.hidden = true;
       const selected = resource.value;
+      const previousVersion = sourceVersions.get(selected);
+      sourceVersions = new Map((result.resources ?? []).map(item => [item.id, JSON.stringify(item.properties)]));
       resource.replaceChildren();
       for (const item of result.resources ?? []) {
         const name = item.id.split('::').at(-1);
         resource.append(el('option', { value: item.id, title: item.id, text: `${name} (${item.type})` }));
       }
-      resource.value = result.resources?.some(item => item.id === selected) ? selected : result.resources?.[0]?.id ?? '';
+      const retained = result.resources?.some(item => item.id === selected);
+      const preferred = result.resources?.some(item => item.id === result.preferredURN) ? result.preferredURN : result.resources?.[0]?.id ?? '';
+      resource.value = retained ? selected : preferred;
+      if (resource.value && retained && previousVersion === sourceVersions.get(selected)) return;
       if (resource.value) selectResource();
-      else { body.replaceChildren(); comparison.replaceChildren(); status.textContent = 'No resources available for estimation.'; }
-    } catch (err) { failed(err, current); }
-    finally { finish(current); }
+      else {
+        requestAbort?.abort(); generation += 1; calculationPending = false;
+        error.hidden = true;
+        mode.replaceChildren(el('option', { value: '', text: 'Automatic provider' })); mode.value = '';
+        body.replaceChildren(); comparison.replaceChildren(); pricing.replaceChildren();
+        status.textContent = result.hiddenCount > 0
+          ? 'Only known non-billable resources are available. Enable Show all resources to inspect them.'
+          : 'No resources available for estimation. Check the stack and launch filters.';
+      }
+    } catch (err) {
+      if (!alive || current !== resourceGeneration || err.name === 'AbortError') return;
+      resourceError.textContent = err.status === 503 ? 'Estimate resources are still loading.' : `Unable to load estimate resources: ${err.message}`;
+      resourceError.hidden = false;
+      if (!resource.value) status.textContent = err.status === 503 ? 'Waiting for stack data…' : 'Unable to load estimate resources.';
+    } finally {
+      if (alive && current === resourceGeneration && !calculationPending) table.setAttribute('aria-busy', 'false');
+    }
   }
+  showAll.addEventListener('change', () => loadResources());
   resource.addEventListener('change', selectResource);
   mode.addEventListener('change', () => recalculate());
-  const unsubs = [stream.on('ready', loadResources), stream.on('snapshot', snapshot => { if (snapshot.ready) loadResources(); })];
+  const unsubs = [stream.on('ready', () => loadResources()), stream.on('snapshot', snapshot => { if (snapshot.ready) loadResources(); })];
   loadResources();
-  return { unmount() { alive = false; generation += 1; requestAbort?.abort(); for (const off of unsubs) off(); } };
+  return { unmount() { alive = false; generation += 1; requestAbort?.abort(); resourceAbort?.abort(); for (const off of unsubs) off(); } };
 }

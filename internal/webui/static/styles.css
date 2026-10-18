@@ -728,6 +728,13 @@ button:disabled {
   min-width: 0;
 }
 
+.estimate-toolbar .estimate-show-all {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  align-self: center;
+}
+
 .estimate-toolbar select,
 .estimate-table .estimate-input {
   width: 100%;

@@ -75,6 +75,7 @@ func (s *Server) WriteJSON(w http.ResponseWriter, status int, value any) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+	//nolint:gosec // G705: RedactJSON uses json.Marshal HTML escaping; Content-Type is application/json.
 	_, _ = w.Write(append(data, '\n'))
 }
 func sortField(value string) (viewmodel.SortField, bool) {
