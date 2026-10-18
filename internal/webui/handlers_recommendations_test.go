@@ -606,7 +606,7 @@ func TestReadOnlyShutdownDoesNotWaitForSlowErrorWriter(t *testing.T) {
 		"error": func(context.Context, bool) (*engine.RecommendationsResult, error) {
 			return nil, errors.New("plugin down")
 		},
-		"nil result": func(context.Context, bool) (*engine.RecommendationsResult, error) { return nil, nil },
+		"nil result": func(context.Context, bool) (*engine.RecommendationsResult, error) { return nil, nil }, //nolint:nilnil // a nil result is the case under test
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -623,7 +623,11 @@ func TestReadOnlyShutdownDoesNotWaitForSlowErrorWriter(t *testing.T) {
 				defer close(returned)
 				s.handleRecommendationsQuery(
 					writer,
-					httptest.NewRequest(http.MethodPost, s.BaseURL()+"/api/recommendations/query", strings.NewReader("{}")),
+					httptest.NewRequest(
+						http.MethodPost,
+						s.BaseURL()+"/api/recommendations/query",
+						strings.NewReader("{}"),
+					),
 				)
 			}()
 			<-writer.entered

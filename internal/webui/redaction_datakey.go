@@ -68,13 +68,7 @@ func preserveStruct(value reflect.Value, redacted any, depth int) any {
 			continue
 		}
 		if field.Tag.Get("datakey") == "true" || isDataKeyedValue(fieldValue) {
-			_, exists := object[name]
-			if exists || (dataKeyLen(fieldValue) > 0 && !engine.IsHiddenPropertyKey(name)) {
-				restored := redactKeepingKeys(fieldValue, object[name], depth+1)
-				if restored != nil || exists {
-					object[name] = restored
-				}
-			}
+			restoreDataKeyedField(object, name, fieldValue, depth+1)
 			continue
 		}
 		if child, exists := object[name]; exists {
@@ -82,6 +76,17 @@ func preserveStruct(value reflect.Value, redacted any, depth int) any {
 		}
 	}
 	return object
+}
+
+func restoreDataKeyedField(object map[string]any, name string, fieldValue reflect.Value, depth int) {
+	_, exists := object[name]
+	if !exists && (dataKeyLen(fieldValue) == 0 || engine.IsHiddenPropertyKey(name)) {
+		return
+	}
+	restored := redactKeepingKeys(fieldValue, object[name], depth)
+	if restored != nil || exists {
+		object[name] = restored
+	}
 }
 
 func preserveSlice(value reflect.Value, redacted any, depth int) any {
