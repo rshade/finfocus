@@ -571,12 +571,28 @@ func TestRecommendationItemFallbackDoesNotReplaceALaterQuery(t *testing.T) {
 		if calls.Add(1) == 1 {
 			close(started)
 			<-release
-			return &engine.RecommendationsResult{Recommendations: []engine.Recommendation{{ID: "old", Type: "Resize"}}}, nil
+			return &engine.RecommendationsResult{
+				Recommendations: []engine.Recommendation{{ID: "old", Type: "Resize"}},
+			}, nil
 		}
 		return &engine.RecommendationsResult{Recommendations: []engine.Recommendation{{ID: "new", Type: "Resize"}}}, nil
 	})
 	detail := make(chan int, 1)
-	go func() { detail <- overviewRequest(t, s, "GET", "/api/recommendations/item?id=old", "").StatusCode }()
+	go func() {
+		req, err := http.NewRequest(http.MethodGet, s.BaseURL()+"/api/recommendations/item?id=old", nil)
+		if err != nil {
+			detail <- 0
+			return
+		}
+		req.AddCookie(&http.Cookie{Name: s.cookieName(), Value: s.token})
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			detail <- 0
+			return
+		}
+		_ = resp.Body.Close()
+		detail <- resp.StatusCode
+	}()
 	<-started
 	require.Equal(t, 200, overviewRequest(t, s, "POST", "/api/recommendations/query", `{}`).StatusCode)
 	close(release)

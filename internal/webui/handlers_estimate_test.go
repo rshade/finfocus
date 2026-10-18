@@ -540,7 +540,9 @@ func TestEstimateBaselineFailureHidesNestedSecrets(t *testing.T) {
 	s, session, _, _ := estimateHTTPFixture(t)
 	session.SetData(
 		engine.New(
-			[]*pluginhost.Client{{Name: "bad", API: &webEstimatePlugin{rate: 10, failure: status.Error(codes.Unavailable, "down")}}},
+			[]*pluginhost.Client{
+				{Name: "bad", API: &webEstimatePlugin{rate: 10, failure: status.Error(codes.Unavailable, "down")}},
+			},
 			nil,
 		),
 		[]engine.OverviewRow{{
@@ -555,7 +557,13 @@ func TestEstimateBaselineFailureHidesNestedSecrets(t *testing.T) {
 		engine.DateRange{},
 		"",
 	)
-	resp := overviewRequest(t, s, "GET", "/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`), "")
+	resp := overviewRequest(
+		t,
+		s,
+		"GET",
+		"/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`),
+		"",
+	)
 	require.Equal(t, http.StatusBadGateway, resp.StatusCode)
 	raw, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)

@@ -100,7 +100,7 @@ func preserveSlice(value reflect.Value, redacted any, depth int) any {
 // map. Scalar elements such as a []float64 cannot, so they skip the per-element
 // JSON round trip in surviving.
 func canHoldDataKeys(t reflect.Type) bool {
-	switch t.Kind() {
+	switch t.Kind() { //nolint:exhaustive // only scalar kinds are excluded
 	case reflect.Bool, reflect.String,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
