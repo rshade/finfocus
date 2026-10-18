@@ -3,6 +3,7 @@ package webui
 import (
 	"encoding"
 	"encoding/json"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -30,8 +31,9 @@ var (
 )
 
 type fieldRef struct {
-	index []int
-	keyed bool
+	index   []int
+	keyed   bool
+	blocked bool
 }
 
 //nolint:gochecknoglobals // per-type reflection caches
@@ -52,10 +54,11 @@ func redactNode(v reflect.Value, node any, keyed bool, depth int) any {
 	}
 	v = derefValue(v)
 	if v.IsValid() {
-		if v.Type().Implements(dataKeyedType) {
-			keyed = true
+		keyed = keyed || v.Type().Implements(dataKeyedType)
+		if keyed && (v.Kind() != reflect.Map || hasOwnEncoding(v.Type())) {
+			v, keyed = reflect.Value{}, false
 		}
-		if !keyed && !mayHoldDataKeys(v.Type()) {
+		if v.IsValid() && !keyed && !mayHoldDataKeys(v.Type()) {
 			v = reflect.Value{}
 		}
 	}
@@ -190,36 +193,53 @@ type fieldLevel struct {
 	index []int
 }
 
-// fieldTable collects JSON names the way encoding/json resolves them: a
-// shallower name wins and a name repeated at the same depth belongs to nobody.
-type fieldTable struct {
-	fields  map[string]fieldRef
-	blocked map[string]bool
-	atLevel map[string]bool
+type fieldCandidate struct {
+	ref    fieldRef
+	tagged bool
 }
 
-func (t *fieldTable) add(name string, ref fieldRef) {
-	switch {
-	case t.blocked[name]:
-	case t.atLevel[name]:
-		delete(t.fields, name)
-		t.blocked[name] = true
-	default:
-		if _, shallower := t.fields[name]; !shallower {
-			t.atLevel[name] = true
-			t.fields[name] = ref
+// fieldTable collects JSON names the way encoding/json resolves them: a
+// shallower name wins, and among names at one depth a single explicitly tagged
+// field wins; otherwise the name belongs to nobody.
+type fieldTable struct {
+	fields     map[string]fieldRef
+	candidates map[string][]fieldCandidate
+}
+
+func (t *fieldTable) add(name string, candidate fieldCandidate) {
+	t.candidates[name] = append(t.candidates[name], candidate)
+}
+
+func (t *fieldTable) endLevel() {
+	for name, candidates := range t.candidates {
+		if _, shallower := t.fields[name]; shallower {
+			continue
 		}
+		if len(candidates) > 1 {
+			candidates = slices.DeleteFunc(candidates, func(c fieldCandidate) bool { return !c.tagged })
+		}
+		if len(candidates) == 1 {
+			t.fields[name] = candidates[0].ref
+		}
+		t.blockedNames(name)
+	}
+	t.candidates = map[string][]fieldCandidate{}
+}
+
+// blockedNames keeps a deeper field from taking a name this depth already claimed.
+func (t *fieldTable) blockedNames(name string) {
+	if _, ok := t.fields[name]; !ok {
+		t.fields[name] = fieldRef{index: nil, blocked: true}
 	}
 }
 
 // buildFields maps each JSON name of a struct to its Go field, promoting
 // embedded structs the way encoding/json does.
 func buildFields(root reflect.Type) map[string]fieldRef {
-	table := &fieldTable{fields: map[string]fieldRef{}, blocked: map[string]bool{}}
+	table := &fieldTable{fields: map[string]fieldRef{}, candidates: map[string][]fieldCandidate{}}
 	seen := map[reflect.Type]bool{}
 	for level := []fieldLevel{{typ: root}}; len(level) > 0; {
 		var next []fieldLevel
-		table.atLevel = map[string]bool{}
 		for _, current := range level {
 			if seen[current.typ] {
 				continue
@@ -235,12 +255,22 @@ func buildFields(root reflect.Type) map[string]fieldRef {
 					next = append(next, fieldLevel{typ: embedded, index: index})
 					continue
 				}
-				table.add(name, fieldRef{index: index, keyed: field.Tag.Get("datakey") == "true"})
+				table.add(name, fieldCandidate{
+					ref:    fieldRef{index: index, keyed: field.Tag.Get("datakey") == "true"},
+					tagged: jsonTagName(field) != "",
+				})
 			}
 		}
+		table.endLevel()
 		level = next
 	}
+	maps.DeleteFunc(table.fields, func(_ string, ref fieldRef) bool { return ref.blocked })
 	return table.fields
+}
+
+func jsonTagName(field reflect.StructField) string {
+	name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+	return name
 }
 
 // jsonFieldName returns the JSON key of a field, or the struct type of an
@@ -287,11 +317,11 @@ func holdsDataKeys(t reflect.Type, visiting map[reflect.Type]bool) bool {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
+	if hasOwnEncoding(t) || visiting[t] {
+		return false
+	}
 	if t.Implements(dataKeyedType) {
 		return true
-	}
-	if visiting[t] || hasOwnEncoding(t) {
-		return false
 	}
 	visiting[t] = true
 	switch t.Kind() { //nolint:exhaustive // scalar kinds cannot hold a map

@@ -309,3 +309,68 @@ func TestRedactJSONNilAndEmptyShapes(t *testing.T) {
 		string(data),
 	)
 }
+
+type injectingMap map[string]float64
+
+func (injectingMap) MarshalJSON() ([]byte, error) {
+	return []byte(`{"password":"` + credentialMarker + `","urn:web":1}`), nil
+}
+
+func TestRedactJSONTreatsStructEmbeddingDataKeyedAsPropertyMap(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		engine.DataKeyed[any]
+
+		Password string `json:"password"`
+		Size     string `json:"size"`
+	}
+	data, err := RedactJSON(payload{Password: credentialMarker, Size: "m"})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), credentialMarker)
+	assert.Contains(t, string(data), `"size":"m"`)
+}
+
+func TestRedactJSONDoesNotTrustTaggedMapWithOwnEncoding(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Totals injectingMap `json:"totals" datakey:"true"`
+	}
+	data, err := RedactJSON(payload{Totals: injectingMap{"urn:web": 1}})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), credentialMarker)
+	assert.JSONEq(t, `{"totals": {"urn:web": 1}}`, string(data))
+}
+
+func TestRedactJSONPrefersTaggedFieldAmongEqualDepthEmbeddedNames(t *testing.T) {
+	t.Parallel()
+
+	type left struct {
+		Totals map[string]float64 `json:"Totals" datakey:"true"`
+	}
+	type right struct {
+		Totals map[string]float64
+	}
+	type payload struct {
+		left
+		right
+	}
+	data, err := RedactJSON(payload{left: left{Totals: map[string]float64{"password": 1}}})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"Totals": {"password": 1}}`, string(data))
+
+	type bare struct {
+		Totals map[string]float64
+	}
+	type other struct {
+		Totals map[string]float64
+	}
+	type clash struct {
+		bare
+		other
+	}
+	clashed, err := RedactJSON(clash{})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{}`, string(clashed))
+}
