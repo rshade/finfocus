@@ -306,8 +306,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   published when the engine is built (`newCleanupPublisher`), so the abandon
   path still closes plugins before the process exits; a detached goroutine
   (`runLateOverviewCleanup`) covers a cleanup that appears later.
-- `finfocus --web` shuts down on SIGINT and SIGTERM (`serveWebUntilInterrupt`
-  and `webui.Server.Run`). That is the path that stops plugin children.
+- `finfocus --web` shuts down on SIGINT and SIGTERM (`webui.Server.ServeUntilInterrupt`,
+  the single owner; `Run` is Listen plus that). That is the path that stops
+  plugin children.
   `server_sigterm_test.go` is `//go:build unix` because Windows has no
   `syscall.Kill` or SIGTERM. The interrupt test signals `os.Interrupt`.
   On SIGTERM, core SIGKILLs each plugin's whole process group

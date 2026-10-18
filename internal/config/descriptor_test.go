@@ -163,3 +163,22 @@ func mustSetting(t *testing.T, key string) Setting {
 	require.True(t, ok)
 	return setting
 }
+
+func TestCanonicalKeyBudgetFields(t *testing.T) {
+	t.Parallel()
+	tests := map[string]string{
+		"cost.budgets.amount":        "cost.budgets.global.amount",
+		"cost.budgets.currency":      "cost.budgets.global.currency",
+		"cost.budgets.period":        "cost.budgets.global.period",
+		"cost.budgets.alerts":        "cost.budgets.alerts",
+		"cost.budgets.global.amount": "cost.budgets.global.amount",
+		"cost.budgets.providers.aws": "cost.budgets.providers.aws",
+		"output.precision":           "output.precision",
+	}
+	for key, want := range tests {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, want, CanonicalKey(key))
+		})
+	}
+}

@@ -298,56 +298,77 @@ func (e *Engine) checkPluginSupports(
 			Attributes:   descriptor.GetAttributes(),
 		},
 	})
-	if err != nil {
-		if status.Code(err) == codes.InvalidArgument {
-			reason := status.Convert(err).Message()
-			if reason == "" {
-				reason = err.Error()
-			}
-			e.cacheSupportsResult(cacheKey, supportsResult{supported: false, reason: reason})
-			return false, reason
-		}
-		// Unimplemented and other non-transient failures stay fail-open and
-		// cached. A transient failure is not a lasting "supported" answer.
-		if !supportsFailureIsTransient(err) {
-			e.cacheSupportsResult(cacheKey, supportsResult{supported: true})
-		}
-		return true, ""
-	}
-
-	supported := resp.GetSupported()
-	reason := resp.GetReason()
-	log := logging.FromContext(ctx)
-	if !supported && reason == pluginsdk.DefaultSupportsNotImplementedReason {
+	verdict := classifySupports(resp, err)
+	switch verdict.kind {
+	case supportsKindNotImplemented:
 		// The plugin never implemented SupportsProvider; the SDK's generic
-		// fallback answered on its behalf. Fail open rather than treat that
-		// as a genuine "does not support" answer.
-		log.Debug().
+		// fallback answered on its behalf, so fail open.
+		logging.FromContext(ctx).Debug().
 			Str("component", "engine").
 			Str("plugin", client.Name).
 			Str("resource_type", resource.Type).
 			Str("resource_region", region).
 			Str("feature", feature).
 			Msg("plugin has no Supports implementation, failing open")
-		supported = true
-		reason = ""
-	} else if !supported {
-		log.Debug().
+	case supportsKindDeclined:
+		logging.FromContext(ctx).Debug().
 			Str("component", "engine").
 			Str("plugin", client.Name).
 			Str("resource_type", resource.Type).
 			Str("resource_region", region).
 			Str("feature", feature).
-			Str("reason", reason).
+			Str("reason", verdict.reason).
 			Msg("plugin does not support feature, skipping")
+	case supportsKindSupported, supportsKindFailOpen, supportsKindInvalidArgument:
 	}
-	if supported {
-		// A reason only has meaning on a genuine decline; never propagate
-		// one for a supported (or failed-open) answer.
-		reason = ""
+	if verdict.cache {
+		e.cacheSupportsResult(cacheKey, supportsResult{supported: verdict.supported, reason: verdict.reason})
 	}
-	e.cacheSupportsResult(cacheKey, supportsResult{supported: supported, reason: reason})
-	return supported, reason
+	return verdict.supported, verdict.reason
+}
+
+type supportsKind int
+
+const (
+	supportsKindSupported supportsKind = iota
+	supportsKindDeclined
+	supportsKindInvalidArgument
+	supportsKindNotImplemented
+	supportsKindFailOpen
+)
+
+type supportsVerdict struct {
+	kind      supportsKind
+	supported bool
+	reason    string
+	cache     bool
+}
+
+// classifySupports turns a Supports() response or error into a verdict. A
+// reason is only set for a genuine decline. Transient RPC failures
+// (Unavailable, DeadlineExceeded, Canceled) fail open and are not cached.
+func classifySupports(resp *pbc.SupportsResponse, err error) supportsVerdict {
+	if err != nil {
+		if status.Code(err) == codes.InvalidArgument {
+			reason := status.Convert(err).Message()
+			if reason == "" {
+				reason = err.Error()
+			}
+			return supportsVerdict{kind: supportsKindInvalidArgument, reason: reason, cache: true}
+		}
+		return supportsVerdict{
+			kind:      supportsKindFailOpen,
+			supported: true,
+			cache:     !supportsFailureIsTransient(err),
+		}
+	}
+	if resp.GetSupported() {
+		return supportsVerdict{kind: supportsKindSupported, supported: true, cache: true}
+	}
+	if resp.GetReason() == pluginsdk.DefaultSupportsNotImplementedReason {
+		return supportsVerdict{kind: supportsKindNotImplemented, supported: true, cache: true}
+	}
+	return supportsVerdict{kind: supportsKindDeclined, reason: resp.GetReason(), cache: true}
 }
 
 // supportsFailureIsTransient reports RPC failures that may succeed on a later
