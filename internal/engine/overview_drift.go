@@ -214,6 +214,9 @@ func GetExtrapolatedActual(row OverviewRow, dayOfMonth int) float64 {
 		return 0
 	}
 	mtd := row.ActualCost.MTDCost
+	if billed := row.ActualCost.BilledDays; billed > 0 {
+		return mtd * (defaultDaysPerMonth / billed)
+	}
 	if dayOfMonth < driftMinDay {
 		return mtd
 	}
@@ -230,6 +233,9 @@ func ForceExtrapolateActual(row OverviewRow, dayOfMonth int) float64 {
 		return 0
 	}
 	mtd := row.ActualCost.MTDCost
+	if billed := row.ActualCost.BilledDays; billed > 0 {
+		return mtd * (defaultDaysPerMonth / billed)
+	}
 	if dayOfMonth <= 0 {
 		return mtd
 	}

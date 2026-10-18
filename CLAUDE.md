@@ -257,8 +257,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   command or its flags: the project tier would be lost. `--output` defaults to
   `""` and `resolveOutputFormatWithConfig` fills it in at run time, after
   `PersistentPreRunE`. `TestNewRootCmdDoesNotInitializeConfig` guards this.
-- `config get cost.budgets.global.amount` still rejects the key `config set`
-  accepts (#1800).
+- `config get` reads `cost.budgets.global.amount`, `currency`, and `period`.
+  Flat `cost.budgets.amount` still addresses that same global scope.
 
 ### Plugin Host (`internal/pluginhost/`)
 
@@ -297,6 +297,19 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 ### CLI (`internal/cli/`)
 
+- `cost estimate --modify` splits on the last colon before `=`, so a Pulumi
+  URN selector keeps its colons. A selector matches the resource ID, the
+  logical name (the last `::` segment), or the type, and every matching
+  selector applies; on a conflicting property the more specific wins (ID over
+  name over type). `selectorKeys` is the one definition of a match. A
+  selector that matches
+  nothing is a validation error (exit 2) that lists the plan's resources.
+  `--resource-type` must be a full token (`package:module:Type`) whose
+  package matches `--provider`; a short name such as `ec2:Instance` is
+  rejected.
+- `plugin list` orders by name ascending, then installed version descending
+  as semver. A version that is not semver uses ascending string order, and
+  path breaks remaining ties. Table and JSON use that same order.
 - `analyzer serve` prints only the port on stdout (Pulumi handshake); all logs
   go to stderr.
 - **Tests leak into the real `~/.finfocus`** unless they set
@@ -332,7 +345,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `plugin_settings_web.go`. Install progress is a per-operation SSE stream
   (`snapshot`, `progress`, `done`). Do not publish it on the overview bus:
   that bus runs `RedactJSON` and drops slow subscribers. Settings GET uses
-  `writePlainJSON`. Secret values are absent from the body.
+  `writePlainJSON`. Secret values are absent from the body. Bool and enum
+  plugin settings skip `IsCredentialName` unless the descriptor sets `secret`.
   Data-keyed maps keep their keys through `RedactJSON`: use `engine.DataKeyed`
   or the struct tag `datakey:"true"` (trends, breakdowns, and the cost-summary
   groupings). Values still pass `history.IsPulumiSecret`. Property maps do not
@@ -420,13 +434,41 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - A failed plugin call keeps the gRPC status as `<Code>: <message>`
   (`pluginRPCError`). Only an empty projected result is `no cost data
   available`. Core does not read `aws:region` from provider or stack config.
+  A fixed-cost type with no SKU property, including
+  `aws:ec2/natGateway:NatGateway`, gets one from `skus.ResolveSKU`. An empty
+  SKU is rejected before pricing (`resource.sku is required`) and the row
+  then shows no price.
+- Overview actual enrichment copies `ResourceID` into `pulumi:cloudId`, and
+  fills `pulumi:urn` and `pulumi:created` when those properties are empty,
+  before `GetActualCost`. The row's own properties are not rewritten. Cost
+  actual already receives those keys from `MapStateResource`. Without the
+  cloud id, a plugin can estimate a monthly figure instead of the measured
+  window total the Cost page shows.
+  The request `From` is clamped to the row's `CreatedAt` when that falls
+  inside the window (`actualRequestStart`), because plugins trust an explicit
+  Start over `pulumi:created`; without it a resource made yesterday was
+  charged for the whole month. `ActualCost.Period` keeps the display window.
+  An imported row (`External`) is not clamped: its `CreatedAt` is the import
+  time. A clamped row records `ActualCost.BilledDays`, and the delta
+  extrapolation divides by that instead of the day of month.
 - Projected diff (`cost projected`): replacement steps sharing a URN are
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`
   resolution. Unpriced `pulumi:` types are left out.
 - Cost history (`internal/history`, `cost history *`): files are
   `<project>@<stack>.history.db`, separate from the resource-observation
-  `history.db`. `collect` fails a checkpoint rather than store an inaccurate
+  `history.db`. Both use one directory: `FINFOCUS_HISTORY_DIR`, then
+  `cost.history.directory`, then `<ResolveConfigDir()>/history`.
+  A project-tier `cost.history.directory` is ignored with a warning when it
+  is absolute, has `..`, or resolves (symlinks followed on the deepest existing
+  ancestor, against the working directory) outside the project root, or when
+  `history.db` or a `*.history.db` in it is a symlink or not a regular file
+  (rechecked after `MkdirAll`; a swap after the check is not covered). The gate
+  takes the project dir that built the config (`initHistoryFromConfig`'s
+  `projectDir`; the analyzer passes its own, never the process-global one) and
+  judges the overlay value from `config.ProjectHistoryDirectory`; global tier and the
+  env var are trusted. The working-dir fallback is made absolute.
+  `collect` fails a checkpoint rather than store an inaccurate
   total (#549). `internal/history` must not import `engine` or `ingest`.
   History subcommands reuse the parent `--stack`. `cost history export` takes
   `csv`/`ndjson` through the root `--format` by rewriting it in `Args` before
@@ -443,7 +485,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - `checkPluginSupports` caches per client, provider, type, region, SKU,
   feature, and attributes digest. SKU must stay in the key, or one SKU-less
   answer poisons every SKU in that region. The SDK's "not implemented" reason
-  is fail-open, like an RPC error.
+  is fail-open, like `Unimplemented`. `InvalidArgument` from `Supports` is a
+  decline: it is cached as unsupported, the reason is shown, and no pricing
+  RPC follows. `Unavailable`, `DeadlineExceeded`, and `Canceled` stay
+  fail-open and are not cached. Do not add a provider-name table here.
 - Plugin `expires_at` sets a per-entry TTL (capped at 7 days; a past time skips
   caching). A plugin whose price depends on its own environment must send
   `expires_at` = now, because the cache key cannot see it.

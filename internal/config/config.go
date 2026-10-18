@@ -1328,31 +1328,15 @@ func (c *Config) setCostValue(parts []string, value string) error {
 }
 
 func (c *Config) setCostBudgetsValue(parts []string, value string) error {
-	if len(parts) != 1 {
-		return errors.New("invalid cost.budgets key")
+	field, legacy, err := budgetField(parts)
+	if err != nil {
+		return err
 	}
-
-	switch parts[0] {
-	case "amount":
-		amount, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return fmt.Errorf("amount must be a number: %w", err)
-		}
-		c.ensureBudgetsConfig()
-		c.Cost.Budgets.Global.Amount = amount
-	case "currency":
-		c.ensureBudgetsConfig()
-		c.Cost.Budgets.Global.Currency = value
-	case "period":
-		c.ensureBudgetsConfig()
-		c.Cost.Budgets.Global.Period = value
-	case "alerts":
-		return errors.New("cost.budgets.alerts must be configured via YAML")
-	default:
-		return fmt.Errorf("unknown cost.budgets setting: %s", parts[0])
+	if legacy {
+		warnLegacyBudgetKey(field)
 	}
-
-	return nil
+	c.ensureBudgetsConfig()
+	return setBudgetField(c.Cost.Budgets.Global, field, value)
 }
 
 // ensureBudgetsConfig ensures that the Budgets and Global structures are initialized.
@@ -1383,20 +1367,88 @@ func (c *Config) getCostBudgetsValue(parts []string) (any, error) {
 		return c.Cost.Budgets, nil
 	}
 
-	// Access global budget values for backwards compatibility
+	field, legacy, err := budgetField(parts)
+	if err != nil {
+		return nil, err
+	}
 	if c.Cost.Budgets == nil || c.Cost.Budgets.Global == nil {
 		return nil, errors.New("no budget configured")
 	}
+	if legacy {
+		warnLegacyBudgetKey(field)
+	}
+	return getBudgetField(c.Cost.Budgets.Global, field)
+}
 
+// budgetField is the single table of cost.budgets keys that set and get share.
+// Flat amount, currency, and period are legacy aliases of the global scope.
+func budgetField(parts []string) (string, bool, error) {
+	if len(parts) == 0 {
+		return "", false, errors.New("invalid cost.budgets key")
+	}
+	if len(parts) == 2 && parts[0] == "global" {
+		if !knownBudgetField(parts[1]) {
+			return "", false, fmt.Errorf("unknown cost.budgets setting: %s", parts[1])
+		}
+		return parts[1], false, nil
+	}
+	if len(parts) != 1 {
+		return "", false, fmt.Errorf("unknown cost.budgets setting: %s", parts[0])
+	}
 	switch parts[0] {
-	case "amount":
-		return c.Cost.Budgets.Global.Amount, nil
-	case "currency":
-		return c.Cost.Budgets.Global.Currency, nil
-	case "period":
-		return c.Cost.Budgets.Global.GetPeriod(), nil
+	case fieldAlerts:
+		return "", false, errors.New("cost.budgets.alerts must be configured via YAML")
+	case fieldAmount, fieldCurrency, fieldPeriod:
+		return parts[0], true, nil
 	default:
-		return nil, fmt.Errorf("unknown cost.budgets setting: %s", parts[0])
+		return "", false, fmt.Errorf("unknown cost.budgets setting: %s", parts[0])
+	}
+}
+
+func knownBudgetField(field string) bool {
+	switch field {
+	case fieldAmount, fieldCurrency, fieldPeriod:
+		return true
+	default:
+		return false
+	}
+}
+
+func warnLegacyBudgetKey(field string) {
+	log.Warn().
+		Str("key", "cost.budgets."+field).
+		Str("replacement", "cost.budgets.global."+field).
+		Msg("flat cost.budgets key is deprecated; use the global scope")
+}
+
+func setBudgetField(budget *ScopedBudget, field, value string) error {
+	switch field {
+	case fieldAmount:
+		amount, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("amount must be a number: %w", err)
+		}
+		budget.Amount = amount
+	case fieldCurrency:
+		budget.Currency = value
+	case fieldPeriod:
+		budget.Period = value
+	default:
+		return fmt.Errorf("unknown cost.budgets setting: %s", field)
+	}
+	return nil
+}
+
+func getBudgetField(budget *ScopedBudget, field string) (any, error) {
+	switch field {
+	case fieldAmount:
+		return budget.Amount, nil
+	case fieldCurrency:
+		return budget.Currency, nil
+	case fieldPeriod:
+		return budget.GetPeriod(), nil
+	default:
+		return nil, fmt.Errorf("unknown cost.budgets setting: %s", field)
 	}
 }
 

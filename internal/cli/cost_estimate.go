@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -73,10 +76,11 @@ Supports two modes:
 
 Examples:
   # Single resource estimation
-  finfocus cost estimate --provider aws --resource-type ec2:Instance \
+  finfocus cost estimate --provider aws \
+    --resource-type aws:ec2/instance:Instance \
     --property instanceType=m5.large
 
-  # Plan-based estimation
+  # Plan-based estimation. The selector is a logical name, a full URN, or a type.
   finfocus cost estimate --pulumi-json plan.json \
     --modify "web-server:instanceType=m5.large"
 
@@ -89,13 +93,16 @@ Examples:
 
 	// Single-resource mode flags
 	cmd.Flags().StringVar(&params.Provider, "provider", "", "Cloud provider (aws, gcp, azure)")
-	cmd.Flags().StringVar(&params.ResourceType, "resource-type", "", "Resource type (e.g., ec2:Instance)")
+	cmd.Flags().StringVar(&params.ResourceType, "resource-type", "", "Resource type (e.g., aws:ec2/instance:Instance)")
 	cmd.Flags().StringArrayVar(&params.Properties, "property", nil, "Property override key=value (repeatable)")
 	cmd.Flags().StringVar(&params.Region, "region", "", "Region for cost calculation")
 
 	// Plan-based mode flags
 	cmd.Flags().StringVar(&params.PlanPath, "pulumi-json", "", "Path to Pulumi preview JSON file")
-	cmd.Flags().StringArrayVar(&params.Modify, "modify", nil, "Resource modification resource:key=value (repeatable)")
+	cmd.Flags().StringArrayVar(
+		&params.Modify, "modify", nil,
+		"Resource modification selector:key=value; selector is a name, URN, or type (repeatable)",
+	)
 
 	// Common flags
 	cmd.Flags().BoolVar(&params.Interactive, "interactive", false, "Launch interactive TUI mode")
@@ -205,8 +212,9 @@ func ParsePropertyOverrides(props []string) (map[string]string, error) {
 	return overrides, nil
 }
 
-// ParseModifications parses --modify resource:key=value flags into a map.
-// Exported for testing.
+// ParseModifications parses --modify selector:key=value flags into a map.
+// The selector may be a logical name or a Pulumi URN, so the split is the
+// last colon before the first "=". Exported for testing.
 //
 // Parameters:
 //   - mods: Slice of strings in "resource:key=value" format
@@ -222,21 +230,10 @@ func ParseModifications(mods []string) (map[string]map[string]string, error) {
 
 	result := make(map[string]map[string]string, len(mods))
 	for _, m := range mods {
-		// Find the first colon to separate resource name from property
-		before, after, ok := strings.Cut(m, ":")
+		resourceName, key, value, ok := splitModify(m)
 		if !ok {
 			return nil, fmt.Errorf("invalid modify format %q: expected resource:key=value", m)
 		}
-		resourceName := before
-		propPart := after
-
-		// Parse key=value
-		before0, after0, ok0 := strings.Cut(propPart, "=")
-		if !ok0 {
-			return nil, fmt.Errorf("invalid modify format %q: expected resource:key=value", m)
-		}
-		key := before0
-		value := after0
 
 		if resourceName == "" {
 			return nil, fmt.Errorf("resource name cannot be empty in %q", m)
@@ -260,6 +257,20 @@ func ParseModifications(mods []string) (map[string]map[string]string, error) {
 		result[resourceName][key] = value
 	}
 	return result, nil
+}
+
+// splitModify separates selector:key=value. The separator is the last colon
+// before the first "=", so a URN selector keeps its colons.
+func splitModify(mod string) (string, string, string, bool) {
+	head, value, ok := strings.Cut(mod, "=")
+	if !ok {
+		return "", "", "", false
+	}
+	selector, key, found := strings.CutLast(head, ":")
+	if !found {
+		return "", "", "", false
+	}
+	return selector, key, value, true
 }
 
 // executeCostEstimate runs the cost estimate workflow.
@@ -339,6 +350,9 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 	if err != nil {
 		return fmt.Errorf("parsing properties: %w", err)
 	}
+	if typeErr := validateEstimateResourceType(params.Provider, params.ResourceType); typeErr != nil {
+		return toValidationError(ctx, typeErr)
+	}
 
 	log.Debug().Ctx(ctx).
 		Str("provider", params.Provider).
@@ -416,6 +430,9 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg
 		cmd.Println("No resources found in plan")
 		return nil
 	}
+	if missing := unmatchedModifySelectors(resources, modifications); len(missing) > 0 {
+		return toValidationError(ctx, unmatchedModifyError(missing, resources))
+	}
 
 	// Open plugins
 	clients, cleanup, err := openPlugins(ctx, params.Adapter, nil)
@@ -471,23 +488,113 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg
 	return renderMultipleEstimateResults(cmd.OutOrStdout(), params.Output, results)
 }
 
-// findModificationsForResource finds modifications that apply to a given engine resource.
+// selectorKeys lists the selectors that address a resource, most specific first:
+// the resource ID (the Pulumi URN for plan resources), the logical name (the
+// last "::" segment), then the resource type.
+func selectorKeys(resource engine.ResourceDescriptor) []string {
+	var keys []string
+	if resource.ID != "" {
+		keys = append(keys, resource.ID)
+	}
+	if name := logicalResourceName(resource.ID); name != "" {
+		keys = append(keys, name)
+	}
+	if resource.Type != "" {
+		keys = append(keys, resource.Type)
+	}
+	return keys
+}
+
+// findModificationsForResource merges the modifications of every selector that
+// matches the resource. When selectors set the same property, the more specific
+// selector wins: ID over logical name over type. The caller's maps are not mutated.
 func findModificationsForResource(
 	resource engine.ResourceDescriptor,
 	mods map[string]map[string]string,
 ) map[string]string {
-	// Try exact ID match
-	if props, ok := mods[resource.ID]; ok {
-		return props
+	keys := selectorKeys(resource)
+	var merged map[string]string
+	for _, key := range slices.Backward(keys) {
+		props, ok := mods[key]
+		if !ok {
+			continue
+		}
+		if merged == nil {
+			merged = make(map[string]string, len(props))
+		}
+		maps.Copy(merged, props)
 	}
+	return merged
+}
 
-	// Try Type match (for resources without ID)
-	if resource.Type != "" {
-		if props, ok := mods[resource.Type]; ok {
-			return props
+func modificationSelectorMatches(selector string, resource engine.ResourceDescriptor) bool {
+	return slices.Contains(selectorKeys(resource), selector)
+}
+
+func logicalResourceName(id string) string {
+	if i := strings.LastIndex(id, "::"); i >= 0 && i+2 < len(id) {
+		return id[i+2:]
+	}
+	return ""
+}
+
+func unmatchedModifySelectors(
+	resources []engine.ResourceDescriptor,
+	mods map[string]map[string]string,
+) []string {
+	if len(mods) == 0 {
+		return nil
+	}
+	missing := make([]string, 0)
+	for selector := range mods {
+		matched := false
+		for _, resource := range resources {
+			if modificationSelectorMatches(selector, resource) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			missing = append(missing, selector)
 		}
 	}
+	sort.Strings(missing)
+	return missing
+}
 
+func unmatchedModifyError(missing []string, resources []engine.ResourceDescriptor) error {
+	labels := make([]string, 0, len(resources))
+	for _, resource := range resources {
+		name := logicalResourceName(resource.ID)
+		if name == "" {
+			name = resource.ID
+		}
+		if resource.Type != "" {
+			name += " (" + resource.Type + ")"
+		}
+		labels = append(labels, name)
+	}
+	sort.Strings(labels)
+	quoted := make([]string, len(missing))
+	for i, selector := range missing {
+		quoted[i] = fmt.Sprintf("%q", selector)
+	}
+	return fmt.Errorf(
+		"no resources matched --modify %s; available resources: %s",
+		strings.Join(quoted, ", "),
+		strings.Join(labels, ", "),
+	)
+}
+
+func validateEstimateResourceType(provider, resourceType string) error {
+	if !resourcetype.IsFullTypeToken(resourceType) {
+		return fmt.Errorf("resource type %q is not a full type token (package:module:Type)", resourceType)
+	}
+	got := resourcetype.ExtractProvider(resourceType)
+	want := resourcetype.NormalizeProvider(provider)
+	if got != want {
+		return fmt.Errorf("resource type %q does not match provider %q", resourceType, provider)
+	}
 	return nil
 }
 

@@ -589,7 +589,7 @@ The command supports two mutually exclusive modes:
 | Flag              | Description                              | Default |
 | ----------------- | ---------------------------------------- | ------- |
 | `--provider`      | Cloud provider (aws, gcp, azure)         |         |
-| `--resource-type` | Resource type (e.g., ec2:Instance)       |         |
+| `--resource-type` | Full type token (e.g., aws:ec2/instance:Instance) |         |
 | `--property`      | Property override key=value (repeatable) |         |
 | `--pulumi-json`   | Path to Pulumi preview JSON              |         |
 | `--modify`        | Resource modification resource:key=value |         |
@@ -603,11 +603,13 @@ The command supports two mutually exclusive modes:
 
 ```bash
 # Single resource estimation - estimate cost of changing instance type
-finfocus cost estimate --provider aws --resource-type ec2:Instance \
+finfocus cost estimate --provider aws \
+  --resource-type aws:ec2/instance:Instance \
   --property instanceType=m5.large
 
 # Single resource with region
-finfocus cost estimate --provider aws --resource-type ec2:Instance \
+finfocus cost estimate --provider aws \
+  --resource-type aws:ec2/instance:Instance \
   --property instanceType=m5.large --region us-west-2
 
 # Plan-based estimation - modify a specific resource in existing plan
@@ -626,7 +628,8 @@ finfocus cost estimate --interactive
 finfocus cost estimate --pulumi-json plan.json --interactive
 
 # JSON output for scripting
-finfocus cost estimate --provider aws --resource-type ec2:Instance \
+finfocus cost estimate --provider aws \
+  --resource-type aws:ec2/instance:Instance \
   --property instanceType=m5.large --output json
 ```
 

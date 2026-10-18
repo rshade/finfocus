@@ -166,12 +166,19 @@ func TestFinfocusBudgetSkillDocumentsLiveContract(t *testing.T) {
 	require.NoError(t, cfg.Set("cost.budgets.amount", "10"))
 	require.NoError(t, cfg.Set("cost.budgets.currency", "USD"))
 	require.NoError(t, cfg.Set("cost.budgets.period", "monthly"))
-	for _, key := range []string{"cost.budgets.amount", "cost.budgets.currency", "cost.budgets.period"} {
+	for _, key := range []string{
+		"cost.budgets.amount",
+		"cost.budgets.currency",
+		"cost.budgets.period",
+		"cost.budgets.global.amount",
+		"cost.budgets.global.currency",
+		"cost.budgets.global.period",
+	} {
 		assert.Contains(t, docs, "`"+key+"`")
 	}
-	nestedErr := cfg.Set("cost.budgets.global.amount", "10")
-	require.EqualError(t, nestedErr, "invalid cost.budgets key")
-	assert.Contains(t, docs, nestedErr.Error())
+	got, getErr := cfg.Get("cost.budgets.global.amount")
+	require.NoError(t, getErr)
+	assert.InDelta(t, 10.0, got, 1e-9)
 	alertsErr := cfg.Set("cost.budgets.alerts", "[]")
 	require.Error(t, alertsErr)
 	assert.Contains(t, docs, alertsErr.Error())

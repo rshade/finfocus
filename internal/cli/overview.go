@@ -706,6 +706,7 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 			Custom:     r.Custom,
 			Properties: ingest.MergeProperties(r.Outputs, r.Inputs),
 			CreatedAt:  createdAt,
+			External:   r.External,
 		}
 	}
 	return result
@@ -1456,7 +1457,7 @@ func runBackgroundPreviewWithError(
 		Msg("background preview completed")
 
 	// Record plan lineage to history store (fire-and-forget).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
 	recordHistoryPlanLineage(ctx, historyStore, planSteps)
 	historyCleanup()
 
