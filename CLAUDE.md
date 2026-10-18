@@ -412,6 +412,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   is 409 unless the run is state-only and a preview has not been applied. A
   successful preview clears that status. Do not keep a second store beside
   those session fields.
+  `--pulumi-state` without `--pulumi-json` is state-only too, like the TUI.
+  After a preview adds rows, `appendPreviewRows` applies the dismissal delta to
+  them, and `OverviewPipeline.RefreshFallbackBudget` re-evaluates a config
+  budget against the new total (plugin budgets are left alone).
   `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.

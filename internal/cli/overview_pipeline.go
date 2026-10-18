@@ -200,6 +200,9 @@ type OverviewPipeline struct {
 	result         OverviewPipelineResult
 	expansionNotes []string
 	rowsEnriched   int
+	// fallbackBudget is set when the last budget event came from the config
+	// fallback, so it must follow the row set when rows are added later.
+	fallbackBudget bool
 }
 
 // newOverviewPipeline builds a pipeline. cfg.loader defaults to
@@ -506,6 +509,15 @@ func (p *OverviewPipeline) startEngine(
 	return clients, eng, true, nil
 }
 
+// previewStack names the stack a live preview targets. An explicit --stack wins
+// over the display name derived from a state file's name.
+func (p *OverviewPipeline) previewStack(result OverviewPipelineResult) string {
+	if p.cfg.params.stack != "" {
+		return p.cfg.params.stack
+	}
+	return result.StackName
+}
+
 // RunPreview runs the on-demand pulumi preview for a state-only session (the
 // TUI 'p' key and the web preview endpoint) and reports the result via
 // OnPreviewReady. It returns the same message the TUI consumes.
@@ -514,7 +526,7 @@ func (p *OverviewPipeline) RunPreview(ctx context.Context) tui.OverviewChangesRe
 	result := p.result
 	pw := p.passphrase
 	p.mu.Unlock()
-	msg := runBackgroundPreview(ctx, p.cfg.params, result.ProjectDir, result.StackName, pw)
+	msg := runBackgroundPreview(ctx, p.cfg.params, result.ProjectDir, p.previewStack(result), pw)
 	if p.OnPreviewReady != nil {
 		p.OnPreviewReady(msg)
 	}
@@ -713,6 +725,9 @@ func (p *OverviewPipeline) deliverBudget(
 		br = budgetFetchResult{result: result, err: err}
 	}
 
+	p.mu.Lock()
+	p.fallbackBudget = false
+	p.mu.Unlock()
 	if p.cfg.budgetFallback && (br.result == nil || len(br.result.Budgets) == 0) {
 		cfg := config.GetGlobalConfig()
 		var budgetsCfg *config.BudgetsConfig
@@ -721,6 +736,9 @@ func (p *OverviewPipeline) deliverBudget(
 		}
 		totalCost := sumOverviewProjectedCost(rows)
 		if configResult := engine.BuildConfigBudgetResult(ctx, budgetsCfg, totalCost); configResult != nil {
+			p.mu.Lock()
+			p.fallbackBudget = true
+			p.mu.Unlock()
 			if p.OnBudget != nil {
 				p.OnBudget(configResult, nil)
 			}
@@ -731,6 +749,26 @@ func (p *OverviewPipeline) deliverBudget(
 		p.OnBudget(br.result, br.err)
 	}
 	return br.result, br.err
+}
+
+// RefreshFallbackBudget re-evaluates the config-based budget against rows after
+// the row set grew (an on-demand preview added plan-only creates). It does
+// nothing when the budget came from plugins, whose figures do not depend on
+// the rows.
+func (p *OverviewPipeline) RefreshFallbackBudget(ctx context.Context, rows []engine.OverviewRow) {
+	p.mu.Lock()
+	fallback := p.fallbackBudget
+	p.mu.Unlock()
+	if !fallback || p.OnBudget == nil {
+		return
+	}
+	var budgetsCfg *config.BudgetsConfig
+	if cfg := config.GetGlobalConfig(); cfg != nil {
+		budgetsCfg = cfg.Cost.Budgets
+	}
+	if result := engine.BuildConfigBudgetResult(ctx, budgetsCfg, sumOverviewProjectedCost(rows)); result != nil {
+		p.OnBudget(result, nil)
+	}
 }
 
 // tuiOverviewLoader is the state-first TUI loading flow: stack export (or
@@ -941,6 +979,9 @@ func autoDetectOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvi
 		ProjectDir:  projectDir,
 		HasChanges:  hasChanges,
 		ChangeCount: changeCount,
+		// State without a plan has no preview yet, like the TUI's explicit
+		// --pulumi-state launch, so the on-demand preview stays available.
+		IsStateOnly: params.pulumiState != "" && params.pulumiJSON == "",
 	}, nil
 }
 
@@ -1032,7 +1073,7 @@ func (p *OverviewPipeline) previewAttempt(
 			return tui.OverviewChangesReadyMsg{}, false, err
 		}
 	}
-	msg, err := runBackgroundPreviewWithError(ctx, p.cfg.params, result.ProjectDir, result.StackName, pw)
+	msg, err := runBackgroundPreviewWithError(ctx, p.cfg.params, result.ProjectDir, p.previewStack(result), pw)
 	return msg, pw != nil, err
 }
 
