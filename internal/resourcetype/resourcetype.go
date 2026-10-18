@@ -8,6 +8,24 @@ import "strings"
 // ProviderUnknown is the sentinel value for resources with indeterminate providers.
 const ProviderUnknown = "unknown"
 
+// minPulumiTypeColons is the number of colons in package:module:Type.
+const minPulumiTypeColons = 2
+
+// IsFullTypeToken reports whether resourceType is specific enough to price.
+// A Pulumi token has at least two colons (package:module:Type). A Terraform
+// type has an underscore and no colon. A short name such as "ec2:Instance"
+// is neither.
+func IsFullTypeToken(resourceType string) bool {
+	resourceType = strings.TrimSpace(resourceType)
+	if resourceType == "" {
+		return false
+	}
+	if strings.Count(resourceType, ":") >= minPulumiTypeColons {
+		return true
+	}
+	return !strings.Contains(resourceType, ":") && strings.Contains(resourceType, "_")
+}
+
 // NormalizeProvider trims and lowercases name and maps a package or provider
 // name to the cloud that bills it. This switch is the only alias table: keep it
 // small and explicit, because unknown names pass through unchanged rather than

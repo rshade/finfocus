@@ -13,6 +13,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 
@@ -142,8 +143,10 @@ const notAvailable = "N/A"
 // If no plugins are installed it prints 'No plugins found.' and returns nil.
 //
 // Plugin metadata is fetched concurrently using errgroup with a concurrency limit of [runtime.NumCPU]
-// to minimize total execution time. Results are sorted deterministically by plugin name,
-// installed version, and path, matching the registry's lexical discovery order.
+// to minimize total execution time. Results are sorted by plugin name ascending, then
+// installed version descending as semver. A version that is not semver falls back to
+// ascending string comparison. Path breaks remaining ties, so metadata completion
+// order cannot reorder rows.
 //
 // cmd is the Cobra command used for printing. verbose controls whether plugin details are shown.
 // Returns an error if querying the registry for installed plugins fails; otherwise nil.
@@ -175,14 +178,13 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool, output string) error {
 	ctx := cmd.Context()
 	enriched := fetchPluginMetadataParallel(ctx, plugins)
 
-	// Include installed versions and paths so metadata completion order cannot
-	// reorder multiple installations of the same plugin.
+	// Name, then semver, then path. Completion order must not change the rows.
 	sort.Slice(enriched, func(i, j int) bool {
 		if enriched[i].Name != enriched[j].Name {
 			return enriched[i].Name < enriched[j].Name
 		}
-		if enriched[i].Version != enriched[j].Version {
-			return enriched[i].Version < enriched[j].Version
+		if cmp := comparePluginVersions(enriched[i].Version, enriched[j].Version); cmp != 0 {
+			return cmp < 0
 		}
 		return enriched[i].Path < enriched[j].Path
 	})
@@ -223,6 +225,23 @@ func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginI
 	_ = g.Wait()
 
 	return enriched
+}
+
+// comparePluginVersions orders semver versions newest first, then versions
+// that are not semver in ascending string order. Grouping keeps the order
+// transitive.
+func comparePluginVersions(left, right string) int {
+	leftVer, leftErr := semver.NewVersion(left)
+	rightVer, rightErr := semver.NewVersion(right)
+	switch {
+	case leftErr == nil && rightErr == nil:
+		return rightVer.Compare(leftVer)
+	case leftErr == nil:
+		return -1
+	case rightErr == nil:
+		return 1
+	}
+	return strings.Compare(left, right)
 }
 
 // fetchSinglePluginMetadata fetches metadata for a single plugin with timeout.

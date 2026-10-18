@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginskill"
 )
 
@@ -30,4 +31,20 @@ func SetNotificationClientForTest(client *http.Client) func() {
 	prev := notificationClient
 	notificationClient = client
 	return func() { notificationClient = prev }
+}
+
+// FindModificationsForResource exposes findModificationsForResource to tests.
+func FindModificationsForResource(
+	resource engine.ResourceDescriptor,
+	mods map[string]map[string]string,
+) map[string]string {
+	return findModificationsForResource(resource, mods)
+}
+
+// UnmatchedModifySelectors exposes unmatchedModifySelectors to tests.
+func UnmatchedModifySelectors(
+	resources []engine.ResourceDescriptor,
+	mods map[string]map[string]string,
+) []string {
+	return unmatchedModifySelectors(resources, mods)
 }

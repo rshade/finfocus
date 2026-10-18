@@ -32,6 +32,7 @@ func createMockPluginBinary(t *testing.T, dir, name string) {
 func TestNewPluginListCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	tests := []struct {
 		name        string
 		args        []string
@@ -119,6 +120,7 @@ func TestPluginListCmdExamples(t *testing.T) {
 func TestPluginListCmdOutput(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	cmd := cli.NewPluginListCmd()
 	// Need to set args to empty to avoid using os.Args
 	cmd.SetArgs([]string{})
@@ -370,7 +372,67 @@ func TestPluginListCmd_VersionOrder(t *testing.T) {
 		for _, entry := range entries {
 			versions = append(versions, entry.Version)
 		}
-		assert.Equal(t, []string{"0.1.5", "0.1.9", "0.2.0"}, versions)
+		assert.Equal(t, []string{"0.2.0", "0.1.9", "0.1.5"}, versions)
+	}
+}
+
+func TestPluginListCmd_SemverDescending(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	home := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", home)
+	for _, version := range []string{"0.9.0", "0.10.0", "0.2.0", "beta", "alpha"} {
+		dir := filepath.Join(home, "plugins", "aws-public", version)
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+		createMockPluginBinary(t, dir, "finfocus-plugin-aws-public")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	want := []string{"0.10.0", "0.9.0", "0.2.0", "alpha", "beta"}
+
+	var firstTable string
+	var firstJSON string
+	for run := range 2 {
+		var tableBuf bytes.Buffer
+		tableCmd := cli.NewPluginListCmd()
+		tableCmd.SetContext(ctx)
+		tableCmd.SetOut(&tableBuf)
+		tableCmd.SetErr(&tableBuf)
+		tableCmd.SetArgs([]string{"--output", "table"})
+		require.NoError(t, tableCmd.Execute())
+
+		var jsonBuf bytes.Buffer
+		jsonCmd := cli.NewPluginListCmd()
+		jsonCmd.SetContext(ctx)
+		jsonCmd.SetOut(&jsonBuf)
+		jsonCmd.SetErr(&jsonBuf)
+		jsonCmd.SetArgs([]string{"--output", "json"})
+		require.NoError(t, jsonCmd.Execute())
+
+		if run == 0 {
+			firstTable = tableBuf.String()
+			firstJSON = jsonBuf.String()
+		} else {
+			assert.Equal(t, firstTable, tableBuf.String())
+			assert.JSONEq(t, firstJSON, jsonBuf.String())
+		}
+
+		var entries []cli.PluginJSONEntry
+		require.NoError(t, json.Unmarshal(jsonBuf.Bytes(), &entries))
+		versions := make([]string, 0, len(entries))
+		for _, entry := range entries {
+			versions = append(versions, entry.Version)
+		}
+		assert.Equal(t, want, versions)
+
+		order := make([]string, 0, len(want))
+		for _, line := range strings.Split(tableBuf.String(), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 && fields[0] == "aws-public" {
+				order = append(order, fields[1])
+			}
+		}
+		assert.Equal(t, want, order)
 	}
 }
 
