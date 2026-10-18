@@ -128,7 +128,7 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra
 	}
 
 	// Initialize history store for recording analyzer events (cloud IDs).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg, projectDir)
 	var historyWriter *history.Writer
 	if historyStore != nil && historyStore.IsEnabled() {
 		historyWriter = history.NewWriter(historyStore, logger)

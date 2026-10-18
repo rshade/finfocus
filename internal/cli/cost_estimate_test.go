@@ -3,9 +3,11 @@ package cli_test
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -222,6 +224,17 @@ func TestParseModifications(t *testing.T) {
 			input:       []string{"web-server:=m5.large"},
 			expectError: true,
 			errContains: "property key cannot be empty",
+		},
+		{
+			name: "URN selector keeps colons",
+			input: []string{
+				"urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance:instanceType=t3.large",
+			},
+			expected: map[string]map[string]string{
+				"urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance": {
+					"instanceType": "t3.large",
+				},
+			},
 		},
 	}
 
@@ -585,31 +598,192 @@ func TestFindModificationsForResource(t *testing.T) {
 	})
 }
 
+func TestFindModificationsForResource_MergesAllSelectors(t *testing.T) {
+	t.Parallel()
+
+	web := engine.ResourceDescriptor{
+		ID:   "urn:pulumi:dev::proj::aws:ec2/instance:Instance::web",
+		Type: "aws:ec2/instance:Instance",
+	}
+	other := engine.ResourceDescriptor{
+		ID:   "urn:pulumi:dev::proj::aws:s3/bucket:Bucket::logs",
+		Type: "aws:s3/bucket:Bucket",
+	}
+
+	tests := []struct {
+		name     string
+		resource engine.ResourceDescriptor
+		mods     map[string]map[string]string
+		want     map[string]string
+	}{
+		{
+			name:     "name and type selectors are both applied",
+			resource: web,
+			mods: map[string]map[string]string{
+				"web":                       {"instanceType": "m5.large"},
+				"aws:ec2/instance:Instance": {"ebsOptimized": "true"},
+			},
+			want: map[string]string{"instanceType": "m5.large", "ebsOptimized": "true"},
+		},
+		{
+			name:     "id beats name beats type on conflicting key",
+			resource: web,
+			mods: map[string]map[string]string{
+				web.ID:                      {"instanceType": "id"},
+				"web":                       {"instanceType": "name", "tenancy": "name"},
+				"aws:ec2/instance:Instance": {"instanceType": "type", "tenancy": "type", "az": "type"},
+			},
+			want: map[string]string{"instanceType": "id", "tenancy": "name", "az": "type"},
+		},
+		{
+			name:     "unaffected resource gets nothing",
+			resource: other,
+			mods: map[string]map[string]string{
+				"web":                       {"instanceType": "m5.large"},
+				"aws:ec2/instance:Instance": {"ebsOptimized": "true"},
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			before := make(map[string]map[string]string, len(tt.mods))
+			for k, v := range tt.mods {
+				before[k] = maps.Clone(v)
+			}
+			got := cli.FindModificationsForResource(tt.resource, tt.mods)
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, before, tt.mods)
+		})
+	}
+}
+
+func TestUnmatchedModifySelectors_ReportsOnlyUnmatched(t *testing.T) {
+	t.Parallel()
+
+	resources := []engine.ResourceDescriptor{{
+		ID:   "urn:pulumi:dev::proj::aws:ec2/instance:Instance::web",
+		Type: "aws:ec2/instance:Instance",
+	}}
+	mods := map[string]map[string]string{
+		"web":     {"a": "1"},
+		"missing": {"b": "2"},
+	}
+	assert.Equal(t, []string{"missing"}, cli.UnmatchedModifySelectors(resources, mods))
+}
+
+func TestCostEstimateCmd_UnmatchedModifyExitsValidation(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	cmd := cli.NewCostEstimateCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{
+		"--pulumi-json", "../../test/fixtures/estimate/preview-urn.json",
+		"--modify", "demo-instance:instanceType=t3.large",
+		"--modify", "nonexistent:instanceType=t3.large",
+	})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"nonexistent"`)
+	assert.Contains(t, err.Error(), "demo-instance")
+	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
+}
+
 // TestCostEstimateCmd_ResourceNotFound tests error handling when resource not found in plan.
 func TestCostEstimateCmd_ResourceNotFound(t *testing.T) {
 	t.Parallel()
 
 	t.Run("modification for nonexistent resource", func(t *testing.T) {
 		t.Parallel()
-		// When a modification references a resource not in the plan,
-		// the command should skip that resource and continue with others
 		cmd := cli.NewCostEstimateCmd()
 		var out bytes.Buffer
 		cmd.SetOut(&out)
 		cmd.SetErr(&out)
 
 		cmd.SetArgs([]string{
-			"--pulumi-json", "../../test/fixtures/estimate/single-resource.json",
+			"--pulumi-json", "../../test/fixtures/estimate/preview-urn.json",
 			"--modify", "nonexistent-resource:instanceType=m5.large",
 		})
 
-		// The command should execute without error (skipping unknown resources)
-		// or provide a meaningful error about the resource
 		err := cmd.Execute()
-		if err != nil {
-			// If it errors, it should mention the resource or be a plan loading error
-			// not a crash or panic
-			assert.NotContains(t, err.Error(), "panic")
-		}
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no resources matched")
+		assert.Contains(t, err.Error(), "demo-instance")
+		assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
 	})
+}
+
+func TestCostEstimateCmd_ModifyMatchesPlanResource(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	urn := "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance"
+	selectors := []string{
+		"demo-instance:instanceType=t3.large",
+		urn + ":instanceType=t3.large",
+		"aws:ec2/instance:Instance:instanceType=t3.large",
+	}
+	//nolint:paralleltest // parent sets FINFOCUS_HOME
+	for _, selector := range selectors {
+		t.Run(selector, func(t *testing.T) {
+			cmd := cli.NewCostEstimateCmd()
+			var out bytes.Buffer
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			cmd.SetArgs([]string{
+				"--pulumi-json", "../../test/fixtures/estimate/preview-urn.json",
+				"--modify", selector,
+			})
+			err := cmd.Execute()
+			if err != nil {
+				assert.NotContains(t, err.Error(), "no resources matched")
+				return
+			}
+			assert.NotContains(t, out.String(), "No estimation results")
+		})
+	}
+}
+
+func TestModifySelectorsResolveToPlanResource(t *testing.T) {
+	t.Parallel()
+
+	urn := "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance"
+	resource := engine.ResourceDescriptor{ID: urn, Type: "aws:ec2/instance:Instance"}
+	selectors := []string{
+		"demo-instance",
+		urn,
+		"aws:ec2/instance:Instance",
+	}
+	for _, selector := range selectors {
+		t.Run(selector, func(t *testing.T) {
+			t.Parallel()
+			mods := map[string]map[string]string{selector: {"instanceType": "t3.large"}}
+			assert.Empty(t, cli.UnmatchedModifySelectors([]engine.ResourceDescriptor{resource}, mods))
+			assert.Equal(t,
+				map[string]string{"instanceType": "t3.large"},
+				cli.FindModificationsForResource(resource, mods))
+		})
+	}
+}
+
+func TestCostEstimateCmd_ShortResourceType(t *testing.T) {
+	t.Parallel()
+
+	cmd := cli.NewCostEstimateCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{
+		"--provider", "aws",
+		"--resource-type", "ec2:Instance",
+		"--property", "instanceType=m5.large",
+	})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a full type token")
+	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
 }

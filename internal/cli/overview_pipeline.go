@@ -644,7 +644,7 @@ func tuiOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPipel
 	}
 
 	// Record state resources to history store (fire-and-forget).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
 	defer historyCleanup()
 	recordHistorySnapshot(ctx, historyStore, stateResources)
 
@@ -723,7 +723,7 @@ func plainOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPip
 	}
 
 	// Record state resources and plan lineage to history store (fire-and-forget).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
 	defer historyCleanup()
 	recordHistorySnapshot(ctx, historyStore, stateResources)
 	if !isStateOnly {
@@ -805,7 +805,7 @@ func autoDetectOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvi
 	}
 
 	// Record state resources and plan lineage to history store (fire-and-forget).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
 	defer historyCleanup()
 	recordHistorySnapshot(ctx, historyStore, stateResources)
 	recordHistoryPlanLineage(ctx, historyStore, planSteps)

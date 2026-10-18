@@ -257,8 +257,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   command or its flags: the project tier would be lost. `--output` defaults to
   `""` and `resolveOutputFormatWithConfig` fills it in at run time, after
   `PersistentPreRunE`. `TestNewRootCmdDoesNotInitializeConfig` guards this.
-- `config get cost.budgets.global.amount` still rejects the key `config set`
-  accepts (#1800).
+- `config get` reads `cost.budgets.global.amount`, `currency`, and `period`.
+  Flat `cost.budgets.amount` still addresses that same global scope.
 
 ### Plugin Host (`internal/pluginhost/`)
 
@@ -304,6 +304,19 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   prices only those new rows with `EnrichOverviewRows`; it does not only patch
   rows that already exist. `capturePlan` takes the same query
   gate as the readers.
+- `cost estimate --modify` splits on the last colon before `=`, so a Pulumi
+  URN selector keeps its colons. A selector matches the resource ID, the
+  logical name (the last `::` segment), or the type, and every matching
+  selector applies; on a conflicting property the more specific wins (ID over
+  name over type). `selectorKeys` is the one definition of a match. A
+  selector that matches
+  nothing is a validation error (exit 2) that lists the plan's resources.
+  `--resource-type` must be a full token (`package:module:Type`) whose
+  package matches `--provider`; a short name such as `ec2:Instance` is
+  rejected.
+- `plugin list` orders by name ascending, then installed version descending
+  as semver. A version that is not semver uses ascending string order, and
+  path breaks remaining ties. Table and JSON use that same order.
 - `analyzer serve` prints only the port on stdout (Pulumi handshake); all logs
   go to stderr.
 - **Tests leak into the real `~/.finfocus`** unless they set
@@ -339,7 +352,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `plugin_settings_web.go`. Install progress is a per-operation SSE stream
   (`snapshot`, `progress`, `done`). Do not publish it on the overview bus:
   that bus runs `RedactJSON` and drops slow subscribers. Settings GET uses
-  `writePlainJSON`. Secret values are absent from the body.
+  `writePlainJSON`. Secret values are absent from the body. Bool and enum
+  plugin settings skip `IsCredentialName` unless the descriptor sets `secret`.
   Web overview learns state-only from `pipe.OnStateOnly`
   (`Session.SetStateOnly`). Snapshot and the `run_status` event carry
   `stateOnly`, `previewLoaded`, and `detectFailed` (a boolean; the error text stays in
@@ -417,7 +431,18 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   resolution. Unpriced `pulumi:` types are left out.
 - Cost history (`internal/history`, `cost history *`): files are
   `<project>@<stack>.history.db`, separate from the resource-observation
-  `history.db`. `collect` fails a checkpoint rather than store an inaccurate
+  `history.db`. Both use one directory: `FINFOCUS_HISTORY_DIR`, then
+  `cost.history.directory`, then `<ResolveConfigDir()>/history`.
+  A project-tier `cost.history.directory` is ignored with a warning when it
+  is absolute, has `..`, or resolves (symlinks followed on the deepest existing
+  ancestor, against the working directory) outside the project root, or when
+  `history.db` or a `*.history.db` in it is a symlink or not a regular file
+  (rechecked after `MkdirAll`; a swap after the check is not covered). The gate
+  takes the project dir that built the config (`initHistoryFromConfig`'s
+  `projectDir`; the analyzer passes its own, never the process-global one) and
+  judges the overlay value from `config.ProjectHistoryDirectory`; global tier and the
+  env var are trusted. The working-dir fallback is made absolute.
+  `collect` fails a checkpoint rather than store an inaccurate
   total (#549). `internal/history` must not import `engine` or `ingest`.
   History subcommands reuse the parent `--stack`. `cost history export` takes
   `csv`/`ndjson` through the root `--format` by rewriting it in `Args` before
