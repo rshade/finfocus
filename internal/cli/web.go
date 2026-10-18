@@ -391,7 +391,12 @@ func webSessionOptions(
 			if previewErr != nil {
 				return nil, previewErr
 			}
-			return data.appendPreviewRows(previewCtx, rows)
+			merged, appendErr := data.appendPreviewRows(previewCtx, rows)
+			if appendErr != nil {
+				return nil, appendErr
+			}
+			pipe.RefreshFallbackBudget(previewCtx, merged)
+			return merged, nil
 		},
 		SubmitPassphrase: func(requestCtx context.Context, pw string) error {
 			select {

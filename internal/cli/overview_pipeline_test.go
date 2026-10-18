@@ -929,3 +929,79 @@ func TestWebPreviewRetriesRejectedPassphrase(t *testing.T) {
 	assert.Equal(t, 2, runner.calls)
 	assert.Nil(t, p.Passphrase())
 }
+
+func TestOverviewPipeline_ExplicitStateWithoutPlanIsStateOnly(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Chdir(t.TempDir())
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params:      overviewParams{pulumiState: overviewFixture(t, "state-no-changes.json"), cfg: &config.Config{}},
+		loader:      autoDetectOverviewLoader,
+		openPlugins: fakeOpenPlugins,
+		newEngine:   fakeNewEngine,
+		enrichRows:  passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+	require.NoError(t, pipe.Run(context.Background()))
+	assert.Equal(t, []string{""}, events.stateOnly, "state with no plan must offer the on-demand preview")
+}
+
+func TestOverviewPipeline_ExplicitStateAndPlanIsNotStateOnly(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Chdir(t.TempDir())
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{
+			pulumiState: overviewFixture(t, "state-no-changes.json"),
+			pulumiJSON:  overviewFixture(t, "plan-no-changes.json"),
+			cfg:         &config.Config{},
+		},
+		loader:      autoDetectOverviewLoader,
+		openPlugins: fakeOpenPlugins,
+		newEngine:   fakeNewEngine,
+		enrichRows:  passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+	require.NoError(t, pipe.Run(context.Background()))
+	assert.Empty(t, events.stateOnly)
+}
+
+func TestOverviewPipeline_RefreshFallbackBudgetTracksAddedRows(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Cleanup(config.ResetGlobalConfigForTest)
+	config.SetGlobalConfig(&config.Config{Cost: config.CostConfig{
+		Budgets: &config.BudgetsConfig{Global: &config.ScopedBudget{Amount: 100, Currency: "USD"}},
+	}})
+	ctx := context.Background()
+	rows := fakePipelineRows()
+	rows[0].ProjectedCost = &engine.ProjectedCostData{MonthlyCost: 10, Currency: "USD"}
+
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params:         overviewParams{cfg: &config.Config{}},
+		loader:         fakePipelineLoader(rows),
+		audit:          newAuditContext(ctx, "overview", nil),
+		openPlugins:    fakeOpenPlugins,
+		newEngine:      fakeNewEngine,
+		enrichRows:     passThroughEnrichment,
+		wantBudget:     true,
+		budgetLive:     true,
+		budgetFallback: true,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+	require.NoError(t, pipe.Run(ctx))
+	require.Len(t, events.budgets, 1)
+	require.NotNil(t, events.budgets[0])
+	before := events.budgets[0].Budgets[0].GetStatus().GetCurrentSpend()
+	assert.InDelta(t, 10, before, 0.001)
+
+	grown := append(slices.Clone(rows), engine.OverviewRow{
+		URN: "urn:new", ProjectedCost: &engine.ProjectedCostData{MonthlyCost: 60, Currency: "USD"},
+	})
+	pipe.RefreshFallbackBudget(ctx, grown)
+	require.Len(t, events.budgets, 2)
+	assert.InDelta(t, 70, events.budgets[1].Budgets[0].GetStatus().GetCurrentSpend(), 0.001)
+}

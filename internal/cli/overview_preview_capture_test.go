@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -157,7 +158,8 @@ func TestAppendPreviewRowsPricesPlanOnlyCreatesWithZeroDeployedResources(t *test
 	}}}
 
 	data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
-	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: &previewPricingClient{}}}, nil)
+	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: &previewPricingClient{}}}, nil).
+		WithDismissalStore(isolatedDismissalStore(t))
 	data.captureState(nil)
 	data.capturePlan(context.Background(), plan)
 
@@ -236,7 +238,8 @@ func TestAppendPreviewRowsHoldsQueryGateWhilePricing(t *testing.T) {
 	}}}
 	client := &gatedPricingClient{entered: make(chan struct{}), release: make(chan struct{})}
 	data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
-	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: client}}, nil)
+	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: client}}, nil).
+		WithDismissalStore(isolatedDismissalStore(t))
 	data.captureState(nil)
 	data.capturePlan(context.Background(), plan)
 
@@ -282,4 +285,40 @@ func TestAppendPreviewRowsAppliesLaunchFilters(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, prefix+"aws:ec2/instance:Instance::a", rows[0].URN)
+}
+
+func isolatedDismissalStore(t *testing.T) *config.DismissalStore {
+	t.Helper()
+	store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "dismissed.json"))
+	require.NoError(t, err)
+	return store
+}
+
+func TestAppendPreviewRowsAppliesDismissalDelta(t *testing.T) {
+	t.Parallel()
+
+	const urn = "urn:pulumi:dev::proj::aws:ec2/instance:Instance::fresh"
+	plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{{
+		Op:       "create",
+		URN:      urn,
+		NewState: &ingest.PulumiState{URN: urn, Type: "aws:ec2/instance:Instance", Inputs: map[string]any{}},
+	}}}
+	data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
+	data.loadDismissals = func(context.Context) map[string]*config.DismissalRecord {
+		return map[string]*config.DismissalRecord{
+			"rec-1": {
+				RecommendationID: "rec-1",
+				Status:           config.StatusDismissed,
+				LastKnown:        &config.LastKnownRecommendation{ResourceID: urn, Description: "Rightsize"},
+			},
+		}
+	}
+	data.capturePlan(context.Background(), plan)
+
+	rows, err := data.appendPreviewRows(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	active, dismissed := engine.CountRecsActiveAndDismissed(rows[0].Recommendations)
+	assert.Equal(t, 0, active)
+	assert.Equal(t, 1, dismissed)
 }

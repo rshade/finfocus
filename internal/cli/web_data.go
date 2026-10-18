@@ -45,6 +45,7 @@ type webData struct {
 		config.ResolvedScoring, []*pluginhost.Client, cache.Cache, *auditContext,
 		*engine.RecommendationsResult) (bool, func(), error)
 	mergeDismissed func(context.Context, *engine.RecommendationsResult) error
+	loadDismissals func(context.Context) map[string]*config.DismissalRecord
 	reloadCleanup  func()
 	replaced       bool
 }
@@ -57,6 +58,7 @@ func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRang
 		cmd: cmd, params: params, dates: dates, audit: audit, gate: make(chan struct{}, 1),
 		resolveScorer: resolveScorerClient, fetchRecommendations: fetchRecommendationsWithProgress,
 		scoreRecommendations: runScoringStep, mergeDismissed: mergeDismissedRecommendations,
+		loadDismissals: loadDismissalRecordsForOverview,
 	}
 }
 
@@ -110,6 +112,13 @@ func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewR
 	}
 	if len(added) > 0 && d.eng != nil {
 		engine.EnrichOverviewRows(ctx, added, d.eng, d.dates, nil)
+	}
+	if d.loadDismissals != nil {
+		if records := d.loadDismissals(ctx); len(records) > 0 {
+			for i := range added {
+				engine.ApplyDismissalDeltaToRow(&added[i], records)
+			}
+		}
 	}
 	return append(merged[:len(rows):len(rows)], added...), nil
 }

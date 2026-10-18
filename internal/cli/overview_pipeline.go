@@ -198,6 +198,9 @@ type OverviewPipeline struct {
 	result         OverviewPipelineResult
 	expansionNotes []string
 	rowsEnriched   int
+	// fallbackBudget is set when the last budget event came from the config
+	// fallback, so it must follow the row set when rows are added later.
+	fallbackBudget bool
 }
 
 // newOverviewPipeline builds a pipeline. cfg.loader defaults to
@@ -615,6 +618,9 @@ func (p *OverviewPipeline) deliverBudget(
 		}
 		totalCost := sumOverviewProjectedCost(rows)
 		if configResult := engine.BuildConfigBudgetResult(ctx, budgetsCfg, totalCost); configResult != nil {
+			p.mu.Lock()
+			p.fallbackBudget = true
+			p.mu.Unlock()
 			if p.OnBudget != nil {
 				p.OnBudget(configResult, nil)
 			}
@@ -625,6 +631,26 @@ func (p *OverviewPipeline) deliverBudget(
 		p.OnBudget(br.result, br.err)
 	}
 	return br.result, br.err
+}
+
+// RefreshFallbackBudget re-evaluates the config-based budget against rows after
+// the row set grew (an on-demand preview added plan-only creates). It does
+// nothing when the budget came from plugins, whose figures do not depend on
+// the rows.
+func (p *OverviewPipeline) RefreshFallbackBudget(ctx context.Context, rows []engine.OverviewRow) {
+	p.mu.Lock()
+	fallback := p.fallbackBudget
+	p.mu.Unlock()
+	if !fallback || p.OnBudget == nil {
+		return
+	}
+	var budgetsCfg *config.BudgetsConfig
+	if cfg := config.GetGlobalConfig(); cfg != nil {
+		budgetsCfg = cfg.Cost.Budgets
+	}
+	if result := engine.BuildConfigBudgetResult(ctx, budgetsCfg, sumOverviewProjectedCost(rows)); result != nil {
+		p.OnBudget(result, nil)
+	}
 }
 
 // tuiOverviewLoader is the state-first TUI loading flow: stack export (or
@@ -835,6 +861,9 @@ func autoDetectOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvi
 		ProjectDir:  projectDir,
 		HasChanges:  hasChanges,
 		ChangeCount: changeCount,
+		// State without a plan has no preview yet, like the TUI's explicit
+		// --pulumi-state launch, so the on-demand preview stays available.
+		IsStateOnly: params.pulumiState != "" && params.pulumiJSON == "",
 	}, nil
 }
 
