@@ -124,6 +124,16 @@ func (f orphanFixture) startWeb(t *testing.T) *orphanWeb {
 		return string(data)
 	}}
 	go func() { web.done <- cmd.Wait() }()
+	t.Cleanup(func() {
+		if data, readErr := os.ReadFile(f.pidFile); readErr == nil {
+			var pluginPID, childPID int
+			if _, scanErr := fmt.Sscan(string(data), &pluginPID, &childPID); scanErr == nil {
+				_ = syscall.Kill(pluginPID, syscall.SIGKILL)
+				_ = syscall.Kill(childPID, syscall.SIGKILL)
+			}
+		}
+		_ = cmd.Process.Kill()
+	})
 
 	urls := make(chan string, 1)
 	go func() {
@@ -165,14 +175,6 @@ func TestWebSIGTERM_StopsPluginAndItsChild(t *testing.T) {
 	f := newOrphanFixture(t)
 	web := f.startWeb(t)
 	var pluginPID, childPID int
-	t.Cleanup(func() {
-		for _, pid := range []int{pluginPID, childPID} {
-			if pid > 0 {
-				_ = syscall.Kill(pid, syscall.SIGKILL)
-			}
-		}
-		_ = web.cmd.Process.Kill()
-	})
 
 	require.Eventually(t, func() bool {
 		data, readErr := os.ReadFile(f.pidFile)

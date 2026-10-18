@@ -35,6 +35,8 @@ func TestMCPServer_ShutsDownCleanlyOnSignal(t *testing.T) {
 					require.NoError(t, err, "exit status after %s; stderr:\n%s", sig, s.stderr.String())
 					assert.True(t, s.cmd.ProcessState.Success())
 				case <-time.After(mcpSignalExitBudget):
+					_ = s.cmd.Process.Kill()
+					<-done
 					require.FailNow(
 						t,
 						"MCP server did not exit after signal",
