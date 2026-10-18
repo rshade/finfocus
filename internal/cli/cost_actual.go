@@ -116,7 +116,7 @@ timestamp if not provided.`,
   finfocus cost actual --pulumi-state state.json --estimate-confidence`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			run := params
-			run.output = resolveOutputFormat(cmd, "output", params.output)
+			run.output = resolveOutputFormatWithConfig(cmd, params.output)
 			return executeCostActual(cmd, run)
 		},
 	}
@@ -133,9 +133,8 @@ timestamp if not provided.`,
 	cmd.Flags().StringVar(&params.toStr, "to", "", "End date (YYYY-MM-DD or RFC3339) (defaults to now)")
 	cmd.Flags().StringVar(&params.adapter, "adapter", "", "Use only the specified adapter plugin")
 
-	// Use configuration default if no output format specified
-	defaultFormat := config.GetDefaultOutputFormat()
-	cmd.Flags().StringVar(&params.output, "output", defaultFormat, "Output format: table, json, or ndjson")
+	cmd.Flags().StringVar(&params.output, "output", "",
+		"Output format: table, json, or ndjson (default from output.default_format, else table)")
 	cmd.Flags().
 		StringVar(&params.groupBy, "group-by", "", "Group results by: resource, type, provider, date, daily, monthly, or filter by tag:key=value")
 	cmd.Flags().BoolVar(

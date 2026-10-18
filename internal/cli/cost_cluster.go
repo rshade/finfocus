@@ -66,7 +66,8 @@ With --from and --to, the report prices actual spend over that window
 	f.BoolVar(&params.showPolicy, "show-policy", false, "Print the effective allocation policy and exit")
 	f.StringVar(&params.usageSource, "usage-source", "", "Usage-source plugin to use when several are installed")
 	f.StringVar(&params.allocator, "allocator", "", "Allocator plugin to use when several are installed")
-	f.StringVar(&params.output, "output", config.GetDefaultOutputFormat(), "Output format (table, json, ndjson)")
+	f.StringVar(&params.output, "output", "",
+		"Output format: table, json, or ndjson (default from output.default_format, else table)")
 	f.StringVar(&params.fromStr, "from", "", "Window start (2006-01-02 or RFC3339)")
 	f.StringVar(&params.toStr, "to", "", "Window end (2006-01-02 or RFC3339); defaults to now when --from is set")
 	return cmd
@@ -74,7 +75,7 @@ With --from and --to, the report prices actual spend over that window
 
 func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	ctx := cmd.Context()
-	format := config.GetOutputFormat(resolveOutputFormat(cmd, "output", params.output))
+	format := resolveOutputFormatWithConfig(cmd, params.output)
 	if !isValidOutputFormat(engine.OutputFormat(format)) {
 		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", format)
 	}
