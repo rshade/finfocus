@@ -706,8 +706,11 @@ See the [Routing Configuration Guide](docs/src/content/docs/guides/routing.md) f
 ### List & Install Plugins
 
 ```bash
-# List installed plugins
+# List the latest version of each installed plugin
 finfocus plugin list
+
+# List every installed version and mark the one core uses
+finfocus plugin list --all
 
 # List with detailed capabilities
 finfocus plugin list --verbose

@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/rshade/finfocus/internal/cli"
 )
@@ -85,6 +88,12 @@ func TestPluginListCmdFlags(t *testing.T) {
 	assert.Equal(t, "bool", verboseFlag.Value.Type())
 	assert.Equal(t, "false", verboseFlag.DefValue)
 	assert.Contains(t, verboseFlag.Usage, "Show detailed plugin information")
+
+	allFlag := cmd.Flags().Lookup("all")
+	require.NotNil(t, allFlag)
+	assert.Equal(t, "bool", allFlag.Value.Type())
+	assert.Equal(t, "false", allFlag.DefValue)
+	assert.Contains(t, allFlag.Usage, "every installed version")
 }
 
 func TestPluginListCmdHelp(t *testing.T) {
@@ -99,8 +108,8 @@ func TestPluginListCmdHelp(t *testing.T) {
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "List all installed plugins with their versions and paths")
-	assert.Contains(t, output, "List all installed plugins with their versions and paths")
+	assert.Contains(t, output, "highest semver")
+	assert.Contains(t, output, "--all")
 	assert.Contains(t, output, "--verbose")
 	assert.Contains(t, output, "Show detailed plugin information")
 }
@@ -113,6 +122,7 @@ func TestPluginListCmdExamples(t *testing.T) {
 	// Check that examples are present
 	assert.NotEmpty(t, cmd.Example)
 	assert.Contains(t, cmd.Example, "finfocus plugin list")
+	assert.Contains(t, cmd.Example, "finfocus plugin list --all")
 	assert.Contains(t, cmd.Example, "finfocus plugin list --verbose")
 	assert.Contains(t, cmd.Example, "List plugins with detailed information")
 }
@@ -338,8 +348,11 @@ func TestPluginListCmd_TableOutputUnchanged(t *testing.T) {
 	err = cmd2.Execute()
 	require.NoError(t, err)
 
-	// Both should produce identical output
+	// Both should produce identical output, and only the highest semver.
 	assert.Equal(t, defaultBuf.String(), tableBuf.String())
+	assert.Contains(t, defaultBuf.String(), "0.2.0")
+	assert.NotContains(t, defaultBuf.String(), "0.1.9")
+	assert.NotContains(t, defaultBuf.String(), "0.1.5")
 }
 
 // TestPluginListCmd_VersionOrder catches completion-order-dependent rows for
@@ -363,7 +376,7 @@ func TestPluginListCmd_VersionOrder(t *testing.T) {
 		cmd.SetContext(ctx)
 		cmd.SetOut(&buf)
 		cmd.SetErr(&buf)
-		cmd.SetArgs([]string{"--output", "json"})
+		cmd.SetArgs([]string{"--all", "--output", "json"})
 		require.NoError(t, cmd.Execute())
 
 		var entries []cli.PluginJSONEntry
@@ -398,15 +411,16 @@ func TestPluginListCmd_SemverDescending(t *testing.T) {
 		tableCmd.SetContext(ctx)
 		tableCmd.SetOut(&tableBuf)
 		tableCmd.SetErr(&tableBuf)
-		tableCmd.SetArgs([]string{"--output", "table"})
+		tableCmd.SetErr(&bytes.Buffer{})
+		tableCmd.SetArgs([]string{"--all", "--output", "table"})
 		require.NoError(t, tableCmd.Execute())
 
 		var jsonBuf bytes.Buffer
 		jsonCmd := cli.NewPluginListCmd()
 		jsonCmd.SetContext(ctx)
 		jsonCmd.SetOut(&jsonBuf)
-		jsonCmd.SetErr(&jsonBuf)
-		jsonCmd.SetArgs([]string{"--output", "json"})
+		jsonCmd.SetErr(&bytes.Buffer{})
+		jsonCmd.SetArgs([]string{"--all", "--output", "json"})
 		require.NoError(t, jsonCmd.Execute())
 
 		if run == 0 {
@@ -593,4 +607,221 @@ func TestPluginListCmd_VerboseOutput(t *testing.T) {
 	output := out.String()
 	assert.Contains(t, output, "Path")
 	assert.Contains(t, output, "kubecost")
+}
+
+type listedPlugin struct {
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	Active    bool   `json:"active"`
+	Providers any    `json:"supportedProviders"`
+}
+
+type recordingLauncher struct {
+	mu    sync.Mutex
+	paths []string
+}
+
+func (r *recordingLauncher) Start(
+	_ context.Context,
+	path string,
+	_ ...string,
+) (*grpc.ClientConn, func() error, error) {
+	r.mu.Lock()
+	r.paths = append(r.paths, path)
+	r.mu.Unlock()
+	return nil, nil, errors.New("spy declined launch")
+}
+
+func (r *recordingLauncher) started() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.paths...)
+}
+
+func installMockPlugin(t *testing.T, home, name, version string) string {
+	t.Helper()
+	dir := filepath.Join(home, "plugins", name, version)
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	binary := "finfocus-plugin-" + name
+	createMockPluginBinary(t, dir, binary)
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
+	return filepath.Join(dir, binary)
+}
+
+func runPluginList(t *testing.T, args ...string) (string, string) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	cmd := cli.NewPluginListCmd()
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs(args)
+	require.NoError(t, cmd.Execute())
+	return stdout.String(), stderr.String()
+}
+
+func decodePluginList(t *testing.T, stdout string) []listedPlugin {
+	t.Helper()
+	var entries []listedPlugin
+	require.NoError(t, json.Unmarshal([]byte(stdout), &entries))
+	return entries
+}
+
+type tablePlugin struct {
+	Name      string
+	Version   string
+	Active    string
+	Providers string
+}
+
+func pluginTableRows(output string) []tablePlugin {
+	var header []string
+	var rows []tablePlugin
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || strings.HasPrefix(fields[0], "----") {
+			continue
+		}
+		if fields[0] == "Name" {
+			header = fields
+			continue
+		}
+		if header == nil {
+			continue
+		}
+		row := tablePlugin{Name: fields[0]}
+		for i, column := range header {
+			if i >= len(fields) {
+				break
+			}
+			switch column {
+			case "Version":
+				row.Version = fields[i]
+			case "Active":
+				row.Active = fields[i]
+			case "Providers":
+				row.Providers = fields[i]
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+func TestPluginListCmd_LatestByDefault(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	home := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", home)
+	installMockPlugin(t, home, "aws-public", "0.1.5")
+	installMockPlugin(t, home, "aws-public", "0.1.9")
+	installMockPlugin(t, home, "aws-public", "0.2.0")
+	installMockPlugin(t, home, "recorder", "0.1.0")
+
+	stdout, stderr := runPluginList(t, "--output", "json")
+	assert.Empty(t, stderr)
+	assert.Equal(t, []listedPlugin{
+		{Name: "aws-public", Version: "0.2.0", Active: true, Providers: []any{}},
+		{Name: "recorder", Version: "0.1.0", Active: true, Providers: []any{}},
+	}, decodePluginList(t, stdout))
+
+	table, tableErr := runPluginList(t, "--output", "table")
+	assert.Empty(t, tableErr)
+	assert.Equal(t, []tablePlugin{
+		{Name: "aws-public", Version: "0.2.0", Providers: "*"},
+		{Name: "recorder", Version: "0.1.0", Providers: "*"},
+	}, pluginTableRows(table))
+	assert.NotContains(t, table, "Active")
+}
+
+func TestPluginListCmd_AllMarksActiveVersion(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	home := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", home)
+	installMockPlugin(t, home, "aws-public", "0.1.5")
+	installMockPlugin(t, home, "aws-public", "0.1.9")
+	installMockPlugin(t, home, "aws-public", "0.2.0")
+	installMockPlugin(t, home, "recorder", "0.1.0")
+	spy := &recordingLauncher{}
+	cli.SetPluginListLauncherForTest(t, spy)
+
+	stdout, stderr := runPluginList(t, "--all", "--output", "json")
+	assert.Empty(t, stderr)
+	assert.Equal(t, []listedPlugin{
+		{Name: "aws-public", Version: "0.2.0", Active: true, Providers: []any{}},
+		{Name: "aws-public", Version: "0.1.9", Active: false},
+		{Name: "aws-public", Version: "0.1.5", Active: false},
+		{Name: "recorder", Version: "0.1.0", Active: true, Providers: []any{}},
+	}, decodePluginList(t, stdout))
+
+	table, _ := runPluginList(t, "--all", "--output", "table")
+	assert.Equal(t, []tablePlugin{
+		{Name: "aws-public", Version: "0.2.0", Active: "yes", Providers: "*"},
+		{Name: "aws-public", Version: "0.1.9", Active: "no", Providers: "-"},
+		{Name: "aws-public", Version: "0.1.5", Active: "no", Providers: "-"},
+		{Name: "recorder", Version: "0.1.0", Active: "yes", Providers: "*"},
+	}, pluginTableRows(table))
+}
+
+func TestPluginListCmd_DoesNotLaunchOlderVersions(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	home := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", home)
+	oldA := installMockPlugin(t, home, "aws-public", "0.1.5")
+	oldB := installMockPlugin(t, home, "aws-public", "0.1.9")
+	latest := installMockPlugin(t, home, "aws-public", "0.2.0")
+	recorder := installMockPlugin(t, home, "recorder", "0.1.0")
+
+	for _, args := range [][]string{{}, {"--all"}} {
+		spy := &recordingLauncher{}
+		cli.SetPluginListLauncherForTest(t, spy)
+		_, stderr := runPluginList(t, args...)
+		assert.Empty(t, stderr)
+		assert.ElementsMatch(t, []string{latest, recorder}, spy.started())
+		assert.NotContains(t, spy.started(), oldA)
+		assert.NotContains(t, spy.started(), oldB)
+	}
+}
+
+func TestPluginListCmd_VerboseLaunchesEveryVersion(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	home := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", home)
+	oldA := installMockPlugin(t, home, "aws-public", "0.1.5")
+	oldB := installMockPlugin(t, home, "aws-public", "0.1.9")
+	latest := installMockPlugin(t, home, "aws-public", "0.2.0")
+	recorder := installMockPlugin(t, home, "recorder", "0.1.0")
+	spy := &recordingLauncher{}
+	cli.SetPluginListLauncherForTest(t, spy)
+
+	_, stderr := runPluginList(t, "--all", "--verbose")
+	assert.Empty(t, stderr)
+	assert.ElementsMatch(t, []string{oldA, oldB, latest, recorder}, spy.started())
+}
+
+func TestPluginListCmd_InvalidSemverWarns(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	home := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", home)
+	installMockPlugin(t, home, "aws-public", "not-a-version")
+
+	stdout, stderr := runPluginList(t)
+	assert.Contains(t, stderr, "invalid semver")
+	assert.Contains(t, stderr, "not-a-version")
+	assert.Contains(t, stdout, "No plugins found.")
+	assert.NotContains(t, stdout, "not-a-version")
+
+	installMockPlugin(t, home, "aws-public", "1.0.0")
+	stdout, stderr = runPluginList(t, "--output", "json")
+	assert.Contains(t, stderr, "not-a-version")
+	assert.Equal(t, []listedPlugin{
+		{Name: "aws-public", Version: "1.0.0", Active: true, Providers: []any{}},
+	}, decodePluginList(t, stdout))
+
+	stdout, stderr = runPluginList(t, "--all", "--output", "json")
+	assert.Contains(t, stderr, "invalid semver")
+	assert.Equal(t, []listedPlugin{
+		{Name: "aws-public", Version: "1.0.0", Active: true, Providers: []any{}},
+		{Name: "aws-public", Version: "not-a-version", Active: false},
+	}, decodePluginList(t, stdout))
 }

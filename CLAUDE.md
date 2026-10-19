@@ -335,9 +335,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `--resource-type` must be a full token (`package:module:Type`) whose
   package matches `--provider`; a short name such as `ec2:Instance` is
   rejected.
-- `plugin list` orders by name ascending, then installed version descending
-  as semver. A version that is not semver uses ascending string order, and
-  path breaks remaining ties. Table and JSON use that same order.
+- `plugin list` shows the highest semver of each plugin. `--all` lists every
+  installed version, marks the one core opens (`Active` / JSON `active`), and
+  starts older binaries only with `--verbose`. A non-semver directory name is
+  a warning and is omitted from the default listing. Rows sort by name
+  ascending, then installed version descending as semver. A version that is
+  not semver uses ascending string order, and path breaks remaining ties.
+  Table and JSON use that same order. Invalid-semver warnings go to stderr
+  and do not change the exit code.
 - `analyzer serve` prints only the port on stdout (Pulumi handshake); all logs
   go to stderr.
 - **Tests leak into the real `~/.finfocus`** unless they set

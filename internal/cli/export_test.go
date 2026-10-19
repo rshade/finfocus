@@ -3,8 +3,10 @@ package cli
 import (
 	"context"
 	"net/http"
+	"testing"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/pluginskill"
 )
 
@@ -24,6 +26,15 @@ func SetPluginSkillsForTest(f SkillInstallerFunc) {
 
 // IsNoAssetError exposes isNoAssetError to tests.
 func IsNoAssetError(err error) bool { return isNoAssetError(err) }
+
+// SetPluginListLauncherForTest installs launcher for plugin list metadata
+// probes and restores the previous factory when the test ends.
+func SetPluginListLauncherForTest(t *testing.T, launcher pluginhost.Launcher) {
+	t.Helper()
+	prev := pluginListLauncher
+	pluginListLauncher = func() pluginhost.Launcher { return launcher }
+	t.Cleanup(func() { pluginListLauncher = prev })
+}
 
 // SetNotificationClientForTest routes budget notifications through client and
 // returns a function that restores the previous client.

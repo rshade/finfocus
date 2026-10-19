@@ -17,7 +17,7 @@
       },
       "version": {
         "type": "string",
-        "description": "Plugin version (directory name in registry)"
+        "description": "Install directory name. The plugin-reported version is runtimeVersion."
       },
       "path": {
         "type": "string",
@@ -44,6 +44,10 @@
       "notes": {
         "type": "string",
         "description": "Error or status notes if metadata retrieval failed"
+      },
+      "active": {
+        "type": "boolean",
+        "description": "True when this row is the version core opens. The default listing is only those rows. --all includes the others with active false."
       }
     }
   }
@@ -106,5 +110,5 @@
 1. Output is always a JSON array, even with zero or one plugin
 2. Empty plugin list produces `[]`, never `null` or an error message
 3. Failed metadata retrieval still produces a plugin entry with `notes` field
-4. `supportedProviders` and `capabilities` may be `null` on failure (FR-010)
+4. `supportedProviders` and `capabilities` may be `null` on failure (FR-010), and are `null` when that version was not started (`--all` without `--verbose`)
 5. Table output is completely unchanged (FR-009)

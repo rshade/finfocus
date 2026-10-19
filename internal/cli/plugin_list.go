@@ -24,12 +24,14 @@ import (
 )
 
 // NewPluginListCmd creates a Cobra "list" command for displaying plugins.
-// The command lists installed plugins by default and supports an `--verbose`
-// flag for detailed output and an `--available` flag to list plugins from the registry.
+// The command lists the highest semver of each installed plugin by default.
+// --all lists every installed version, --verbose shows capability details,
+// and --available lists plugins from the registry.
 // It returns the configured *cobra.Command.
 func NewPluginListCmd() *cobra.Command {
 	var (
 		verbose   bool
+		listAll   bool
 		available bool
 		output    string
 	)
@@ -37,9 +39,13 @@ func NewPluginListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   cmdNameList,
 		Short: "List installed plugins",
-		Long:  "List all installed plugins with their versions and paths",
-		Example: `  # List all installed plugins
+		Long: "List installed plugins. By default each plugin appears once, at its " +
+			"highest semver. Use --all to show every installed version.",
+		Example: `  # List the latest installed version of each plugin
   finfocus plugin list
+
+  # List every installed version and mark the one core uses
+  finfocus plugin list --all
 
   # List plugins with detailed information
   finfocus plugin list --verbose
@@ -57,11 +63,12 @@ func NewPluginListCmd() *cobra.Command {
 			if available {
 				return runPluginListAvailable(cmd, format)
 			}
-			return runPluginListCmd(cmd, verbose, format)
+			return runPluginListCmd(cmd, verbose, listAll, format)
 		},
 	}
 
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed plugin information")
+	cmd.Flags().BoolVar(&listAll, "all", false, "List every installed version and mark the one core uses")
 	cmd.Flags().BoolVar(&available, "available", false, "List available plugins from registry")
 	cmd.Flags().StringVar(&output, "output", outputFormatTable, "Output format (table, json)")
 
@@ -126,14 +133,18 @@ type enrichedPluginInfo struct {
 	SupportedProviders []string `json:"supportedProviders,omitempty"`
 	Capabilities       []string `json:"capabilities,omitempty"` // Inferred from plugin methods
 	Notes              string   `json:"notes,omitempty"`        // Error or status notes
+	// Active is true when this row is the version core opens.
+	Active bool `json:"active"`
+	// probed is true when this process was started to read metadata.
+	probed bool
 }
 
-// displayVersion returns RuntimeVersion when it's not notAvailable, otherwise Version.
-func (p enrichedPluginInfo) displayVersion() string {
-	if p.RuntimeVersion != notAvailable {
-		return p.RuntimeVersion
-	}
-	return p.Version
+// pluginListLauncher builds the launcher that reads plugin metadata.
+// Tests replace it to record which binaries would start.
+//
+//nolint:gochecknoglobals // Test seam; production assigns it once.
+var pluginListLauncher = func() pluginhost.Launcher {
+	return pluginhost.NewProcessLauncher()
 }
 
 const notAvailable = "N/A"
@@ -142,15 +153,19 @@ const notAvailable = "N/A"
 // It checks whether the configured plugin directory exists and prints a message and returns nil if it does not.
 // If no plugins are installed it prints 'No plugins found.' and returns nil.
 //
-// Plugin metadata is fetched concurrently using errgroup with a concurrency limit of [runtime.NumCPU]
-// to minimize total execution time. Results are sorted by plugin name ascending, then
-// installed version descending as semver. A version that is not semver falls back to
-// ascending string comparison. Path breaks remaining ties, so metadata completion
-// order cannot reorder rows.
+// By default each plugin appears once, at the highest semver (the version core
+// opens). listAll includes every installed version and marks that one. A
+// directory whose name is not semver is warned about and left out of the
+// default listing. Plugin metadata is fetched concurrently using errgroup with
+// a concurrency limit of [runtime.NumCPU]. Older versions are not started
+// unless verbose is set. Results are sorted by plugin name ascending, then
+// installed version descending as semver. A version that is not semver falls
+// back to ascending string comparison. Path breaks remaining ties, so metadata
+// completion order cannot reorder rows.
 //
 // cmd is the Cobra command used for printing. verbose controls whether plugin details are shown.
 // Returns an error if querying the registry for installed plugins fails; otherwise nil.
-func runPluginListCmd(cmd *cobra.Command, verbose bool, output string) error {
+func runPluginListCmd(cmd *cobra.Command, verbose, listAll bool, output string) error {
 	cfg := config.New()
 	if _, err := os.Stat(cfg.PluginDir); os.IsNotExist(err) {
 		if output == outputFormatJSON {
@@ -162,9 +177,12 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool, output string) error {
 	}
 
 	reg := registry.NewDefault()
-	plugins, err := reg.ListPlugins()
+	plugins, active, err := pluginsForList(reg, listAll)
 	if err != nil {
-		return fmt.Errorf("listing plugins: %w", err)
+		return err
+	}
+	for _, warning := range active.warnings {
+		cmd.PrintErrf("warning: %s\n", warning)
 	}
 
 	if len(plugins) == 0 {
@@ -175,8 +193,7 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool, output string) error {
 		return nil
 	}
 
-	ctx := cmd.Context()
-	enriched := fetchPluginMetadataParallel(ctx, plugins)
+	enriched := enrichPlugins(cmd.Context(), plugins, active.paths, verbose)
 
 	// Name, then semver, then path. Completion order must not change the rows.
 	sort.Slice(enriched, func(i, j int) bool {
@@ -192,14 +209,80 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool, output string) error {
 	if output == outputFormatJSON {
 		return renderPluginsJSON(cmd.OutOrStdout(), enriched)
 	}
-	return displayPlugins(cmd, enriched, verbose)
+	return displayPlugins(cmd, enriched, verbose, listAll)
+}
+
+// pluginListSelection is the version core opens, plus semver warnings.
+type pluginListSelection struct {
+	paths    map[string]struct{}
+	warnings []string
+}
+
+// pluginsForList returns the rows to print. The default is the highest semver
+// of each plugin. listAll returns every installed version. paths marks the
+// version core opens. Invalid semver names are warnings in either mode.
+func pluginsForList(reg *registry.Registry, listAll bool) ([]registry.PluginInfo, pluginListSelection, error) {
+	latest, warnings, err := reg.ListLatestPlugins()
+	if err != nil {
+		return nil, pluginListSelection{}, fmt.Errorf("listing plugins: %w", err)
+	}
+	selected := pluginListSelection{
+		paths:    make(map[string]struct{}, len(latest)),
+		warnings: warnings,
+	}
+	for _, plugin := range latest {
+		selected.paths[plugin.Path] = struct{}{}
+	}
+	if !listAll {
+		return latest, selected, nil
+	}
+
+	plugins, err := reg.ListPlugins()
+	if err != nil {
+		return nil, pluginListSelection{}, fmt.Errorf("listing plugins: %w", err)
+	}
+	return plugins, selected, nil
+}
+
+// enrichPlugins reads metadata for the versions that should be started.
+// Older versions stay unprobed unless verbose is set, so listing them does
+// not launch their binaries.
+func enrichPlugins(
+	ctx context.Context,
+	plugins []registry.PluginInfo,
+	active map[string]struct{},
+	verbose bool,
+) []enrichedPluginInfo {
+	probe := make([]registry.PluginInfo, 0, len(plugins))
+	var skipped []registry.PluginInfo
+	for _, plugin := range plugins {
+		_, isActive := active[plugin.Path]
+		if verbose || isActive {
+			probe = append(probe, plugin)
+			continue
+		}
+		skipped = append(skipped, plugin)
+	}
+
+	enriched := fetchPluginMetadataParallel(ctx, probe)
+	for i := range enriched {
+		_, enriched[i].Active = active[enriched[i].Path]
+	}
+	for _, plugin := range skipped {
+		enriched = append(enriched, enrichedPluginInfo{
+			PluginInfo:     plugin,
+			SpecVersion:    notAvailable,
+			RuntimeVersion: notAvailable,
+		})
+	}
+	return enriched
 }
 
 // fetchPluginMetadataParallel fetches metadata from all plugins concurrently.
 // It uses errgroup with a concurrency limit of [runtime.NumCPU] to prevent resource exhaustion.
-// Plugins that fail to respond within the timeout are skipped (not included in results).
+// A plugin that fails to respond is still included, with the failure in Notes.
 func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginInfo) []enrichedPluginInfo {
-	launcher := pluginhost.NewProcessLauncher()
+	launcher := pluginListLauncher()
 
 	// Thread-safe collection of results
 	var mu sync.Mutex
@@ -276,6 +359,7 @@ func fetchSinglePluginMetadata(
 		PluginInfo:     plugin,
 		SpecVersion:    notAvailable,
 		RuntimeVersion: notAvailable,
+		probed:         true,
 	}
 
 	client, launchErr := pluginhost.NewClient(
@@ -317,94 +401,85 @@ func fetchSinglePluginMetadata(
 	return result
 }
 
-func displayPlugins(cmd *cobra.Command, plugins []enrichedPluginInfo, verbose bool) error {
+func displayPlugins(cmd *cobra.Command, plugins []enrichedPluginInfo, verbose, showActive bool) error {
 	const tabPadding = 2
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, tabPadding, ' ', 0)
+	return writePluginTable(w, plugins, verbose, showActive)
+}
 
+func pluginHasNotes(plugins []enrichedPluginInfo) bool {
+	for _, plugin := range plugins {
+		if plugin.Notes != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func activeLabel(active bool) string {
+	if active {
+		return "yes"
+	}
+	return "no"
+}
+
+func (p enrichedPluginInfo) providerCell() string {
+	if !p.probed {
+		return "-"
+	}
+	return formatProviders(p.SupportedProviders)
+}
+
+func (p enrichedPluginInfo) capabilityCell() string {
+	if !p.probed {
+		return "-"
+	}
+	return formatCapabilities(p.Capabilities)
+}
+
+func pluginHeader(verbose, showActive, hasNotes bool) []string {
+	header := []string{"Name", "Version"}
+	if showActive {
+		header = append(header, "Active")
+	}
+	header = append(header, "Providers")
 	if verbose {
-		return displayVerbosePlugins(w, plugins)
+		header = append(header, "Capabilities", "Spec", "Path")
 	}
-	return displaySimplePlugins(w, plugins)
+	if hasNotes {
+		header = append(header, "Notes")
+	}
+	return header
 }
 
-// displayVerbosePlugins writes a detailed tab-separated table of plugin information to w.
-// The table includes columns for Name, Version, Providers, Capabilities, Spec, and Path.
-// If any plugin in the provided slice has a non-empty Notes field, a Notes column is included.
-// w is the tabwriter used for output and plugins is the list of enrichedPluginInfo to display.
-// It returns any error encountered while flushing the writer.
-func displayVerbosePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) error {
-	// Check if any plugins have notes to show
-	hasNotes := false
-	for _, plugin := range plugins {
-		if plugin.Notes != "" {
-			hasNotes = true
-			break
-		}
+func pluginCells(plugin enrichedPluginInfo, verbose, showActive, hasNotes bool) []string {
+	// Version is the install directory name. Only a started plugin has a
+	// runtime version, so the column stays comparable across --all rows.
+	cells := []string{plugin.Name, plugin.Version}
+	if showActive {
+		cells = append(cells, activeLabel(plugin.Active))
 	}
-
+	cells = append(cells, plugin.providerCell())
+	if verbose {
+		cells = append(cells, plugin.capabilityCell(), plugin.SpecVersion, plugin.Path)
+	}
 	if hasNotes {
-		fmt.Fprintln(w, "Name\tVersion\tProviders\tCapabilities\tSpec\tPath\tNotes")
-		fmt.Fprintln(w, "----\t-------\t---------\t------------\t----\t----\t-----")
-	} else {
-		fmt.Fprintln(w, "Name\tVersion\tProviders\tCapabilities\tSpec\tPath")
-		fmt.Fprintln(w, "----\t-------\t---------\t------------\t----\t----")
+		cells = append(cells, plugin.Notes)
 	}
-
-	for _, plugin := range plugins {
-		ver := plugin.displayVersion()
-		providers := formatProviders(plugin.SupportedProviders)
-		capabilities := formatCapabilities(plugin.Capabilities)
-
-		if hasNotes {
-			fmt.Fprintf(
-				w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				plugin.Name, ver, providers, capabilities, plugin.SpecVersion, plugin.Path, plugin.Notes,
-			)
-		} else {
-			fmt.Fprintf(
-				w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-				plugin.Name, ver, providers, capabilities, plugin.SpecVersion, plugin.Path,
-			)
-		}
-	}
-	return w.Flush()
+	return cells
 }
 
-// displaySimplePlugins writes a compact tab-separated table of plugins to w.
-// If any plugin has a non-empty Notes field, a Notes column is included.
-// Each row contains the plugin name, a display version (RuntimeVersion when available,
-// otherwise the plugin version), and the formatted providers; Notes are appended when present.
-// Parameters:
-//   - w: destination tab writer for formatted output.
-//   - plugins: list of enriched plugin information to display.
-//
-// Returns any error encountered while flushing the writer.
-func displaySimplePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) error {
-	// Check if any plugins have notes to show
-	hasNotes := false
-	for _, plugin := range plugins {
-		if plugin.Notes != "" {
-			hasNotes = true
-			break
-		}
+func writePluginTable(w *tabwriter.Writer, plugins []enrichedPluginInfo, verbose, showActive bool) error {
+	hasNotes := pluginHasNotes(plugins)
+	header := pluginHeader(verbose, showActive, hasNotes)
+	fmt.Fprintln(w, strings.Join(header, "\t"))
+	rule := make([]string, len(header))
+	for i, column := range header {
+		rule[i] = strings.Repeat("-", len(column))
 	}
-
-	if hasNotes {
-		fmt.Fprintln(w, "Name\tVersion\tProviders\tNotes")
-		fmt.Fprintln(w, "----\t-------\t---------\t-----")
-	} else {
-		fmt.Fprintln(w, "Name\tVersion\tProviders")
-		fmt.Fprintln(w, "----\t-------\t---------")
-	}
-
+	fmt.Fprintln(w, strings.Join(rule, "\t"))
 	for _, plugin := range plugins {
-		ver := plugin.displayVersion()
-		providers := formatProviders(plugin.SupportedProviders)
-		if hasNotes {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", plugin.Name, ver, providers, plugin.Notes)
-		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\n", plugin.Name, ver, providers)
-		}
+		fmt.Fprintln(w, strings.Join(pluginCells(plugin, verbose, showActive, hasNotes), "\t"))
 	}
 	return w.Flush()
 }
@@ -443,6 +518,8 @@ type PluginJSONEntry struct {
 	SupportedProviders []string `json:"supportedProviders"`
 	Capabilities       []string `json:"capabilities"`
 	Notes              string   `json:"notes,omitempty"`
+	// Active reports whether this is the version core opens.
+	Active bool `json:"active"`
 }
 
 // renderPluginsJSON serializes the enriched plugin list as a JSON array to w.
@@ -451,22 +528,27 @@ func renderPluginsJSON(w io.Writer, plugins []enrichedPluginInfo) error {
 	entries := make([]PluginJSONEntry, 0, len(plugins))
 	for _, p := range plugins {
 		providers := p.SupportedProviders
-		if providers == nil {
-			providers = []string{}
-		}
 		capabilities := p.Capabilities
-		if capabilities == nil {
-			capabilities = []string{}
+		// An unstarted row has no provider list. null is unknown; [] is a
+		// started plugin that reported none.
+		if p.probed {
+			if providers == nil {
+				providers = []string{}
+			}
+			if capabilities == nil {
+				capabilities = []string{}
+			}
 		}
 		entries = append(entries, PluginJSONEntry{
 			Name:               p.Name,
-			Version:            p.displayVersion(),
+			Version:            p.Version,
 			Path:               p.Path,
 			SpecVersion:        p.SpecVersion,
 			RuntimeVersion:     p.RuntimeVersion,
 			SupportedProviders: providers,
 			Capabilities:       capabilities,
 			Notes:              p.Notes,
+			Active:             p.Active,
 		})
 	}
 	data, err := json.MarshalIndent(entries, "", "  ")
