@@ -1,5 +1,7 @@
 {
-  ".": "0.4.6",
-  "plugins/kubernetes": "0.1.7",
-  "plugins/prometheus": "0.1.1"
+  ".": "0.5.0",
+  "plugins/kubernetes": "0.1.8",
+  "plugins/prometheus": "0.1.2",
+  "plugins/scorer": "0.1.0",
+  "plugins/carbon": "0.1.0"
 }

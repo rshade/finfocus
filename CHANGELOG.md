@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0](https://github.com/rshade/finfocus/compare/v0.4.6...v0.5.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **plugins/scorer:** The jev plugin module, binary, build targets and scoring plugin name are now scorer. Replace TYPESAFE_API_KEY with SCORER_API_KEY and JEV_* configuration with the documented SCORER_* equivalents; select SCORER_BACKEND=jev or clef and set SCORER_CLEF_ACCOUNT_ID for hosted Clef. Legacy environment variables are no longer read. Existing jev installations remain separate and require an explicit scorer install and configuration migration.
+
+### Added
+
+* **carbon:** add offline EC2 carbon estimates ([#1842](https://github.com/rshade/finfocus/issues/1842)) ([7767e6b](https://github.com/rshade/finfocus/commit/7767e6b1f01b42bf32678f1fffd7e23d91fb95aa))
+* **cli:** list latest plugin by default ([#1834](https://github.com/rshade/finfocus/issues/1834)) ([78ebf00](https://github.com/rshade/finfocus/commit/78ebf005c86dd2524ec05dd085b36950cd7a7c57))
+* **cli:** pass usage profile to plugins ([#1823](https://github.com/rshade/finfocus/issues/1823)) ([606bf2a](https://github.com/rshade/finfocus/commit/606bf2a6a9156db279bcec5e00b5db25d1912dae))
+* **estimate:** hide known non-billable picker resources ([#1825](https://github.com/rshade/finfocus/issues/1825)) ([1597365](https://github.com/rshade/finfocus/commit/1597365be9aec512d99a6e924f913cd741e36a98))
+* **skills:** add plugin-manage agent skill ([#1833](https://github.com/rshade/finfocus/issues/1833)) ([9a5dfa3](https://github.com/rshade/finfocus/commit/9a5dfa37cf0e3c3d791c55895ce0a4927b5f15d0))
+* **tui:** lazy-load detail cost history ([#1845](https://github.com/rshade/finfocus/issues/1845)) ([985f715](https://github.com/rshade/finfocus/commit/985f71555b532eac3123353cd03d225969de17c4))
+* **webui:** add a plugin catalog and settings page ([#1796](https://github.com/rshade/finfocus/issues/1796)) ([f53294c](https://github.com/rshade/finfocus/commit/f53294c4c03d37ad7f7f8c1ad68f38ac4529a8ec))
+* **webui:** view and edit config in the dashboard ([#1789](https://github.com/rshade/finfocus/issues/1789)) ([b03a23d](https://github.com/rshade/finfocus/commit/b03a23db8d6d43688811f7d120b66bd33f04507f))
+
+
+### Fixed
+
+* **cli:** config get budget keys, plugin list order, estimate --modify, history dir gate ([#1811](https://github.com/rshade/finfocus/issues/1811)) ([4008d7a](https://github.com/rshade/finfocus/commit/4008d7a468b8fd71e3979ad1e9d52d09a08111c0))
+* **cli:** resolve config get against the project tier ([#1822](https://github.com/rshade/finfocus/issues/1822)) ([327afbc](https://github.com/rshade/finfocus/commit/327afbca07fd4b223edef2cf633bb87fd5b6873d))
+* **cli:** shut down web and overview TUI cleanly on exit ([#1813](https://github.com/rshade/finfocus/issues/1813)) ([a9ce50a](https://github.com/rshade/finfocus/commit/a9ce50a7938d6193185bc3650f451f84d15ed737))
+* **cli:** stop mcp-server on SIGINT/SIGTERM and test --web grandchild reaping ([#1826](https://github.com/rshade/finfocus/issues/1826)) ([4f5dfe1](https://github.com/rshade/finfocus/commit/4f5dfe146603f8206e3e8435ea505786c7dac1e2))
+* **config:** apply project-tier cost.budgets and output.default_format ([#1807](https://github.com/rshade/finfocus/issues/1807)) ([b2db677](https://github.com/rshade/finfocus/commit/b2db677407d7be2d787730297d65683da78060b1))
+* **deps:** update go dependencies ([#1778](https://github.com/rshade/finfocus/issues/1778)) ([38d57b0](https://github.com/rshade/finfocus/commit/38d57b0edb5e5925262f4b4ce65cf1a97463dd24))
+* **engine:** treat Supports validation errors as decline, price NAT gateways, align overview actual cost ([#1810](https://github.com/rshade/finfocus/issues/1810)) ([32e89ac](https://github.com/rshade/finfocus/commit/32e89aca5a50b349111e87195512b2bcc2ac695a))
+* **history:** create the compaction temp file exclusively and gate its name ([#1820](https://github.com/rshade/finfocus/issues/1820)) ([c48c175](https://github.com/rshade/finfocus/commit/c48c175bba1b0a433f6f8268bb506e3571b87468)), closes [#1811](https://github.com/rshade/finfocus/issues/1811)
+* **registry:** install plugins where discovery reads them ([#1769](https://github.com/rshade/finfocus/issues/1769)) ([3d26058](https://github.com/rshade/finfocus/commit/3d26058bdb41c410263a1052c648a1b9a446f312))
+* repair main CI after dependency bumps ([#1794](https://github.com/rshade/finfocus/issues/1794)) ([0da2a71](https://github.com/rshade/finfocus/commit/0da2a7107cabe9e4c10f7b408ac356bcc26f8b23))
+* show costs for preview-only resources, plugin settings and flag-error fixes ([#1804](https://github.com/rshade/finfocus/issues/1804)) ([59f175f](https://github.com/rshade/finfocus/commit/59f175fee5f72212a7c92b803d19e8186a58b62d))
+* **webui:** config page review follow-ups ([#1795](https://github.com/rshade/finfocus/issues/1795)) ([0fed824](https://github.com/rshade/finfocus/commit/0fed8246dcf4a7244dfe9b09c289c4666f4ac7fd))
+* **webui:** do not restore secret-envelope maps and release query before error write ([#1818](https://github.com/rshade/finfocus/issues/1818)) ([c9634c6](https://github.com/rshade/finfocus/commit/c9634c66344af44f8dfe394cd7c47436b1b1a93a))
+* **webui:** feed Run preview into Estimate and Overview and expose state-only status ([#1814](https://github.com/rshade/finfocus/issues/1814)) ([bea7d82](https://github.com/rshade/finfocus/commit/bea7d82a903e28b28634e27c296f753adfd22709))
+* **webui:** keep Run preview state, budget and dismissals consistent ([#1817](https://github.com/rshade/finfocus/issues/1817)) ([7eaa85b](https://github.com/rshade/finfocus/commit/7eaa85bd9c04c52b3905245df62823fd145b75b2))
+* **webui:** redaction, recommendation details, stream auth, estimate editor ([#1812](https://github.com/rshade/finfocus/issues/1812)) ([96bf531](https://github.com/rshade/finfocus/commit/96bf531b48fd74426034621ff785f14d895d905d))
+
+
+### Performance
+
+* **cli:** overlap overview plugin open with loading ([#1815](https://github.com/rshade/finfocus/issues/1815)) ([9a9ee3b](https://github.com/rshade/finfocus/commit/9a9ee3b52694f7209b9f08410b1bcae67008c20f))
+
+
+### Changed
+
+* **plugins/scorer:** add Jev and Clef backends ([#1819](https://github.com/rshade/finfocus/issues/1819)) ([aa6da86](https://github.com/rshade/finfocus/commit/aa6da86963cb223ccc46c2b53b2080ea9cf293ea))
+* structural cleanups for config budgets, enrichment, supports, settings and web signals ([#1828](https://github.com/rshade/finfocus/issues/1828)) ([50e66df](https://github.com/rshade/finfocus/commit/50e66df502a93752aa7a20412345f539bb55c9b6))
+* **webui:** redact in a single pass instead of drop-then-restore ([#1827](https://github.com/rshade/finfocus/issues/1827)) ([93b7c1b](https://github.com/rshade/finfocus/commit/93b7c1b064e9f649f3af4306855de1a159eb85ab))
+* **webui:** return unavailable estimate baseline as 200 with a marker ([#1821](https://github.com/rshade/finfocus/issues/1821)) ([3801ea9](https://github.com/rshade/finfocus/commit/3801ea9a68d20cc778964cff9756cf6e7bee10f7))
+* **webui:** typed RunStatus, explicit stream states, retryable preview pricing failure ([#1824](https://github.com/rshade/finfocus/issues/1824)) ([1c6f548](https://github.com/rshade/finfocus/commit/1c6f548eccc3a2514a42234d4295e09f982e5cc2))
+
+
+### Documentation
+
+* **roadmap:** add web UI settings and plugin setup work ([#1767](https://github.com/rshade/finfocus/issues/1767)) ([89d1ef6](https://github.com/rshade/finfocus/commit/89d1ef621b2305ad07ed3b3a8d25184a12dcb64e))
+* **roadmap:** sync with GitHub after 16 closures ([#1835](https://github.com/rshade/finfocus/issues/1835)) ([9556a35](https://github.com/rshade/finfocus/commit/9556a35ca6db4151879b799a8f24c83892dd455a))
+
 ## [0.4.6](https://github.com/rshade/finfocus/compare/v0.4.5...v0.4.6) (2026-10-09)
 
 

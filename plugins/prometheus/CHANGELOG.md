@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.2](https://github.com/rshade/finfocus/compare/prometheus-v0.1.1...prometheus-v0.1.2) (2026-10-19)
+
+
+### Features
+
+* **webui:** add a plugin catalog and settings page ([#1796](https://github.com/rshade/finfocus/issues/1796)) ([f53294c](https://github.com/rshade/finfocus/commit/f53294c4c03d37ad7f7f8c1ad68f38ac4529a8ec))
+
+
+### Bug Fixes
+
+* **deps:** update go dependencies ([#1778](https://github.com/rshade/finfocus/issues/1778)) ([38d57b0](https://github.com/rshade/finfocus/commit/38d57b0edb5e5925262f4b4ce65cf1a97463dd24))
+* repair main CI after dependency bumps ([#1794](https://github.com/rshade/finfocus/issues/1794)) ([0da2a71](https://github.com/rshade/finfocus/commit/0da2a7107cabe9e4c10f7b408ac356bcc26f8b23))
+
 ## [0.1.1](https://github.com/rshade/finfocus/compare/prometheus-v0.1.0...prometheus-v0.1.1) (2026-10-09)
 
 
