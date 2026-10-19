@@ -13,6 +13,13 @@ test confirms two slow carbon calls run concurrently. The installation integrati
 test now derives the install path and manifest assertion from its explicit test
 version. Both regressions were reproduced before their fixes and passed afterward.
 
+The post-PR automated review raised three issues, all fixed: carbon plugin diagnostics
+are truncated in row notes while full errors remain in logs and `ErrorDetail`; the
+release asset script places the dataset `LICENSE` and `NOTICE` in every archive; and
+the projected diff table renders the carbon summary from after-cost rows. Integration
+tests verify table output and keep JSON/NDJSON free of display text. The release script
+was run for all five targets and each archive was inspected.
+
 No actionable code-review findings remain. The full change was reviewed against the
 approved issue scope and repository standards. No separate proto change was needed:
 the production transport test verifies the existing adapter maps the impact metric

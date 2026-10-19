@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"math"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -282,6 +283,43 @@ func TestCarbonFallback(t *testing.T) {
 			} else {
 				assert.Zero(t, goodAPI.calls.Load())
 				assert.NotContains(t, results[0].Sustainability, greenops.CarbonMetricKey)
+			}
+		})
+	}
+}
+
+func TestCarbonDiagnosticsAreTruncated(t *testing.T) {
+	t.Parallel()
+	longMessage := strings.Repeat("x", maxDeclineReasonLen+40)
+	for _, tt := range []struct {
+		name    string
+		api     *carbonTestAPI
+		wantErr bool
+	}{
+		{name: "supports decline", api: &carbonTestAPI{decline: longMessage}},
+		{name: "rpc failure", api: &carbonTestAPI{query: func(context.Context) (*proto.GetProjectedCostResponse, error) {
+			return nil, status.Error(codes.Unavailable, longMessage)
+		}}},
+		{name: "plugin note", api: &carbonTestAPI{result: &proto.CostResult{
+			Sustainability: map[string]proto.SustainabilityMetric{greenops.CarbonMetricKey: {Value: 50, Unit: "g"}},
+			Notes:          longMessage,
+		}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			price := &carbonTestAPI{result: &proto.CostResult{MonthlyCost: 73, Currency: "USD"}}
+			eng := New([]*pluginhost.Client{
+				carbonTestClient("money", price), carbonTestClient("carbon", tt.api, "carbon"),
+			}, nil)
+			results, errs, err := projectedCarbonResults(context.Background(), t, eng, true)
+			require.NoError(t, err)
+			require.Len(t, results, 1)
+			assert.NotContains(t, results[0].Notes, longMessage)
+			assert.LessOrEqual(t, len(results[0].Notes), len("carbon carbon unavailable: ")+maxDeclineReasonLen+3)
+			assert.Contains(t, results[0].Notes, "...")
+			if tt.name == "rpc failure" {
+				require.Len(t, errs, 1)
+				assert.Contains(t, errs[0].Error.Error(), longMessage)
 			}
 		})
 	}

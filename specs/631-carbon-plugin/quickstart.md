@@ -57,7 +57,8 @@ make check-plugin-boundaries
 
 Validation passed for `make validate`, `make test`, `make test-race`, `make docs-lint`,
 changed-Markdown lint, nested-module tidy/vet, plugin conformance and integration,
-and five platform builds (Linux amd64/arm64, macOS amd64/arm64, Windows amd64).
+five platform builds (Linux amd64/arm64, macOS amd64/arm64, Windows amd64), and
+carbon release archive generation with binary, LICENSE, and NOTICE in each tar/zip.
 `make lint` passed with the pinned golangci-lint 2.15.0; the default Makefile path
 pointed to an older Go 1.26-built binary and could not load this Go 1.27.1 module.
 The boundary check passed as part of lint.

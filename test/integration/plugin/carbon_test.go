@@ -72,7 +72,19 @@ func TestCarbonPlugin(t *testing.T) {
 	var rendered bytes.Buffer
 	require.NoError(t, engine.RenderResults(&rendered, engine.OutputTable, priced))
 	assert.Contains(t, rendered.String(), "carbon_footprint")
-	assert.Contains(t, rendered.String(), "Equivalent")
+	diff, err := engine.New(clients, loader).GetProjectedCostDiff(ctx, resources)
+	require.NoError(t, err)
+	var projectedTable bytes.Buffer
+	require.NoError(t, engine.RenderProjectedDiff(&projectedTable, engine.OutputTable, diff, false))
+	assert.Contains(t, projectedTable.String(), "SUSTAINABILITY SUMMARY")
+	assert.Contains(t, projectedTable.String(), "carbon_footprint")
+	assert.Contains(t, projectedTable.String(), "Equivalent")
+	for _, format := range []engine.OutputFormat{engine.OutputJSON, engine.OutputNDJSON} {
+		var machineOutput bytes.Buffer
+		require.NoError(t, engine.RenderProjectedDiff(&machineOutput, format, diff, false))
+		assert.NotContains(t, machineOutput.String(), "SUSTAINABILITY SUMMARY")
+		assert.NotContains(t, machineOutput.String(), "Equivalent")
+	}
 	manifest, err := os.ReadFile(filepath.Join(install, "plugin.manifest.json"))
 	require.NoError(t, err)
 	assert.Contains(t, string(manifest), "v"+version)

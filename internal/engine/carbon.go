@@ -53,7 +53,10 @@ func (e *Engine) enrichProjectedCarbon(
 	defer cancel()
 	matches, declines := e.selectPluginMatchesForResource(carbonCtx, resource, carbonFeature)
 	for _, decline := range declines {
-		addCarbonNote(&results[0], fmt.Sprintf("%s declined: %s", decline.plugin, decline.reason))
+		note := fmt.Sprintf(
+			"%s declined: %s", decline.plugin, truncateDeclineReason(decline.reason),
+		)
+		addCarbonNote(&results[0], note)
 	}
 	var failures []ErrorDetail
 	for _, match := range matches {
@@ -61,7 +64,10 @@ func (e *Engine) enrichProjectedCarbon(
 		if err == nil {
 			return failures
 		}
-		addCarbonNote(&results[0], fmt.Sprintf("%s unavailable: %s", match.Client.Name, err))
+		note := fmt.Sprintf(
+			"%s unavailable: %s", match.Client.Name, truncateDeclineReason(err.Error()),
+		)
+		addCarbonNote(&results[0], note)
 		logging.FromContext(ctx).Warn().Err(err).Str("component", "engine").
 			Str("operation", "enrich_projected_carbon").
 			Str("plugin", match.Client.Name).Msg("carbon enrichment unavailable")
@@ -101,7 +107,7 @@ func (e *Engine) mergeCarbon(
 		result.Sustainability = make(map[string]SustainabilityMetric)
 	}
 	result.Sustainability[greenops.CarbonMetricKey] = metric
-	addCarbonNote(result, fmt.Sprintf("%s: %s", client.Name, carbon.Notes))
+	addCarbonNote(result, fmt.Sprintf("%s: %s", client.Name, truncateDeclineReason(carbon.Notes)))
 	return nil
 }
 

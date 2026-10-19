@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -53,6 +54,7 @@ func renderDiffTable(w io.Writer, diff *DiffResult, showBreakdown bool) error {
 	for i := range diff.Entries {
 		writeDiffRow(tw, &diff.Entries[i], showBreakdown)
 	}
+	renderSustainabilitySummary(context.Background(), tw, AggregateResults(diff.AfterCosts()))
 	if err := tw.Flush(); err != nil {
 		return err
 	}
