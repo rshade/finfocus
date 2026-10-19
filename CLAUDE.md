@@ -605,6 +605,17 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - Recommendations: `Recommendation.ID` is the dismissal id. The cache key hashes
   inputs plus dismissed ids; `--include-dismissed` still sends excluded ids and
   adds `/include-dismissed`.
+- `cost recommendations history` (`specs/1729-recommendation-history/`) merges
+  plugin `GetRecommendationHistory` events with the local dismissal record.
+  It queries every connected plugin, including when that id has no local
+  record, and does not need a Pulumi plan. `Unimplemented`, an empty result,
+  and any other plugin failure are logged and local history stays. Cancellation
+  and deadline abort the query. The read copies events before sorting and does
+  not write `dismissed.json`. `actor` on `config.LifecycleEvent` is omitted
+  when empty, so older files load with no migration. A missing timestamp sorts
+  after dated events. A timestamp or expiry that is present but invalid drops
+  that event only. Events match on action, reason, note, time, and expiry;
+  a named actor replaces a blank one, and different actors are both kept.
 - Scoring (`internal/scoring`, off by default) pseudonymizes identifiers by
   default, only warns on failure, and never dismisses or hides anything.
   Scorer-only plugins are dropped from cost features before `Supports`.
@@ -723,6 +734,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 1729-recommendation-history: `cost recommendations history` merges plugin lifecycle events, including actor (`specs/1729-recommendation-history/`)
 - 630-usage-profile: `--profile` / `FINFOCUS_PROFILE` / `cost.profile` sent on projected cost and recommendations (`specs/630-usage-profile/`)
 - 629-web-plugin-page: Plugins page in `finfocus --web` (catalog, install, settings)
 - 628-web-config-page: dashboard Config page and `config set` patch `config.hujson` in place
@@ -732,4 +744,4 @@ Specs 613-623 hold the details. Invariants:
 
 ## Active Technologies
 
-- Go 1.27.2 (`go.mod`), finfocus-spec v0.7.6 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only
+- Go 1.27.2 (`go.mod`), finfocus-spec v0.7.7 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only

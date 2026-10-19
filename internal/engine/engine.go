@@ -4117,27 +4117,6 @@ func (e *Engine) UndismissRecommendation(
 	return result, nil
 }
 
-// GetRecommendationHistory returns the lifecycle events for a recommendation.
-func (e *Engine) GetRecommendationHistory(
-	_ context.Context,
-	store *config.DismissalStore,
-	recommendationID string,
-) ([]config.LifecycleEvent, error) {
-	if recommendationID == "" {
-		return nil, errors.New("recommendation ID is required")
-	}
-	if store == nil {
-		return nil, errors.New("dismissal store is required")
-	}
-
-	record, ok := store.Get(recommendationID)
-	if !ok {
-		return []config.LifecycleEvent{}, nil
-	}
-
-	return record.History, nil
-}
-
 // loadExcludedRecommendationIDs loads the dismissal store and returns excluded recommendation IDs.
 // If an existing store is provided, it is used directly; otherwise a new one is created.
 func loadExcludedRecommendationIDs(ctx context.Context, existing *config.DismissalStore) []string {

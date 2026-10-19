@@ -137,6 +137,48 @@ func TestDismissalStore_LoadSave(t *testing.T) {
 	})
 }
 
+func TestDismissalStore_LoadWithoutActor(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "dismissed.json")
+	body := []byte(`{
+		"version": 1,
+		"dismissals": {
+			"rec-old": {
+				"recommendation_id": "rec-old",
+				"status": "dismissed",
+				"reason": "business-constraint",
+				"dismissed_at": "2026-01-02T00:00:00Z",
+				"expires_at": null,
+				"history": [
+					{
+						"action": "dismissed",
+						"reason": "business-constraint",
+						"timestamp": "2026-01-02T00:00:00Z"
+					}
+				]
+			}
+		}
+	}`)
+	require.NoError(t, os.WriteFile(filePath, body, 0o644))
+
+	store, err := config.NewDismissalStore(filePath)
+	require.NoError(t, err)
+	require.NoError(t, store.Load())
+
+	loaded, ok := store.Get("rec-old")
+	require.True(t, ok)
+	require.Len(t, loaded.History, 1)
+	assert.Empty(t, loaded.History[0].Actor)
+	assert.Equal(t, config.ActionDismissed, loaded.History[0].Action)
+
+	require.NoError(t, store.Save())
+	saved, err := os.ReadFile(filePath)
+	require.NoError(t, err)
+	assert.NotContains(t, string(saved), `"actor"`)
+}
+
 func TestDismissalStore_GetSetDelete(t *testing.T) {
 	t.Parallel()
 

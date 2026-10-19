@@ -132,6 +132,14 @@ func (m *mockTagFilterClient) GetPricingSpec(
 	return &pbc.GetPricingSpecResponse{}, nil
 }
 
+func (m *mockTagFilterClient) GetRecommendationHistory(
+	_ context.Context,
+	_ *proto.GetRecommendationHistoryRequest,
+	_ ...grpc.CallOption,
+) (*proto.GetRecommendationHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "GetRecommendationHistory not implemented")
+}
+
 // TestBudgetTagFilter_EndToEnd tests tag-based budget filtering (Issue #222).
 //
 //nolint:paralleltest // subtests share the parent-scoped fixture eng = engine.New(...)

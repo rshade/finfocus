@@ -133,6 +133,14 @@ func (m *mockCostSourceClient) GetPricingSpec(
 	return &pbc.GetPricingSpecResponse{}, nil
 }
 
+func (m *mockCostSourceClient) GetRecommendationHistory(
+	_ context.Context,
+	_ *proto.GetRecommendationHistoryRequest,
+	_ ...grpc.CallOption,
+) (*proto.GetRecommendationHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "GetRecommendationHistory not implemented")
+}
+
 func TestBudgetHealth_EndToEnd(t *testing.T) {
 	t.Parallel()
 

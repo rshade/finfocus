@@ -459,7 +459,11 @@ finfocus cost recommendations undismiss rec-123abc
 
 ## cost recommendations history
 
-View the lifecycle history of a specific recommendation.
+View the lifecycle history of one recommendation. The list combines the local
+dismissal record with lifecycle events from installed plugins. When no plugins
+are installed, or a plugin does not provide history, the local record is shown
+on its own. The command does not read a Pulumi plan and does not change the
+local dismissal file.
 
 ### Usage (cost recommendations history)
 
@@ -472,6 +476,10 @@ finfocus cost recommendations history <recommendation-id> [options]
 | Flag       | Description                        | Default |
 | ---------- | ---------------------------------- | ------- |
 | `--output` | Output format: table, json, ndjson | table   |
+
+The table columns are timestamp, action, reason, note, expires, and actor.
+Actor is blank when the event has none. JSON and NDJSON include `actor` only
+when it is set.
 
 ### Examples (cost recommendations history)
 
