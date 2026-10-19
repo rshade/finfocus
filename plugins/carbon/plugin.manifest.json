@@ -1,0 +1,13 @@
+{
+ "name":"carbon",
+ "version":"0.1.0",
+ "description":"Offline AWS EC2 operational carbon estimates using Cloud Carbon Footprint",
+ "author":"FinFocus Team",
+ "supported_providers":["aws"],
+ "protocols":["grpc"],
+ "binary":"finfocus-plugin-carbon",
+ "metadata":{
+  "repository":"https://github.com/rshade/finfocus",
+  "docs":"https://github.com/rshade/finfocus/tree/main/plugins/carbon"
+ }
+}

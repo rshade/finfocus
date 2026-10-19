@@ -734,6 +734,7 @@ finfocus plugin validate
 | `aws-ce` | In Development | AWS Cost Explorer integration |
 | `azure-public` | In Development | Azure public pricing data |
 | `opencost` | Available | Kubernetes allocation cost from OpenCost or Kubecost |
+| `carbon` | Build from source | Offline EC2 operational carbon estimates alongside monetary pricing. See the [carbon plugin guide](docs/src/content/docs/plugins/carbon.md). |
 | `jev` | Available | Opt-in recommendation scorer using TypeSafe AI's Jev model. Needs `TYPESAFE_API_KEY` and sends recommendation data (pseudonymized by default) to TypeSafe. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev) and the [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
 
 ## Pulumi Analyzer Integration

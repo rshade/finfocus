@@ -1,0 +1,283 @@
+{
+  "revision": "f584c549ee358d5980d36513267d007ecd3ee716",
+  "instances": {
+    "t3.nano": {
+      "vcpus": 2,
+      "memory_gib": 0.5,
+      "min_watts": 0.69,
+      "max_watts": 4.06,
+      "extra_memory": 0
+    },
+    "t3.micro": {
+      "vcpus": 2,
+      "memory_gib": 1,
+      "min_watts": 0.69,
+      "max_watts": 4.06,
+      "extra_memory": 0
+    },
+    "t3.small": {
+      "vcpus": 2,
+      "memory_gib": 2,
+      "min_watts": 0.69,
+      "max_watts": 4.06,
+      "extra_memory": 0
+    },
+    "t3.medium": {
+      "vcpus": 2,
+      "memory_gib": 4,
+      "min_watts": 0.69,
+      "max_watts": 4.06,
+      "extra_memory": 0
+    },
+    "t3.large": {
+      "vcpus": 2,
+      "memory_gib": 8,
+      "min_watts": 0.69,
+      "max_watts": 4.06,
+      "extra_memory": 0
+    },
+    "t3.xlarge": {
+      "vcpus": 4,
+      "memory_gib": 16,
+      "min_watts": 0.69,
+      "max_watts": 4.06,
+      "extra_memory": 0
+    },
+    "t3.2xlarge": {
+      "vcpus": 8,
+      "memory_gib": 32,
+      "min_watts": 0.69,
+      "max_watts": 4.06,
+      "extra_memory": 0
+    },
+    "m5.large": {
+      "vcpus": 2,
+      "memory_gib": 8,
+      "min_watts": 0.61,
+      "max_watts": 4.1,
+      "extra_memory": 6.435416666666666
+    },
+    "m5.xlarge": {
+      "vcpus": 4,
+      "memory_gib": 16,
+      "min_watts": 0.61,
+      "max_watts": 4.1,
+      "extra_memory": 12.870833333333332
+    },
+    "m5.2xlarge": {
+      "vcpus": 8,
+      "memory_gib": 32,
+      "min_watts": 0.61,
+      "max_watts": 4.1,
+      "extra_memory": 25.741666666666664
+    },
+    "m5.4xlarge": {
+      "vcpus": 16,
+      "memory_gib": 64,
+      "min_watts": 0.61,
+      "max_watts": 4.1,
+      "extra_memory": 51.48333333333333
+    },
+    "m5.8xlarge": {
+      "vcpus": 32,
+      "memory_gib": 128,
+      "min_watts": 0.61,
+      "max_watts": 4.1,
+      "extra_memory": 102.96666666666665
+    },
+    "m5.12xlarge": {
+      "vcpus": 48,
+      "memory_gib": 192,
+      "min_watts": 0.61,
+      "max_watts": 4.1,
+      "extra_memory": 154.45
+    },
+    "m5.16xlarge": {
+      "vcpus": 64,
+      "memory_gib": 256,
+      "min_watts": 0.61,
+      "max_watts": 4.1,
+      "extra_memory": 205.9333333333333
+    },
+    "m5.24xlarge": {
+      "vcpus": 96,
+      "memory_gib": 384,
+      "min_watts": 0.61,
+      "max_watts": 4.1,
+      "extra_memory": 308.9
+    },
+    "m5.metal": {
+      "vcpus": 96,
+      "memory_gib": 384,
+      "min_watts": 0.61,
+      "max_watts": 4.1,
+      "extra_memory": 308.9
+    },
+    "c5.large": {
+      "vcpus": 2,
+      "memory_gib": 4,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 2.1138541666666666
+    },
+    "c5.xlarge": {
+      "vcpus": 4,
+      "memory_gib": 8,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 4.227708333333333
+    },
+    "c5.2xlarge": {
+      "vcpus": 8,
+      "memory_gib": 16,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 8.455416666666666
+    },
+    "c5.4xlarge": {
+      "vcpus": 16,
+      "memory_gib": 32,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 16.910833333333333
+    },
+    "c5.9xlarge": {
+      "vcpus": 36,
+      "memory_gib": 72,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 38.049375000000005
+    },
+    "c5.12xlarge": {
+      "vcpus": 48,
+      "memory_gib": 96,
+      "min_watts": 0.69,
+      "max_watts": 4.06,
+      "extra_memory": 43.01500000000001
+    },
+    "c5.18xlarge": {
+      "vcpus": 72,
+      "memory_gib": 144,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 76.09875000000001
+    },
+    "c5.24xlarge": {
+      "vcpus": 96,
+      "memory_gib": 192,
+      "min_watts": 0.69,
+      "max_watts": 4.06,
+      "extra_memory": 86.03000000000002
+    },
+    "c5.metal": {
+      "vcpus": 96,
+      "memory_gib": 192,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 101.46499999999999
+    },
+    "r5.large": {
+      "vcpus": 2,
+      "memory_gib": 16,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 14.113854166666668
+    },
+    "r5.xlarge": {
+      "vcpus": 4,
+      "memory_gib": 32,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 28.227708333333336
+    },
+    "r5.2xlarge": {
+      "vcpus": 8,
+      "memory_gib": 64,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 56.45541666666667
+    },
+    "r5.4xlarge": {
+      "vcpus": 16,
+      "memory_gib": 128,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 112.91083333333334
+    },
+    "r5.8xlarge": {
+      "vcpus": 32,
+      "memory_gib": 256,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 225.8216666666667
+    },
+    "r5.12xlarge": {
+      "vcpus": 48,
+      "memory_gib": 384,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 338.7325
+    },
+    "r5.16xlarge": {
+      "vcpus": 64,
+      "memory_gib": 512,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 451.6433333333334
+    },
+    "r5.24xlarge": {
+      "vcpus": 96,
+      "memory_gib": 768,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 677.465
+    },
+    "r5.metal": {
+      "vcpus": 96,
+      "memory_gib": 768,
+      "min_watts": 0.65,
+      "max_watts": 4.08,
+      "extra_memory": 677.465
+    }
+  },
+  "regions": {
+    "us-east-1": 0.0003651277965,
+    "us-gov-east-1": 0.0003651277965,
+    "us-east-2": 0.0003761283186,
+    "us-west-1": 0.0002986502059,
+    "us-west-2": 0.0002986502059,
+    "us-gov-west-1": 0.0002986502059,
+    "af-south-1": 0.00075744,
+    "ap-east-1": 0.00067348,
+    "ap-east-2": 0.00064142,
+    "ap-south-1": 0.00095182,
+    "ap-south-2": 0.00095182,
+    "ap-northeast-1": 0.00043984,
+    "ap-northeast-3": 0.00043984,
+    "ap-northeast-2": 0.00047739,
+    "ap-southeast-1": 0.00049453,
+    "ap-southeast-2": 0.00058023,
+    "ap-southeast-4": 0.00058023,
+    "ap-southeast-3": 0.00071767,
+    "ap-southeast-5": 0.00062051,
+    "ap-southeast-6": 7.939e-05,
+    "ap-southeast-7": 0.00050824,
+    "ca-central-1": 0.00011541,
+    "ca-west-1": 0.00011541,
+    "cn-north-1": 0.0005374,
+    "cn-northwest-1": 0.0005374,
+    "eu-central-1": 0.000368,
+    "eu-central-2": 0.000368,
+    "eu-west-1": 0.000305,
+    "eu-west-2": 0.000305,
+    "eu-west-3": 7.4e-05,
+    "eu-south-1": 0.000297,
+    "eu-south-2": 0.000178,
+    "eu-north-1": 8e-06,
+    "il-central-1": 0.00053982,
+    "me-south-1": 0.00050549,
+    "me-central-1": 0.0003652,
+    "mx-central-1": 0.00041896,
+    "sa-east-1": 6.398e-05
+  }
+}
