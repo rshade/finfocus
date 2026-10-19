@@ -14,6 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine/cache"
+	"github.com/rshade/finfocus/internal/greenops"
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 func TestProjectedCacheMissesPreGrowthEntries(t *testing.T) {
@@ -1041,4 +1044,36 @@ func TestStoreProjectedCostCache_WarnLog_TTLCapped(t *testing.T) {
 		assert.NotContains(t, logOutput, "plugin TTL capped", "exact max should not trigger cap warning")
 		assert.Equal(t, 1, mc.setWithTTL, "SetWithTTL should be called")
 	})
+}
+
+func TestCarbonFreshOnMonetaryCacheHit(t *testing.T) {
+	t.Parallel()
+	for _, withErrors := range []bool{false, true} {
+		t.Run(map[bool]string{false: "regular", true: "with_errors"}[withErrors], func(t *testing.T) {
+			t.Parallel()
+			store := newMockCache(true)
+			carbon := &carbonTestAPI{result: carbonTestResult(100, "g")}
+			price := &carbonTestAPI{result: &proto.CostResult{MonthlyCost: 73, Currency: "USD"}}
+			eng := New(
+				[]*pluginhost.Client{carbonTestClient("money", price), carbonTestClient("carbon", carbon, "carbon")},
+				nil,
+			).WithCache(store)
+			first, _, err := projectedCarbonResults(context.Background(), t, eng, withErrors)
+			require.NoError(t, err)
+			require.Len(t, first, 1)
+			assert.InDelta(t, 100, first[0].Sustainability[greenops.CarbonMetricKey].Value, 1e-9)
+			cached := eng.tryProjectedCostCache(context.Background(), carbonTestResource())
+			require.Len(t, cached, 1)
+			assert.NotContains(t, cached[0].Sustainability, greenops.CarbonMetricKey)
+			carbon.result = carbonTestResult(200, "g")
+			second, _, err := projectedCarbonResults(context.Background(), t, eng, withErrors)
+			require.NoError(t, err)
+			require.Len(t, second, 1)
+			assert.InDelta(t, 200, second[0].Sustainability[greenops.CarbonMetricKey].Value, 1e-9)
+			assert.InDelta(t, 73, second[0].Monthly, 1e-9)
+			assert.Contains(t, second[0].Adapter, "(cached)")
+			assert.EqualValues(t, 1, price.calls.Load())
+			assert.EqualValues(t, 2, carbon.calls.Load())
+		})
+	}
 }

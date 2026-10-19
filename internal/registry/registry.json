@@ -113,6 +113,26 @@
         "asset_prefix": "finfocus-plugin-jev",
         "version_prefix": true
       }
+    },
+    "carbon": {
+      "name": "carbon",
+      "description": "Offline AWS EC2 operational carbon estimates using Cloud Carbon Footprint",
+      "repository": "rshade/finfocus",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus/tree/main/plugins/carbon",
+      "supported_providers": [
+        "aws"
+      ],
+      "capabilities": [
+        "carbon"
+      ],
+      "security_level": "official",
+      "min_spec_version": "0.7.6",
+      "tag_prefix": "carbon-",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-carbon"
+      }
     }
   }
 }

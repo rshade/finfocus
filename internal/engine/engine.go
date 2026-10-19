@@ -456,6 +456,9 @@ func (e *Engine) filterUnsupportedPlugins(
 	filtered := make([]PluginMatch, 0, len(matches))
 	var declines []pluginDecline
 	for _, match := range matches {
+		if !allowsCarbonFeature(match.Client, feature) {
+			continue
+		}
 		supported, reason := e.checkPluginSupports(ctx, match.Client, resource, feature)
 		if supported {
 			filtered = append(filtered, match)
@@ -784,6 +787,7 @@ func (e *Engine) GetProjectedCost(
 
 			// Check projected cost cache before querying plugins
 			if cached := e.tryProjectedCostCache(ctx, resource); cached != nil {
+				e.enrichProjectedCarbon(ctx, resource, cached)
 				resultsChan <- workerResult{index: j.index, results: cached}
 				continue
 			}
@@ -880,6 +884,7 @@ func (e *Engine) GetProjectedCost(
 				e.storeProjectedCostCache(ctx, resource, resourceResults)
 			}
 
+			e.enrichProjectedCarbon(ctx, resource, resourceResults)
 			resultsChan <- workerResult{index: j.index, results: resourceResults}
 		}
 	}
@@ -911,6 +916,9 @@ func (e *Engine) GetProjectedCost(
 	for res := range resultsChan {
 		collectedResults = append(collectedResults, res)
 	}
+
+	// Enrich completed batch prices with the same bounded concurrency as workers.
+	e.enrichBatchProjectedCarbon(ctx, resources, batchHandled)
 
 	// Merge batch-handled results into collected results
 	for idx, batchRes := range batchHandled {
@@ -993,10 +1001,11 @@ func (e *Engine) GetProjectedCostWithErrors(
 
 			// Check projected cost cache before querying plugins
 			if cached := e.tryProjectedCostCache(ctx, resource); cached != nil {
+				carbonErrors := e.enrichProjectedCarbon(ctx, resource, cached)
 				resultsChan <- workerResult{
 					index:   j.index,
 					results: cached,
-					errors:  nil,
+					errors:  carbonErrors,
 				}
 				continue
 			}
@@ -1079,6 +1088,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 				e.storeProjectedCostCache(ctx, resource, resourceResults)
 			}
 
+			resourceErrors = append(resourceErrors, e.enrichProjectedCarbon(ctx, resource, resourceResults)...)
 			resultsChan <- workerResult{
 				index:   j.index,
 				results: resourceResults,
@@ -1107,10 +1117,6 @@ func (e *Engine) GetProjectedCostWithErrors(
 		collectedResults = append(collectedResults, res)
 	}
 
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
 	sort.Slice(collectedResults, func(i, j int) bool {
 		return collectedResults[i].index < collectedResults[j].index
 	})
@@ -1125,6 +1131,9 @@ func (e *Engine) GetProjectedCostWithErrors(
 		finalResult.Errors = append(finalResult.Errors, cr.errors...)
 	}
 
+	if ctx.Err() != nil {
+		return finalResult, ctx.Err()
+	}
 	return finalResult, nil
 }
 

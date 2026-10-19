@@ -156,21 +156,56 @@ test-prometheus:
 lint-prometheus:
 	cd $(PROMETHEUS_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
 
+CARBON_PLUGIN_DIR=plugins/carbon
+CARBON_VERSION=$(shell jq -r '."plugins/carbon" // "0.0.0"' .release-please-manifest.json)
+CARBON_INSTALL_DIR=$(HOME)/.finfocus/plugins/carbon/v$(CARBON_VERSION)
+
+.PHONY: build-carbon
+build-carbon:
+	@mkdir -p bin
+	go -C $(CARBON_PLUGIN_DIR) build -ldflags "-X main.version=v$(CARBON_VERSION)" \
+		-o $(CURDIR)/bin/finfocus-plugin-carbon ./cmd
+
+.PHONY: install-carbon
+install-carbon: build-carbon
+	@command -v jq >/dev/null 2>&1 || { \
+		echo "install-carbon requires jq to stamp the installed plugin manifest version; install jq and retry" >&2; \
+		exit 1; \
+	}
+	@if [ -z "$(CARBON_VERSION)" ]; then \
+		echo "install-carbon: CARBON_VERSION resolved empty (check jq and .release-please-manifest.json)" >&2; \
+		exit 1; \
+	fi
+	@mkdir -p $(CARBON_INSTALL_DIR)
+	cp bin/finfocus-plugin-carbon $(CARBON_INSTALL_DIR)/
+	jq --arg v "v$(CARBON_VERSION)" '.version = $$v' \
+		$(CARBON_PLUGIN_DIR)/plugin.manifest.json > $(CARBON_INSTALL_DIR)/plugin.manifest.json
+	chmod 644 $(CARBON_INSTALL_DIR)/plugin.manifest.json
+	@echo "Verify with: finfocus plugin list"
+
+.PHONY: test-carbon
+test-carbon:
+	go -C $(CARBON_PLUGIN_DIR) test -race ./...
+
+.PHONY: lint-carbon
+lint-carbon:
+	cd $(CARBON_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
+
 .PHONY: check-plugin-boundaries
 check-plugin-boundaries:
-	@for dir in $(KUBERNETES_PLUGIN_DIR) $(JEV_PLUGIN_DIR) $(PROMETHEUS_PLUGIN_DIR); do \
+	@for dir in $(KUBERNETES_PLUGIN_DIR) $(JEV_PLUGIN_DIR) $(PROMETHEUS_PLUGIN_DIR) $(CARBON_PLUGIN_DIR); do \
 		if go -C $$dir list -deps ./... | grep -E '^github.com/rshade/finfocus/(internal|pkg)(/|$$)'; then \
 			echo "$$dir must not import finfocus core packages" >&2; exit 1; fi; \
 	done
 	@echo "plugin boundaries OK"
 
 .PHONY: build-all
-build-all: build build-recorder build-plugin build-kubernetes build-jev build-prometheus
+build-all: build build-recorder build-plugin build-kubernetes build-jev build-prometheus build-carbon
 
 # Default test target - runs unit tests only (fast, for CI and local dev)
 # Unit tests are colocated with source; see test/README.md for details
 .PHONY: test
-test: test-unit test-frontend test-kubernetes test-jev test-prometheus
+test: test-unit test-frontend test-kubernetes test-jev test-prometheus test-carbon
 
 # Browser renderer regression tests use the Node version pinned in mise.toml.
 .PHONY: test-frontend
@@ -237,7 +272,7 @@ test-all:
 	go test -v -timeout 15m ./internal/... ./pkg/... ./test/integration/...
 
 .PHONY: lint
-lint: lint-kubernetes lint-jev lint-prometheus check-plugin-boundaries
+lint: lint-kubernetes lint-jev lint-prometheus lint-carbon check-plugin-boundaries
 	@echo "Running golangci-lint (expected version $(GOLANGCI_LINT_VERSION))..."
 	@$(GOLANGCI_LINT) --version | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "golangci-lint $(GOLANGCI_LINT_VERSION) required. Install with"; \
@@ -406,6 +441,10 @@ help:
 	@echo "  install-kubernetes - Build and install kubernetes plugin to ~/.finfocus/plugins/"
 	@echo "  build-jev        - Build the jev scorer plugin"
 	@echo "  install-jev      - Build and install jev scorer plugin to ~/.finfocus/plugins/"
+	@echo "  build-carbon     - Build the carbon estimation plugin"
+	@echo "  install-carbon   - Install the carbon estimation plugin"
+	@echo "  test-carbon      - Test the carbon plugin with race detection"
+	@echo "  lint-carbon      - Lint the carbon plugin module"
 	@echo "  build-prometheus - Build the prometheus usage plugin"
 	@echo "  install-prometheus - Build and install prometheus plugin to ~/.finfocus/plugins/"
 	@echo "  build-all        - Build binary and all plugins"

@@ -58,6 +58,7 @@ GitHub repository. Fields: `name`, `description`, `repository`,
 | `vantage` | `rshade/finfocus-plugin-vantage` | aws, azure, gcp, kubernetes |
 | `kubernetes` | `rshade/finfocus` (tag prefix `kubernetes-`) | kubernetes |
 | `jev` | `rshade/finfocus` (tag prefix `jev-`) | any |
+| `carbon` | `rshade/finfocus` (tag prefix `carbon-`) | aws |
 
 Run `finfocus plugin list --available` for the live catalog; the table can lag a
 release. Provider-to-plugin mapping and per-plugin credentials are in the

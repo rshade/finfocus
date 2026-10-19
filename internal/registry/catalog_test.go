@@ -77,3 +77,15 @@ func TestVersionIsNewerComparesTheNewestInstall(t *testing.T) {
 	assert.False(t, versionIsNewer("1.5.0", []string{"2.0.0", "1.0.0"}))
 	assert.True(t, versionIsNewer("2.1.0", []string{"1.0.0", "2.0.0"}))
 }
+
+func TestCarbonCatalogMetadata(t *testing.T) {
+	t.Parallel()
+	entry, err := GetPlugin("carbon")
+	require.NoError(t, err)
+	assert.Equal(t, "rshade/finfocus", entry.Repository)
+	assert.Equal(t, "carbon-", entry.TagPrefix)
+	assert.Equal(t, []string{"carbon"}, entry.Capabilities)
+	require.NotNil(t, entry.AssetHints)
+	assert.Equal(t, "finfocus-plugin-carbon", entry.AssetHints.AssetPrefix)
+	require.NoError(t, ValidateRegistryEntry(*entry))
+}

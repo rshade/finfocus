@@ -17,6 +17,7 @@ var allowedRegistryCapabilities = map[string]bool{ //nolint:gochecknoglobals // 
 	"recommendations":        true,
 	"usage_stats":            true,
 	"allocation":             true,
+	"carbon":                 true,
 	"recommendation_scoring": true,
 }
 
