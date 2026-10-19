@@ -25,6 +25,23 @@ type RegistryEntry struct {
 	// TagPrefix marks a plugin released from a monorepo under prefixed tags,
 	// e.g. "kubernetes-" for tag "kubernetes-v0.1.0". Empty for single-plugin repos.
 	TagPrefix string `json:"tag_prefix,omitempty"`
+	// Deprecated keeps the plugin installable for existing setups. New setups
+	// should use Replacement when it is set.
+	Deprecated bool `json:"deprecated,omitempty"`
+	// Replacement is the catalog name to use instead of a deprecated plugin.
+	Replacement string `json:"replacement,omitempty"`
+}
+
+// DeprecationNotice is empty when the entry is current. A deprecated entry
+// names its replacement when one is set.
+func (e RegistryEntry) DeprecationNotice() string {
+	if !e.Deprecated {
+		return ""
+	}
+	if e.Replacement != "" {
+		return fmt.Sprintf("%s is deprecated; use %s for new installs", e.Name, e.Replacement)
+	}
+	return fmt.Sprintf("%s is deprecated", e.Name)
 }
 
 // RegistryAssetHints provides hints for asset naming conventions specific to a plugin.
@@ -57,7 +74,8 @@ var (
 	// plugin tag (e.g. "vantage-v0.1.0") can never be mistaken for a
 	// bare CLI tag by the `startsWith(tag, 'v')` guards in the release
 	// workflows.
-	tagPrefixPattern = regexp.MustCompile(`^[a-uw-z0-9][a-z0-9-]*-$`)
+	tagPrefixPattern  = regexp.MustCompile(`^[a-uw-z0-9][a-z0-9-]*-$`)
+	pluginNamePattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 )
 
 // ValidateRegistryEntry checks that the required fields of a RegistryEntry are present and well-formed.
@@ -99,6 +117,12 @@ func ValidateRegistryEntry(entry RegistryEntry) error {
 	if entry.TagPrefix != "" && !tagPrefixPattern.MatchString(entry.TagPrefix) {
 		return fmt.Errorf("invalid tag_prefix %q for %s: must match %s",
 			entry.TagPrefix, entry.Name, tagPrefixPattern.String())
+	}
+	if entry.Deprecated && entry.Replacement == "" {
+		return fmt.Errorf("registry entry %q is deprecated and needs a replacement", entry.Name)
+	}
+	if entry.Replacement != "" && !pluginNamePattern.MatchString(entry.Replacement) {
+		return fmt.Errorf("registry entry %q has invalid replacement %q", entry.Name, entry.Replacement)
 	}
 	return nil
 }

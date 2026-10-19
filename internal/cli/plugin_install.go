@@ -99,7 +99,14 @@ func displaySecurityWarning(cmd *cobra.Command, spec *registry.PluginSpecifier) 
 
 	// Check security level for registry plugins
 	entry, err := registry.GetPlugin(spec.Name)
-	if err == nil && entry.SecurityLevel == "experimental" {
+	if err != nil {
+		return
+	}
+	if notice := entry.DeprecationNotice(); notice != "" {
+		cmd.Printf("⚠️  %s\n", notice)
+		cmd.Printf("   The installed copy is left as it is. Settings are not migrated.\n\n")
+	}
+	if entry.SecurityLevel == "experimental" {
 		cmd.Printf("⚠️  Plugin %q has security level: experimental\n", spec.Name)
 		cmd.Printf("   This plugin is not yet fully reviewed.\n\n")
 	}

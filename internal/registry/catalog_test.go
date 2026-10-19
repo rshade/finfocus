@@ -64,6 +64,18 @@ func TestMergeCatalog_LatestFailureIsARowWarning(t *testing.T) {
 	assert.NotNil(t, rows[0].InstalledVersions)
 }
 
+func TestMergeCatalog_CopiesDeprecation(t *testing.T) {
+	t.Parallel()
+	rows := MergeCatalog([]RegistryEntry{{
+		Name:        "jev",
+		Deprecated:  true,
+		Replacement: "scorer",
+	}}, nil, nil)
+	require.Len(t, rows, 1)
+	assert.True(t, rows[0].Deprecated)
+	assert.Equal(t, "scorer", rows[0].Replacement)
+}
+
 func writePluginBinary(t *testing.T, root, name, version string) {
 	t.Helper()
 	dir := filepath.Join(root, name, version)

@@ -102,6 +102,9 @@ function describePlugin(plugin) {
 function statusFlags(plugin, installed) {
   const flags = [];
   if (plugin.inCatalog !== true) flags.push('Outside catalog');
+  if (plugin.deprecated) {
+    flags.push(plugin.replacement ? `Deprecated. Use ${plugin.replacement}.` : 'Deprecated');
+  }
   if (plugin.updateAvailable) flags.push('Update available');
   if (installed.length === 0) flags.push('Not installed');
   else if (!plugin.updateAvailable) flags.push('Installed');
@@ -118,6 +121,10 @@ function operationSummary(plan) {
   if (plan.checksumFile === 'missing') lines.push('This release has no checksum file.');
   if (plan.fallbackFrom) {
     lines.push(`Version ${plan.fallbackFrom} has no files. Confirm to use version ${plan.version} instead.`);
+  }
+  if (plan.deprecated) {
+    const instead = plan.replacement ? ` Use ${plan.replacement} for new installs.` : '';
+    lines.push(`${plan.name} is deprecated.${instead}`);
   }
   return lines.join(' ');
 }
