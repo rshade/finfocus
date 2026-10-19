@@ -210,6 +210,22 @@ pipx install git+https://github.com/github/spec-kit.git
    /speckit.implement
    ```
 
+### Web parity (required for user-facing features)
+
+A CLI feature that produces user-visible output is not complete until
+`finfocus --web` can reach it. This is Constitution Principle VII:
+
+- The spec has a `Web UI Fit` section, and `/speckit.tasks` generates the Web
+  Parity tasks. `/speckit.checklist` and `/speckit.analyze` flag any gaps.
+- The `internal/webui` handler is part of the CLI feature. It calls the same Go
+  method as the CLI command, and `contracts/http-api.md` names that method.
+- When the CLI feature is complete, file one `web-ui` follow-up issue. It is
+  UX only: layout, rendering, interaction, copy, and accessibility.
+- Features with no web surface record `Not applicable` and a reason in the spec.
+
+The layout the feature must fit is described in
+[Web UI design](docs/src/content/docs/architecture/web-ui.md).
+
 ### Project Specifications Directory
 
 All specifications, plans, and templates are stored in the `.specify/` directory:

@@ -133,6 +133,14 @@ Use `require.*` for setup failures and nil checks, `assert.*` for value comparis
 4. Create unit tests in `internal/engine/types_test.go`.
 5. Create integration tests in `internal/conformance/`.
 
+#### User-Facing CLI Features
+
+- Constitution Principle VII (Web Parity): the spec has a `Web UI Fit`
+  section, an `internal/webui` hook that calls the CLI's Go method is part of
+  the feature, and a UX-only `web-ui` follow-up issue is filed on completion.
+  A feature with no web surface records `Not applicable` and a reason instead.
+- Layout: `docs/src/content/docs/architecture/web-ui.md`.
+
 #### Plugin Development
 
 - `finfocus plugin init` scaffolds new plugins.

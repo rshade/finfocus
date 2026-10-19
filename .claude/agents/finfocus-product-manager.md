@@ -57,6 +57,8 @@ When creating issues, use this template:
 - [ ] <observable result 2>
 - [ ] Telemetry/logging/error handling defined
 - [ ] Docs updated (README/examples)
+- [ ] Web parity (core user-facing features): `internal/webui` hook named, or
+      `Not applicable` with a reason; the later `web-ui` issue is UX only
 **Dependencies:** <links to related issues/PRs across repos>
 **Definition of Done:**
 - [ ] Unit/integ tests pass in CI

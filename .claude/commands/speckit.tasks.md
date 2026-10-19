@@ -136,4 +136,5 @@ Every task MUST strictly follow this format:
 - **Phase 3+**: User Stories in priority order (P1, P2, P3...)
   - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
   - Each phase should be a complete, independently testable increment
+- **Web Parity Phase** (before Polish; omit only when spec.md says Web UI Fit is Not applicable): an `internal/webui` handler task that names the exact Go method(s) it calls, a contract entry in `contracts/http-api.md`, a Playwright render check against a populated stack compared with the spec's Web UI Fit section, a `docs/` reference update, and a final task to file one UX-only `web-ui` follow-up issue (layout, rendering, interaction, copy, accessibility; no engine, API, redaction, or data-shape work). Constitution Principle VII
 - **Final Phase**: Polish & Cross-Cutting Concerns

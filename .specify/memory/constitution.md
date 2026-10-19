@@ -1,4 +1,41 @@
 <!--
+Sync Impact Report - Constitution v1.8.0 (Web Parity)
+=====================================================
+
+Version Change: 1.7.0 → 1.8.0
+Change Type: New principle added (MINOR)
+
+Changes Made:
+- Added Core Principle VII "Web Parity": a user-facing CLI feature is not
+  complete until its API hook exists, its spec carries a Web UI Fit section,
+  and one UX-only follow-up issue is filed
+- Added "Web Parity" to Quality Gates
+
+Rationale:
+- `finfocus --web` shipped with six views. CLI features that merge without a
+  hook force engine or API work into the web follow-up, which then is not a
+  UX task and slips
+- The web handlers are transport only and call the same Go methods as the CLI
+  (docs/src/content/docs/architecture/web-ui.md), so the hook belongs to the
+  CLI feature
+
+Templates Requiring Updates:
+- ✅ .specify/templates/spec-template.md (Web UI Fit section)
+- ✅ .specify/templates/plan-template.md (Web Parity check)
+- ✅ .specify/templates/tasks-template.md (Web Parity phase)
+- ✅ speckit.tasks, speckit.checklist, speckit.analyze commands in
+  .claude/commands, .agents/skills, .kimi-code/skills, .gemini/commands
+- ✅ .claude/commands/pick-issue.md (.agents/skills/pick-issue links to it)
+- ✅ .github/copilot-instructions.md, .claude/agents/finfocus-product-manager.md
+- ✅ CLAUDE.md, AGENTS.md, CONTRIBUTING.md, docs architecture/web-ui.md
+
+Follow-up TODOs:
+- None
+
+Date: 2026-10-19
+
+---
+
 Sync Impact Report - Constitution v1.7.0 (Optional Persistence Model)
 =====================================================================
 
@@ -298,6 +335,44 @@ in the main codebase.
 technical debt accumulation, and ensures that every merged feature is
 genuinely functional.
 
+### VII. Web Parity
+
+A CLI feature that produces user-visible cost data, recommendations,
+settings, or plugin state MUST be reachable from the web dashboard
+(`finfocus --web`) before it is called complete. Three requirements make that
+true, and all three belong to the CLI feature:
+
+1. **API hook**: A handler in `internal/webui` serves the feature. It calls
+   the same Go method the CLI command calls and adds no engine logic of its
+   own. The spec's contract (`contracts/http-api.md`) names each Go method by
+   package-qualified name and the endpoint that calls it. Payloads pass the
+   shared redaction rules.
+2. **Web UI Fit**: The spec carries a `Web UI Fit` section that places the
+   feature in the existing layout (see
+   `docs/src/content/docs/architecture/web-ui.md`): an extension of a current
+   view or a new view, built from the same slots (heading, controls row,
+   status line, summary strip, captioned table). The fit is checked against a
+   Playwright render of a populated stack. A feature with no web surface
+   (for example `analyzer serve`, `mcp-server`) records `Not applicable` and a
+   reason in the spec, which review MUST accept before implementation. An
+   accepted `Not applicable` exempts the feature from requirement 1, the
+   render check, and requirement 3.
+3. **UX-only follow-up**: When the CLI feature is complete, file one
+   follow-up issue labeled `web-ui`. It covers layout, rendering,
+   interaction, copy, and accessibility only. Engine, API, redaction, or
+   data-shape work found later is part of the CLI feature, which is then not
+   complete.
+
+`/speckit.tasks` MUST generate tasks for the hook, the render check, and the
+follow-up issue unless the feature is exempt. `/speckit.checklist` and
+`/speckit.analyze` MUST flag their absence. A missing Web UI Fit section is
+always CRITICAL; for a feature that is not exempt, so is a contract that does
+not name the hook's Go methods.
+
+**Rationale**: The web handlers are transport only, so every capability has
+one implementation. Shipping the CLI feature without its hook pushes engine
+work into a later "UI" ticket, which stops being a UX task and slips.
+
 ## Quality Gates
 
 All pull requests MUST pass the following automated checks before merging:
@@ -315,6 +390,9 @@ All pull requests MUST pass the following automated checks before merging:
 - **TUI Verification**: Changes to `internal/tui/` must include golden file
   snapshot tests. Regenerate with `UPDATE_GOLDEN=1 go test ./internal/tui/...`
 - **Cross-Platform Build**: Successful compilation on Linux, macOS, Windows
+- **Web Parity**: User-facing CLI features have an `internal/webui` hook that
+  names its Go methods, a Web UI Fit section in the spec, and a filed
+  UX-only `web-ui` follow-up issue (Principle VII)
 
 ### Linting Protocol
 
@@ -436,4 +514,4 @@ When using the Pulumi SDK (`github.com/pulumi/pulumi/sdk/v3`):
 - Earlier versions may have different package structures or missing types
 - This ensures compatibility with the current Pulumi Analyzer protocol
 
-**Version**: 1.7.0 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-03-30
+**Version**: 1.8.0 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-10-19

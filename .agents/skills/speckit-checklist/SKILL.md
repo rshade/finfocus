@@ -264,6 +264,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 To avoid clutter, use descriptive types and clean up obsolete checklists when done.
 
+## Web Parity Items (Constitution Principle VII)
+
+For any feature whose spec has user-facing output, EVERY checklist MUST include a `Web Parity` category, whatever the checklist type, unless spec.md records Web UI Fit as `Not applicable` with a reason. Sample items (testing the requirements, NOT the implementation):
+
+- "Does the spec have a Web UI Fit section naming the view it extends or adds? [Completeness, Spec §Web UI Fit]"
+- "Does the contract name the exact Go method(s) each `internal/webui` endpoint calls? [Clarity, Gap]"
+- "Is it clear that the web layer adds no engine or redaction logic of its own? [Consistency]"
+- "Is the layout fit described in the existing slots (heading, controls row, status line, summary strip, captioned table)? [Clarity]"
+- "Does the spec require a Playwright render of the nearest existing view against a populated stack, and say where its result is recorded? [Traceability]"
+- "Is the follow-up `web-ui` issue scoped to UX only, with no engine, API, or data-shape work? [Measurability]"
+
 ## Example Checklist Types & Sample Items
 
 **UX Requirements Quality:** `ux.md`

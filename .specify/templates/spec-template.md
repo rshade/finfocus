@@ -100,6 +100,29 @@
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+## Web UI Fit *(mandatory)*
+
+<!--
+  Constitution Principle VII. Never remove this section: a feature with no
+  web surface keeps it and writes "Not applicable" with a reason, which
+  review must accept.
+  Place the feature in the existing web layout. Read
+  docs/src/content/docs/architecture/web-ui.md first. Render the nearest
+  existing view with Playwright against a populated stack and compare.
+  Stay at the level of what users see: the Go methods the hook calls are
+  named later, in the plan's contracts/http-api.md.
+-->
+
+- **Disposition**: [Extends {view} | New view | Not applicable - {reason}]
+- **Web data**: [Which results of the CLI feature the view needs, in user
+  terms. The web shows the same values as the CLI and computes nothing itself]
+- **Layout fit**: [Which slots it fills: controls row, status line, summary
+  strip, captioned table, detail; how it matches the Overview table]
+- **Additions**: [Extras beyond a plain table, or "none"]
+- **Render evidence**: [Stack and date of the Playwright check of the nearest view]
+- **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
+  accessibility). No engine, API, redaction, or data-shape work.
+
 ## Success Criteria *(mandatory)*
 
 <!--

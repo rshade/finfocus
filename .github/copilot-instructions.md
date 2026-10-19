@@ -168,4 +168,4 @@ New features MUST use [SpecKit](https://github.com/github/spec-kit) workflow (`/
 
 ## Constitution
 
-The constitution (`.specify/memory/constitution.md`) takes **absolute precedence**. Key principles: no TODOs or stubs, complete implementation required, high test coverage mandatory.
+The constitution (`.specify/memory/constitution.md`) takes **absolute precedence**. Key principles: no TODOs or stubs, complete implementation required, high test coverage mandatory, and web parity (Principle VII: a user-facing CLI feature ships its `internal/webui` hook and a `Web UI Fit` spec section, and completion files one UX-only `web-ui` follow-up issue; a feature with no web surface records `Not applicable` and a reason instead).
