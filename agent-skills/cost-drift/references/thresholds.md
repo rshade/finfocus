@@ -36,21 +36,30 @@ column that reads `within 10%`, `new or deleted`, or `insufficient data`.
 
 ## Overall drift (derived)
 
-`summary.totalActualMTD` covers part of a month and `summary.projectedMonthly`
-covers a whole one, so they cannot be divided directly. The CLI has no
-overall drift field. Use this, and label the figure "derived" in the report:
+`summary.totalActualMTD` and `summary.projectedMonthly` are summed
+independently. The CLI skips actuals for rows with `status` `creating`, but
+their projection is in the projected total, so a pending $100 create next to a
+$100 resource that spends as projected reads as about -50%. Missing actuals on
+other rows do the same. Do not divide the two summary totals.
+
+Use only comparable rows: rows that have both `actualCost` and
+`projectedCost` and whose `status` is not `creating`. Label the figure
+"derived" and give the row count. If any row with a projection lacks actuals,
+or the rows are fewer than all projected rows, say which are left out.
+Report the overall figure as unavailable when no comparable row exists or
+`projectedMonthly` over those rows is `0`.
 
 ```text
 elapsed_days = (metadata.timeWindow.end - metadata.timeWindow.start) in days
 days_in_month = days in the month of metadata.timeWindow.end
-actual_month = summary.totalActualMTD * days_in_month / elapsed_days
-projected_month = summary.projectedMonthly * days_in_month / 30.4167
+actual_month = sum(mtdCost over comparable rows) * days_in_month / elapsed_days
+projected_month = sum(monthlyCost over comparable rows) * days_in_month / 30.4167
 overall_drift_pct = (actual_month - projected_month) / projected_month * 100
 ```
 
 `30.4167` is 730 hours divided by 24, the month the projection is priced on.
 A resource created inside the window makes `elapsed_days` too long for it, so
-the figure is approximate. Skip it when `projectedMonthly` is `0`.
+the figure is approximate.
 
 ## Baseline for the trend
 

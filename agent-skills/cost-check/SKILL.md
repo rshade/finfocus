@@ -57,8 +57,10 @@ finfocus plugin list --output json
   such as `v0.5.0-6-g3cb7ded` counts as v0.5.0. An unparseable version, or
   `0.1.0` with no leading `v` (an unstamped source build), continues, and the
   report says "version unverified".
-- `plugin list` returns `[]`: no plugin is installed, so every price is
-  missing. Stop and point to `finfocus-install`.
+- `plugin list` returns `[]`: no plugin is installed. Continue. `cost
+  projected` can still price resources from local YAML specs, so an empty
+  list does not mean nothing is priced. Step 5 decides whether an estimate
+  exists. Point to `finfocus-install` for the missing prices.
 
 Failure handling for every step is in
 [references/failure-modes.md](references/failure-modes.md).
@@ -91,7 +93,11 @@ names, exit codes, and the optional `cost forecast` call are in
    exit: stop with the `error_code` and `message`.
 2. `finfocus.resources` is non-empty.
 3. A resource with an `error` object is **unpriced**. List it. Never add it
-   as `0`.
+   as `0`. Also read `finfocus.errors[]`: when the old side of an update or
+   replacement fails to price, the failure appears only there, and the diff
+   treats that baseline as `0`. List each entry. Mark the delta of every
+   affected resource, and any plan increase flag that depends on it,
+   **unavailable**. Never report them as a lower bound.
 4. Every resource unpriced: stop. This is the zero-cost case. Point to the
    `finfocus-diagnose` skill ("Zero cost").
 5. A resource with no `error` and `monthly` of `0` is a real result. Report it.
@@ -99,11 +105,12 @@ names, exit codes, and the optional `cost forecast` call are in
 ## 6. Flag
 
 1. Expensive resource: `monthly` above `thresholds.resource`.
-2. Increase: `finfocus.diff.totalDelta` above `thresholds.increase`, or the
-   percentage above `thresholds.increase_pct`
-   (`totalDelta / totalBefore * 100`, only when `totalBefore` is above 0).
-   When `totalBefore` is 0 and an earlier `COST_CHECK.md` exists, use its
-   total as the baseline and say so.
+2. Increase: `finfocus.diff.totalDelta` above `thresholds.increase`. A plan
+   with `totalBefore` of `0`, such as one that only creates resources, is
+   valid, so always make this check. Also flag the percentage above
+   `thresholds.increase_pct` (`totalDelta / totalBefore * 100`), but only when
+   `totalBefore` is above 0; otherwise skip the percentage check and say so.
+   Skip both when step 5 marked the baseline unavailable.
 3. Total: `finfocus.summary.totalMonthly` above `thresholds.total`.
 4. Unpriced resources are not a threshold flag. They make every total a lower
    bound, and the report says that.

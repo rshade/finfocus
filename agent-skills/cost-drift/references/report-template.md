@@ -22,6 +22,7 @@ Period: [metadata.timeWindow.start] to [metadata.timeWindow.end]
 | Drifting resources | N |
 | Resources with actuals | N |
 | Trend | better / worse / stable / none |
+| Billing verification | unavailable (actuals may include runtime estimates) |
 
 Result: PASS | DRIFTING | ERROR (kind)
 

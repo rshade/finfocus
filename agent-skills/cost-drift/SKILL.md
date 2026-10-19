@@ -75,10 +75,19 @@ code. Fields and exit codes: [references/cli-contract.md](references/cli-contrac
 
 ## 5. Validate before trusting the numbers
 
-1. Exit `0`. Any other exit: stop with `error_code` and `message`.
+1. Exit `0`, or a budget exit (`error_code` `budget_exceeded`) with a JSON
+   document on stdout. Record the budget breach in the report and keep
+   going: an overrun is when drift matters most. Any other exit: stop with
+   `error_code` and `message`.
 2. `errors` is empty, or each entry is listed in the report.
 3. At least one row has `actualCost`. If none does, stop with `no-actuals`
-   and point to `finfocus-diagnose`.
+   and point to `finfocus-diagnose`. A present `actualCost` does not prove
+   billing data: when a plugin returns `0` with no breakdown, the CLI
+   substitutes the projected hourly rate times uptime, and the overview JSON
+   drops the adapter, confidence and notes that would show it. Never call the
+   figures billing-backed. Print "Billing verification: unavailable" in the
+   summary and the report, and read `PASS` as "no drift flagged against the
+   CLI's figures".
 4. A row has drift only when it carries `costDrift`. The CLI leaves
    `costDrift` out when the drift is within 10%, when the resource is new or
    deleted, and when less than 2 days of the window have elapsed. Report those

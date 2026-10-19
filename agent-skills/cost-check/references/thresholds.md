@@ -35,9 +35,13 @@ exit code. To make the CLI itself fail, configure a budget (see the
 
 ## Baseline for the increase check
 
-The preferred baseline is the plan itself: `finfocus.diff.totalBefore`. When
-that is `0` and a previous `COST_CHECK.md` exists, its total is the baseline.
-With neither, the increase flags are skipped and the report says so.
+The baseline is the plan itself: `finfocus.diff.totalBefore`. Zero is a valid
+baseline. A plan that only creates resources has a `totalBefore` of `0` and a
+positive `totalDelta`, and `thresholds.increase` still applies to it. Only the
+percentage check needs a baseline above `0`; with a baseline of `0` it is
+skipped and the report says so. An earlier `COST_CHECK.md` never replaces the
+plan baseline. When the baseline could not be priced, both increase checks are
+unavailable (see `partial` in [failure-modes.md](failure-modes.md)).
 
 ## CI exit codes
 
