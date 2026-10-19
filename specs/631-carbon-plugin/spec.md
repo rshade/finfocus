@@ -6,7 +6,7 @@ layout: "docs"
 
 **Feature Branch**: `631-carbon-plugin`
 **Created**: 2026-10-18
-**Status**: Implemented; verification complete
+**Status**: Implemented and verified; [PR #1842](https://github.com/rshade/finfocus/pull/1842) open
 **Issue**: [#688](https://github.com/rshade/finfocus/issues/688)
 
 ## Intent and Scope

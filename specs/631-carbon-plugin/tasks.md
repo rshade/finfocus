@@ -6,7 +6,7 @@ layout: "docs"
 
 **Input**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md),
 [data-model.md](data-model.md), and [plugin contract](contracts/plugin.md).
-**Status**: Implementation and verification complete; PR preparation in progress.
+**Status**: Implementation and verification complete; PR #1842 open.
 
 All Go tests use testify. Run each new behavioral test before implementation to
 establish its intended failure, then implement and rerun until it passes. Minimum
@@ -104,8 +104,8 @@ produces carbon beside a monetary fixture without credentials.
 - [x] T026 Reviewed the full diff from base `837bc5a` with code-review and scout, fixed substantiated findings, and
   updated `spec.md` and `checklists/requirements.md`; remaining scout observations are recorded in
   `specs/631-carbon-plugin/review.md`.
-- [ ] T027 Prepare the scoped commit and PR closing #688, recheck claim ownership and PR overlap, and release
-  the claim after PR creation; include validation and remaining limitations in the PR body.
+- [x] T027 Prepared the scoped commit and PR closing #688, rechecked claim ownership and PR overlap, and released
+  the claim after PR creation; the PR body includes validation and remaining limitations.
 
 ## Dependencies and Execution
 
