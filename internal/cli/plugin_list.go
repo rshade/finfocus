@@ -112,11 +112,15 @@ func runPluginListAvailable(cmd *cobra.Command, output string) error {
 		if security == "" {
 			security = "community"
 		}
+		description := entry.Description
+		if notice := entry.DeprecationNotice(); notice != "" {
+			description = notice
+		}
 		fmt.Fprintf(
 			w,
 			"%s\t%s\t%s\t%s\n",
 			entry.Name,
-			entry.Description,
+			description,
 			entry.Repository,
 			security,
 		)

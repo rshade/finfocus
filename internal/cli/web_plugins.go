@@ -96,6 +96,8 @@ func pluginCatalog(ctx context.Context) ([]webui.PluginCatalogRow, error) {
 			LatestVersion:     row.LatestVersion,
 			UpdateAvailable:   row.UpdateAvailable,
 			Warning:           row.Warning,
+			Deprecated:        row.Deprecated,
+			Replacement:       row.Replacement,
 		})
 	}
 	return rows, nil
@@ -132,6 +134,8 @@ func pluginPlan(ctx context.Context, name string, request webui.PluginPlanReques
 		FallbackFrom:  fallbackFrom,
 		ChecksumFile:  checksum,
 		InCatalog:     true,
+		Deprecated:    entry.Deprecated,
+		Replacement:   entry.Replacement,
 	}, nil
 }
 

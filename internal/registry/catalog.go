@@ -20,6 +20,8 @@ type CatalogPlugin struct {
 	LatestVersion     string
 	UpdateAvailable   bool
 	Warning           string
+	Deprecated        bool
+	Replacement       string
 }
 
 // MergeCatalog lists every catalog entry plus installed plugins the catalog
@@ -47,6 +49,8 @@ func MergeCatalog(
 			Repository:        entry.Repository,
 			InCatalog:         true,
 			InstalledVersions: sortedVersions(byName[entry.Name]),
+			Deprecated:        entry.Deprecated,
+			Replacement:       entry.Replacement,
 		}
 		if latest != nil {
 			version, err := latest(entry)
