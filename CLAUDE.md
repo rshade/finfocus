@@ -276,8 +276,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   say to use scorer, and install prints `DeprecationNotice` without migrating
   settings. `SCORER_BACKEND=jev` is the scorer backend, not that catalog entry. `TYPESAFE_API_KEY` and `JEV_*` are not read by
   scorer. Live tests require `SCORER_LIVE_TEST=1`; agents must not run them.
-- **Agent skills**: finfocus-specific skills live in `agent-skills/` here;
-  generic cost-workflow skills live in `rshade/agent-skills`.
+- **Agent skills**: all finfocus skills live in `agent-skills/` here,
+  including `cost-check` and `cost-drift`. `rshade/agent-skills` keeps stubs
+  that point to them. `internal/cli/cost_skills_test.go` pins both to the
+  live flags and JSON fields. After editing a skill, rebuild its `.skill` zip
+  (`SKILL.md` + `references/`) or the archive test fails.
 
 ## Package-Specific Gotchas
 
