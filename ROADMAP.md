@@ -23,67 +23,22 @@ Completed Milestones, 2026-Q4).
 - [ ] **Overview Performance Pipeline** *(deferred from v0.3.2)*
   - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
         ([#658](https://github.com/rshade/finfocus/issues/658)) [M]
-  - [ ] Start plugin loading concurrently with data loading
-        ([#692](https://github.com/rshade/finfocus/issues/692)) [M]
   - *Promoted by /roadmap sync on 2026-10-05 — builds on the #853
     compute-once refactor; #658 comes first so the speed-ups can be
     measured against a baseline.*
-  - *#693 and #691 shipped 2026-10-06 (see Completed Milestones, 2026-Q4).*
-- [ ] **Web UI Settings & Plugin Setup** *(spec-first: amends spec 627,
-      which kept the dashboard read-only)*
-  - [ ] Plugin install ignores `FINFOCUS_PLUGIN_DIR` and `plugin_dir`, so
-        installed plugins are not discovered
-        ([#1764](https://github.com/rshade/finfocus/issues/1764)) [S]
-  - [ ] View and edit FinFocus config from the web dashboard
-        ([#1763](https://github.com/rshade/finfocus/issues/1763)) [L]
-  - [ ] Plugin catalog, install, and settings page in the web dashboard
-        ([#1765](https://github.com/rshade/finfocus/issues/1765)) [L]
-  - *Order: #1764 and #1763 first; #1765 builds on #1763's write path and
-    needs the settings descriptor from finfocus-spec#635.*
+  - *#693 and #691 shipped 2026-10-06, and #692 shipped 2026-10-18 (see
+    Completed Milestones, 2026-Q4).*
+  - *Web UI Settings & Plugin Setup (#1763, #1764, #1765) shipped
+    2026-10-16 to 2026-10-17.*
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
-- [ ] **Web UI Follow-ups** *(from the `--web` dashboard review and its
-      first CI runs)*
-  - [ ] Overview never learns a run is state-only; preview stays enabled
-        ([#1751](https://github.com/rshade/finfocus/issues/1751)) [M]
-  - [ ] Redaction drops trend and breakdown entries with credential-like keys
-        ([#1752](https://github.com/rshade/finfocus/issues/1752)) [M]
-  - [ ] Estimate editor loses properties and pricing modes on baseline failure
-        ([#1757](https://github.com/rshade/finfocus/issues/1757)) [M]
-  - [ ] Recommendation details 404 when plugin IDs change between queries
-        ([#1733](https://github.com/rshade/finfocus/issues/1733)) [M]
-  - [ ] Overview stream retries forever after authentication fails
-        ([#1734](https://github.com/rshade/finfocus/issues/1734)) [M]
-  - [ ] Web browser E2E tests fail intermittently on unrelated PRs
-        ([#1758](https://github.com/rshade/finfocus/issues/1758)) [M]
-- [ ] **Estimate What-If Usability**
-  - [ ] Hide known non-billable resources from the What-If picker
-        ([#1731](https://github.com/rshade/finfocus/issues/1731)) [M]
+- [ ] **Estimate What-If Usability** *(#1731 shipped 2026-10-18)*
   - [ ] Show cost-affecting properties by default in What-If
         ([#1732](https://github.com/rshade/finfocus/issues/1732)) [M]
-- [ ] **Plugin Listing and Selection**
-  - [ ] `plugin list` orders versions randomly, flaking
-        `TestPluginListCmd_TableOutputUnchanged`
-        ([#1726](https://github.com/rshade/finfocus/issues/1726)) [S]
-  - [ ] `plugin list` shows and starts every installed version; list the
-        latest by default, add `--all`
-        ([#1727](https://github.com/rshade/finfocus/issues/1727)) [M]
-  - [ ] `Supports` validation errors let incompatible plugins attempt pricing
-        ([#1735](https://github.com/rshade/finfocus/issues/1735)) [M]
 - [ ] **Overview TUI Quality** *(deferred from v0.3.2)*
   - [ ] Show phase progress lines sequentially and add preview phase
         ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
-- [ ] **Contextual Profiles ("Dev Mode")**
-      ([#368](https://github.com/rshade/finfocus/issues/368)) [L]
-  - [x] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
-        to plugins
-  - [x] Configuration: Allow default profile definition in `finfocus.yaml`
-        (`cost.profile` in `config.hujson`; `FINFOCUS_PROFILE` overrides it)
-  - Plugin pricing heuristics (shorter hours, burstable classes) stay in the
-    plugins. Core only forwards the hint.
-  - *Spec ready:* `UsageProfile` enum (PROD/DEV/BURST) available in
-    finfocus-spec v0.5.5 — core-only implementation
 - [ ] **Spec v0.5.7 Features**
   - *All v0.5.7 consumer items promoted to Immediate Focus*
 - [ ] **Time-Series Forecasting Enhancement**
@@ -119,9 +74,12 @@ Completed Milestones, 2026-Q4).
         ([#1702](https://github.com/rshade/finfocus/issues/1702)) [M]
   - [ ] PagerDuty (Events API v2) destination for budget alert notifications
         ([#1703](https://github.com/rshade/finfocus/issues/1703)) [M]
-- [ ] **Recommendation Lifecycle Enhancements** *(spec-first)*
-  - [ ] Add GetRecommendationHistory RPC to CostSourceService
-        ([#546](https://github.com/rshade/finfocus/issues/546)) [M]
+- [ ] **Recommendation Lifecycle Enhancements** *(spec-first, cross-repo:
+      the RPC itself is
+      [finfocus-spec issue 640](https://github.com/rshade/finfocus-spec/issues/640))*
+  - [ ] Merge plugin `GetRecommendationHistory` events into
+        `cost recommendations history`
+        ([#1816](https://github.com/rshade/finfocus/issues/1816)) [M]
 - [ ] **Cost Time Machine** *(Phases 1 and 3 and the follow-ups shipped
       2026-10-03; Phase 2 stays here because it needs visual TUI
       verification)*
@@ -174,10 +132,8 @@ Completed Milestones, 2026-Q4).
 - [ ] **Pulumi Cloud API Integration** *(depends on #934)*
   - [ ] Pulumi Cloud API Integration for Historical State Snapshots
         ([#935](https://github.com/rshade/finfocus/issues/935)) [L]
-- [ ] **Agent Skills** *(co-located, tool-dependent)*
-  - [ ] `plugin-manage` — Discover, install, update, validate, and
-        troubleshoot finfocus plugins via gRPC protocol
-        ([#911](https://github.com/rshade/finfocus/issues/911)) [M]
+- [x] **Agent Skills** *(co-located, tool-dependent; `plugin-manage`,
+      the last planned skill, shipped 2026-10-19 in #911)*
   - *Format:* Agent Skills spec (SKILL.md + references/), installable via
     `npx skills add rshade/finfocus -s <name>`
   - *Generic cost workflow skills (cost-check, cost-drift, cost-optimize,
@@ -312,6 +268,38 @@ Completed Milestones, 2026-Q4).
 
 ### 2026-Q4
 
+- [x] #1727 `cli`: `plugin list` shows the latest version; `--all` lists every one.
+      Closed 2026-10-19. [M]
+- [x] #911 `skills`: add the plugin-manage agent skill.
+      Closed 2026-10-19. [M]
+- [x] #1731 `estimate`: hide known non-billable resources from the What-If picker.
+      Closed 2026-10-18. [M]
+- [x] #1758 `e2e`: stabilize intermittently failing web browser tests.
+      Closed 2026-10-18. [M]
+- [x] #368 `cli`: add `--profile` usage profiles (dev, prod, burst).
+      Closed 2026-10-18. [L]
+- [x] #692 `overview`: start plugin loading concurrently with stack loading.
+      Closed 2026-10-18. [M]
+- [x] #1733 `web`: serve recommendation details from the cached query.
+      Closed 2026-10-18. [M]
+- [x] #1734 `web`: stop overview stream retries after authentication fails.
+      Closed 2026-10-18. [M]
+- [x] #1757 `web`: keep estimate properties and pricing modes on baseline failure.
+      Closed 2026-10-18. [M]
+- [x] #1752 `web`: keep data-keyed trend and breakdown entries through redaction.
+      Closed 2026-10-18. [M]
+- [x] #1751 `web`: tell overview when a run is state-only.
+      Closed 2026-10-18. [M]
+- [x] #1735 `engine`: treat `Supports` InvalidArgument as a decline.
+      Closed 2026-10-18. [M]
+- [x] #1726 `cli`: sort `plugin list` versions deterministically.
+      Closed 2026-10-18. [S]
+- [x] #1765 `web`: plugin catalog, install, and settings page.
+      Closed 2026-10-17. [L]
+- [x] #1763 `web`: view and edit FinFocus config from the dashboard.
+      Closed 2026-10-17. [L]
+- [x] #1764 `registry`: honor `FINFOCUS_PLUGIN_DIR` and `plugin_dir` on install.
+      Closed 2026-10-16. [S]
 - [x] `web`: add a local dashboard for overview, actual costs, recommendations,
       and interactive estimates using shared TUI presentation.
       Closed 2026-10-07. [L]
