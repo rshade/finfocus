@@ -18,12 +18,17 @@ const PluginName = "carbon"
 type Plugin struct {
 	*pluginsdk.BasePlugin
 
-	config Config
+	config    Config
+	loadModel func() (dataset, error)
 }
 
 // New builds an offline carbon plugin with the supplied utilization assumption.
 func New(cfg Config) *Plugin {
-	return &Plugin{BasePlugin: pluginsdk.NewBasePlugin(PluginName), config: cfg}
+	return &Plugin{
+		BasePlugin: pluginsdk.NewBasePlugin(PluginName),
+		config:     cfg,
+		loadModel:  newCachedDataLoader(loadData),
+	}
 }
 
 // Info advertises carbon independently of monetary pricing capabilities.
@@ -44,7 +49,7 @@ func (p *Plugin) Supports(ctx context.Context, req *pbc.SupportsRequest) (*pbc.S
 		return nil, status.FromContextError(err).Err()
 	}
 	response := &pbc.SupportsResponse{Supported: true}
-	if _, err := EstimateResource(req.GetResource(), p.config); err != nil {
+	if _, err := estimateResource(req.GetResource(), p.config, p.loadModel); err != nil {
 		response.Supported = false
 		response.Reason = err.Error()
 	}
@@ -63,7 +68,7 @@ func (p *Plugin) GetProjectedCost(
 	if req.GetResource() == nil {
 		return nil, status.Error(codes.InvalidArgument, "resource is required")
 	}
-	estimate, err := EstimateResource(req.GetResource(), p.config)
+	estimate, err := estimateResource(req.GetResource(), p.config, p.loadModel)
 	if err != nil {
 		return nil, status.Error(codes.FailedPrecondition, err.Error())
 	}

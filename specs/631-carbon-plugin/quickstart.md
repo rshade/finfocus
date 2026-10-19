@@ -21,7 +21,8 @@ go test ./internal/proto/... -run 'Test.*Carbon' -count=1
 
 Expect known-instance numerical fixtures to pass in two regions at 0%, 50%, and
 100% utilization. Unknown data must decline rather than return invented values.
-The carbon package reports 96.3% statement coverage; `EstimateResource` reports
+The plugin caches its immutable dataset once per process. The carbon package reports
+96.3% statement coverage; `EstimateResource` reports
 94.4%, with its only uncovered branch handling malformed embedded JSON. The embedded
 asset is immutable and separately checked for valid decoding and complete coverage.
 The RPC implementation reports 100% coverage.
@@ -30,7 +31,7 @@ The RPC implementation reports 100% coverage.
 
 ```bash
 carbon_home=$(mktemp -d)
-make install-carbon CARBON_INSTALL_DIR="$carbon_home/plugins/carbon/v0.0.0"
+make install-carbon CARBON_INSTALL_DIR="$carbon_home/plugins/carbon/v0.1.0"
 FINFOCUS_HOME="$carbon_home" ./bin/finfocus plugin list --output json
 ```
 

@@ -27,6 +27,14 @@ type Estimate struct {
 // EstimateResource validates an EC2 descriptor and calculates operational carbon.
 // Missing coefficients or instance specifications are declined, never guessed.
 func EstimateResource(resource *pbc.ResourceDescriptor, cfg Config) (Estimate, error) {
+	return estimateResource(resource, cfg, loadData)
+}
+
+func estimateResource(
+	resource *pbc.ResourceDescriptor,
+	cfg Config,
+	load func() (dataset, error),
+) (Estimate, error) {
 	if err := cfg.validate(); err != nil {
 		return Estimate{}, err
 	}
@@ -36,7 +44,7 @@ func EstimateResource(resource *pbc.ResourceDescriptor, cfg Config) (Estimate, e
 	if resource.GetProvider() != "aws" || !isEC2(resource.GetResourceType()) {
 		return Estimate{}, errors.New("carbon supports AWS EC2 instances only")
 	}
-	data, err := loadData()
+	data, err := load()
 	if err != nil {
 		return Estimate{}, err
 	}

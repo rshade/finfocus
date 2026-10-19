@@ -30,7 +30,7 @@ func TestCarbonPlugin(t *testing.T) {
 	install := filepath.Join(home, "plugins", "carbon", "v"+version)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "make", "install-carbon", "CARBON_VERSION="+version, "CARBON_INSTALL_DIR="+install)
+	cmd := exec.CommandContext(ctx, "make", "install-carbon", "CARBON_INSTALL_DIR="+install)
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, string(out))

@@ -157,7 +157,7 @@ lint-prometheus:
 	cd $(PROMETHEUS_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
 
 CARBON_PLUGIN_DIR=plugins/carbon
-CARBON_VERSION=$(shell jq -r '."plugins/carbon" // "0.0.0"' .release-please-manifest.json)
+CARBON_VERSION=$(shell jq -r '."plugins/carbon" // "0.1.0"' .release-please-manifest.json)
 CARBON_INSTALL_DIR=$(HOME)/.finfocus/plugins/carbon/v$(CARBON_VERSION)
 
 .PHONY: build-carbon

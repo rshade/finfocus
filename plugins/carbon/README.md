@@ -19,14 +19,14 @@ make install-carbon
 finfocus plugin list
 ```
 
-The installed version defaults to `v0.0.0` until the first carbon release.
+The installed version defaults to `v0.1.0`, matching the first carbon release version.
 The module releases independently under `carbon-vX.Y.Z` tags. Catalog installation
 will work once the first release has downloadable assets.
 
 `CARBON_INSTALL_DIR` can select another plugin home, for example:
 
 ```bash
-make install-carbon CARBON_INSTALL_DIR=/tmp/carbon-home/plugins/carbon/v0.0.0
+make install-carbon CARBON_INSTALL_DIR=/tmp/carbon-home/plugins/carbon/v0.1.0
 FINFOCUS_HOME=/tmp/carbon-home finfocus plugin list
 ```
 

@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sync"
 )
 
 // DatasetRevision identifies the pinned upstream coefficient revision.
@@ -32,4 +33,8 @@ func loadData() (dataset, error) {
 		return dataset{}, fmt.Errorf("decode carbon model: %w", err)
 	}
 	return data, nil
+}
+
+func newCachedDataLoader(load func() (dataset, error)) func() (dataset, error) {
+	return sync.OnceValues(load)
 }
