@@ -3338,6 +3338,12 @@ func (m *mockPbcCostSourceServiceClient) GetRecommendations(
 	return &pbc.GetRecommendationsResponse{}, nil
 }
 
+func (m *mockPbcCostSourceServiceClient) GetRecommendationHistory(
+	_ context.Context, _ *pbc.GetRecommendationHistoryRequest, _ ...grpc.CallOption,
+) (*pbc.GetRecommendationHistoryResponse, error) {
+	return &pbc.GetRecommendationHistoryResponse{}, nil
+}
+
 func (m *mockPbcCostSourceServiceClient) DismissRecommendation(
 	_ context.Context, _ *pbc.DismissRecommendationRequest, _ ...grpc.CallOption,
 ) (*pbc.DismissRecommendationResponse, error) {

@@ -4,19 +4,16 @@ go 1.27.1
 
 require (
 	github.com/rs/zerolog v1.35.1
-	github.com/rshade/finfocus-spec v0.7.6
+	github.com/rshade/finfocus-spec v0.7.7
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.84.0
 )
 
 require (
-	connectrpc.com/connect v1.21.0 // indirect
-	connectrpc.com/connect/v2 v2.0.1 // indirect
+	connectrpc.com/connect v1.21.1 // indirect
 	connectrpc.com/grpchealth v1.5.0 // indirect
-	connectrpc.com/grpchealth/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
-	github.com/cenkalti/backoff/v7 v7.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect

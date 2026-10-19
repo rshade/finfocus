@@ -6,7 +6,7 @@ require (
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/common v0.72.1
 	github.com/rs/zerolog v1.35.1
-	github.com/rshade/finfocus-spec v0.7.6
+	github.com/rshade/finfocus-spec v0.7.7
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
@@ -16,7 +16,7 @@ require (
 )
 
 require (
-	connectrpc.com/connect v1.21.0 // indirect
+	connectrpc.com/connect v1.21.1 // indirect
 	connectrpc.com/grpchealth v1.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
