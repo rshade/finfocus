@@ -1,11 +1,11 @@
 module github.com/rshade/finfocus/plugins/scorer
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/finfocus-spec v0.7.7
-	github.com/rshade/go-decide v0.1.0
+	github.com/rshade/go-decide v0.1.1
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.86.0-dev
 	google.golang.org/protobuf v1.36.12
@@ -23,7 +23,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.32.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/kataras/jev v0.1.0 // indirect
+	github.com/kataras/jev v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
