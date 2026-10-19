@@ -11,7 +11,7 @@
 // client only sends the user's interaction state (filter text, sort field,
 // page, expanded set).
 
-import { el } from '../app.js';
+import { el, mergeRunStatus } from '../app.js';
 
 // Sort cycle matches viewmodel.SortField order (cost, name, type, delta) and
 // the wire names used by the contract examples ({"sort":"cost"}).
@@ -73,6 +73,8 @@ export function mount(container, ctx) {
     progress: null,
     previewStatus: null,
     previewElapsedMs: null,
+    runStatus: { stateOnly: false, previewLoaded: false, detectFailed: false },
+    footnote: '',
   };
 
   // --- Static DOM skeleton -------------------------------------------------
@@ -126,6 +128,10 @@ export function mount(container, ctx) {
     sortButton,
     previewButton,
   );
+  const stateNote = el('p', { class: 'state-only-footnote' });
+  stateNote.hidden = true;
+  const detectHint = el('p', { class: 'state-only-hint' });
+  detectHint.hidden = true;
 
   const tbody = el('tbody');
   const headerRow = el('tr');
@@ -167,6 +173,8 @@ export function mount(container, ctx) {
       checklist,
       progressLine,
       toolbar,
+      stateNote,
+      detectHint,
       totalsBar,
       tableWrap,
       pager,
@@ -366,11 +374,37 @@ export function mount(container, ctx) {
     return list;
   }
 
+  function previewAllowed() {
+    return state.runStatus.stateOnly && !state.runStatus.previewLoaded && state.ready && !state.loading && state.previewStatus !== 'running';
+  }
+  function renderRunStatus() {
+    const marked = state.runStatus.stateOnly && !state.runStatus.previewLoaded;
+    const projected = headerRow.children[4];
+    if (projected) projected.textContent = marked ? 'Projected*' : 'Projected';
+    const showNote = marked && state.ready && !state.loading;
+    stateNote.hidden = !showNote || !state.footnote;
+    stateNote.textContent = showNote ? state.footnote : '';
+    const showHint = showNote && state.runStatus.detectFailed;
+    detectHint.hidden = !showHint;
+    detectHint.textContent = showHint ? '(change detection failed)' : '';
+    renderPreviewButton();
+  }
+  function applyRunStatus(data) {
+    if (!data || typeof data !== 'object') return;
+    state.runStatus = mergeRunStatus(state.runStatus, data);
+    state.footnote = typeof data.footnote === 'string' ? data.footnote : state.footnote;
+    if (data.previewLoaded) state.footnote = '';
+    renderRunStatus();
+  }
   function renderPreviewButton() {
     if (state.previewStatus === 'running') {
       previewButton.disabled = true;
       previewButton.textContent = `Preview running… ${previewElapsedText()}`;
       previewButton.setAttribute('aria-label', 'Preview in progress');
+    } else if (!previewAllowed()) {
+      previewButton.disabled = true;
+      previewButton.textContent = 'Run preview';
+      previewButton.setAttribute('aria-label', 'Run an on-demand pulumi preview');
     } else {
       previewButton.disabled = false;
       previewButton.textContent = 'Run preview';
@@ -770,6 +804,7 @@ export function mount(container, ctx) {
     }
     if (data?.passphraseRequired) onPassphraseRequired({ stack: data.stack });
     else if (data?.passphraseRequired === false) passphraseDialog.close();
+    applyRunStatus(data);
     runQuery();
   }
 
@@ -872,6 +907,7 @@ export function mount(container, ctx) {
     renderPhases();
     renderProgress();
     renderTotals();
+    renderRunStatus();
     runQuery();
   }
 
@@ -931,6 +967,7 @@ export function mount(container, ctx) {
     ['ready', onReady],
     ['passphrase_required', onPassphraseRequired],
     ['preview', onPreview],
+    ['run_status', applyRunStatus],
   ]) {
     unsubs.push(stream.on(event, handler));
   }

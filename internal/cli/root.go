@@ -293,10 +293,14 @@ func newCostCmd() *cobra.Command {
 
 			overrides := budgetFlagOverridesFromCmd(cmd)
 			storeBudgetFlagOverrides(cmd, overrides)
-			if err := validateBudgetFlagOverrides(config.GetGlobalConfig(), overrides); err != nil {
+			cfg := config.GetGlobalConfig()
+			if _, err := resolveUsageProfile(cmd, cfg); err != nil {
+				return toValidationError(cmd.Context(), err)
+			}
+			if err := validateBudgetFlagOverrides(cfg, overrides); err != nil {
 				return err
 			}
-			return validateCostConfig(cmd, costConfigPaths(config.GetGlobalConfig()))
+			return validateCostConfig(cmd, costConfigPaths(cfg))
 		},
 	}
 
@@ -314,6 +318,7 @@ func newCostCmd() *cobra.Command {
 	// Add persistent flag for Pulumi stack selection during auto-detection
 	cmd.PersistentFlags().StringVar(&flags.Stack, "stack", "",
 		"Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state)")
+	cmd.PersistentFlags().String("profile", "", usageProfileFlagHelp)
 
 	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd(), NewCostEstimateCmd(),
 		NewCostForecastCmd(), NewCostClusterCmd(), NewCostHistoryCmd())

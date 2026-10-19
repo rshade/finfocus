@@ -2,6 +2,9 @@ package cli
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/rshade/ax-go"
 	"github.com/rshade/ax-go/mcp"
@@ -71,6 +74,20 @@ var mcpServeFunc = func(ctx context.Context, root *cobra.Command, ver string) er
 	return mcp.Serve(ctx, root, mcp.WithVersion(ver))
 }
 
+// cancelOnShutdownSignal replaces cmd's context with one canceled by SIGINT or
+// SIGTERM, so the MCP server drains and returns instead of dying on the signal
+// with its deferred cleanup skipped. A clean drain exits 0, like finfocus --web.
+// Only the MCP entry points call it; no other command's signal handling changes.
+func cancelOnShutdownSignal(cmd *cobra.Command) context.CancelFunc {
+	parent := cmd.Context()
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
+	cmd.SetContext(ctx)
+	return stop
+}
+
 // commandLifecycle is per-root state shared by the root hooks and the MCP entry
 // points. While serving is true, every command execution is a tools/call
 // dispatched by the MCP server, which reuses the server's logging session.
@@ -86,6 +103,8 @@ func newMCPServerCmd(root *cobra.Command, ver string, lc *commandLifecycle) *cob
 	cmd.Example = mcpServerExample
 	serve := cmd.RunE
 	cmd.RunE = func(c *cobra.Command, args []string) error {
+		stop := cancelOnShutdownSignal(c)
+		defer stop()
 		return lc.serveMCP(root, func() error { return serve(c, args) })
 	}
 	return cmd
@@ -119,6 +138,8 @@ func (lc *commandLifecycle) runRootMCP(cmd *cobra.Command, ver string) error {
 		return errRootNotATool(cmd.Context())
 	}
 	root := cmd.Root()
+	stop := cancelOnShutdownSignal(cmd)
+	defer stop()
 	return lc.serveMCP(root, func() error {
 		return mcpServeFunc(cmd.Context(), root, ver)
 	})

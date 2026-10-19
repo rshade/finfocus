@@ -244,7 +244,7 @@ func TestEstimateHTTPValidationAndFailures(t *testing.T) {
 		"/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`),
 		"",
 	)
-	require.Equal(t, 502, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 	raw, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.NotContains(t, string(raw), "credential-value")
@@ -386,12 +386,111 @@ func TestEstimateHTTPSourceReadinessAndFailure(t *testing.T) {
 	}
 }
 
+func TestEstimateBaselineFailureKeepsRedactedRowsAndModes(t *testing.T) {
+	t.Parallel()
+	s, session, _, _ := estimateHTTPFixture(t)
+	session.SetData(
+		engine.New(
+			[]*pluginhost.Client{
+				{
+					Name: "bad",
+					API:  &webEstimatePlugin{rate: 10, failure: status.Error(codes.Unavailable, "credential-value")},
+				},
+			},
+			nil,
+		),
+		[]engine.OverviewRow{{
+			URN:  "urn:real",
+			Type: "aws:ec2:Instance",
+			ProjectedProperties: map[string]any{
+				"size":     float64(2),
+				"password": "projected-credential",
+				"private":  pulumiSecretFixture("projected-secret"),
+				"verbatim": "old",
+			},
+		}},
+		engine.DateRange{},
+		"",
+	)
+	resp := overviewRequest(
+		t,
+		s,
+		"GET",
+		"/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`),
+		"",
+	)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	for _, secret := range []string{"credential-value", "projected-credential", "secret-value", "projected-secret", "password", "private"} {
+		assert.NotContains(t, string(raw), secret)
+	}
+	var got struct {
+		Status   string                     `json:"status"`
+		Error    string                     `json:"error"`
+		Code     string                     `json:"code"`
+		Display  viewmodel.EstimateDisplay  `json:"display"`
+		Modes    []estimateMode             `json:"pricingModes"`
+		Resource *engine.ResourceDescriptor `json:"resource"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &got))
+	assert.Equal(t, "unavailable", got.Status)
+	assert.Equal(t, "estimate_unavailable", got.Code)
+	assert.NotEmpty(t, got.Error)
+	assert.Empty(t, got.Display.Baseline)
+	assert.Empty(t, got.Display.Modified)
+	assert.Empty(t, got.Display.Change)
+	require.NotNil(t, got.Resource)
+	assert.Equal(t, "urn:real", got.Resource.ID)
+	require.Len(t, got.Display.Properties, 2)
+	assert.Equal(t, "size", got.Display.Properties[0].Key)
+	assert.Equal(t, "2", got.Display.Properties[0].OriginalValue)
+	assert.Equal(t, "2", got.Display.Properties[0].CurrentValue)
+	assert.Empty(t, got.Display.Properties[0].Delta)
+	assert.Equal(t, "verbatim", got.Display.Properties[1].Key)
+	assert.Empty(t, got.Display.Properties[1].Delta)
+	require.NotEmpty(t, got.Modes)
+	assert.Equal(t, `["bad","hourly"]`, got.Modes[0].ID)
+	assert.NotEmpty(t, got.Modes[0].Rate)
+
+	plain := overviewRequest(t, s, "GET", "/api/estimate/baseline?urn=urn:real&pricingMode=invalid", "")
+	require.Equal(t, http.StatusBadRequest, plain.StatusCode)
+	plainBody, err := io.ReadAll(plain.Body)
+	require.NoError(t, err)
+	var plainErr map[string]any
+	require.NoError(t, json.Unmarshal(plainBody, &plainErr))
+	assert.Equal(t, "invalid_pricing_mode", plainErr["code"])
+	assert.NotContains(t, plainErr, "display")
+	assert.NotContains(t, plainErr, "status")
+	assert.NotContains(t, plainErr, "pricingModes")
+	assert.NotContains(t, plainErr, "resource")
+}
+
+func TestEstimateRecalculateFailureStaysPlainError(t *testing.T) {
+	t.Parallel()
+	s, session, _, _ := estimateHTTPFixture(t)
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	resp := overviewRequest(t, s, "POST", "/api/estimate/recalculate", `{"urn":"urn:real","overrides":{"size":"3"}}`)
+	require.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(raw, &got))
+	assert.Equal(t, "estimate_unavailable", got["code"])
+	assert.NotContains(t, got, "status")
+	assert.NotContains(t, got, "display")
+	assert.NotContains(t, got, "pricingModes")
+}
+
 func TestEstimateHTTPUnavailablePriceIsNotSuccessfulZero(t *testing.T) {
 	t.Parallel()
 	s, session, _, _ := estimateHTTPFixture(t)
 	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
 	resp := overviewRequest(t, s, "GET", "/api/estimate/baseline?urn=urn:real", "")
-	assert.Equal(t, 502, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"status":"unavailable"`)
 }
 
 func TestEstimateShutdownDoesNotWaitForResponseWriter(t *testing.T) {
@@ -409,7 +508,7 @@ func TestEstimateShutdownDoesNotWaitForResponseWriter(t *testing.T) {
 		{name: "baseline source failure", path: "/api/estimate/baseline?urn=urn:real", sourceErr: true, want: 502},
 		{name: "unknown resource", path: "/api/estimate/baseline?urn=missing", want: 404},
 		{name: "invalid mode", path: "/api/estimate/recalculate", body: `{"urn":"urn:real","overrides":{"size":"3"},"pricingMode":"invalid"}`, want: 400},
-		{name: "unavailable price", path: "/api/estimate/baseline?urn=urn:real", unpriced: true, want: 502},
+		{name: "unavailable price", path: "/api/estimate/baseline?urn=urn:real", unpriced: true, want: 200},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -456,4 +555,193 @@ func TestEstimateShutdownDoesNotWaitForResponseWriter(t *testing.T) {
 			assert.Equal(t, tc.want, writer.Code)
 		})
 	}
+}
+
+func TestEstimateBaselineFailureHidesNestedSecrets(t *testing.T) {
+	t.Parallel()
+	s, session, _, _ := estimateHTTPFixture(t)
+	session.SetData(
+		engine.New(
+			[]*pluginhost.Client{
+				{Name: "bad", API: &webEstimatePlugin{rate: 10, failure: status.Error(codes.Unavailable, "down")}},
+			},
+			nil,
+		),
+		[]engine.OverviewRow{{
+			URN:  "urn:real",
+			Type: "aws:ec2:Instance",
+			ProjectedProperties: map[string]any{
+				"size":   float64(2),
+				"config": map[string]any{"password": "nested-credential", "region": "us-east-1"},
+				"blob":   pulumiSecretFixture("nested-secret"),
+			},
+		}},
+		engine.DateRange{},
+		"",
+	)
+	resp := overviewRequest(
+		t,
+		s,
+		"GET",
+		"/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`),
+		"",
+	)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	for _, secret := range []string{"nested-credential", "nested-secret", "4dabf18193072939515e22adb298388d"} {
+		assert.NotContains(t, string(raw), secret)
+	}
+}
+
+func TestEstimateResourceVisibility(t *testing.T) {
+	t.Parallel()
+	resources := []engine.ResourceDescriptor{
+		{ID: "provider", Type: "pulumi:providers:aws"},
+		{ID: "stack", Type: "pulumi:pulumi:Stack"},
+		{ID: "unknown", Type: "custom:module:Unknown"},
+		{ID: "instance", Type: "aws:ec2:Instance", Provider: "aws", Properties: map[string]any{"size": float64(1)}},
+	}
+	session := NewSession(
+		context.Background(),
+		SessionOptions{
+			EstimateResources: func(context.Context) ([]engine.ResourceDescriptor, error) { return resources, nil },
+		},
+	)
+	session.SetData(
+		engine.New(nil, nil),
+		[]engine.OverviewRow{{URN: "instance", ProjectedCost: &engine.ProjectedCostData{MonthlyCost: 10}}},
+		engine.DateRange{},
+		"",
+	)
+	s := newRunningServer(t, Options{Session: session})
+	for _, tc := range []struct {
+		query   string
+		wantIDs []string
+		hidden  int
+	}{
+		{wantIDs: []string{"unknown", "instance"}, hidden: 2},
+		{query: "?showAll=true", wantIDs: []string{"provider", "stack", "unknown", "instance"}},
+		{query: "?showAll=false", wantIDs: []string{"unknown", "instance"}, hidden: 2},
+	} {
+		t.Run(tc.query, func(t *testing.T) {
+			t.Parallel()
+			resp := overviewRequest(t, s, "GET", "/api/estimate/resources"+tc.query, "")
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			var got engine.EstimateResourceSelection
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+			ids := make([]string, 0, len(got.Resources))
+			for _, r := range got.Resources {
+				ids = append(ids, r.ID)
+			}
+			assert.Equal(t, tc.wantIDs, ids)
+			assert.Equal(t, tc.hidden, got.HiddenCount)
+			assert.Equal(t, "instance", got.PreferredURN)
+			assert.Equal(t, engine.NonBillable, got.Billability["provider"])
+			assert.Equal(t, engine.BillabilityUnknown, got.Billability["unknown"])
+		})
+	}
+	resp := overviewRequest(t, s, "GET", "/api/estimate/resources?showAll=wat", "")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	assert.Len(t, resources, 4)
+}
+
+func TestEstimateResourcesEmptyAfterFiltering(t *testing.T) {
+	t.Parallel()
+	session := NewSession(
+		context.Background(),
+		SessionOptions{EstimateResources: func(context.Context) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{{ID: "provider", Type: "pulumi:providers:aws"}}, nil
+		}},
+	)
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	s := newRunningServer(t, Options{Session: session})
+	resp := overviewRequest(t, s, "GET", "/api/estimate/resources", "")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var got engine.EstimateResourceSelection
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+	assert.Empty(t, got.Resources)
+	assert.Empty(t, got.PreferredURN)
+	assert.Equal(t, 1, got.HiddenCount)
+}
+
+func TestEstimateResourceListUsesCurrentEngineMetadata(t *testing.T) {
+	t.Parallel()
+	resource := engine.ResourceDescriptor{
+		ID:         "cloud",
+		Provider:   "aws",
+		Type:       "aws:ec2:Instance",
+		Properties: map[string]any{"size": float64(1)},
+	}
+	plugin := &pickerPricingPlugin{billingMode: "zero_cost"}
+	current := engine.New([]*pluginhost.Client{{Name: "pricing", API: plugin}}, nil)
+	current.DiscoverPricingSpec(context.Background(), &resource)
+	releases := 0
+	session := NewSession(context.Background(), SessionOptions{
+		EstimateResources: func(context.Context) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{resource}, nil
+		},
+		QueryEngine: func(context.Context) (*engine.Engine, func(), error) { return current, func() { releases++ }, nil },
+	})
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	s := newRunningServer(t, Options{Session: session})
+	for _, query := range []string{"", "?showAll=true"} {
+		resp := overviewRequest(t, s, "GET", "/api/estimate/resources"+query, "")
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		var got engine.EstimateResourceSelection
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+		if query == "" {
+			assert.Empty(t, got.Resources)
+			assert.Equal(t, 1, got.HiddenCount)
+		} else {
+			require.Len(t, got.Resources, 1)
+			assert.Equal(t, "cloud", got.Resources[0].ID)
+		}
+		assert.Equal(t, engine.NonBillable, got.Billability["cloud"])
+	}
+	assert.Equal(t, 2, releases)
+	assert.Equal(t, 1, plugin.calls, "listing reuses metadata and makes no pricing probes")
+	// Direct source lookup is independent of default picker visibility.
+	got, err := s.estimateResource(context.Background(), "cloud")
+	require.NoError(t, err)
+	assert.Equal(t, resource.ID, got.ID)
+}
+
+type pickerPricingPlugin struct {
+	proto.CostSourceClient
+
+	billingMode string
+	calls       int
+}
+
+func (p *pickerPricingPlugin) GetPricingSpec(
+	context.Context,
+	*pbc.GetPricingSpecRequest,
+	...grpc.CallOption,
+) (*pbc.GetPricingSpecResponse, error) {
+	p.calls++
+	return &pbc.GetPricingSpecResponse{Spec: &pbc.PricingSpec{BillingMode: p.billingMode}}, nil
+}
+
+func TestEstimateResourceListEscapesHTML(t *testing.T) {
+	t.Parallel()
+	session := NewSession(
+		context.Background(),
+		SessionOptions{EstimateResources: func(context.Context) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{{ID: "<script>alert(1)</script>", Type: "custom:module:Unknown"}}, nil
+		}},
+	)
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	s := newRunningServer(t, Options{Session: session})
+	resp := overviewRequest(t, s, "GET", "/api/estimate/resources?showAll=true", "")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+	data, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "<script>")
+	assert.Contains(t, string(data), `\u003cscript\u003e`)
+	var got engine.EstimateResourceSelection
+	require.NoError(t, json.Unmarshal(data, &got))
+	require.Len(t, got.Resources, 1)
+	assert.Equal(t, "<script>alert(1)</script>", got.Resources[0].ID)
 }

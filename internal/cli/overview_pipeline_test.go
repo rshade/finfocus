@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -395,6 +396,188 @@ func TestOverviewPipeline_ErrorCarriesPhase(t *testing.T) {
 			assert.Empty(t, events.ready, "a failed pipeline must not emit ready")
 		})
 	}
+}
+
+// TestOverviewPipeline_PluginOpenOverlapsLoad proves plugin startup is in
+// flight while stack loading is still blocked, and that cleanup waits until
+// the pipeline owner releases a successful run.
+func TestOverviewPipeline_PluginOpenOverlapsLoad(t *testing.T) {
+	t.Parallel()
+
+	loadEntered := make(chan struct{})
+	pluginsEntered := make(chan struct{})
+	release := make(chan struct{})
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	})
+	var cleaned atomic.Int32
+
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
+			close(loadEntered)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			p.emitPhase(OverviewPhaseLoadStackState, overviewPhaseLoadStackStateName)
+			p.emitPhase(OverviewPhaseDetectChanges, overviewPhaseDetectChangesName)
+			p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
+			return &OverviewPipelineData{Rows: fakePipelineRows(), StackName: "dev", ProjectDir: "."}, nil
+		},
+		openPlugins: func(ctx context.Context, _ string, _ *auditContext) ([]*pluginhost.Client, func(), error) {
+			close(pluginsEntered)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return nil, nil, ctx.Err()
+			}
+			return nil, func() { cleaned.Add(1) }, nil
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+
+	done := make(chan error, 1)
+	go func() { done <- pipe.Run(context.Background()) }()
+
+	select {
+	case <-loadEntered:
+	case <-time.After(2 * time.Second):
+		require.Fail(t, "load did not start")
+	}
+	select {
+	case <-pluginsEntered:
+	case <-time.After(2 * time.Second):
+		require.Fail(t, "plugins did not start while load was in flight")
+	}
+	close(release)
+
+	require.NoError(t, <-done)
+	assert.Equal(t, []int{
+		OverviewPhaseLoadStackState, OverviewPhaseDetectChanges, OverviewPhaseMergeResources,
+		OverviewPhaseStartPlugins, OverviewPhasePrepareEngine, OverviewPhaseEnrichResources,
+	}, events.phases)
+	assert.Equal(t, int32(0), cleaned.Load(), "successful startup stays open until the owner releases it")
+	require.NotNil(t, pipe.Cleanup())
+	pipe.Cleanup()()
+	assert.Equal(t, int32(1), cleaned.Load())
+}
+
+// TestOverviewPipeline_PluginErrorCancelsLoad verifies a plugin failure
+// unblocks stack loading and is the error Run returns.
+func TestOverviewPipeline_PluginErrorCancelsLoad(t *testing.T) {
+	t.Parallel()
+
+	boom := errors.New("plugin boom")
+	loadCancelled := make(chan struct{})
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
+			p.emitPhase(OverviewPhaseLoadStackState, overviewPhaseLoadStackStateName)
+			select {
+			case <-ctx.Done():
+				close(loadCancelled)
+				return nil, ctx.Err()
+			case <-time.After(5 * time.Second):
+				return nil, errors.New("load was not cancelled")
+			}
+		},
+		openPlugins: func(context.Context, string, *auditContext) ([]*pluginhost.Client, func(), error) {
+			return nil, nil, boom
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+
+	err := pipe.Run(context.Background())
+	require.ErrorIs(t, err, boom)
+	select {
+	case <-loadCancelled:
+	default:
+		require.Fail(t, "load was not cancelled")
+	}
+	require.Len(t, events.errors, 1)
+	assert.Equal(t, OverviewPhaseStartPlugins, events.errors[0])
+	assert.Nil(t, pipe.Cleanup())
+	assert.Empty(t, events.ready)
+}
+
+// TestOverviewPipeline_LoadErrorCancelsPluginOpen verifies a load failure
+// cancels plugin startup and releases any cleanup the open returned.
+func TestOverviewPipeline_LoadErrorCancelsPluginOpen(t *testing.T) {
+	t.Parallel()
+
+	boom := errors.New("load boom")
+	pluginsCancelled := make(chan struct{})
+	var cleaned atomic.Int32
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(context.Context, *OverviewPipeline) (*OverviewPipelineData, error) {
+			return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: boom}
+		},
+		openPlugins: func(ctx context.Context, _ string, _ *auditContext) ([]*pluginhost.Client, func(), error) {
+			select {
+			case <-ctx.Done():
+				close(pluginsCancelled)
+				return nil, func() { cleaned.Add(1) }, ctx.Err()
+			case <-time.After(5 * time.Second):
+				return nil, func() { cleaned.Add(1) }, errors.New("plugins were not cancelled")
+			}
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+
+	err := pipe.Run(context.Background())
+	require.ErrorIs(t, err, boom)
+	select {
+	case <-pluginsCancelled:
+	default:
+		require.Fail(t, "plugin open was not cancelled")
+	}
+	assert.Equal(t, int32(1), cleaned.Load())
+	require.Len(t, events.errors, 1)
+	assert.Equal(t, OverviewPhaseMergeResources, events.errors[0])
+	assert.Nil(t, pipe.Cleanup())
+	assert.Empty(t, events.ready)
+}
+
+// TestOverviewPipeline_LoadErrorReleasesOpenedPlugins verifies plugins that
+// finished opening before the load failed are still closed, and are not left
+// for a later Cleanup call.
+func TestOverviewPipeline_LoadErrorReleasesOpenedPlugins(t *testing.T) {
+	t.Parallel()
+
+	boom := errors.New("load boom")
+	var cleaned atomic.Int32
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(context.Context, *OverviewPipeline) (*OverviewPipelineData, error) {
+			return nil, &PhaseError{Phase: OverviewPhaseLoadStackState, Err: boom}
+		},
+		openPlugins: func(context.Context, string, *auditContext) ([]*pluginhost.Client, func(), error) {
+			return nil, func() { cleaned.Add(1) }, nil
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+
+	err := pipe.Run(context.Background())
+	require.ErrorIs(t, err, boom)
+	assert.Equal(t, int32(1), cleaned.Load())
+	assert.Nil(t, pipe.Cleanup())
 }
 
 // TestOverviewPipeline_BudgetAndReady verifies the budget event fires with
@@ -928,4 +1111,229 @@ func TestWebPreviewRetriesRejectedPassphrase(t *testing.T) {
 	assert.Equal(t, []string{"passphrase_required", "error", "passphrase_required"}, events)
 	assert.Equal(t, 2, runner.calls)
 	assert.Nil(t, p.Passphrase())
+}
+
+func TestOverviewPipeline_ExplicitStateWithoutPlanIsStateOnly(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Chdir(t.TempDir())
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params:      overviewParams{pulumiState: overviewFixture(t, "state-no-changes.json"), cfg: &config.Config{}},
+		loader:      autoDetectOverviewLoader,
+		openPlugins: fakeOpenPlugins,
+		newEngine:   fakeNewEngine,
+		enrichRows:  passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+	require.NoError(t, pipe.Run(context.Background()))
+	assert.Equal(t, []string{""}, events.stateOnly, "state with no plan must offer the on-demand preview")
+}
+
+func TestOverviewPipeline_ExplicitStateAndPlanIsNotStateOnly(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Chdir(t.TempDir())
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{
+			pulumiState: overviewFixture(t, "state-no-changes.json"),
+			pulumiJSON:  overviewFixture(t, "plan-no-changes.json"),
+			cfg:         &config.Config{},
+		},
+		loader:      autoDetectOverviewLoader,
+		openPlugins: fakeOpenPlugins,
+		newEngine:   fakeNewEngine,
+		enrichRows:  passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+	require.NoError(t, pipe.Run(context.Background()))
+	assert.Empty(t, events.stateOnly)
+}
+
+func TestOverviewPipeline_RefreshFallbackBudgetTracksAddedRows(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Cleanup(config.ResetGlobalConfigForTest)
+	config.SetGlobalConfig(&config.Config{Cost: config.CostConfig{
+		Budgets: &config.BudgetsConfig{Global: &config.ScopedBudget{Amount: 100, Currency: "USD"}},
+	}})
+	ctx := context.Background()
+	rows := fakePipelineRows()
+	rows[0].ProjectedCost = &engine.ProjectedCostData{MonthlyCost: 10, Currency: "USD"}
+
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params:         overviewParams{cfg: &config.Config{}},
+		loader:         fakePipelineLoader(rows),
+		audit:          newAuditContext(ctx, "overview", nil),
+		openPlugins:    fakeOpenPlugins,
+		newEngine:      fakeNewEngine,
+		enrichRows:     passThroughEnrichment,
+		wantBudget:     true,
+		budgetLive:     true,
+		budgetFallback: true,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+	require.NoError(t, pipe.Run(ctx))
+	require.Len(t, events.budgets, 1)
+	require.NotNil(t, events.budgets[0])
+	before := events.budgets[0].Budgets[0].GetStatus().GetCurrentSpend()
+	assert.InDelta(t, 10, before, 0.001)
+
+	grown := append(slices.Clone(rows), engine.OverviewRow{
+		URN: "urn:new", ProjectedCost: &engine.ProjectedCostData{MonthlyCost: 60, Currency: "USD"},
+	})
+	pipe.RefreshFallbackBudget(ctx, grown)
+	require.Len(t, events.budgets, 2)
+	assert.InDelta(t, 70, events.budgets[1].Budgets[0].GetStatus().GetCurrentSpend(), 0.001)
+}
+
+type recordingPulumi struct {
+	preview []byte
+	args    *[]string
+}
+
+func (r recordingPulumi) Run(_ context.Context, _, _ string, _ []string, args ...string) ([]byte, []byte, error) {
+	*r.args = append([]string(nil), args...)
+	return r.preview, nil, nil
+}
+
+func TestOverviewPipeline_ExplicitStatePreviewHonorsStackFlag(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Chdir(t.TempDir())
+	preview, err := os.ReadFile(overviewFixture(t, "plan-no-changes.json"))
+	require.NoError(t, err)
+	var previewArgs []string
+	t.Cleanup(pulumidetect.SetRunnerForTest(recordingPulumi{preview: preview, args: &previewArgs}))
+
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{
+			pulumiState: overviewFixture(t, "state-no-changes.json"), stack: "dev", cfg: &config.Config{},
+		},
+		loader:      autoDetectOverviewLoader,
+		openPlugins: fakeOpenPlugins,
+		newEngine:   fakeNewEngine,
+		enrichRows:  passThroughEnrichment,
+	})
+	require.NoError(t, pipe.Run(context.Background()))
+	require.NotEqual(t, "dev", pipe.Result().StackName, "the file name drives the display name")
+
+	_, err = pipe.RunPreviewWithError(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"--stack", "dev"}, previewArgs[len(previewArgs)-2:])
+}
+
+func TestOverviewPipeline_DeliverBudgetResetsFallbackFlag(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Cleanup(config.ResetGlobalConfigForTest)
+	config.SetGlobalConfig(&config.Config{Cost: config.CostConfig{
+		Budgets: &config.BudgetsConfig{Global: &config.ScopedBudget{Amount: 100, Currency: "USD"}},
+	}})
+	ctx := context.Background()
+	pipe := newOverviewPipeline(overviewPipelineConfig{budgetFallback: true})
+	var seen int
+	pipe.OnBudget = func(*engine.BudgetResult, error) { seen++ }
+
+	empty := make(chan budgetFetchResult, 1)
+	empty <- budgetFetchResult{result: &engine.BudgetResult{}}
+	_, err := pipe.deliverBudget(ctx, nil, empty, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, seen)
+
+	plugin := make(chan budgetFetchResult, 1)
+	plugin <- budgetFetchResult{result: &engine.BudgetResult{Budgets: fallbackBudgetResult(t).Budgets}}
+	_, err = pipe.deliverBudget(ctx, nil, plugin, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, seen)
+
+	pipe.RefreshFallbackBudget(ctx, nil)
+	assert.Equal(t, 2, seen, "plugin budgets must not be replaced by the config fallback")
+}
+
+func fallbackBudgetResult(t *testing.T) *engine.BudgetResult {
+	t.Helper()
+	cfg := config.GetGlobalConfig()
+	result := engine.BuildConfigBudgetResult(context.Background(), cfg.Cost.Budgets, 1)
+	require.NotNil(t, result)
+	return result
+}
+
+// TestOverviewPipeline_PluginErrorBeatsKilledStackList cancels an in-flight
+// `pulumi stack ls` by failing plugin startup. The killed process reports
+// "signal: killed" and does not carry the cancellation, but the run must
+// still report the plugin failure.
+//
+// Not parallel: changes the working directory, PATH, and runs a subprocess.
+func TestOverviewPipeline_PluginErrorBeatsKilledStackList(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	project := t.TempDir()
+	t.Chdir(project)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(project, "Pulumi.yaml"), []byte("name: test\nruntime: yaml\n"), 0o600,
+	))
+
+	started := filepath.Join(t.TempDir(), "started")
+	binDir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+if printf '%%s\n' "$*" | grep -q 'stack ls'; then
+  echo started > '%s'
+  exec sleep 60
+fi
+exit 0
+`, started)
+	require.NoError(t, os.WriteFile(filepath.Join(binDir, "pulumi"), []byte(script), 0o755))
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	pluginErr := errors.New("plugin boom")
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}, stateOnly: true},
+		openPlugins: func(context.Context, string, *auditContext) ([]*pluginhost.Client, func(), error) {
+			deadline := time.Now().Add(5 * time.Second)
+			for {
+				if _, err := os.Stat(started); err == nil {
+					break
+				}
+				if time.Now().After(deadline) {
+					return nil, nil, errors.New("stack ls did not start")
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			return nil, func() {}, pluginErr
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	err := pipe.Run(ctx)
+	require.ErrorIs(t, err, pluginErr)
+	assert.NotContains(t, err.Error(), "signal:")
+}
+
+// TestOverviewPipeline_IndependentLoadErrorWins keeps a stack-load failure that
+// is not the cancellation caused by a plugin error.
+func TestOverviewPipeline_IndependentLoadErrorWins(t *testing.T) {
+	t.Parallel()
+
+	loadErr := errors.New("schema mismatch")
+	pluginErr := errors.New("plugin boom")
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(context.Context, *OverviewPipeline) (*OverviewPipelineData, error) {
+			return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: loadErr}
+		},
+		openPlugins: func(context.Context, string, *auditContext) ([]*pluginhost.Client, func(), error) {
+			return nil, func() {}, pluginErr
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+
+	err := pipe.Run(context.Background())
+	require.ErrorIs(t, err, loadErr)
+	assert.NotErrorIs(t, err, pluginErr)
 }

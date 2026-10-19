@@ -26,12 +26,19 @@ for target in "${targets[@]}"; do
   exe=$binary
   [[ $goos == windows ]] && exe="$binary.exe"
   mkdir -p "$work/$name"
+  release_files=("$exe")
+  for notice in LICENSE NOTICE; do
+    if [[ -f "$module_dir/data/$notice" ]]; then
+      cp "$module_dir/data/$notice" "$work/$name/$notice"
+      release_files+=("$notice")
+    fi
+  done
   CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch \
     go -C "$module_dir" build -trimpath -ldflags "-s -w -X main.version=$version" -o "$work/$name/$exe" "$pkg"
   if [[ $goos == windows ]]; then
-    (cd "$work/$name" && zip -q "$out_dir/$name.zip" "$exe")
+    (cd "$work/$name" && zip -q "$out_dir/$name.zip" "${release_files[@]}")
   else
-    tar -C "$work/$name" -czf "$out_dir/$name.tar.gz" "$exe"
+    tar -C "$work/$name" -czf "$out_dir/$name.tar.gz" "${release_files[@]}"
   fi
 done
 

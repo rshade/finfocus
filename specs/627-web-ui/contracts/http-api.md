@@ -88,7 +88,7 @@ helpers for direct browser rendering.
 | GET | `/api/overview/stream` | — | SSE stream (see events below) |
 | POST | `/api/overview/query` | `OverviewQuery` | `{ rows: OverviewRowResult[], totals: OverviewTotals, page, totalPages }` — filtered/sorted/flattened by `internal/viewmodel` |
 | POST | `/api/overview/cluster/toggle` | `{ urn: string, expanded: string[] }` (the client's current expanded set) | Updated flattened page plus the new expanded set (same shape as query). The server keeps no expansion state, so two tabs never interfere |
-| POST | `/api/overview/preview` | — | Triggers live `pulumi preview` (TUI `p`-key equivalent); at most one runs at a time (a second call attaches to the running one, `202`); progress streamed on the SSE channel; final message carries updated rows |
+| POST | `/api/overview/preview` | — | Triggers live `pulumi preview` (TUI `p`-key equivalent) only while the run is state-only and no preview has been applied. Otherwise `409` / `preview_not_allowed`. At most one runs at a time (a second call while it is running attaches, `202`); progress streamed on the SSE channel; a successful result clears state-only and carries updated rows. A preview whose added rows could not be priced ends with `preview` status `error` and the generic `Preview failed` message (no error text); the run stays state-only and the call may be repeated |
 | GET | `/api/overview/budget` | — | `{ budgets: BudgetHealthResult[], display: BudgetDisplay }` — the shared CLI health schema, without notification destinations |
 | GET | `/api/overview/resource?urn=...` | — | `{ row: OverviewRowResult, display: OverviewDetailDisplay, budgets: BudgetHealthResult[], budgetDisplay: BudgetDisplay, activeRecommendations: [{ recommendation, savingsDisplay }] }` — property diffs and breakdowns are in the row; active recommendations and savings use the shared TUI detail selector |
 | POST | `/api/passphrase` | `{ passphrase: string }` | `202` on accept; hands the value to the loading pipeline, which passes it to the `pulumi` subprocess environment only (never `os.Setenv`, as `internal/pulumi/pulumi.go` does for the TUI); errors surface on SSE |
@@ -109,7 +109,8 @@ recovers the current state without restarting the load.
 | `expansion` | `{ rows: OverviewRowResult[], notes: string[] }` | Cluster expansion finished after enrichment; replaces the row set (mirrors the TUI's `OverviewExpansionReadyMsg`) |
 | `ready` | `{ totals: OverviewTotals }` | Load complete |
 | `passphrase_required` | `{ stack: string }` | Encrypted stack — SPA shows masked prompt. A rejected passphrase emits `error` and then `passphrase_required` again |
-| `snapshot` | `{ phases, rows, totals, budget, progress, ready, passphraseRequired, stack, preview, errors }` | State so far, including safe phase failures; sent first on every connect and when unlock handoff starts |
+| `snapshot` | `{ phases, rows, totals, budget, progress, ready, passphraseRequired, stack, preview, errors, stateOnly, previewLoaded, detectFailed, footnote }` | State so far, including safe phase failures and whether the run is state-only; sent first on every connect and when unlock handoff starts |
+| `run_status` | `{ stateOnly, previewLoaded, detectFailed, footnote }` | State-only status. `footnote` is the TUI state-only note while a preview has not been applied. The three flags are always present as booleans. A successful preview sets `previewLoaded` and clears `stateOnly`, `detectFailed`, and `footnote` |
 | `preview` | `{ status, elapsedMs, rows? }` | On-demand preview progress/result |
 
 ## Cost actual
@@ -220,7 +221,7 @@ the TUI and browser; JavaScript renders their financial strings verbatim.
 
 | Method | Path | Body / Query | Response |
 |--------|------|--------------|----------|
-| GET | `/api/estimate/resources` | — | `{ resources: ResourceDescriptor[] }`, real source descriptors with current projected properties |
+| GET | `/api/estimate/resources` | optional `showAll=true` | `{ resources: ResourceDescriptor[], billability, hiddenCount, preferredURN }`, eligible real source descriptors with current projected properties; Show all restores confirmed non-billable entries |
 | GET | `/api/estimate/baseline?urn=...` | optional `pricingMode` | `{ resource, result: EstimateResult, pricingModes, pricingMode, display }` |
 | POST | `/api/estimate/recalculate` | `{ urn, overrides: map[string]string, pricingMode? }` | `EstimateResult` fields plus `{ pricingMode, display }` |
 
@@ -255,14 +256,36 @@ its supplying provider. Both baseline and modified costs use that provider's
 projected-cost RPC, bypassing the projected cache whose keys omit provider
 identity. Advisory price options never replace the primary estimate.
 
+Resource listing hides confirmed non-billable resources by default. The `showAll`
+boolean restores the complete safe list after launch filters; invalid or repeated
+values return 400 `invalid_query`. `billability` maps stable resource IDs to
+`non_billable`, `potentially_billable`, or `unknown`. `hiddenCount` counts entries
+hidden in this response. `preferredURN` recommends the initial selection and is
+empty when no candidates remain. List rendering does not probe pricing plugins;
+missing or conflicting cached metadata remains unknown. Zero cost or rate alone
+never hides a resource. Baseline and recalculation accept safe source URNs even
+when hidden from the default list.
+
 `eng.EstimateBaseline` shares this RPC/fallback path while preserving the public
 `EstimateCost` requirement for nonempty overrides. The TUI uses the same
 provider-aware request and baseline helper; the plain CLI can select that
-provider with its existing `--adapter` option. Provider failures return a safe
-`502` / `estimate_unavailable` error; the browser retains the editor with an
-inline error and does not claim recalculation succeeded. Requests inherit both
-browser cancellation and session cancellation, and session shutdown joins them
-before plugins close.
+provider with its existing `--adapter` option. A provider failure on
+`GET /api/estimate/baseline` returns `200` with `status: "unavailable"`,
+`error`, `code: "estimate_unavailable"`, `resource`, `pricingModes`, and
+`display.properties`. A success carries no `status`; the browser treats the
+marker as a failed estimate. Those rows come from
+`viewmodel.BuildEstimatePropertyRows` with no cost deltas, and the comparison
+strings stay empty. `eng.DiscoverPricingSpec` still runs on that failure, on
+its own deadline. The body goes through the same redaction as a successful
+estimate. `400` / `invalid_pricing_mode` stays `{ error, code }` only.
+Request and server errors (unknown resource `404`, source failure `502`) stay
+`{ error, code }`. Recalculation failures stay a plain `502` /
+`estimate_unavailable`. The browser
+shows the inline error, keeps the returned rows and modes, leaves the
+comparison empty, and does not claim the estimate succeeded. Editing a value
+or choosing a mode sends that attempt again. Requests inherit both browser
+cancellation and session cancellation, and session shutdown joins them before
+plugins close.
 
 ## Errors
 

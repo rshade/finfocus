@@ -11,6 +11,16 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 )
 
+func TestRecommendationsViewNamesProfile(t *testing.T) {
+	t.Parallel()
+
+	dev := NewRecommendationsViewModelWithProfile([]engine.Recommendation{}, "dev")
+	assert.Contains(t, dev.View().Content, "Profile: dev")
+
+	plain := NewRecommendationsViewModel([]engine.Recommendation{})
+	assert.Contains(t, plain.View().Content, "Profile: default")
+}
+
 func TestNewRecommendationsSummary(t *testing.T) {
 	t.Parallel()
 

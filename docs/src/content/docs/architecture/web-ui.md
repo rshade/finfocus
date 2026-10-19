@@ -93,9 +93,10 @@ terminal view already does:
 - Error messages from the Pulumi subprocess, which can contain its stderr, are
   replaced with fixed, safe labels before they reach the page.
 
-Because the redaction runs over every JSON payload, a data map whose keys look
-like credential names can lose entries. Issue
-[#1752](https://github.com/rshade/finfocus/issues/1752) tracks this.
+Maps keyed by domain data (a resource URN, a breakdown line, or a service,
+provider, or adapter label) keep their keys. Pulumi secret values inside
+those maps are still removed. Property maps, property diffs, and estimate
+overrides still drop credential-like names.
 
 The Config page does not use that payload redactor. Its JSON is already masked:
 the values of secret settings and notification destinations are omitted, while

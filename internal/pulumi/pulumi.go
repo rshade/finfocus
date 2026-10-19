@@ -191,6 +191,12 @@ func GetCurrentStack(ctx context.Context, projectDir string) (string, error) {
 
 	stdout, stderr, err := getRunner().Run(ctx, projectDir, "pulumi", nil, "stack", "ls", "--json")
 	if err != nil {
+		// A canceled command kills the process. Wait then reports "signal: killed"
+		// and does not wrap the context error, so callers would treat the kill as
+		// a stack-loading failure. Preserve the cancellation when the context is done.
+		if cerr := ctx.Err(); cerr != nil {
+			return "", fmt.Errorf("running pulumi stack ls: %w", cerr)
+		}
 		return "", fmt.Errorf("running pulumi stack ls: %w: %s", err, strings.TrimSpace(string(stderr)))
 	}
 

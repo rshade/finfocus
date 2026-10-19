@@ -216,7 +216,7 @@ func descriptorsFromInfo(settings []*pbc.PluginSetting) []webui.PluginSettingDes
 			Key:         setting.GetKey(),
 			Type:        typeName,
 			Required:    setting.GetRequired(),
-			Secret:      settingSecret(setting.GetSecret(), typeName, setting.GetKey()),
+			Secret:      settingSecret(setting.GetSecret(), typeName, setting.GetKey(), false),
 			Default:     setting.GetDefaultValue(),
 			DefaultSet:  setting.GetDefaultValue() != "",
 			Description: clipSettingDescription(setting.GetDescription()),
@@ -509,23 +509,24 @@ func descriptorMap(descriptors []webui.PluginSettingDescriptor) map[string]webui
 }
 
 func settingIsSecret(descriptor webui.PluginSettingDescriptor, known bool, key string) bool {
-	if known && descriptor.Secret {
-		return true
+	if !known {
+		return settingSecret(false, "", key, true)
 	}
-	if known && !credentialNameApplies(descriptor.Type) {
-		return false
-	}
-	return config.IsCredentialName(key) || config.IsSecretSetting(key)
+	return settingSecret(descriptor.Secret, descriptor.Type, key, true)
 }
 
 // settingSecret honors an explicit plugin secret flag. Bool and enum settings
-// skip the credential-name heuristic; string and URL keys still use it.
-func settingSecret(explicit bool, typeName, key string) bool {
+// skip the credential-name heuristic; string and URL keys still use it. With
+// anySegment, a credential name in any dotted segment of the key counts.
+func settingSecret(explicit bool, typeName, key string, anySegment bool) bool {
 	if explicit {
 		return true
 	}
 	if !credentialNameApplies(typeName) {
 		return false
+	}
+	if anySegment {
+		return config.IsCredentialName(key) || config.IsSecretSetting(key)
 	}
 	return config.IsCredentialName(key)
 }

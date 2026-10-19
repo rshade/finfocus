@@ -1,9 +1,16 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
+	"strings"
 	"testing"
+	"text/tabwriter"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/registry"
 )
 
 // TestFormatProviders tests the provider list formatting function.
@@ -103,45 +110,59 @@ func TestFormatCapabilities(t *testing.T) {
 	}
 }
 
-// TestEnrichedPluginInfoDisplayVersion tests the version display logic.
-func TestEnrichedPluginInfoDisplayVersion(t *testing.T) {
+// TestPluginListRowsUseInstallVersion keeps the version column on the
+// install directory name when only the active binary was started.
+func TestPluginListRowsUseInstallVersion(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name           string
-		runtimeVersion string
-		version        string
-		expected       string
-	}{
+	rows := []enrichedPluginInfo{
 		{
-			name:           "runtime version available",
-			runtimeVersion: "1.2.3",
-			version:        "1.0.0",
-			expected:       "1.2.3",
+			PluginInfo: registry.PluginInfo{
+				Name:    "aws-public",
+				Version: "v0.2.0",
+				Path:    "/plugins/aws-public/v0.2.0/finfocus-plugin-aws-public",
+			},
+			SpecVersion:        "v0.7.6",
+			RuntimeVersion:     "0.2.0",
+			SupportedProviders: []string{"aws"},
+			Capabilities:       []string{"projected_costs"},
+			Active:             true,
+			probed:             true,
 		},
 		{
-			name:           "runtime version N/A falls back to version",
-			runtimeVersion: notAvailable,
-			version:        "1.0.0",
-			expected:       "1.0.0",
-		},
-		{
-			name:           "both N/A returns N/A",
-			runtimeVersion: notAvailable,
-			version:        notAvailable,
-			expected:       notAvailable,
+			PluginInfo: registry.PluginInfo{
+				Name:    "aws-public",
+				Version: "v0.1.9",
+				Path:    "/plugins/aws-public/v0.1.9/finfocus-plugin-aws-public",
+			},
+			SpecVersion:    notAvailable,
+			RuntimeVersion: notAvailable,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			info := enrichedPluginInfo{
-				RuntimeVersion: tt.runtimeVersion,
-			}
-			info.Version = tt.version
-			result := info.displayVersion()
-			assert.Equal(t, tt.expected, result)
-		})
+	var jsonBuf bytes.Buffer
+	require.NoError(t, renderPluginsJSON(&jsonBuf, rows))
+	var entries []PluginJSONEntry
+	require.NoError(t, json.Unmarshal(jsonBuf.Bytes(), &entries))
+	require.Len(t, entries, 2)
+	assert.Equal(t, "v0.2.0", entries[0].Version)
+	assert.Equal(t, "0.2.0", entries[0].RuntimeVersion)
+	assert.Equal(t, []string{"aws"}, entries[0].SupportedProviders)
+	assert.Equal(t, "v0.1.9", entries[1].Version)
+	assert.Equal(t, notAvailable, entries[1].RuntimeVersion)
+	assert.Nil(t, entries[1].SupportedProviders)
+	assert.Nil(t, entries[1].Capabilities)
+	assert.False(t, entries[1].Active)
+
+	var tableBuf bytes.Buffer
+	writer := tabwriter.NewWriter(&tableBuf, 0, 0, 2, ' ', 0)
+	require.NoError(t, writePluginTable(writer, rows, false, true))
+	var versions []string
+	for _, line := range strings.Split(tableBuf.String(), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "aws-public" {
+			versions = append(versions, fields[1])
+		}
 	}
+	assert.Equal(t, []string{"v0.2.0", "v0.1.9"}, versions)
 }

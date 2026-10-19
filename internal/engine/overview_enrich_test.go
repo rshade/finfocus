@@ -1163,3 +1163,25 @@ func TestEnrichOverviewRow_CostDrift_ComputedOnCompletion(t *testing.T) {
 	assert.InDelta(t, -49.31, row.CostDrift.PercentDrift, 0.01)
 	assert.True(t, row.CostDrift.IsWarning)
 }
+
+func TestSetPropertyIfEmpty(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		props map[string]any
+		want  any
+	}{
+		{name: "absent", props: map[string]any{}, want: "new"},
+		{name: "empty string", props: map[string]any{"k": ""}, want: "new"},
+		{name: "non-string", props: map[string]any{"k": 7}, want: "new"},
+		{name: "existing kept", props: map[string]any{"k": "old"}, want: "old"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			setPropertyIfEmpty(tt.props, "k", "new")
+			assert.Equal(t, tt.want, tt.props["k"])
+		})
+	}
+}

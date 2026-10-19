@@ -45,6 +45,17 @@ graph TD
     H --> I[Result Aggregation]
 ```
 
+### Usage profile
+
+`cost projected`, `cost recommendations`, `cost forecast`, `cost estimate`,
+and a cluster run-rate can pass a workload hint to plugins. Set it with
+`--profile` (`dev`, `prod`, `burst`, or `default`), with `FINFOCUS_PROFILE`,
+or with `cost.profile` in config. The flag wins, then the environment
+variable, then the config field. FinFocus sends the hint and shows the price
+the plugin returns. It does not invent a development discount. Measured
+commands (`cost actual`, `cost history collect`, and a historical cluster
+window) do not send the hint. Projected JSON names it as `finfocus.profile`.
+
 ### Resource Classification
 
 Resources are classified by type and provider:

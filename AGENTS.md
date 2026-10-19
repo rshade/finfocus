@@ -153,6 +153,9 @@ Use `require.*` for setup failures and nil checks, `assert.*` for value comparis
 
 ### Active Technologies
 
+- 631-carbon-plugin (implemented): Go 1.27.1, finfocus-spec v0.7.6, static CCF data,
+  and generic carbon enrichment.
+
 - Go 1.27.1 + finfocus-spec SDK, Cobra CLI, zerolog, gRPC, pluginsdk (001-plugin-init-recorder)
 - Local filesystem for fixture downloads and recorded request output (001-plugin-init-recorder)
 

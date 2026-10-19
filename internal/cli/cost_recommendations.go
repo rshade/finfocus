@@ -214,6 +214,9 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	// Create engine with optional cache and router
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
 	defer cacheCleanup()
+	if profileErr := applyUsageProfile(cmd, eng, config.GetGlobalConfig()); profileErr != nil {
+		return toValidationError(ctx, profileErr)
+	}
 
 	// Fetch recommendations with progress indicator
 	result, err := fetchRecommendationsWithProgress(ctx, cmd, eng, resources, params.includeDismissed)
@@ -300,6 +303,7 @@ func buildRecommendationsView(
 		TotalSavings:    calculateTotalSavings(filtered),
 		Currency:        result.Currency,
 		Scoring:         result.Scoring,
+		Profile:         result.Profile,
 	}
 	if field := scoreSortField(params.sort); field != "" && view.Scoring != nil {
 		summary := *view.Scoring
@@ -580,7 +584,7 @@ func RenderRecommendationsOutput(
 
 	switch mode {
 	case tui.OutputModeInteractive:
-		return runInteractiveRecommendations(result.Recommendations)
+		return runInteractiveRecommendations(result.Recommendations, result.Profile)
 
 	case tui.OutputModeStyled:
 		// Styled mode renders the summary with lipgloss styling
@@ -595,8 +599,8 @@ func RenderRecommendationsOutput(
 
 // runInteractiveRecommendations launches the interactive TUI for recommendations.
 // Uses NewRecommendationsViewModel which starts with data already loaded.
-func runInteractiveRecommendations(recommendations []engine.Recommendation) error {
-	model := tui.NewRecommendationsViewModel(recommendations)
+func runInteractiveRecommendations(recommendations []engine.Recommendation, profile string) error {
+	model := tui.NewRecommendationsViewModelWithProfile(recommendations, profile)
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive recommendations TUI: %w", err)
@@ -611,6 +615,7 @@ func renderStyledRecommendationsOutput(
 	verbose bool,
 ) error {
 	// Use TUI summary renderer for styled output
+	fmt.Fprintf(w, "Profile: %s\n", displayedUsageProfile(result.Profile))
 	summary := tui.NewRecommendationsSummary(result.Recommendations)
 	fmt.Fprint(w, tui.RenderRecommendationsSummaryTUI(summary, tui.TerminalWidth()))
 
@@ -629,7 +634,7 @@ const headerSeparatorLen = 40
 
 // renderRecommendationsSummary renders a summary section showing aggregate statistics.
 // This includes total count, total savings, and breakdown by action type.
-func renderRecommendationsSummary(w io.Writer, recommendations []engine.Recommendation) {
+func renderRecommendationsSummary(w io.Writer, recommendations []engine.Recommendation, profile string) {
 	totalSavings := 0.0
 	countByAction := make(map[string]int)
 	savingsByAction := make(map[string]float64)
@@ -646,6 +651,7 @@ func renderRecommendationsSummary(w io.Writer, recommendations []engine.Recommen
 
 	fmt.Fprintln(w, "RECOMMENDATIONS SUMMARY")
 	fmt.Fprintln(w, "=======================")
+	fmt.Fprintf(w, "Profile: %s\n", displayedUsageProfile(profile))
 	fmt.Fprintf(w, "Total Recommendations: %d\n", len(recommendations))
 	fmt.Fprintf(w, "Total Potential Savings: %.2f %s\n", totalSavings, currency)
 
@@ -691,7 +697,7 @@ func renderRecommendationsTableWithVerbose(
 	verbose bool,
 ) error {
 	// Render summary section first
-	renderRecommendationsSummary(w, result.Recommendations)
+	renderRecommendationsSummary(w, result.Recommendations, result.Profile)
 	if result.Scoring != nil {
 		fmt.Fprint(w, scoringSummaryLine(result.Scoring, result.Recommendations))
 		fmt.Fprintln(w)
@@ -819,6 +825,7 @@ func renderRecommendationsJSON(
 		Recommendations: make([]recommendationJSON, 0, len(result.Recommendations)),
 		TotalSavings:    result.TotalSavings,
 		Currency:        result.Currency,
+		Profile:         displayedUsageProfile(result.Profile),
 		Errors:          result.Errors,
 		Pagination:      paginationMeta,
 		Scoring:         newScoringJSON(result.Scoring),
@@ -854,6 +861,7 @@ func renderRecommendationsNDJSON(
 		TotalCount:        jsonSum.TotalCount,
 		TotalSavings:      jsonSum.TotalSavings,
 		Currency:          jsonSum.Currency,
+		Profile:           displayedUsageProfile(result.Profile),
 		CountByActionType: jsonSum.CountByActionType,
 		SavingsByAction:   jsonSum.SavingsByAction,
 		Pagination:        paginationMeta,
@@ -998,6 +1006,7 @@ type recommendationsJSONOutput struct {
 	Recommendations []recommendationJSON         `json:"recommendations"`
 	TotalSavings    float64                      `json:"total_savings"`
 	Currency        string                       `json:"currency"`
+	Profile         string                       `json:"profile"`
 	Errors          []engine.RecommendationError `json:"errors,omitempty"`
 	Pagination      *pagination.PaginationMeta   `json:"pagination,omitempty"`
 	Scoring         *scoringJSON                 `json:"scoring,omitempty"`
@@ -1012,6 +1021,7 @@ type ndjsonSummary struct {
 	TotalCount        int                        `json:"total_count"`
 	TotalSavings      float64                    `json:"total_savings"`
 	Currency          string                     `json:"currency"`
+	Profile           string                     `json:"profile"`
 	CountByActionType map[string]int             `json:"count_by_action_type"`
 	SavingsByAction   map[string]float64         `json:"savings_by_action_type"`
 	Pagination        *pagination.PaginationMeta `json:"pagination,omitempty"`

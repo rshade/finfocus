@@ -181,7 +181,7 @@ type ActualCostData struct {
 	MTDCost   float64            `json:"mtdCost"`
 	Currency  string             `json:"currency"`
 	Period    DateRange          `json:"period"`
-	Breakdown map[string]float64 `json:"breakdown,omitempty"`
+	Breakdown map[string]float64 `json:"breakdown,omitempty" datakey:"true"`
 	// BilledDays is the length of the interval MTDCost covers when it is
 	// shorter than the display window (a resource created mid-window). Zero
 	// means MTDCost covers the whole window.
@@ -211,7 +211,7 @@ func (a *ActualCostData) Validate() error {
 type ProjectedCostData struct {
 	MonthlyCost float64            `json:"monthlyCost"`
 	Currency    string             `json:"currency"`
-	Breakdown   map[string]float64 `json:"breakdown,omitempty"`
+	Breakdown   map[string]float64 `json:"breakdown,omitempty" datakey:"true"`
 }
 
 // Validate checks that the ProjectedCostData fields are consistent.
@@ -331,6 +331,11 @@ type OverviewRow struct {
 	Recommendations       []Recommendation   `json:"recommendations,omitempty"`
 	CostDrift             *CostDriftData     `json:"costDrift,omitempty"`
 	Error                 *OverviewRowError  `json:"error,omitempty"`
+	// ProjectedPricingFailed is set when a plugin call failed and no price came
+	// from any source. The engine reports that as NO_COST_DATA, so Error stays
+	// nil and the Warn column is unchanged; callers that must tell a failed
+	// price from an unpriced type read this flag.
+	ProjectedPricingFailed bool `json:"-"`
 	// Warnings lists overview conditions in derivation order: drift, error, new.
 	// estimate and stale are not derived yet.
 	Warnings      []OverviewWarning `json:"warnings,omitempty"`

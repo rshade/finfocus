@@ -14,7 +14,7 @@ func NewConfigGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <key>",
 		Short: "Get a configuration value",
-		Long: `Gets a configuration value using dot notation from ~/.finfocus/config.yaml.
+		Long: `Gets a configuration value using dot notation from the project config (when a project is detected) over ~/.finfocus/config.hujson.
 
 Note: Sensitive values should be stored as environment variables (e.g., FINFOCUS_PLUGIN_AWS_SECRET_KEY)
 and will not appear in configuration files.`,
@@ -37,8 +37,9 @@ and will not appear in configuration files.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := args[0]
 
-			// config.New() already loads from disk and applies env overrides
-			cfg := config.New().MaskedForDisplay()
+			// NewWithProjectDir loads the global tier (with env overrides) and
+			// shallow-merges the project tier over it, as run time does.
+			cfg := config.NewWithProjectDir(cmd.Context(), config.GetResolvedProjectDir()).MaskedForDisplay()
 
 			// Get the value
 			value, err := cfg.Get(key)

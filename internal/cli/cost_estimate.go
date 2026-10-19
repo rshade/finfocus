@@ -388,6 +388,9 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 	// Create engine and estimate
 	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	if profileErr := applyUsageProfile(cmd, eng, usageProfileSource(cfg)); profileErr != nil {
+		return toValidationError(ctx, profileErr)
+	}
 	request := &engine.EstimateRequest{
 		Resource:          resource,
 		PropertyOverrides: overrides,
@@ -448,6 +451,9 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg
 	// Create engine
 	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	if profileErr := applyUsageProfile(cmd, eng, usageProfileSource(cfg)); profileErr != nil {
+		return toValidationError(ctx, profileErr)
+	}
 
 	// Process each resource with modifications
 	var results []*engine.EstimateResult
@@ -815,7 +821,7 @@ func buildResourceFromParams(provider, resourceType, region string) *engine.Reso
 
 // executeInteractiveEstimate launches and runs the interactive TUI for cost estimation.
 // It obtains the command context and I/O from cmd and determines the initial resource from
-// params (uses the first resource from params.PlanPath if provided, otherwise builds a
+// params (selects an eligible resource from params.PlanPath if provided, otherwise builds a
 // resource from params.Provider and params.ResourceType). The function opens adapter
 // plugins (falling back to spec-only mode if plugins fail), constructs an engine with a
 // router, and runs a TUI that calls back into the engine to recalculate estimates as the
@@ -836,6 +842,7 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 
 	// Build resource from params (single-resource mode) or load from plan
 	var resource *engine.ResourceDescriptor
+	var planResources []engine.ResourceDescriptor
 
 	switch {
 	case params.PlanPath != "":
@@ -848,14 +855,7 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 			cmd.Println("No resources found in plan")
 			return nil
 		}
-		// Use the first resource for interactive mode
-		first := resources[0]
-		resource = &engine.ResourceDescriptor{
-			Provider:   first.Provider,
-			Type:       first.Type,
-			ID:         first.ID,
-			Properties: first.Properties,
-		}
+		planResources = resources
 	case params.Provider != "" && params.ResourceType != "":
 		resource = buildResourceFromParams(params.Provider, params.ResourceType, params.Region)
 	default:
@@ -875,6 +875,19 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 
 	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	if profileErr := applyUsageProfile(cmd, eng, usageProfileSource(cfg)); profileErr != nil {
+		return toValidationError(ctx, profileErr)
+	}
+
+	if planResources != nil {
+		resource = selectInteractiveEstimateResource(ctx, eng, planResources)
+		if resource == nil {
+			cmd.Println(
+				"No eligible resources for estimation: the plan contains only known non-billable resources. Use --provider and --resource-type to inspect a resource explicitly.",
+			)
+			return nil
+		}
+	}
 
 	model := newInteractiveEstimateModel(ctx, eng, resource)
 	program := tea.NewProgram(model)
@@ -897,6 +910,22 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 		return renderEstimateResult(cmd.OutOrStdout(), params.Output, result)
 	}
 
+	return nil
+}
+
+// selectInteractiveEstimateResource applies the same visibility and initial
+// selection policy as the web picker, without changing plan order or properties.
+func selectInteractiveEstimateResource(
+	ctx context.Context,
+	eng *engine.Engine,
+	resources []engine.ResourceDescriptor,
+) *engine.ResourceDescriptor {
+	selection := eng.SelectEstimateResources(ctx, resources, false)
+	for _, resource := range selection.Resources {
+		if resource.ID == selection.PreferredURN {
+			return &resource
+		}
+	}
 	return nil
 }
 

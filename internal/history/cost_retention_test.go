@@ -1,6 +1,9 @@
 package history
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -118,4 +121,60 @@ func pruneSnap(version int, at time.Time) CostSnapshot {
 		ByType:       map[string]float64{},
 		Resources:    []CostResource{},
 	}
+}
+
+func TestCompactCostFile_IgnoresPlantedTempSymlink(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("creating symlinks needs elevated privileges on Windows")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "dev.history.db")
+	db, err := OpenCostDB(path, "dev")
+	require.NoError(t, err)
+	now := time.Date(2026, time.October, 3, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, db.Put(pruneSnap(1, now), CostAnnotation{Version: 1}))
+	require.NoError(t, db.Close())
+
+	outside := filepath.Join(t.TempDir(), "outside.db")
+	require.NoError(t, os.Symlink(outside, path+".compact"))
+
+	_, _, err = CompactCostFile(path)
+	require.NoError(t, err)
+
+	_, err = os.Stat(outside)
+	require.ErrorIs(t, err, os.ErrNotExist, "the link target must stay untouched")
+	reopened, err := OpenCostDBRead(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = reopened.Close() })
+	snaps, err := reopened.Snapshots(time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.Len(t, snaps, 1)
+	leftovers, err := filepath.Glob(filepath.Join(dir, "*.compact-*"))
+	require.NoError(t, err)
+	assert.Empty(t, leftovers)
+}
+
+func TestCompactCostFile_CleansTempOnFailure(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "dev.history.db")
+	garbage := []byte("not a bolt database")
+	require.NoError(t, os.WriteFile(path, garbage, 0o600))
+
+	_, _, err := CompactCostFile(path)
+	require.Error(t, err)
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, garbage, got)
+	leftovers, err := filepath.Glob(filepath.Join(dir, "*.compact-*"))
+	require.NoError(t, err)
+	assert.Empty(t, leftovers)
+}
+
+func TestCreateCompactTemp_MissingDirectory(t *testing.T) {
+	t.Parallel()
+	_, err := createCompactTemp(filepath.Join(t.TempDir(), "absent", "dev.history.db"), 0o600)
+	require.ErrorContains(t, err, "creating compacted cost history")
 }

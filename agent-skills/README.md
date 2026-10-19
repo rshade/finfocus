@@ -19,6 +19,7 @@ cost-optimize, budget-setup) live in
 | [finfocus-diagnose](finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost | M |
 | [finfocus-plugin-upgrade](finfocus-plugin-upgrade/) | Upgrade a plugin project to a newer finfocus-spec version | M |
 | [finfocus-plugin-dev](finfocus-plugin-dev/) | Implement and test a plugin scaffolded by `plugin init` | M |
+| [plugin-manage](plugin-manage/) | Install, update, remove, validate, and troubleshoot installed plugins | M |
 
 `finfocus plugin init` and `finfocus plugin upgrade` install
 `finfocus-plugin-dev` and `finfocus-plugin-upgrade` into the plugin
@@ -30,12 +31,6 @@ npx -y skills@1.7.0 add https://github.com/rshade/finfocus/tree/main/agent-skill
   --skill finfocus-plugin-dev --skill finfocus-plugin-upgrade \
   --agent codex --agent claude-code --copy -y
 ```
-
-## Planned Skills
-
-| Skill | Issue | LOE |
-|-------|-------|-----|
-| plugin-manage | [#911](https://github.com/rshade/finfocus/issues/911) | M |
 
 ## Skill Structure
 

@@ -193,14 +193,20 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return listenerErr
 }
 
-// Run listens, serves, and blocks until ctx is canceled or SIGINT/SIGTERM
-// arrives, then shuts down gracefully. SIGTERM must take this path: it is
-// how process supervisors stop the dashboard, and only this path stops
-// plugin children.
+// Run listens, then serves until ctx is canceled or SIGINT/SIGTERM arrives.
 func (s *Server) Run(ctx context.Context) error {
 	if err := s.Listen(); err != nil {
 		return err
 	}
+	return s.ServeUntilInterrupt(ctx)
+}
+
+// ServeUntilInterrupt serves on the bound listener and blocks until ctx is
+// canceled or SIGINT/SIGTERM arrives, then shuts down gracefully. It is the
+// only owner of that signal handling. SIGTERM must take this path: it is how
+// process supervisors stop the dashboard, and only this path stops plugin
+// children.
+func (s *Server) ServeUntilInterrupt(ctx context.Context) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

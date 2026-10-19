@@ -4,13 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -133,6 +130,9 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		filter:      flags.filter,
 		cfg:         config.New(),
 	}
+	if _, err := resolveUsageProfile(cmd, usageProfileSource(params.cfg)); err != nil {
+		return toValidationError(ctx, err)
+	}
 	dateRange, err := resolveOverviewDateRange(flags.from, flags.to, time.Now())
 	if err != nil {
 		return toValidationError(ctx, fmt.Errorf("invalid date range: %w", err))
@@ -180,7 +180,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		}
 	}
 
-	serveErr := serveWebUntilInterrupt(ctx, srv)
+	serveErr := srv.ServeUntilInterrupt(ctx)
 	session.Close()
 
 	// Stop the pipeline before releasing plugins so enrichment gRPC calls are
@@ -198,35 +198,6 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	}
 	audit.logSuccess(ctx, pipe.Result().RowsEnriched, 0)
 	return nil
-}
-
-// serveWebUntilInterrupt serves until ctx is cancelled or SIGINT/SIGTERM
-// arrives, then shuts the server down gracefully. SIGTERM must share the
-// SIGINT path so plugin cleanup runs; a supervisor stop is SIGTERM.
-func serveWebUntilInterrupt(ctx context.Context, srv *webui.Server) error {
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	serveErr := make(chan error, 1)
-	go func() {
-		err := srv.Serve()
-		if errors.Is(err, http.ErrServerClosed) {
-			err = nil
-		}
-		serveErr <- err
-	}()
-
-	select {
-	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), webShutdownTimeout)
-		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			return err
-		}
-		return <-serveErr
-	case err := <-serveErr:
-		return err
-	}
 }
 
 // openWebBrowser opens url in the system default browser via the platform
@@ -290,6 +261,7 @@ func bindWebPipeline(
 	pipe.OnDataReady = func(rows []engine.OverviewRow, _ int, stack string) {
 		session.SetData(pipe.Engine(), rows, dateRange, stack)
 	}
+	pipe.OnStateOnly = func(detectErrMsg string) { session.SetStateOnly(detectErrMsg != "") }
 	pipe.OnRow = session.Row
 	pipe.OnProgress = session.Progress
 	pipe.OnBudget = session.Budget
@@ -386,7 +358,16 @@ func webSessionOptions(
 		QueryEngine:       data.queryEngine,
 		ActualCosts:       data.actualCosts, Recommendations: data.recommendations, Trends: data.tableTrends,
 		Preview: func(previewCtx context.Context) ([]engine.OverviewRow, error) {
-			return previewWebRows(previewCtx, pipe, pipeDone)
+			rows, previewErr := previewWebRows(previewCtx, pipe, pipeDone)
+			if previewErr != nil {
+				return nil, previewErr
+			}
+			merged, appendErr := data.appendPreviewRows(previewCtx, rows)
+			if appendErr != nil {
+				return nil, appendErr
+			}
+			pipe.RefreshFallbackBudget(previewCtx, merged)
+			return merged, nil
 		},
 		SubmitPassphrase: func(requestCtx context.Context, pw string) error {
 			select {

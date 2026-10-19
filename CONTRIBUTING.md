@@ -63,7 +63,7 @@ submit a pull request directly.
 | Tool             | Version    | Purpose             |
 | ---------------- | ---------- | ------------------- |
 | Go               | 1.27.1+    | Core development    |
-| golangci-lint    | v2.12.2    | Go linting          |
+| golangci-lint    | `mise.toml` | Go linting         |
 | markdownlint-cli | v0.45.0    | Markdown linting    |
 | Git              | Latest     | Version control     |
 | Make             | Latest     | Build automation    |
@@ -78,9 +78,11 @@ Download from [go.dev/dl](https://go.dev/dl/)
 **Install golangci-lint:**
 
 ```bash
-# Download and install golangci-lint
-curl -sSfL "https://golangci-lint.run/install.sh" | sh -s -- -b "$HOME/go/bin" v2.12.2
+mise install
 ```
+
+`make lint` runs the binary `mise which golangci-lint` resolves. The version
+is the `golangci-lint` pin in `mise.toml`.
 
 **Install markdownlint-cli:**
 

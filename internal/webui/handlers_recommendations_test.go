@@ -8,7 +8,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -123,6 +125,11 @@ func TestRecommendationDetailSignals(t *testing.T) {
 	)
 	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
 	s := newRunningServer(t, Options{Session: session})
+	require.Equal(
+		t,
+		http.StatusOK,
+		overviewRequest(t, s, "POST", "/api/recommendations/query", `{"includeDismissed":true}`).StatusCode,
+	)
 	resp := overviewRequest(t, s, "GET", "/api/recommendations/item?id=signal", "")
 	require.Equal(t, 200, resp.StatusCode)
 	var detail struct {
@@ -131,6 +138,74 @@ func TestRecommendationDetailSignals(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&detail))
 	assert.Equal(t, scores, detail.Item.Scores)
 	assert.Equal(t, 404, overviewRequest(t, s, "GET", "/api/recommendations/item?id=missing", "").StatusCode)
+}
+
+func newRecommendationServer(
+	t *testing.T,
+	fn func(context.Context, bool) (*engine.RecommendationsResult, error),
+) *Server {
+	t.Helper()
+	session := NewSession(context.Background(), SessionOptions{Recommendations: fn})
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	return newRunningServer(t, Options{Session: session})
+}
+
+func TestRecommendationItemFallsBackWhenNoQueryRan(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	s := newRecommendationServer(t, func(context.Context, bool) (*engine.RecommendationsResult, error) {
+		calls.Add(1)
+		return &engine.RecommendationsResult{Recommendations: []engine.Recommendation{
+			{ID: "a", ResourceID: "r1", Type: "Resize"},
+		}}, nil
+	})
+	assert.Equal(t, 200, overviewRequest(t, s, "GET", "/api/recommendations/item?id=a", "").StatusCode)
+	assert.Equal(t, 200, overviewRequest(t, s, "GET", "/api/recommendations/item?id=a", "").StatusCode)
+	assert.Equal(t, int32(1), calls.Load())
+	assert.Equal(t, 404, overviewRequest(t, s, "GET", "/api/recommendations/item?id=missing", "").StatusCode)
+}
+
+func TestRecommendationItemUnstableIDsAndDismissal(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	s := newRecommendationServer(t, func(_ context.Context, include bool) (*engine.RecommendationsResult, error) {
+		n := calls.Add(1)
+		recs := []engine.Recommendation{
+			{ID: fmt.Sprintf("fresh-%d-a", n), ResourceID: "r1", Type: "Resize", Description: "first"},
+		}
+		if include {
+			recs = append(recs, engine.Recommendation{
+				ID: "gone", ResourceID: "r2", Type: "Delete", Status: engine.RecommendationStatusDismissed,
+			})
+		}
+		return &engine.RecommendationsResult{Recommendations: recs}, nil
+	})
+	var page viewmodel.RecommendationPage
+	resp := overviewRequest(t, s, "POST", "/api/recommendations/query", `{}`)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&page))
+	require.Len(t, page.Items, 1)
+	key := viewmodel.RecommendationDetailKey(page.Items[0])
+
+	for range 2 {
+		resp = overviewRequest(t, s, "GET", "/api/recommendations/item?id=stale&key="+url.QueryEscape(key), "")
+		require.Equal(t, 200, resp.StatusCode)
+	}
+	assert.Equal(t, int32(1), calls.Load())
+
+	assert.Equal(t, 404, overviewRequest(t, s, "GET", "/api/recommendations/item?id=gone", "").StatusCode)
+
+	resp = overviewRequest(t, s, "POST", "/api/recommendations/query", `{"includeDismissed":true}`)
+	require.Equal(t, 200, resp.StatusCode)
+	resp = overviewRequest(t, s, "GET", "/api/recommendations/item?id=gone", "")
+	require.Equal(t, 200, resp.StatusCode)
+	var detail struct {
+		Item engine.Recommendation `json:"item"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&detail))
+	assert.Equal(t, engine.RecommendationStatusDismissed, detail.Item.Status)
+
+	require.Equal(t, 200, overviewRequest(t, s, "POST", "/api/recommendations/query", `{}`).StatusCode)
+	assert.Equal(t, 404, overviewRequest(t, s, "GET", "/api/recommendations/item?id=gone", "").StatusCode)
 }
 
 func TestReadOnlyAPIFailureContracts(t *testing.T) {
@@ -159,6 +234,10 @@ func TestReadOnlyAPIFailureContracts(t *testing.T) {
 		{"POST", "/api/cost/actual/query", "{}"}, {"GET", "/api/cost/actual/resource?id=x", ""}, {"POST", "/api/recommendations/query", "{}"}, {"GET", "/api/recommendations/item?id=x", ""},
 	} {
 		opts := SessionOptions{ActualCosts: failActual, Recommendations: failRecs}
+		errWant := http.StatusBadGateway
+		if route.path == "/api/recommendations/item?id=x" {
+			errWant = http.StatusBadGateway
+		}
 		cases = append(cases, struct {
 			name               string
 			opts               SessionOptions
@@ -166,7 +245,7 @@ func TestReadOnlyAPIFailureContracts(t *testing.T) {
 			closed             bool
 			method, path, body string
 			want               int
-		}{name: route.path + " error", opts: opts, ready: true, method: route.method, path: route.path, body: route.body, want: 502}, struct {
+		}{name: route.path + " error", opts: opts, ready: true, method: route.method, path: route.path, body: route.body, want: errWant}, struct {
 			name               string
 			opts               SessionOptions
 			ready              bool
@@ -252,6 +331,7 @@ func TestRecommendationDetailDisambiguatesIDlessActions(t *testing.T) {
 	)
 	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
 	s := newRunningServer(t, Options{Session: session})
+	require.Equal(t, http.StatusOK, overviewRequest(t, s, "POST", "/api/recommendations/query", "{}").StatusCode)
 	resp := overviewRequest(
 		t,
 		s,
@@ -300,6 +380,109 @@ func TestRecommendationDetailKeysAndActionSort(t *testing.T) {
 		404,
 		overviewRequest(t, s, "GET", "/api/recommendations/item?id=r&type=Delete&description=wrong", "").StatusCode,
 	)
+}
+
+func TestRecommendationDetailSurvivesUnstablePluginIDs(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	session := NewSession(
+		context.Background(),
+		SessionOptions{Recommendations: func(_ context.Context, _ bool) (*engine.RecommendationsResult, error) {
+			n := calls.Add(1)
+			items := []engine.Recommendation{
+				{
+					ID:               fmt.Sprintf("resize-%d", n),
+					ResourceID:       "db",
+					Type:             "Resize",
+					Description:      "smaller",
+					EstimatedSavings: 3,
+				},
+				{
+					ID:               fmt.Sprintf("delete-%d", n),
+					ResourceID:       "db",
+					Type:             "Delete",
+					Description:      "unused",
+					EstimatedSavings: 8,
+				},
+			}
+			if n > 1 {
+				items = items[1:]
+			}
+			return &engine.RecommendationsResult{Recommendations: items}, nil
+		}},
+	)
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	s := newRunningServer(t, Options{Session: session})
+
+	resp := overviewRequest(t, s, "POST", "/api/recommendations/query", "{}")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var page viewmodel.RecommendationPage
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&page))
+	require.Len(t, page.Items, 2)
+	assert.Equal(t, int32(1), calls.Load())
+
+	opened := map[string]engine.Recommendation{}
+	for _, item := range page.Items {
+		path := "/api/recommendations/item?id=" + url.QueryEscape(item.ID) + "&key=" + url.QueryEscape(item.ID)
+		resp = overviewRequest(t, s, "GET", path, "")
+		require.Equal(t, http.StatusOK, resp.StatusCode, item.ID)
+		var detail struct {
+			Item engine.Recommendation `json:"item"`
+		}
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&detail))
+		assert.Equal(t, item.ID, detail.Item.ID)
+		assert.Equal(t, item.Description, detail.Item.Description)
+		assert.Equal(t, item.ResourceID, detail.Item.ResourceID)
+		opened[item.Description] = detail.Item
+	}
+	assert.Equal(t, int32(1), calls.Load(), "detail must not refetch")
+	require.Contains(t, opened, "smaller")
+	require.Contains(t, opened, "unused")
+	assert.NotEqual(t, opened["smaller"].ID, opened["unused"].ID)
+	assert.Equal(
+		t,
+		http.StatusNotFound,
+		overviewRequest(t, s, "GET", "/api/recommendations/item?id=missing", "").StatusCode,
+	)
+
+	resp = overviewRequest(t, s, "POST", "/api/recommendations/query", "{}")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var refreshed viewmodel.RecommendationPage
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&refreshed))
+	require.Len(t, refreshed.Items, 1)
+	assert.Equal(t, "unused", refreshed.Items[0].Description)
+	assert.NotEqual(t, opened["unused"].ID, refreshed.Items[0].ID)
+
+	assert.Equal(
+		t,
+		http.StatusNotFound,
+		overviewRequest(
+			t,
+			s,
+			"GET",
+			"/api/recommendations/item?id="+url.QueryEscape(opened["smaller"].ID),
+			"",
+		).StatusCode,
+	)
+	resp = overviewRequest(
+		t,
+		s,
+		"GET",
+		"/api/recommendations/item?id="+url.QueryEscape(
+			refreshed.Items[0].ID,
+		)+"&key="+url.QueryEscape(
+			refreshed.Items[0].ID,
+		),
+		"",
+	)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var survivor struct {
+		Item engine.Recommendation `json:"item"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&survivor))
+	assert.Equal(t, "unused", survivor.Item.Description)
+	assert.Equal(t, refreshed.Items[0].ID, survivor.Item.ID)
+	assert.NotEqual(t, "smaller", survivor.Item.Description)
 }
 
 func TestRecommendationPartialErrorsRemainVisibleAndSafe(t *testing.T) {
@@ -377,4 +560,87 @@ func TestReadOnlyShutdownDoesNotWaitForSlowResponseWriter(t *testing.T) {
 	close(writer.release)
 	<-returned
 	<-closed
+}
+
+func TestRecommendationItemFallbackDoesNotReplaceALaterQuery(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	started := make(chan struct{})
+	release := make(chan struct{})
+	s := newRecommendationServer(t, func(context.Context, bool) (*engine.RecommendationsResult, error) {
+		if calls.Add(1) == 1 {
+			close(started)
+			<-release
+			return &engine.RecommendationsResult{
+				Recommendations: []engine.Recommendation{{ID: "old", Type: "Resize"}},
+			}, nil
+		}
+		return &engine.RecommendationsResult{Recommendations: []engine.Recommendation{{ID: "new", Type: "Resize"}}}, nil
+	})
+	detail := make(chan int, 1)
+	go func() {
+		req, err := http.NewRequest(http.MethodGet, s.BaseURL()+"/api/recommendations/item?id=old", nil)
+		if err != nil {
+			detail <- 0
+			return
+		}
+		req.AddCookie(&http.Cookie{Name: s.cookieName(), Value: s.token})
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			detail <- 0
+			return
+		}
+		_ = resp.Body.Close()
+		detail <- resp.StatusCode
+	}()
+	<-started
+	require.Equal(t, 200, overviewRequest(t, s, "POST", "/api/recommendations/query", `{}`).StatusCode)
+	close(release)
+	assert.Equal(t, 404, <-detail)
+	assert.Equal(t, 200, overviewRequest(t, s, "GET", "/api/recommendations/item?id=new", "").StatusCode)
+}
+
+func TestReadOnlyShutdownDoesNotWaitForSlowErrorWriter(t *testing.T) {
+	t.Parallel()
+	for name, fn := range map[string]func(context.Context, bool) (*engine.RecommendationsResult, error){
+		"error": func(context.Context, bool) (*engine.RecommendationsResult, error) {
+			return nil, errors.New("plugin down")
+		},
+		"nil result": func(context.Context, bool) (*engine.RecommendationsResult, error) { return nil, nil }, //nolint:nilnil // a nil result is the case under test
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			session := NewSession(context.Background(), SessionOptions{Recommendations: fn})
+			session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+			s := newRunningServer(t, Options{Session: session})
+			writer := &blockedJSONWriter{
+				ResponseRecorder: httptest.NewRecorder(),
+				entered:          make(chan struct{}),
+				release:          make(chan struct{}),
+			}
+			returned := make(chan struct{})
+			go func() {
+				defer close(returned)
+				s.handleRecommendationsQuery(
+					writer,
+					httptest.NewRequest(
+						http.MethodPost,
+						s.BaseURL()+"/api/recommendations/query",
+						strings.NewReader("{}"),
+					),
+				)
+			}()
+			<-writer.entered
+			closed := make(chan struct{})
+			go func() { session.Close(); close(closed) }()
+			select {
+			case <-closed:
+			case <-time.After(time.Second):
+				assert.Fail(t, "session shutdown waited for a slow error write")
+			}
+			close(writer.release)
+			<-returned
+			<-closed
+		})
+	}
 }

@@ -22,8 +22,33 @@ func setupTestConfig(t *testing.T) func() {
 	t.Setenv("HOME", testHome)
 	t.Setenv("USERPROFILE", testHome) // Windows compatibility
 	t.Setenv("FINFOCUS_HOME", filepath.Join(testHome, ".finfocus"))
-	// If a reset helper exists, call it here; otherwise noop.
+	config.ResetGlobalConfigForTest()
+	t.Cleanup(config.ResetGlobalConfigForTest)
 	return func() {}
+}
+
+//nolint:paralleltest // Mutates the process-wide global config singleton.
+func TestSetupTestConfigDoesNotLeakGlobalConfig(t *testing.T) {
+	t.Cleanup(config.ResetGlobalConfigForTest)
+	polluted := func() *config.Config {
+		return &config.Config{Output: config.OutputConfig{DefaultFormat: "invalid"}}
+	}
+
+	t.Run("resets on entry", func(t *testing.T) {
+		config.SetGlobalConfig(polluted())
+		setupTestConfig(t)
+		t.Setenv("FINFOCUS_HOME", t.TempDir())
+		assert.NotEqual(t, "invalid", config.GetGlobalConfig().Output.DefaultFormat)
+	})
+
+	t.Run("resets on cleanup", func(t *testing.T) {
+		t.Run("pollute", func(t *testing.T) {
+			setupTestConfig(t)
+			config.SetGlobalConfig(polluted())
+		})
+		t.Setenv("FINFOCUS_HOME", t.TempDir())
+		assert.NotEqual(t, "invalid", config.GetGlobalConfig().Output.DefaultFormat)
+	})
 }
 
 func TestConfigInitCmd(t *testing.T) {

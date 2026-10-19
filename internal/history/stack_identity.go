@@ -65,6 +65,19 @@ func ProjectFromURN(urn string) string {
 	return parts[1]
 }
 
+// StackFromURN returns the stack named by a Pulumi URN, or "" for anything else.
+func StackFromURN(urn string) string {
+	if !strings.HasPrefix(urn, urnPrefix) {
+		return ""
+	}
+	rest := strings.TrimPrefix(urn, urnPrefix)
+	stack, _, found := strings.Cut(rest, urnSeparator)
+	if !found || stack == "" {
+		return ""
+	}
+	return stack
+}
+
 // ProjectFromFileName returns the project and stack encoded in a
 // `<project>@<stack>.history.db` name, and false for a legacy name.
 func ProjectFromFileName(name string) (string, string, bool) {

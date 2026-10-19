@@ -41,6 +41,7 @@ the command auto-detects your Pulumi project and stack from the current director
 | `--exit-code` | Exit code for a threshold breach (0-255) | 1 |
 | `--notify` | Send [budget notifications](../guides/budgets.md#budget-notifications) for exceeded thresholds. Unset uses `FINFOCUS_NOTIFY` | false |
 | `--state-only` | Skip pulumi preview (faster, no pending change detection). Mutually exclusive with `--pulumi-json` | false |
+| `--profile` | Workload hint for projected cost and recommendations: `dev`, `prod`, `burst`, or `default`. Overrides `FINFOCUS_PROFILE` and `cost.profile` | no preference |
 | `--budget-scope` | Filter budget scopes: global, provider, tag, type | All |
 
 ## Auto-Detection
@@ -180,6 +181,7 @@ flags; see [Use the browser dashboard](../guides/web-ui.md).
 | `e` | Toggle expansion of a cluster row (Kubernetes workloads) |
 | `Right` | Expand a cluster row |
 | `Left` | Collapse a cluster row |
+| `r` | In the detail view, retry a cost-history load that failed |
 | `q` / `Ctrl+C` | Quit |
 
 ### Progressive loading
@@ -195,6 +197,12 @@ Press Enter on a resource to see a detailed breakdown including:
 - Projected cost (monthly) with breakdown
 - Cost drift analysis with extrapolation
 - Optimization recommendations with estimated savings
+- Stored cost history for this resource, loaded when the detail view opens.
+  The series comes from `cost history collect` for the stack named by the
+  resource, not the state-file name. A missing history database leaves this
+  section out. A read failure stays in the detail view; press `r` to try
+  again. On a short terminal, Up and Down scroll the detail view so the
+  history section and the retry hint stay reachable.
 
 ## Kubernetes cluster expansion
 

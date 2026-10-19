@@ -9,6 +9,8 @@ import (
 	"maps"
 	"strings"
 	"time"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // GetProjectedCostDiff prices each resource twice when the plan changed it:
@@ -29,6 +31,7 @@ func (e *Engine) GetProjectedCostDiff(
 		return &DiffResult{
 			Entries: []DiffEntry{},
 			Summary: DiffSummary{Currency: defaultCurrency},
+			Profile: config.UsageProfileLabel(e.usageProfile),
 		}, nil
 	}
 
@@ -43,6 +46,7 @@ func (e *Engine) GetProjectedCostDiff(
 		return nil, err
 	}
 	result := assembleDiff(resources, plan, beforeCosts, afterCosts, append(afterErrs, beforeErrs...))
+	result.Profile = config.UsageProfileLabel(e.usageProfile)
 	e.attachPricingExplanations(ctx, resources, plan, result)
 	return result, nil
 }

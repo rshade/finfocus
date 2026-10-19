@@ -75,6 +75,7 @@ func (s *Server) WriteJSON(w http.ResponseWriter, status int, value any) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+	//nolint:gosec // G705: RedactJSON uses json.Marshal HTML escaping; Content-Type is application/json.
 	_, _ = w.Write(append(data, '\n'))
 }
 func sortField(value string) (viewmodel.SortField, bool) {
@@ -197,6 +198,11 @@ func (s *Server) handleOverviewResource(w http.ResponseWriter, r *http.Request) 
 }
 func (s *Server) handlePreview(w http.ResponseWriter, _ *http.Request) {
 	if err := s.session.startPreview(); err != nil {
+		if errors.Is(err, errPreviewNotAllowed) {
+			s.writeError(w, http.StatusConflict, "preview_not_allowed",
+				"preview is available only before a preview has been loaded on a state-only run")
+			return
+		}
 		s.writeError(w, http.StatusServiceUnavailable, "unavailable", "preview unavailable")
 		return
 	}

@@ -36,7 +36,7 @@ finfocus plugin install     # Install a plugin
 finfocus plugin update      # Update a plugin
 finfocus plugin upgrade     # Upgrade a plugin project to a newer finfocus-spec
 finfocus plugin remove      # Remove a plugin
-finfocus plugin list        # List installed plugins
+finfocus plugin list        # List the latest version of each installed plugin
 finfocus plugin inspect     # Inspect plugin capabilities
 finfocus plugin validate    # Validate plugin setup
 finfocus plugin conformance # Run conformance tests
@@ -295,6 +295,8 @@ finfocus cost history export --stack <name> --format <json|csv|ndjson>
 `json` is one document with snapshots and annotations. `csv` has a header
 and one row per snapshot. `ndjson` is one snapshot per line. `cost projected`
 and `cost actual` add a Trend column when that stack's history file exists.
+The interactive detail view in `finfocus overview` and `cost actual` reads
+that same file when you open a resource.
 
 ## cost recommendations
 
@@ -525,6 +527,13 @@ flag shows the column. Levels:
 | HIGH   | Real billing data from plugin (AWS Cost Explorer, Kubecost)     |
 | MEDIUM | Runtime estimate for Pulumi-created resources                   |
 | LOW    | Runtime estimate for imported resources (creation time unknown) |
+
+### Interactive detail (cost actual)
+
+On a terminal, `cost actual` opens an interactive table. Enter opens one
+resource. That detail view loads the resource's stored cost history for
+`--stack` when you open it. The list does not load it. A failure stays on
+the detail view and `r` tries again.
 
 ### Examples (cost actual)
 
@@ -1122,7 +1131,16 @@ finfocus plugin remove --all
 
 ## plugin list
 
-List installed plugins with optional capability details.
+List installed plugins. The default is one row per plugin: the highest semver,
+which is the version core opens. `--all` lists every installed version and
+adds an Active column (`yes` for the version core opens). Older versions are
+not started unless `--verbose` is also set, so their Providers cell is `-`.
+`--output json` uses the same selection. `version` is the install directory
+name. `runtimeVersion` is what the plugin reports, or `N/A` when that binary
+was not started. Each object has `"active": true` or `"active": false`.
+Providers and capabilities are `null` for a version that was not started.
+A version directory that is not semver prints a warning and stays out of the
+default listing.
 
 ### Usage (plugin list)
 
@@ -1132,31 +1150,41 @@ finfocus plugin list [options]
 
 ### Options (plugin list)
 
-| Flag        | Description                                     | Default |
-| ----------- | ----------------------------------------------- | ------- |
-| `--verbose` | Show detailed plugin capabilities and providers | false   |
-| `--help`    | Show help                                       |         |
+| Flag        | Description                                                | Default |
+| ----------- | ---------------------------------------------------------- | ------- |
+| `--all`     | List every installed version and mark the one core uses   | false   |
+| `--verbose` | Show detailed plugin capabilities and providers            | false   |
+| `--output`  | Output format: `table` or `json`                           | `table` |
+| `--help`    | Show help                                                  |         |
 
 ### Examples (plugin list)
 
 ```bash
-# List all plugins
+# List the latest version of each plugin
 finfocus plugin list
 
 # Output:
-# NAME      VERSION   SPEC    PATH
-# vantage   0.1.0     0.4.14  /Users/me/.finfocus/plugins/vantage/v0.1.0/finfocus-plugin-vantage
-# opencost  0.1.2     0.7.5   /Users/me/.finfocus/plugins/opencost/v0.1.2/finfocus-plugin-opencost
+# Name        Version  Providers
+# ----        -------  ---------
+# aws-public  0.2.0    aws
+# recorder    0.1.0    test
 
-# List with detailed capabilities (routing-aware)
-finfocus plugin list --verbose
+# List every installed version. Older rows are not started.
+finfocus plugin list --all
 
 # Output:
-# NAME        VERSION  PROVIDERS    CAPABILITIES                 SPEC    PATH
-# aws-public  1.0.0    [aws]        ProjectedCosts, ActualCosts  0.4.14  /Users/me/.finfocus/plugins/aws-public/v1.0.0/finfocus-plugin-aws-public
-# aws-ce      1.0.0    [aws]        Recommendations, ActualCosts 0.4.14  /Users/me/.finfocus/plugins/aws-ce/v1.0.0/finfocus-plugin-aws-ce
-# gcp-public  1.0.0    [gcp]        ProjectedCosts, ActualCosts  0.4.14  /Users/me/.finfocus/plugins/gcp-public/v1.0.0/finfocus-plugin-gcp-public
-# eks-costs   0.5.0    [aws]        ProjectedCosts                 0.4.14  /Users/me/.finfocus/plugins/eks-costs/v0.5.0/finfocus-plugin-eks-costs
+# Name        Version  Active  Providers
+# ----        -------  ------  ---------
+# aws-public  0.2.0    yes     aws
+# aws-public  0.1.9    no      -
+# aws-public  0.1.5    no      -
+# recorder    0.1.0    yes     test
+
+# Same selection as JSON
+finfocus plugin list --all --output json
+
+# List with detailed capabilities (starts every version when combined with --all)
+finfocus plugin list --verbose
 ```
 
 ## plugin inspect

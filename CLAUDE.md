@@ -57,8 +57,9 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
 ```
 
 - `make lint` checks golangci-lint's version against `mise.toml` and runs
-  `$(HOME)/go/bin/golangci-lint`. When that binary lags the pin, run
-  `make lint GOLANGCI_LINT="$(mise which golangci-lint)"`.
+  `mise which golangci-lint`. Install it with `mise install` (`make tools`).
+  Do not point `GOLANGCI_LINT` at `$(HOME)/go/bin/golangci-lint`: that copy
+  can lag the pin and reject the current config.
 - `pkill golangci-lint || true` clears a parallel-runner conflict. Lint can run
   longer than five minutes.
 - After a rebase, run `go vet ./...` before trusting `make test`. A widened
@@ -163,8 +164,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `pkill -f <name>` or `pgrep -f <name>` from a shell whose own command line
   contains the name: it matches and kills the shell. Anchor the pattern.
 - The aws-public router starts a per-region child
-  (`finfocus-plugin-aws-public-<region>`) that outlives the router when core
-  stops it. Check `ps` for orphans after local runs.
+  (`finfocus-plugin-aws-public-<region>`) that can outlive the router when
+  finfocus is SIGKILLed or the child leaves the plugin's process group. Check
+  `ps` for orphans after local runs.
 - Remote-write fixtures need `storage.tsdb.out_of_order_time_window` in the
   Prometheus config and a window relative to now. A fixed date is rejected as
   out of bounds once a newer sample exists, and later falls out of the 15-day
@@ -225,7 +227,7 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `EstimateCost` attributes. Do not add a second rule.
 - Anything new sent to a plugin must be in the projected cache key; that is
   why keys end in `/tags-`, `/refs-`, `/attrs-` digests and feature suffixes
-  (`/pricing-spec`, `/growth-v1`, `/penv-`). `/penv-` is the digest of the
+  (`/pricing-spec`, `/growth-v1`, `/penv-`, `/profile-dev|prod|burst`). `/penv-` is the digest of the
   clients that engine retained at construction. A settings or validate probe
   must not update another engine's key. An empty digest omits the suffix.
   Tests of the process-wide helper must not run in parallel and must call
@@ -314,14 +316,25 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   published when the engine is built (`newCleanupPublisher`), so the abandon
   path still closes plugins before the process exits; a detached goroutine
   (`runLateOverviewCleanup`) covers a cleanup that appears later.
-- `finfocus --web` shuts down on SIGINT and SIGTERM (`serveWebUntilInterrupt`
-  and `webui.Server.Run`). That is the path that stops plugin children.
+- `finfocus --web` shuts down on SIGINT and SIGTERM (`webui.Server.ServeUntilInterrupt`,
+  the single owner; `Run` is Listen plus that). That is the path that stops
+  plugin children.
   `server_sigterm_test.go` is `//go:build unix` because Windows has no
   `syscall.Kill` or SIGTERM. The interrupt test signals `os.Interrupt`.
-  SIGKILL still only delivers `Pdeathsig` to the direct child; a grandchild
-  the plugin spawned (the aws-public region binary) keeps running. That
-  grandchild case belongs in the plugin. `analyzer serve` already handles
-  both signals.
+  On SIGTERM, core SIGKILLs each plugin's whole process group
+  (`killProcessGroup`), so a grandchild that stays in the plugin's group dies
+  too; `test/integration/web_sigterm_orphan_test.go` pins that with a
+  router-like fixture. SIGKILL of finfocus itself only delivers `Pdeathsig` to
+  the direct child, and a grandchild that leaves the group (`Setsid` or its own
+  `Setpgid`) survives either way. Those cases belong in the plugin.
+  `analyzer serve` already handles both signals.
+- On-demand overview preview passes `capturePlan` into `resolveOverviewPlan`
+  (the hook is a normal parameter, not a variadic). The web Estimate page
+  reads that captured plan. Web Overview appends plan-only creates through
+  `engine.AppendPlanOnlyRows` (the same step `MergeResourcesForOverview` uses) and
+  prices only those new rows with `EnrichOverviewRows`; it does not only patch
+  rows that already exist. `capturePlan` takes the same query
+  gate as the readers.
 - `cost estimate --modify` splits on the last colon before `=`, so a Pulumi
   URN selector keeps its colons. A selector matches the resource ID, the
   logical name (the last `::` segment), or the type, and every matching
@@ -332,9 +345,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `--resource-type` must be a full token (`package:module:Type`) whose
   package matches `--provider`; a short name such as `ec2:Instance` is
   rejected.
-- `plugin list` orders by name ascending, then installed version descending
-  as semver. A version that is not semver uses ascending string order, and
-  path breaks remaining ties. Table and JSON use that same order.
+- `plugin list` shows the highest semver of each plugin. `--all` lists every
+  installed version, marks the one core opens (`Active` / JSON `active`), and
+  starts older binaries only with `--verbose`. A non-semver directory name is
+  a warning and is omitted from the default listing. Rows sort by name
+  ascending, then installed version descending as semver. A version that is
+  not semver uses ascending string order, and path breaks remaining ties.
+  Table and JSON use that same order. Invalid-semver warnings go to stderr
+  and do not change the exit code.
 - `analyzer serve` prints only the port on stdout (Pulumi handshake); all logs
   go to stderr.
 - **Tests leak into the real `~/.finfocus`** unless they set
@@ -365,6 +383,18 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
 - The overview docs page is `docs/src/content/docs/commands/overview.md`.
+- Overview plugin startup overlaps stack loading (`OverviewPipeline.Run`, #692).
+  The launch context is a child of the caller context. `errgroup.WithContext`
+  cancels on `Wait` and would kill plugins (`exec.CommandContext`) before
+  enrichment, so this overlap does not use it. A plugin error cancels the
+  load; a load error cancels the launch. Cleanup runs before `Run` returns
+  when either side fails, and stays on the pipeline only when both succeed.
+  Phase events stay 1..6; phase 4 is emitted when the open is joined.
+  `GetCurrentStack` wraps `ctx.Err()` when `pulumi stack ls` fails after that
+  context is canceled. The process error is `signal: killed` and does not
+  wrap `context.Canceled`, so overview would otherwise report the kill
+  instead of the plugin failure that canceled the load. A load error whose
+  context is still active stays a load error.
 - `internal/webui` must not import `cli`, `registry`, or `pluginhost`. Plugin
   page callbacks live in `internal/cli/web_plugins.go` and
   `plugin_settings_web.go`. Install progress is a per-operation SSE stream
@@ -372,6 +402,57 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   that bus runs `RedactJSON` and drops slow subscribers. Settings GET uses
   `writePlainJSON`. Secret values are absent from the body. Bool and enum
   plugin settings skip `IsCredentialName` unless the descriptor sets `secret`.
+  Data-keyed maps keep their keys through `RedactJSON`: use `engine.DataKeyed`
+  or the struct tag `datakey:"true"` (trends, breakdowns, and the cost-summary
+  groupings). `RedactJSON` redacts in one pass (`redaction_walk.go`): it walks
+  the decoded JSON alongside the original Go value, and that value is the only
+  thing that says a map is data-keyed. A data-keyed map's keys are never
+  matched against `IsHiddenPropertyKey`; its values still pass
+  `history.IsPulumiSecret` and recurse, and one that is itself a secret
+  envelope is dropped. Property maps do not get the mark, so
+  `IsHiddenPropertyKey` still drops credential-like names. A Go value with no
+  matching source (a type with its own `MarshalJSON`, an unknown key) is
+  treated as a property map. There is no restore step, so do not add one.
+  Do not add a second credential-name list or a payload-specific redactor case.
+  `GET /api/recommendations/item` reads the last successful recommendations
+  query cached on the session. It does not call the plugin again, because a
+  plugin may mint a new `Recommendation.ID` on every call. That ID stays the
+  dismissal id. A later successful query replaces the cache, and an id that
+  was not in it is 404. The web UI has no dismiss action, so a dismissal
+  made elsewhere shows only on the next query: dismissed items are absent from
+  a default query and present, flagged `Dismissed`, with `includeDismissed`.
+  With no successful query yet, the endpoint runs the query once and caches
+  it. With several tabs the last query wins.
+  The overview EventSource checks `GET /api/overview/budget` (same-origin
+  cookie, no bearer token) after a connection failure. A 401 stops retries
+  and tells the user to open the link printed in the terminal. `close`
+  aborts that check. Other failures, and a check that takes over 5s, keep the
+  capped backoff. `OverviewStream` moves through explicit states
+  (`connecting`, `open`, `authenticating`, `reconnecting`, `backoff`, `failed`,
+  `closed`) only via `dispatch`.
+  `GET /api/estimate/baseline` returns a provider failure as HTTP 200 with
+  `status: "unavailable"`, `error`, `code: "estimate_unavailable"`, redacted
+  `display.properties` with no deltas, `pricingModes` from
+  `DiscoverPricingSpec`, and `resource`. Never a 5xx that carries data. The
+  editor must treat the marker as a failure, not a success. Request and
+  server errors, `400 invalid_pricing_mode`, and recalculate failures stay a
+  plain `{error, code}` 4xx/5xx.
+  Web overview learns state-only from `pipe.OnStateOnly`
+  (`Session.SetStateOnly`). The three flags are one `webui.RunStatus` on the
+  session (browser: `mergeRunStatus` in `app.js`); the snapshot and the
+  `run_status` event carry `stateOnly`, `previewLoaded`, and `detectFailed` (a
+  boolean; the error text stays in the terminal log and never reaches the
+  browser). `POST /api/overview/preview`
+  is 409 unless the run is state-only and a preview has not been applied. A
+  successful preview clears that status. A preview whose added rows fail to
+  price (`appendPreviewRows` returns `errPreviewPricing`; a row has `Error` or
+  `ProjectedPricingFailed`) is an error, not loaded, so Run preview can retry;
+  an unpriced type that only reports `NO_COST_DATA` is not a failure. Do not keep a second store beside
+  those session fields.
+  `--pulumi-state` without `--pulumi-json` is state-only too, like the TUI.
+  After a preview adds rows, `appendPreviewRows` applies the dismissal delta to
+  them, and `OverviewPipeline.RefreshFallbackBudget` re-evaluates a config
+  budget against the new total (plugin budgets are left alone).
   `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.
@@ -457,6 +538,21 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`
   resolution. Unpriced `pulumi:` types are left out.
+- Usage profile (`specs/630-usage-profile/`): `--profile`, then
+  `FINFOCUS_PROFILE`, then `cost.profile` on the merged config
+  (`InitializedGlobalConfig`). `config.New` has no project overlay, so
+  estimate, overview, and the dashboard must not read the profile from it.
+  An omitted `cost.profile` is no preference. A present empty value fails
+  validation. The interactive recommendations view names the same profile.
+  The environment variable is not
+  copied into the config file. Opt-in engines are projected, recommendations,
+  forecast, estimate, cluster run-rate, overview, the dashboard engine, and
+  `analyzer serve`. `cost actual` and `cost history collect` stay unspecified.
+  The hourly-rate lookup inside actual cost passes UNSPECIFIED even when the
+  engine has a profile. A set profile skips projected `BatchCost` because
+  `BatchCostRequest` has no field, and appends `/profile-dev|prod|burst`
+  after the other cache suffixes. Unspecified adds nothing. Do not set the
+  profile inside `newEngineWithCache`.
 - Cost history (`internal/history`, `cost history *`): files are
   `<project>@<stack>.history.db`, separate from the resource-observation
   `history.db`. Both use one directory: `FINFOCUS_HISTORY_DIR`, then
@@ -464,7 +560,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   A project-tier `cost.history.directory` is ignored with a warning when it
   is absolute, has `..`, or resolves (symlinks followed on the deepest existing
   ancestor, against the working directory) outside the project root, or when
-  `history.db` or a `*.history.db` in it is a symlink or not a regular file
+  an entry named `history.db*` or containing `.history.db` (including the
+  `.compact-*` compaction temp) is a symlink or not a regular file
   (rechecked after `MkdirAll`; a swap after the check is not covered). The gate
   takes the project dir that built the config (`initHistoryFromConfig`'s
   `projectDir`; the analyzer passes its own, never the process-global one) and
@@ -472,6 +569,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   env var are trusted. The working-dir fallback is made absolute.
   `collect` fails a checkpoint rather than store an inaccurate
   total (#549). `internal/history` must not import `engine` or `ingest`.
+  The overview and `cost actual` interactive detail views load one resource's
+  series from that database only after Enter (`internal/tui/detail`). An empty
+  stack or a missing database returns `detail.ErrHistorySkipped` and the
+  section is omitted. Any other error stays
+  inline; `r` retries that load and leaves the detail view open. Replies carry
+  the model pointer and a generation so a late fetch cannot fill a newer view.
   History subcommands reuse the parent `--stack`. `cost history export` takes
   `csv`/`ndjson` through the root `--format` by rewriting it in `Args` before
   `ax.Execute` resolves the mode. `pulumi stack history` is read in pages of
@@ -581,10 +684,13 @@ Specs 613-623 hold the details. Invariants:
 
 ### MCP Server (`internal/cli/mcp.go`, `output_mode.go`)
 
-- `mcp-server` does not handle SIGINT or SIGTERM. ax-go `mcp.Serve` runs until
-  its context is canceled, and `main` passes `context.Background()` into
-  `ax.Execute`. ax-go's own example says the adopter cancels on those signals.
-  Do not patch ax-go from this repo.
+- `mcp-server` and `--mcp` cancel their context on SIGINT and SIGTERM
+  (`cancelOnShutdownSignal`, installed only on those two entry points; `main`
+  still passes `context.Background()`). ax-go `mcp.Serve` then drains and
+  returns nil, so the process exits 0 with deferred cleanup run. Do not move the
+  handler into `main`: `analyzer serve`, `--web`, and the TUI commands own their
+  signals. Do not patch ax-go from this repo. `mcp_server_signal_test.go`
+  (`//go:build unix`) pins this.
 - ax-go re-executes the shared root once per `tools/call`, so persistent
   pre/post run per call. Dispatched calls reuse the server's
   `loggingSession` and never close it.
@@ -617,6 +723,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 630-usage-profile: `--profile` / `FINFOCUS_PROFILE` / `cost.profile` sent on projected cost and recommendations (`specs/630-usage-profile/`)
 - 629-web-plugin-page: Plugins page in `finfocus --web` (catalog, install, settings)
 - 628-web-config-page: dashboard Config page and `config set` patch `config.hujson` in place
 - 626-cost-forecast: `cost forecast` projects plugin GrowthType with finfocus-spec `pricing.ApplyGrowth`

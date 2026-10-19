@@ -139,6 +139,7 @@ type Engine struct {
 	dismissalStore        *config.DismissalStore // Optional dismissal store; if nil, created on demand
 	jobs                  int                    // Override worker count; 0 means auto (default)
 	pricingSpecFallback   bool                   // GetPricingSpec after a projected-cost miss; default off
+	usageProfile          pbc.UsageProfile       // workload hint; zero is no preference
 	explainPricing        bool                   // --explain display; does not change the calculated cost
 	pricingSpecTimeout    time.Duration          // GetPricingSpec deadline; zero uses perResourceTimeout
 	pricingDiscoveryMu    sync.Mutex             // Guards pricingDiscoveryCache
@@ -197,6 +198,20 @@ func (e *Engine) WithRouter(router Router) *Engine {
 // This is optional - if not set, a store is created on demand per call.
 func (e *Engine) WithDismissalStore(store *config.DismissalStore) *Engine {
 	e.dismissalStore = store
+	return e
+}
+
+// WithUsageProfile sets the workload hint sent on projected-cost and
+// recommendation requests. An unknown value is no preference. The zero value
+// leaves the plugin request unset and the cache key unchanged.
+func (e *Engine) WithUsageProfile(profile pbc.UsageProfile) *Engine {
+	if e == nil {
+		return nil
+	}
+	if !pluginsdk.IsValidUsageProfile(profile) {
+		profile = pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED
+	}
+	e.usageProfile = profile
 	return e
 }
 
@@ -283,56 +298,77 @@ func (e *Engine) checkPluginSupports(
 			Attributes:   descriptor.GetAttributes(),
 		},
 	})
-	if err != nil {
-		if status.Code(err) == codes.InvalidArgument {
-			reason := status.Convert(err).Message()
-			if reason == "" {
-				reason = err.Error()
-			}
-			e.cacheSupportsResult(cacheKey, supportsResult{supported: false, reason: reason})
-			return false, reason
-		}
-		// Unimplemented and other non-transient failures stay fail-open and
-		// cached. A transient failure is not a lasting "supported" answer.
-		if !supportsFailureIsTransient(err) {
-			e.cacheSupportsResult(cacheKey, supportsResult{supported: true})
-		}
-		return true, ""
-	}
-
-	supported := resp.GetSupported()
-	reason := resp.GetReason()
-	log := logging.FromContext(ctx)
-	if !supported && reason == pluginsdk.DefaultSupportsNotImplementedReason {
+	verdict := classifySupports(resp, err)
+	switch verdict.kind {
+	case supportsKindNotImplemented:
 		// The plugin never implemented SupportsProvider; the SDK's generic
-		// fallback answered on its behalf. Fail open rather than treat that
-		// as a genuine "does not support" answer.
-		log.Debug().
+		// fallback answered on its behalf, so fail open.
+		logging.FromContext(ctx).Debug().
 			Str("component", "engine").
 			Str("plugin", client.Name).
 			Str("resource_type", resource.Type).
 			Str("resource_region", region).
 			Str("feature", feature).
 			Msg("plugin has no Supports implementation, failing open")
-		supported = true
-		reason = ""
-	} else if !supported {
-		log.Debug().
+	case supportsKindDeclined:
+		logging.FromContext(ctx).Debug().
 			Str("component", "engine").
 			Str("plugin", client.Name).
 			Str("resource_type", resource.Type).
 			Str("resource_region", region).
 			Str("feature", feature).
-			Str("reason", reason).
+			Str("reason", verdict.reason).
 			Msg("plugin does not support feature, skipping")
+	case supportsKindSupported, supportsKindFailOpen, supportsKindInvalidArgument:
 	}
-	if supported {
-		// A reason only has meaning on a genuine decline; never propagate
-		// one for a supported (or failed-open) answer.
-		reason = ""
+	if verdict.cache {
+		e.cacheSupportsResult(cacheKey, supportsResult{supported: verdict.supported, reason: verdict.reason})
 	}
-	e.cacheSupportsResult(cacheKey, supportsResult{supported: supported, reason: reason})
-	return supported, reason
+	return verdict.supported, verdict.reason
+}
+
+type supportsKind int
+
+const (
+	supportsKindSupported supportsKind = iota
+	supportsKindDeclined
+	supportsKindInvalidArgument
+	supportsKindNotImplemented
+	supportsKindFailOpen
+)
+
+type supportsVerdict struct {
+	kind      supportsKind
+	supported bool
+	reason    string
+	cache     bool
+}
+
+// classifySupports turns a Supports() response or error into a verdict. A
+// reason is only set for a genuine decline. Transient RPC failures
+// (Unavailable, DeadlineExceeded, Canceled) fail open and are not cached.
+func classifySupports(resp *pbc.SupportsResponse, err error) supportsVerdict {
+	if err != nil {
+		if status.Code(err) == codes.InvalidArgument {
+			reason := status.Convert(err).Message()
+			if reason == "" {
+				reason = err.Error()
+			}
+			return supportsVerdict{kind: supportsKindInvalidArgument, reason: reason, cache: true}
+		}
+		return supportsVerdict{
+			kind:      supportsKindFailOpen,
+			supported: true,
+			cache:     !supportsFailureIsTransient(err),
+		}
+	}
+	if resp.GetSupported() {
+		return supportsVerdict{kind: supportsKindSupported, supported: true, cache: true}
+	}
+	if resp.GetReason() == pluginsdk.DefaultSupportsNotImplementedReason {
+		return supportsVerdict{kind: supportsKindNotImplemented, supported: true, cache: true}
+	}
+	return supportsVerdict{kind: supportsKindDeclined, reason: resp.GetReason(), cache: true}
 }
 
 // supportsFailureIsTransient reports RPC failures that may succeed on a later
@@ -420,6 +456,9 @@ func (e *Engine) filterUnsupportedPlugins(
 	filtered := make([]PluginMatch, 0, len(matches))
 	var declines []pluginDecline
 	for _, match := range matches {
+		if !allowsCarbonFeature(match.Client, feature) {
+			continue
+		}
 		supported, reason := e.checkPluginSupports(ctx, match.Client, resource, feature)
 		if supported {
 			filtered = append(filtered, match)
@@ -516,7 +555,7 @@ func (e *Engine) selectPluginMatchesForResource(
 	// If no router configured, return all clients as matches with fallback enabled
 	if e.router == nil {
 		// Filter internal Pulumi types when no router is configured
-		if strings.HasPrefix(resource.Type, pulumiInternalPrefix) {
+		if IsPulumiInternalType(resource.Type) {
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").
@@ -542,7 +581,7 @@ func (e *Engine) selectPluginMatchesForResource(
 	matches := e.router.SelectPlugins(ctx, resource, feature)
 	if len(matches) == 0 {
 		// Filter internal Pulumi types — do not fall back to all clients
-		if strings.HasPrefix(resource.Type, pulumiInternalPrefix) {
+		if IsPulumiInternalType(resource.Type) {
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").
@@ -640,7 +679,8 @@ func (e *Engine) GetProjectedCost(
 
 	batchHandled := make(map[int][]CostResult) // index → results for batch-handled resources
 
-	if e.hasBatchCapableClient() {
+	// BatchCostRequest has no usage profile. A set profile must use the unary RPC.
+	if e.hasBatchCapableClient() && e.usageProfile == pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED {
 		batchGroups := e.groupResourcesByPlugin(ctx, resources)
 		for _, pluginBatch := range batchGroups {
 			if !pluginBatch.hasBatch {
@@ -747,6 +787,7 @@ func (e *Engine) GetProjectedCost(
 
 			// Check projected cost cache before querying plugins
 			if cached := e.tryProjectedCostCache(ctx, resource); cached != nil {
+				e.enrichProjectedCarbon(ctx, resource, cached)
 				resultsChan <- workerResult{index: j.index, results: cached}
 				continue
 			}
@@ -774,7 +815,7 @@ func (e *Engine) GetProjectedCost(
 
 				// Apply per-resource timeout for plugin calls
 				resourceCtx, resourceCancel := context.WithTimeout(ctx, perResourceTimeout)
-				result, err := e.getProjectedCostFromPlugin(resourceCtx, client, resource)
+				result, err := e.getProjectedCostFromPlugin(resourceCtx, client, resource, e.usageProfile)
 				resourceCancel()
 				if err != nil {
 					pluginErrs = append(pluginErrs, ErrorDetail{
@@ -843,6 +884,7 @@ func (e *Engine) GetProjectedCost(
 				e.storeProjectedCostCache(ctx, resource, resourceResults)
 			}
 
+			e.enrichProjectedCarbon(ctx, resource, resourceResults)
 			resultsChan <- workerResult{index: j.index, results: resourceResults}
 		}
 	}
@@ -874,6 +916,9 @@ func (e *Engine) GetProjectedCost(
 	for res := range resultsChan {
 		collectedResults = append(collectedResults, res)
 	}
+
+	// Enrich completed batch prices with the same bounded concurrency as workers.
+	e.enrichBatchProjectedCarbon(ctx, resources, batchHandled)
 
 	// Merge batch-handled results into collected results
 	for idx, batchRes := range batchHandled {
@@ -956,10 +1001,11 @@ func (e *Engine) GetProjectedCostWithErrors(
 
 			// Check projected cost cache before querying plugins
 			if cached := e.tryProjectedCostCache(ctx, resource); cached != nil {
+				carbonErrors := e.enrichProjectedCarbon(ctx, resource, cached)
 				resultsChan <- workerResult{
 					index:   j.index,
 					results: cached,
-					errors:  nil,
+					errors:  carbonErrors,
 				}
 				continue
 			}
@@ -982,7 +1028,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 				}
 
 				client := match.Client
-				pluginResult, err := e.getProjectedCostFromPlugin(ctx, client, resource)
+				pluginResult, err := e.getProjectedCostFromPlugin(ctx, client, resource, e.usageProfile)
 				if err != nil {
 					// Check if fallback is enabled for this plugin
 					if !match.Fallback {
@@ -1042,6 +1088,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 				e.storeProjectedCostCache(ctx, resource, resourceResults)
 			}
 
+			resourceErrors = append(resourceErrors, e.enrichProjectedCarbon(ctx, resource, resourceResults)...)
 			resultsChan <- workerResult{
 				index:   j.index,
 				results: resourceResults,
@@ -1070,10 +1117,6 @@ func (e *Engine) GetProjectedCostWithErrors(
 		collectedResults = append(collectedResults, res)
 	}
 
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
 	sort.Slice(collectedResults, func(i, j int) bool {
 		return collectedResults[i].index < collectedResults[j].index
 	})
@@ -1088,6 +1131,9 @@ func (e *Engine) GetProjectedCostWithErrors(
 		finalResult.Errors = append(finalResult.Errors, cr.errors...)
 	}
 
+	if ctx.Err() != nil {
+		return finalResult, ctx.Err()
+	}
 	return finalResult, nil
 }
 
@@ -1822,7 +1868,10 @@ func (e *Engine) getHourlyRateForResource(
 ) (float64, error) {
 	matches, _ := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
 	for _, match := range matches {
-		costResult, err := e.getProjectedCostFromPlugin(ctx, match.Client, resource)
+		// Actual cost's hourly lookup must not carry a planning hint.
+		costResult, err := e.getProjectedCostFromPlugin(
+			ctx, match.Client, resource, pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED,
+		)
 		if err != nil {
 			continue
 		}
@@ -1837,6 +1886,7 @@ func (e *Engine) getProjectedCostFromPlugin(
 	ctx context.Context,
 	client *pluginhost.Client,
 	resource ResourceDescriptor,
+	profile pbc.UsageProfile,
 ) (*CostResult, error) {
 	// Try to get pricing from plugin first
 	req := &proto.GetProjectedCostRequest{
@@ -1849,6 +1899,7 @@ func (e *Engine) getProjectedCostFromPlugin(
 				Attributes: BuildAttributes(ctx, resource.Properties),
 			},
 		},
+		UsageProfile: profile,
 	}
 
 	// Note: Utilization from ctx (ContextKeyUtilization) is available for future use
@@ -3517,6 +3568,7 @@ func (e *Engine) getRecommendationsForResources(
 	log := logging.FromContext(ctx)
 	result := &RecommendationsResult{
 		Currency: defaultCurrency,
+		Profile:  config.UsageProfileLabel(e.usageProfile),
 	}
 
 	if len(resources) == 0 {
@@ -3653,9 +3705,9 @@ func (e *Engine) recommendationsCacheKey(
 ) string {
 	key := e.generateRecommendationsCacheKey(resources, excludedIDs)
 	if includeDismissed {
-		return key + "/include-dismissed"
+		key += "/include-dismissed"
 	}
-	return key
+	return key + e.usageProfileCacheSuffix()
 }
 
 // isScorerOnly reports whether a plugin advertises recommendation scoring without
@@ -3702,7 +3754,7 @@ func (e *Engine) routeRecommendationTargets(
 // recommendationsRequest builds the plugin request for one recommendations fetch.
 // includeDismissed asks the plugin to return recommendations it has dismissed.
 // excluded IDs are still sent, and a plugin that honors both omits those IDs.
-func recommendationsRequest(
+func (e *Engine) recommendationsRequest(
 	resources []ResourceDescriptor,
 	excludedIDs []string,
 	includeDismissed bool,
@@ -3720,6 +3772,7 @@ func recommendationsRequest(
 		TargetResources:  targetResources,
 		ProjectionPeriod: "monthly",
 		IncludeDismissed: includeDismissed,
+		UsageProfile:     e.usageProfile,
 	}
 	if len(excludedIDs) > 0 {
 		req.ExcludedRecommendationIDs = excludedIDs
@@ -3738,7 +3791,7 @@ func (e *Engine) fetchRecommendationsSequential(
 ) error {
 	log := logging.FromContext(ctx)
 
-	req := recommendationsRequest(resources, excludedIDs, includeDismissed)
+	req := e.recommendationsRequest(resources, excludedIDs, includeDismissed)
 
 	resp, err := client.API.GetRecommendations(ctx, req)
 	if err != nil {
@@ -3786,7 +3839,7 @@ func (e *Engine) fetchRecommendationsWithBatching(
 		ctx,
 		resources,
 		func(ctx context.Context, batchResources []ResourceDescriptor, batchIndex int) error {
-			req := recommendationsRequest(batchResources, excludedIDs, includeDismissed)
+			req := e.recommendationsRequest(batchResources, excludedIDs, includeDismissed)
 
 			resp, recErr := client.API.GetRecommendations(ctx, req)
 			if recErr != nil {
@@ -4176,7 +4229,19 @@ func (e *Engine) projectedCostCacheKey(resource ResourceDescriptor) (string, err
 	if e.pricingSpecFallback {
 		key += pricingSpecCacheSuffix
 	}
+	key += e.usageProfileCacheSuffix()
 	return key, nil
+}
+
+func (e *Engine) usageProfileCacheSuffix() string {
+	if e == nil {
+		return ""
+	}
+	label := config.UsageProfileLabel(e.usageProfile)
+	if label == "default" {
+		return ""
+	}
+	return "/profile-" + label
 }
 
 // projectedGrowthCacheSuffix versions cached projected results for GrowthType.

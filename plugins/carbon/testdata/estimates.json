@@ -1,0 +1,74 @@
+[
+  {
+    "SKU": "t3.medium",
+    "Region": "us-east-1",
+    "Utilization": 0.5,
+    "Grams": 1437.0015200028563
+  },
+  {
+    "SKU": "t3.medium",
+    "Region": "eu-north-1",
+    "Utilization": 0.5,
+    "Grams": 31.4849
+  },
+  {
+    "SKU": "m5.large",
+    "Region": "us-east-1",
+    "Utilization": 0.5,
+    "Grams": 2188.079356568279
+  },
+  {
+    "SKU": "m5.large",
+    "Region": "eu-north-1",
+    "Utilization": 0.5,
+    "Grams": 47.941118206666665
+  },
+  {
+    "SKU": "c5.large",
+    "Region": "us-east-1",
+    "Utilization": 0.5,
+    "Grams": 1681.6338856073144
+  },
+  {
+    "SKU": "c5.large",
+    "Region": "eu-north-1",
+    "Utilization": 0.5,
+    "Grams": 36.844828615666664
+  },
+  {
+    "SKU": "r5.large",
+    "Region": "us-east-1",
+    "Utilization": 0.5,
+    "Grams": 3104.719180363827
+  },
+  {
+    "SKU": "r5.large",
+    "Region": "eu-north-1",
+    "Utilization": 0.5,
+    "Grams": 68.02482221566666
+  },
+  {
+    "SKU": "t3.medium",
+    "Region": "us-east-1",
+    "Utilization": 0,
+    "Grams": 417.4867573903035
+  },
+  {
+    "SKU": "t3.medium",
+    "Region": "us-east-1",
+    "Utilization": 1,
+    "Grams": 2456.516282615409
+  },
+  {
+    "SKU": "m5.large",
+    "Region": "us-east-1",
+    "Utilization": 0,
+    "Grams": 1132.2613976609173
+  },
+  {
+    "SKU": "m5.large",
+    "Region": "us-east-1",
+    "Utilization": 1,
+    "Grams": 3243.897315475641
+  }
+]

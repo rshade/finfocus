@@ -211,6 +211,9 @@ tools map to built-in tools as follows:
 
 ## Troubleshooting
 
+**To stop the server**, close its stdin or send `SIGINT` or `SIGTERM`. A
+signal drains the server and exits with status 0.
+
 **The server exits immediately with a version error.** The MCP handshake
 requires a real build version. Use a released binary or `make build`. A plain
 `go build` without the version `ldflags` reports a placeholder version.

@@ -335,6 +335,92 @@ func TestRedactEstimateDeltasRetainsSourceSensitivity(t *testing.T) {
 	assert.Contains(t, string(raw), "preserved")
 }
 
+// Data-keyed maps keep URN and breakdown keys. Property maps still drop
+// credential names, and Pulumi secret values inside a data-keyed map are removed.
+func TestRedactJSONKeepsDataKeyedTrendAndBreakdown(t *testing.T) {
+	t.Parallel()
+
+	const secretURN = "urn:pulumi:dev::shop::aws:secretsmanager/secret:Secret::db"
+	const instanceURN = "urn:pulumi:dev::shop::aws:ec2/instance:Instance::web"
+	cost := engine.CostResult{
+		ResourceID:   secretURN,
+		ResourceType: "aws:secretsmanager/secret:Secret",
+		Currency:     "USD",
+		TotalCost:    5.7,
+		Breakdown:    map[string]float64{"compute": 1.5, "input_tokens": 4.2},
+	}
+	page, err := viewmodel.BuildActualCostPage(
+		context.Background(),
+		[]engine.CostResult{cost},
+		engine.GroupByNone,
+		"",
+		viewmodel.SortByCost,
+		1,
+		map[string]string{secretURN: "up", instanceURN: "flat"},
+		"flat",
+	)
+	require.NoError(t, err)
+
+	data, err := RedactJSON(actualCostQueryResponse{ActualCostPage: page})
+	require.NoError(t, err)
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(data, &decoded))
+
+	trends, ok := decoded["trends"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "up", trends[secretURN])
+	assert.Equal(t, "flat", trends[instanceURN])
+
+	results, ok := decoded["results"].([]any)
+	require.True(t, ok)
+	require.NotEmpty(t, results)
+	row, ok := results[0].(map[string]any)
+	require.True(t, ok)
+	breakdown, ok := row["breakdown"].(map[string]any)
+	require.True(t, ok)
+	assert.InDelta(t, 4.2, breakdown["input_tokens"], 1e-9)
+	assert.InDelta(t, 1.5, breakdown["compute"], 1e-9)
+
+	detail := viewmodel.BuildActualCostDetail(cost)
+	detailJSON, err := RedactJSON(detail)
+	require.NoError(t, err)
+	var gotDetail viewmodel.ActualCostDetail
+	require.NoError(t, json.Unmarshal(detailJSON, &gotDetail))
+	assert.Equal(t, viewmodel.BreakdownDisplay(cost.Breakdown, true), gotDetail.Breakdown)
+	assert.Contains(t, string(detailJSON), "input_tokens")
+
+	overview, err := RedactJSON(engine.ActualCostData{
+		Breakdown: map[string]float64{"input_tokens": 1.25, "compute": 2},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(overview), `"input_tokens":1.25`)
+
+	type markedUsage struct {
+		Usage engine.DataKeyed[any] `json:"usage"`
+	}
+	usage, err := RedactJSON(markedUsage{Usage: engine.DataKeyed[any]{
+		"input_tokens": 4.2,
+		"wrapped":      pulumiSecretFixture("usage-cipher"),
+	}})
+	require.NoError(t, err)
+	assert.Contains(t, string(usage), `"input_tokens":4.2`)
+	assert.NotContains(t, string(usage), "usage-cipher")
+	assert.NotContains(t, string(usage), "4dabf18193072939515e22adb298388d")
+
+	properties, err := RedactJSON(map[string]any{
+		"properties": map[string]any{"dbPassword": "hunter2", "instanceType": "t3.large"},
+		"diffs": []any{
+			map[string]any{"key": "apiToken", "oldValue": "old-token", "newValue": "new-token"},
+		},
+	})
+	require.NoError(t, err)
+	assert.NotContains(t, string(properties), "hunter2")
+	assert.NotContains(t, string(properties), "dbPassword")
+	assert.NotContains(t, string(properties), "apiToken")
+	assert.NotContains(t, string(properties), "old-token")
+	assert.Contains(t, string(properties), "t3.large")
+}
+
 // Trusted numeric summary labels must survive without exempting property maps.
 func TestRedactJSONTrustedCostSummaryLabels(t *testing.T) {
 	t.Parallel()

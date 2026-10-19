@@ -23,6 +23,7 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
+	"github.com/rshade/finfocus/internal/greenops"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
 )
@@ -2042,5 +2043,107 @@ func TestExecuteBatchForPluginSizeSplitKeepsMaxBatchSizeHint(t *testing.T) {
 	assert.Greater(t, counts[0], 10, "the first request is sent before any hint")
 	for _, n := range counts[1:] {
 		assert.LessOrEqual(t, n, 10, "everything after the hint, split parts included, is re-chunked at 10")
+	}
+}
+
+func TestCarbonBatchFreshAndCached(t *testing.T) {
+	t.Parallel()
+	api := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, req *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			var results []*pbc.ResourceCostResult
+			for _, resource := range req.GetResources() {
+				results = append(
+					results,
+					&pbc.ResourceCostResult{
+						Resource: resource,
+						Result: &pbc.ResourceCostResult_CostData{
+							CostData: &pbc.CostData{
+								Data: &pbc.CostData_ProjectedCost{
+									ProjectedCost: &pbc.GetProjectedCostResponse{CostPerMonth: 73, Currency: "USD"},
+								},
+							},
+						},
+					},
+				)
+			}
+			return &pbc.BatchCostResponse{Results: results}, nil
+		},
+	}
+	carbon := &carbonTestAPI{result: carbonTestResult(100, "g")}
+	eng := New(
+		[]*pluginhost.Client{carbonTestClient("carbon", carbon, "carbon"), makeBatchCapableClient("money", api)},
+		nil,
+	).WithCache(newMockCache(true))
+	resource := carbonTestResource()
+	for _, grams := range []float64{100, 200} {
+		carbon.result = carbonTestResult(grams, "g")
+		results, err := eng.GetProjectedCost(context.Background(), []ResourceDescriptor{resource})
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		assert.InDelta(t, 73, results[0].Monthly, 1e-9)
+		assert.InDelta(t, grams, results[0].Sustainability[greenops.CarbonMetricKey].Value, 1e-9)
+	}
+	assert.EqualValues(t, 2, carbon.calls.Load())
+}
+
+func TestCarbonBatchEnrichesConcurrently(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+	releaseQueries := sync.OnceFunc(func() { close(release) })
+	defer releaseQueries()
+	carbon := &carbonTestAPI{query: func(ctx context.Context) (*proto.GetProjectedCostResponse, error) {
+		started <- struct{}{}
+		select {
+		case <-release:
+			return &proto.GetProjectedCostResponse{Results: []*proto.CostResult{carbonTestResult(100, "g")}}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}}
+	api := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, req *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			results := make([]*pbc.ResourceCostResult, 0, len(req.GetResources()))
+			for _, resource := range req.GetResources() {
+				results = append(
+					results,
+					&pbc.ResourceCostResult{
+						Resource: resource,
+						Result: &pbc.ResourceCostResult_CostData{
+							CostData: &pbc.CostData{
+								Data: &pbc.CostData_ProjectedCost{
+									ProjectedCost: &pbc.GetProjectedCostResponse{CostPerMonth: 73, Currency: "USD"},
+								},
+							},
+						},
+					},
+				)
+			}
+			return &pbc.BatchCostResponse{Results: results}, nil
+		},
+	}
+	eng := New(
+		[]*pluginhost.Client{makeBatchCapableClient("money", api), carbonTestClient("carbon", carbon, "carbon")},
+		nil,
+	).WithJobs(2)
+	first, second := carbonTestResource(), carbonTestResource()
+	second.ID = "vm-2"
+	done := make(chan []CostResult, 1)
+	go func() { results, _ := eng.GetProjectedCost(ctx, []ResourceDescriptor{first, second}); done <- results }()
+	for range 2 {
+		select {
+		case <-started:
+		case <-ctx.Done():
+			require.FailNow(t, "batch carbon queries must start concurrently before either completes")
+		}
+	}
+	assert.EqualValues(t, 2, carbon.calls.Load())
+	releaseQueries()
+	results := <-done
+	require.Len(t, results, 2)
+	for _, result := range results {
+		assert.InDelta(t, 73, result.Monthly, 1e-9)
 	}
 }

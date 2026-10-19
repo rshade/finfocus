@@ -166,7 +166,9 @@ The Cost view's group selector and tag filter, and the Recommendations view's
 **Include dismissed** toggle, add browser controls for existing CLI flags.
 The TUI fixes grouping at launch and has no include-dismissed toggle.
 Estimate changes are temporary what-if calculations; the dashboard cannot
-change infrastructure or dismiss recommendations. Use **Run preview** for an
+change infrastructure or dismiss recommendations. What-If hides known non-billable
+resources by default; **Show all resources** restores them. Unknown billability
+and zero-spend resources remain available. Use **Run preview** for an
 on-demand Pulumi preview and restart the session to load fresh actual costs.
 
 Keep the printed URL private: its token opens an authenticated local session.
@@ -704,8 +706,11 @@ See the [Routing Configuration Guide](docs/src/content/docs/guides/routing.md) f
 ### List & Install Plugins
 
 ```bash
-# List installed plugins
+# List the latest version of each installed plugin
 finfocus plugin list
+
+# List every installed version and mark the one core uses
+finfocus plugin list --all
 
 # List with detailed capabilities
 finfocus plugin list --verbose
@@ -729,6 +734,7 @@ finfocus plugin validate
 | `aws-ce` | In Development | AWS Cost Explorer integration |
 | `azure-public` | In Development | Azure public pricing data |
 | `opencost` | Available | Kubernetes allocation cost from OpenCost or Kubecost |
+| `carbon` | Build from source | Offline EC2 operational carbon estimates alongside monetary pricing. See the [carbon plugin guide](docs/src/content/docs/plugins/carbon.md). |
 | `scorer` | Source install; first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`; hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
 
 The retained `finfocus plugin install jev` command installs the last legacy Jev
@@ -871,9 +877,9 @@ FinFocus ships [agent skills](agent-skills/) for AI coding assistants
 | [finfocus-routing](agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
 | [finfocus-budget](agent-skills/finfocus-budget/) | Configure budget thresholds, health, and CI exit codes |
 | [finfocus-diagnose](agent-skills/finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost |
+| [plugin-manage](agent-skills/plugin-manage/) | Install, update, remove, validate, and troubleshoot plugins |
 
-See [agent-skills/README.md](agent-skills/README.md) for the full list and
-planned skills.
+See [agent-skills/README.md](agent-skills/README.md) for the full list.
 
 ## Related Projects
 

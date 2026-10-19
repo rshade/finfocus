@@ -861,3 +861,79 @@ func TestGetActualCost_StateEstimationHonorsSupportsDecline(t *testing.T) {
 	_, pricingCalls := api.calls()
 	assert.Zero(t, pricingCalls, "a declining plugin must receive no pricing RPC")
 }
+
+func TestClassifySupports(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		resp *pbc.SupportsResponse
+		err  error
+		want supportsVerdict
+	}{
+		{
+			name: "supported drops reason",
+			resp: &pbc.SupportsResponse{Supported: true, Reason: "ignored"},
+			want: supportsVerdict{kind: supportsKindSupported, supported: true, cache: true},
+		},
+		{
+			name: "decline keeps reason",
+			resp: &pbc.SupportsResponse{Reason: "wrong region"},
+			want: supportsVerdict{kind: supportsKindDeclined, reason: "wrong region", cache: true},
+		},
+		{
+			name: "decline with empty reason",
+			resp: &pbc.SupportsResponse{},
+			want: supportsVerdict{kind: supportsKindDeclined, cache: true},
+		},
+		{
+			name: "sdk not implemented reason fails open",
+			resp: &pbc.SupportsResponse{Reason: pluginsdk.DefaultSupportsNotImplementedReason},
+			want: supportsVerdict{kind: supportsKindNotImplemented, supported: true, cache: true},
+		},
+		{
+			name: "invalid argument is a cached decline",
+			err:  status.Error(codes.InvalidArgument, "bad sku"),
+			want: supportsVerdict{kind: supportsKindInvalidArgument, reason: "bad sku", cache: true},
+		},
+		{
+			name: "invalid argument without message uses error text",
+			err:  status.Error(codes.InvalidArgument, ""),
+			want: supportsVerdict{
+				kind:   supportsKindInvalidArgument,
+				reason: status.Error(codes.InvalidArgument, "").Error(),
+				cache:  true,
+			},
+		},
+		{
+			name: "unimplemented fails open and is cached",
+			err:  status.Error(codes.Unimplemented, "no"),
+			want: supportsVerdict{kind: supportsKindFailOpen, supported: true, cache: true},
+		},
+		{
+			name: "unavailable fails open uncached",
+			err:  status.Error(codes.Unavailable, "down"),
+			want: supportsVerdict{kind: supportsKindFailOpen, supported: true},
+		},
+		{
+			name: "deadline exceeded fails open uncached",
+			err:  status.Error(codes.DeadlineExceeded, "slow"),
+			want: supportsVerdict{kind: supportsKindFailOpen, supported: true},
+		},
+		{
+			name: "canceled fails open uncached",
+			err:  status.Error(codes.Canceled, "stop"),
+			want: supportsVerdict{kind: supportsKindFailOpen, supported: true},
+		},
+		{
+			name: "plain error fails open and is cached",
+			err:  errors.New("boom"),
+			want: supportsVerdict{kind: supportsKindFailOpen, supported: true, cache: true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, classifySupports(tt.resp, tt.err))
+		})
+	}
+}

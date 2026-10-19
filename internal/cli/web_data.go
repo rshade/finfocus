@@ -30,6 +30,7 @@ type webData struct {
 	clients        []*pluginhost.Client
 	raw            []engine.ResourceDescriptor
 	planned        []engine.ResourceDescriptor
+	planSteps      []engine.PlanStep
 	planErr        error
 	sourceErr      error
 	sourceCaptured bool
@@ -44,6 +45,7 @@ type webData struct {
 		config.ResolvedScoring, []*pluginhost.Client, cache.Cache, *auditContext,
 		*engine.RecommendationsResult) (bool, func(), error)
 	mergeDismissed func(context.Context, *engine.RecommendationsResult) error
+	loadDismissals func(context.Context) map[string]*config.DismissalRecord
 	reloadCleanup  func()
 	replaced       bool
 }
@@ -56,6 +58,7 @@ func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRang
 		cmd: cmd, params: params, dates: dates, audit: audit, gate: make(chan struct{}, 1),
 		resolveScorer: resolveScorerClient, fetchRecommendations: fetchRecommendationsWithProgress,
 		scoreRecommendations: runScoringStep, mergeDismissed: mergeDismissedRecommendations,
+		loadDismissals: loadDismissalRecordsForOverview,
 	}
 }
 
@@ -72,9 +75,77 @@ func (d *webData) captureState(resources []ingest.StackExportResource) {
 }
 
 // capturePlan keeps only real initial preview sources, before synthetic expansion.
-func (d *webData) capturePlan(plan *ingest.PulumiPlan) {
-	d.planned, d.planErr = ingest.MapResources(plan.GetResources())
+// The query gate is the same one estimate readers hold.
+func (d *webData) capturePlan(ctx context.Context, plan *ingest.PulumiPlan) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		logging.FromContext(ctx).Warn().
+			Str("component", "web").
+			Str("operation", "capture_plan").
+			Err(err).
+			Msg("preview plan capture skipped; query gate unavailable")
+		return
+	}
+	defer unlock()
+	resources := plan.GetResources()
+	d.planned, d.planErr = ingest.MapResources(resources)
 	d.planned = cloneWebResources(d.planned)
+	d.planSteps = convertPlanSteps(plan.Steps)
+}
+
+var errPreviewPricing = errors.New("preview rows could not be priced")
+
+// appendPreviewRows adds plan-only creates through the merge the CLI Overview
+// uses, applies the launch filters to the added rows, then prices only those
+// rows. The query gate stays held until pricing finishes, like a query lease,
+// so a settings save, install, or remove cannot reload and close the clients
+// mid-pricing. A row left unpriced by a failure returns the rows with
+// errPreviewPricing so the preview is not marked loaded and can run again.
+func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewRow) ([]engine.OverviewRow, error) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
+	merged := engine.AppendPlanOnlyRows(rows, d.planSteps)
+	added, err := validateAndApplyOverviewFilters(merged[len(rows):], d.params.filter)
+	if err != nil {
+		return nil, err
+	}
+	if len(added) > 0 && d.eng != nil {
+		engine.EnrichOverviewRows(ctx, added, d.eng, d.dates, nil)
+	}
+	failed := countPricingFailures(added)
+	if d.loadDismissals != nil {
+		if records := d.loadDismissals(ctx); len(records) > 0 {
+			for i := range added {
+				engine.ApplyDismissalDeltaToRow(&added[i], records)
+			}
+		}
+	}
+	out := slices.Concat(merged[:len(rows)], added)
+	if failed > 0 {
+		logging.FromContext(ctx).Warn().
+			Ctx(ctx).
+			Str("component", "webui").
+			Str("operation", "append_preview_rows").
+			Int("failed_rows", failed).
+			Int("added_rows", len(added)).
+			Msg("preview rows could not be priced; preview not marked loaded")
+		return out, errPreviewPricing
+	}
+	return out, nil
+}
+
+func countPricingFailures(rows []engine.OverviewRow) int {
+	failed := 0
+	for i := range rows {
+		if rows[i].Error != nil || rows[i].ProjectedPricingFailed {
+			failed++
+		}
+	}
+	return failed
 }
 
 func (d *webData) newEngine(
@@ -117,6 +188,10 @@ func (d *webData) reloadPlugins(ctx context.Context) error {
 	eng := engine.New(clients, nil).
 		WithRouter(createRouterForEngine(ctx, cfg, clients)).
 		WithPricingSpecFallback(cfg.Cost.PricingSpecFallback)
+	if profileErr := applyUsageProfile(d.cmd, eng, usageProfileSource(cfg)); profileErr != nil {
+		pluginCleanup()
+		return profileErr
+	}
 	if d.cache != nil {
 		eng = eng.WithCache(d.cache)
 	}

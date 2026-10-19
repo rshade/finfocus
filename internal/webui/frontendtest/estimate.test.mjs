@@ -57,6 +57,233 @@ test('estimate empty edits select a fresh baseline and errors remain inline',asy
  const t=await loaded();for(const input of t.container.querySelectorAll('.estimate-input'))input.value=input.dataset.original;
  const mode=t.container.querySelector('#estimate-mode');mode.value='opaque-mode';mode.dispatch('change');assert.match(t.calls.at(-1).path,/pricingMode=opaque-mode/);t.calls.at(-1).reject(new Error('Provider unavailable'));await flush();assert.match(t.container.textContent,/Provider unavailable/);assert.match(t.container.textContent,/Unable to calculate/);t.mounted.unmount();
 });
+test('a failed baseline keeps rows and modes, then edits and mode changes retry', async () => {
+  const t = await setup('estimate');
+  t.calls[0].resolve({ resources: [{ id: 'urn:real', type: 'aws:ec2:Instance' }] });
+  await flush();
+  t.calls[1].resolve({
+    status: 'unavailable',
+    error: 'estimate data unavailable',
+    code: 'estimate_unavailable',
+    pricingModes: [{ id: 'hourly', label: 'Hourly provider', rate: 'USD 10/hour' }],
+    display: { properties: [{ key: 'size', originalValue: '2', currentValue: '2', delta: '' }] },
+  });
+  await flush();
+  assert.match(t.container.textContent, /estimate data unavailable/);
+  assert.match(t.container.textContent, /Unable to calculate/);
+  assert.doesNotMatch(t.container.textContent, /Estimate calculated/);
+  assert.equal(t.container.querySelector('.totals-bar').textContent, '');
+  const input = t.container.querySelector('.estimate-input');
+  assert.equal(input.dataset.key, 'size');
+  assert.equal(input.value, '2');
+  const mode = t.container.querySelector('#estimate-mode');
+  assert.equal(mode.querySelectorAll('option').length, 2);
+  mode.value = 'hourly';
+  mode.dispatch('change');
+  assert.match(t.calls.at(-1).path, /pricingMode=hourly/);
+  input.value = '4';
+  input.dispatch('keydown', { key: 'Enter' });
+  const edited = t.calls.at(-1);
+  assert.equal(edited.path, '/api/estimate/recalculate');
+  assert.equal(edited.body.pricingMode, 'hourly');
+  assert.deepEqual(JSON.parse(JSON.stringify(edited.body.overrides)), { size: '4' });
+  edited.resolve({
+    pricingMode: 'hourly',
+    display: {
+      baseline: 'USD 20 baseline', modified: 'USD 40 modified', change: '+$20.00 ↑',
+      properties: [{ key: 'size', originalValue: '2', currentValue: '4', delta: '+$20.00 ↑' }],
+    },
+  });
+  await flush();
+  assert.match(t.container.textContent, /USD 40 modified/);
+  assert.match(t.container.textContent, /Estimate calculated/);
+  t.mounted.unmount();
+});
 test('estimate resource loading retries on ready and late responses after unmount are ignored',async()=>{
  const t=await setup('estimate');t.calls[0].reject(Object.assign(new Error('loading'),{status:503}));await flush();t.emit('ready',{});assert.equal(t.calls.length,2);t.mounted.unmount();const before=t.container.textContent;t.calls[1].resolve({resources:[{id:'late',type:'aws:ec2:Instance'}]});await flush();assert.equal(t.container.textContent,before);assert.equal(t.calls[1].options.signal.aborted,true);
+});
+
+test('a failed baseline keeps the selected pricing mode', async () => {
+  const t = await loaded();
+  const mode = t.container.querySelector('#estimate-mode');
+  mode.value = 'opaque-mode';
+  mode.dispatch('change');
+  t.calls.at(-1).resolve({
+    status: 'unavailable',
+    error: 'estimate data unavailable',
+    code: 'estimate_unavailable',
+    pricingModes: baseline().pricingModes,
+    display: { properties: baseline().display.properties },
+  });
+  await flush();
+  assert.equal(mode.value, 'opaque-mode');
+  const input = t.container.querySelectorAll('.estimate-input')[0];
+  input.value = '5';
+  input.dispatch('keydown', { key: 'Enter' });
+  assert.equal(t.calls.at(-1).body.pricingMode, 'opaque-mode');
+  t.mounted.unmount();
+});
+
+test('a plain failure after a successful estimate clears the stale comparison but keeps rows', async () => {
+  const t = await loaded();
+  const input = t.container.querySelectorAll('.estimate-input')[0];
+  input.value = '4';
+  input.dispatch('keydown', { key: 'Enter' });
+  t.calls.at(-1).resolve({ display: { ...baseline().display, modified: 'good result' } });
+  await flush();
+  assert.match(t.container.textContent, /good result/);
+  const again = t.container.querySelectorAll('.estimate-input')[0];
+  again.value = '5';
+  again.dispatch('keydown', { key: 'Enter' });
+  t.calls.at(-1).reject(Object.assign(new Error('estimate data unavailable'), { status: 502 }));
+  await flush();
+  assert.match(t.container.textContent, /estimate data unavailable/);
+  assert.equal(t.container.querySelector('.totals-bar').textContent, '');
+  assert.ok(t.container.querySelectorAll('.estimate-input').length > 0);
+  t.mounted.unmount();
+});
+
+test('show all preserves an eligible selection, pricing mode and edits without a new baseline', async () => {
+ const t=await loaded();
+ const picker=t.container.querySelector('#estimate-resource');
+ const toggle=t.container.querySelector('#estimate-show-all');
+ assert.ok(toggle);
+ const input=t.container.querySelectorAll('.estimate-input')[0];input.value='unsaved edit';
+ const mode=t.container.querySelector('#estimate-mode');mode.value='opaque-mode';
+ toggle.checked=true;toggle.dispatch('change');
+ assert.equal(t.calls.at(-1).path,'/api/estimate/resources?showAll=true');
+ const count=t.calls.length;
+ t.calls.at(-1).resolve({resources:[{id:'provider',type:'pulumi:providers:aws'},{id:'urn:real',type:'aws:ec2:Instance'}],preferredURN:'urn:real'});
+ await flush();
+ assert.equal(picker.value,'urn:real');assert.equal(mode.value,'opaque-mode');assert.equal(input.value,'unsaved edit');assert.equal(t.calls.length,count);
+ toggle.checked=false;toggle.dispatch('change');
+ assert.equal(t.calls.at(-1).path,'/api/estimate/resources');
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(picker.value,'urn:real');assert.equal(input.value,'unsaved edit');t.mounted.unmount();
+});
+
+test('filtered empty state offers show all and uses the server preferred resource', async () => {
+ const t=await setup('estimate');
+ t.calls[0].resolve({resources:[],hiddenCount:2,preferredURN:''});await flush();
+ assert.match(t.container.textContent,/known non-billable/);assert.match(t.container.textContent,/Show all resources/);
+ const toggle=t.container.querySelector('#estimate-show-all');toggle.checked=true;toggle.dispatch('change');
+ t.calls.at(-1).resolve({resources:[{id:'provider',type:'pulumi:providers:aws'},{id:'candidate',type:'custom:module:Unknown'}],preferredURN:'candidate'});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource').value,'candidate');
+ assert.match(t.calls.at(-1).path,/baseline\?urn=candidate/);t.mounted.unmount();
+});
+
+test('hiding the selected non-billable resource clears stale editor and pricing details', async () => {
+ const t=await loaded();
+ const toggle=t.container.querySelector('#estimate-show-all');assert.ok(toggle);
+ toggle.checked=false;toggle.dispatch('change');
+ t.calls.at(-1).resolve({resources:[],hiddenCount:1});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource').value,'');
+ assert.equal(t.container.querySelectorAll('.estimate-input').length,0);
+ assert.equal(t.container.querySelector('.totals-bar').textContent,'');
+ assert.equal(t.container.querySelector('#estimate-mode').querySelectorAll('option').length,1);
+ assert.doesNotMatch(t.container.textContent,/server-formatted tier/);t.mounted.unmount();
+});
+
+test('a stale show-all response cannot replace the latest filtered list', async () => {
+ const t=await loaded();const toggle=t.container.querySelector('#estimate-show-all');assert.ok(toggle);
+ toggle.checked=true;toggle.dispatch('change');const older=t.calls.at(-1);
+ toggle.checked=false;toggle.dispatch('change');const newer=t.calls.at(-1);
+ assert.equal(older.options.signal.aborted,true);
+ newer.resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ older.resolve({resources:[{id:'provider',type:'pulumi:providers:aws'}]});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource').value,'urn:real');t.mounted.unmount();
+});
+
+test('toggling during an initial baseline preserves the pending calculation', async () => {
+ const t=await setup('estimate');
+ t.calls[0].resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ const pending=t.calls.at(-1), toggle=t.container.querySelector('#estimate-show-all');
+ toggle.checked=true;toggle.dispatch('change');assert.equal(pending.options.signal.aborted,false);
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ pending.resolve(baseline());await flush();
+ assert.match(t.container.textContent,/Estimate calculated/);t.mounted.unmount();
+});
+
+test('editor recalculation cannot cancel a pending show-all resource list', async () => {
+ const t=await loaded();const toggle=t.container.querySelector('#estimate-show-all');
+ toggle.checked=true;toggle.dispatch('change');const listing=t.calls.at(-1);
+ const input=t.container.querySelectorAll('.estimate-input')[0];input.value='4';input.dispatch('keydown',{key:'Enter'});
+ const calculation=t.calls.at(-1);assert.equal(listing.options.signal.aborted,false);
+ calculation.resolve({display:{...baseline().display,modified:'new comparison'}});await flush();
+ listing.resolve({resources:[{id:'provider',type:'pulumi:providers:aws'},{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource').children.length,2);
+ assert.match(t.container.textContent,/new comparison/);t.mounted.unmount();
+});
+
+test('ready refresh preserves edits for unchanged sources and refreshes changed preview properties', async () => {
+ const t=await loaded();const input=t.container.querySelectorAll('.estimate-input')[0];input.value='unsaved';
+ t.emit('ready',{});const count=t.calls.length;
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(t.calls.length,count);assert.equal(t.container.querySelectorAll('.estimate-input')[0].value,'unsaved');assert.match(t.container.textContent,/Estimate calculated/);
+ t.emit('ready',{});
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance',properties:{instanceType:'changed-by-preview'}}]});await flush();
+ assert.match(t.calls.at(-1).path,/baseline\?urn=/);t.mounted.unmount();
+});
+
+test('resource-list failures preserve valid estimates and recover independently', async () => {
+ const t=await loaded(), toggle=t.container.querySelector('#estimate-show-all');
+ const comparison=t.container.querySelector('.totals-bar').textContent;
+ toggle.checked=true;toggle.dispatch('change');
+ t.calls.at(-1).reject(new Error('List unavailable'));await flush();
+ assert.equal(t.container.querySelector('.totals-bar').textContent,comparison);
+ assert.match(t.container.textContent,/Estimate calculated/);
+ const listError=t.container.querySelector('#estimate-resource-error');
+ assert.ok(listError);assert.equal(listError.hidden,false);assert.match(listError.textContent,/List unavailable/);
+ toggle.checked=false;toggle.dispatch('change');
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(listError.hidden,true);assert.equal(t.container.querySelector('.totals-bar').textContent,comparison);
+ assert.match(t.container.textContent,/Estimate calculated/);t.mounted.unmount();
+});
+
+test('resource-list recovery does not clear a concurrent calculation failure', async () => {
+ const t=await loaded(), toggle=t.container.querySelector('#estimate-show-all');
+ toggle.checked=true;toggle.dispatch('change');const listing=t.calls.at(-1);
+ const input=t.container.querySelectorAll('.estimate-input')[0];input.value='4';input.dispatch('keydown',{key:'Enter'});
+ t.calls.at(-1).reject(new Error('Calculation unavailable'));await flush();
+ listing.reject(new Error('List unavailable'));await flush();
+ const calcError=t.container.querySelector('#estimate-calculation-error');
+ const listError=t.container.querySelector('#estimate-resource-error');
+ assert.ok(calcError);assert.ok(listError);assert.equal(calcError.hidden,false);assert.equal(listError.hidden,false);
+ assert.match(calcError.textContent,/Calculation unavailable/);assert.match(listError.textContent,/List unavailable/);
+ toggle.checked=false;toggle.dispatch('change');
+ t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(listError.hidden,true);assert.equal(calcError.hidden,false);assert.match(calcError.textContent,/Calculation unavailable/);
+ assert.match(t.container.textContent,/Unable to calculate estimate/);assert.equal(t.container.querySelector('.totals-bar').textContent,'');t.mounted.unmount();
+});
+
+test('a toggle overlapping preview changes refreshes the selected source and baseline', async () => {
+ const t=await loaded(), toggle=t.container.querySelector('#estimate-show-all');
+ t.container.querySelectorAll('.estimate-input')[0].value='stale edit';
+ toggle.checked=true;toggle.dispatch('change');
+ const resources=[{id:'urn:real',type:'aws:ec2:Instance',properties:{size:9}}];
+ t.calls.at(-1).resolve({resources});await flush();
+ const refreshed=t.calls.at(-1);assert.match(refreshed.path,/baseline\?urn=urn%3Areal/);assert.equal(refreshed.body,null);
+ const result=baseline();result.display.properties=[{key:'size',originalValue:'9',currentValue:'9',delta:'$0.00 →'}];
+ refreshed.resolve(result);await flush();
+ const input=t.container.querySelector('.estimate-input');assert.equal(input.dataset.original,'9');assert.equal(input.value,'9');
+ t.emit('ready',{});const count=t.calls.length;t.calls.at(-1).resolve({resources});await flush();
+ assert.equal(t.calls.length,count);assert.equal(t.container.querySelector('.estimate-input').value,'9');t.mounted.unmount();
+});
+
+test('list recovery preserves a baseline unavailable marker from the updated API', async () => {
+ const t=await loaded();
+ for(const input of t.container.querySelectorAll('.estimate-input'))input.value=input.dataset.original;
+ const mode=t.container.querySelector('#estimate-mode');mode.value='opaque-mode';mode.dispatch('change');
+ assert.match(t.calls.at(-1).path,/baseline\?urn=/);
+ t.calls.at(-1).resolve({status:'unavailable',error:'Provider unavailable',code:'estimate_unavailable',pricingModes:baseline().pricingModes,display:{properties:baseline().display.properties}});
+ await flush();
+ const calculationError=t.container.querySelector('#estimate-calculation-error');
+ assert.equal(calculationError.hidden,false);assert.match(calculationError.textContent,/Provider unavailable/);
+ const toggle=t.container.querySelector('#estimate-show-all');toggle.checked=true;toggle.dispatch('change');
+ t.calls.at(-1).reject(new Error('List unavailable'));await flush();
+ toggle.checked=false;toggle.dispatch('change');t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource-error').hidden,true);
+ assert.equal(calculationError.hidden,false);assert.match(calculationError.textContent,/Provider unavailable/);
+ assert.equal(mode.value,'opaque-mode');assert.equal(t.container.querySelector('.totals-bar').textContent,'');
+ assert.ok(t.container.querySelectorAll('.estimate-input').length>0);t.mounted.unmount();
 });

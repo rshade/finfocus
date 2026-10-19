@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -203,6 +204,25 @@ func deleteSnapshotKeys(snaps, anns *bolt.Bucket, drop []costRecord) error {
 	return nil
 }
 
+// createCompactTemp makes the compaction target next to path with O_EXCL, so a
+// planted symlink at a predictable name is never followed.
+func createCompactTemp(path string, perm os.FileMode) (string, error) {
+	f, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".compact-*")
+	if err != nil {
+		return "", fmt.Errorf("creating compacted cost history: %w", err)
+	}
+	name := f.Name()
+	chmodErr := f.Chmod(perm)
+	if closeErr := f.Close(); chmodErr == nil {
+		chmodErr = closeErr
+	}
+	if chmodErr != nil {
+		_ = os.Remove(name)
+		return "", fmt.Errorf("preparing compacted cost history: %w", chmodErr)
+	}
+	return name, nil
+}
+
 // CompactCostFile rewrites path so deleted bbolt pages are not left on disk.
 // The database must be closed. It returns the size before and after the swap.
 func CompactCostFile(path string) (int64, int64, error) {
@@ -210,14 +230,19 @@ func CompactCostFile(path string) (int64, int64, error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("statting cost history: %w", err)
 	}
-	tmp := path + ".compact"
+	tmp, err := createCompactTemp(path, before.Mode().Perm())
+	if err != nil {
+		return 0, 0, err
+	}
 	src, err := bolt.Open(path, dbFilePermissions, &bolt.Options{ReadOnly: true, Timeout: time.Second})
 	if err != nil {
+		_ = os.Remove(tmp)
 		return 0, 0, fmt.Errorf("opening cost history for compact: %w", err)
 	}
 	dst, err := bolt.Open(tmp, dbFilePermissions, &bolt.Options{Timeout: time.Second})
 	if err != nil {
 		_ = src.Close()
+		_ = os.Remove(tmp)
 		return 0, 0, fmt.Errorf("creating compacted cost history: %w", err)
 	}
 	compactErr := bolt.Compact(dst, src, 0)

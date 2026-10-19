@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/viewmodel"
@@ -63,23 +64,61 @@ func (s *Server) beginEstimate(w http.ResponseWriter, r *http.Request) (context.
 }
 
 func (s *Server) handleEstimateResources(w http.ResponseWriter, r *http.Request) {
+	showAll := false
+	if value, present := r.URL.Query()["showAll"]; present {
+		var err error
+		if len(value) != 1 {
+			s.writeError(w, http.StatusBadRequest, "invalid_query", "showAll must be a boolean")
+			return
+		}
+		showAll, err = strconv.ParseBool(value[0])
+		if err != nil {
+			s.writeError(w, http.StatusBadRequest, "invalid_query", "showAll must be a boolean")
+			return
+		}
+	}
 	ctx, done, ok := s.beginEstimate(w, r)
 	if !ok {
 		return
 	}
 	defer done()
 	resources, err := s.session.estimateResources(ctx)
-	done()
 	if err != nil {
+		done()
 		s.writeEstimateError(w, err)
 		return
 	}
-	if resources == nil {
-		resources = []engine.ResourceDescriptor{}
+	eng, release, err := s.session.estimateEngine(ctx)
+	defer func() {
+		if release != nil {
+			release()
+		}
+	}()
+
+	// Losing optional metadata must not remove estimation candidates.
+	if err != nil {
+		eng = nil
 	}
-	s.WriteJSON(w, http.StatusOK, struct {
-		Resources []engine.ResourceDescriptor `json:"resources"`
-	}{resources})
+	selection := eng.SelectEstimateResources(ctx, resources, showAll)
+	// A positive successful projected baseline is a ranking hint only. Zero or
+	// missing costs never affect visibility or establish non-billability.
+	visible := make(map[string]bool, len(selection.Resources))
+	for _, resource := range selection.Resources {
+		visible[resource.ID] = true
+	}
+	for _, row := range s.session.Rows() {
+		if visible[row.URN] && selection.Billability[row.URN] != engine.NonBillable &&
+			row.Error == nil && row.ProjectedCost != nil && row.ProjectedCost.MonthlyCost > 0 {
+			selection.PreferredURN = row.URN
+			break
+		}
+	}
+	if release != nil {
+		release()
+		release = nil
+	}
+	done()
+	s.WriteJSON(w, http.StatusOK, selection)
 }
 
 func (s *Server) estimateResource(ctx context.Context, urn string) (*engine.ResourceDescriptor, error) {
@@ -156,18 +195,27 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 			},
 		)
 	}
-	if err != nil {
+	if estimateFailed(result, err) {
+		if errors.Is(err, engine.ErrInvalidPricingMode) || !baseline {
+			done()
+			s.writeEstimateError(w, err)
+			return
+		}
+		// Discovery has its own deadline and still runs when the price call failed.
+		modes := estimatePricingModes(eng.DiscoverPricingSpec(ctx, resource))
+		display := baselineFailureDisplay(ctx, resource)
 		done()
-		s.writeEstimateError(w, err)
+		s.WriteJSON(w, http.StatusOK, estimateBaselineFailure{
+			Status:       estimateStatusUnavailable,
+			Error:        "estimate data unavailable",
+			Code:         "estimate_unavailable",
+			Resource:     resource,
+			PricingModes: modes,
+			Display:      display,
+		})
 		return
 	}
 	result = cloneData(result)
-	if result == nil || result.Baseline == nil || result.Modified == nil || result.Baseline.Error != nil ||
-		result.Modified.Error != nil {
-		done()
-		s.writeEstimateError(w, errors.New("estimate result unavailable"))
-		return
-	}
 	display := viewmodel.BuildEstimateDisplay(ctx, resource, result, query.Overrides)
 	if !baseline {
 		done()
@@ -179,19 +227,7 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 		}{result, display, query.PricingMode})
 		return
 	}
-	modes := []estimateMode{}
-	for _, mode := range eng.DiscoverPricingSpec(ctx, resource).Modes {
-		modes = append(
-			modes,
-			estimateMode{
-				ID:             mode.ID(),
-				Label:          mode.BillingMode + " — " + mode.Plugin,
-				Rate:           viewmodel.FormatPricingRate(mode),
-				Details:        mode,
-				DetailsDisplay: viewmodel.FormatPricingDetails(mode),
-			},
-		)
-	}
+	modes := estimatePricingModes(eng.DiscoverPricingSpec(ctx, resource))
 	done()
 	s.WriteJSON(w, http.StatusOK, struct {
 		Resource     *engine.ResourceDescriptor `json:"resource"`
@@ -200,6 +236,56 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 		PricingMode  string                     `json:"pricingMode"`
 		Display      viewmodel.EstimateDisplay  `json:"display"`
 	}{resource, result, modes, query.PricingMode, display})
+}
+
+const estimateStatusUnavailable = "unavailable"
+
+type estimateBaselineFailure struct {
+	Status       string                     `json:"status"`
+	Error        string                     `json:"error"`
+	Code         string                     `json:"code"`
+	Resource     *engine.ResourceDescriptor `json:"resource"`
+	PricingModes []estimateMode             `json:"pricingModes"`
+	Display      viewmodel.EstimateDisplay  `json:"display"`
+}
+
+func estimateFailed(result *engine.EstimateResult, err error) bool {
+	if err != nil || result == nil || result.Baseline == nil || result.Modified == nil {
+		return true
+	}
+	return result.Baseline.Error != nil || result.Modified.Error != nil
+}
+
+func estimatePricingModes(found engine.PricingDiscovery) []estimateMode {
+	modes := make([]estimateMode, 0, len(found.Modes))
+	for _, mode := range found.Modes {
+		modes = append(modes, estimateMode{
+			ID:             mode.ID(),
+			Label:          mode.BillingMode + " — " + mode.Plugin,
+			Rate:           viewmodel.FormatPricingRate(mode),
+			Details:        mode,
+			DetailsDisplay: viewmodel.FormatPricingDetails(mode),
+		})
+	}
+	return modes
+}
+
+// baselineFailureDisplay lists editable properties with no cost deltas. The
+// price call failed, so a zero delta would claim a comparison that did not run.
+func baselineFailureDisplay(ctx context.Context, resource *engine.ResourceDescriptor) viewmodel.EstimateDisplay {
+	display := viewmodel.EstimateDisplay{Properties: []viewmodel.EstimateProperty{}}
+	if resource == nil {
+		return display
+	}
+	props := engine.BuildAttributes(ctx, resource.Properties).AsMap()
+	for _, row := range viewmodel.BuildEstimatePropertyRows(props, nil) {
+		display.Properties = append(display.Properties, viewmodel.EstimateProperty{
+			Key:           row.Key,
+			OriginalValue: row.OriginalValue,
+			CurrentValue:  row.CurrentValue,
+		})
+	}
+	return display
 }
 
 func (s *Server) writeEstimateError(w http.ResponseWriter, err error) {

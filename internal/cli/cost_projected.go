@@ -237,6 +237,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	defer cacheCleanup()
+	if profileErr := applyUsageProfile(cmd, eng, cfg); profileErr != nil {
+		return toValidationError(ctx, profileErr)
+	}
 	eng = eng.WithJobs(params.jobs).WithPricingSpecFallback(
 		pricingSpecFallbackForCmd(cmd, params.pricingSpecFallback, cfg),
 	).WithExplainPricing(params.explain)

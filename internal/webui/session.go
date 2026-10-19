@@ -76,7 +76,55 @@ type Session struct {
 	preview            PreviewEvent
 	previewRunning     bool
 	workers            sync.WaitGroup
+	// presentedRecs is the last recommendations query shown to the browser.
+	// Detail reads this instead of calling the plugin again: a plugin may mint
+	// a new Recommendation.ID on every call, and that ID stays the dismissal id.
+	presentedRecs []engine.Recommendation
+	presentedSet  bool
+	runStatus     RunStatus
 }
+
+// RunStatus is the state-only status of an overview run. StateOnly is set by
+// the overview pipeline when no preview ran. PreviewLoaded is set only after
+// an on-demand preview applies. DetectFailed records that a change-detection
+// failure left the run state-only; the error text stays in the terminal log
+// and never reaches the browser.
+type RunStatus struct {
+	StateOnly     bool `json:"stateOnly"`
+	PreviewLoaded bool `json:"previewLoaded"`
+	DetectFailed  bool `json:"detectFailed"`
+}
+
+// RunStatusEvent is the run_status event payload.
+type RunStatusEvent struct {
+	RunStatus
+
+	Footnote string `json:"footnote"`
+}
+
+// Marked reports whether projected costs are still at current state.
+func (r RunStatus) Marked() bool { return r.StateOnly && !r.PreviewLoaded }
+
+// PreviewAllowed reports whether an on-demand preview may start.
+func (r RunStatus) PreviewAllowed() bool { return r.Marked() }
+
+// WithStateOnly returns the status after the pipeline reports no preview ran.
+// A loaded preview is never undone.
+func (r RunStatus) WithStateOnly(detectFailed bool) RunStatus {
+	if r.PreviewLoaded {
+		return r
+	}
+	return RunStatus{StateOnly: true, DetectFailed: detectFailed}
+}
+
+// WithPreviewLoaded returns the status after a preview applied.
+func (RunStatus) WithPreviewLoaded() RunStatus {
+	return RunStatus{PreviewLoaded: true}
+}
+
+// errPreviewNotAllowed is returned when a preview is requested for a run that
+// is not state-only, or after a preview has already been applied.
+var errPreviewNotAllowed = errors.New("preview is only available for a state-only run")
 
 // PhaseEvent describes one loading checklist entry.
 type PhaseEvent struct {
@@ -106,6 +154,8 @@ type PreviewEvent struct {
 
 // OverviewSnapshot is the complete state sent first on each SSE connection.
 type OverviewSnapshot struct {
+	RunStatus
+
 	Phases             []PhaseEvent               `json:"phases"`
 	Rows               []engine.OverviewRowResult `json:"rows"`
 	Totals             OverviewTotalsPayload      `json:"totals"`
@@ -116,6 +166,7 @@ type OverviewSnapshot struct {
 	Stack              string                     `json:"stack"`
 	Preview            PreviewEvent               `json:"preview"`
 	Errors             []ErrorEvent               `json:"errors"`
+	Footnote           string                     `json:"footnote,omitempty"`
 }
 
 // OverviewTotalsPayload adds canonical display strings to engine totals.
@@ -341,6 +392,38 @@ func (s *Session) RequirePassphrase(stack string) {
 // SubscriberCount reports active streams, including bounded slow-client eviction.
 func (s *Session) SubscriberCount() int { s.mu.Lock(); defer s.mu.Unlock(); return len(s.subscribers) }
 
+// setPresentedRecommendations replaces the recommendations the last successful
+// query showed, even when that query was empty. A later query, including one
+// that drops a dismissed item, invalidates the previous set; with several
+// tabs the last query wins.
+func (s *Session) setPresentedRecommendations(items []engine.Recommendation) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.presentedRecs = append([]engine.Recommendation{}, items...)
+	s.presentedSet = true
+}
+
+// initPresentedRecommendations stores items only when no query has populated
+// the cache, and returns the set the cache holds afterwards. A fallback fetch
+// that finishes after a real query must not replace that query's results.
+func (s *Session) initPresentedRecommendations(items []engine.Recommendation) []engine.Recommendation {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.presentedSet {
+		s.presentedRecs = append([]engine.Recommendation{}, items...)
+		s.presentedSet = true
+	}
+	return s.presentedRecs
+}
+
+// presentedRecommendations returns the last presented set and whether any
+// query has succeeded yet. Callers must not modify the slice.
+func (s *Session) presentedRecommendations() ([]engine.Recommendation, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.presentedRecs, s.presentedSet
+}
+
 // Close cancels preview work and disconnects streams before engine cleanup.
 func (s *Session) Close() {
 	s.mu.Lock()
@@ -377,7 +460,33 @@ func (s *Session) snapshotLocked() OverviewSnapshot {
 		Stack:              s.stack,
 		Preview:            s.preview,
 		Errors:             failures,
+		RunStatus:          s.runStatus,
+		Footnote:           s.stateOnlyFootnoteLocked(),
 	}
+}
+
+// SetStateOnly records that this run has no preview yet. detectFailed is
+// true when a change-detection failure caused it, false when state-only was
+// chosen on purpose. The failure text is never stored.
+func (s *Session) SetStateOnly(detectFailed bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.runStatus.PreviewLoaded {
+		return
+	}
+	s.runStatus = s.runStatus.WithStateOnly(detectFailed)
+	s.publishLocked("run_status", s.runStatusLocked())
+}
+
+func (s *Session) runStatusLocked() RunStatusEvent {
+	return RunStatusEvent{RunStatus: s.runStatus, Footnote: s.stateOnlyFootnoteLocked()}
+}
+
+func (s *Session) stateOnlyFootnoteLocked() string {
+	if !s.runStatus.Marked() {
+		return ""
+	}
+	return fmt.Sprintf("* projected at current state (%dh/mo)", engine.HoursPerMonth)
 }
 func (s *Session) startPreview() error {
 	s.mu.Lock()
@@ -387,6 +496,9 @@ func (s *Session) startPreview() error {
 	}
 	if s.opts.Preview == nil {
 		return errors.New("preview unavailable")
+	}
+	if !s.runStatus.PreviewAllowed() {
+		return errPreviewNotAllowed
 	}
 	if s.previewRunning {
 		return nil
@@ -436,9 +548,11 @@ func (s *Session) runPreview() {
 	} else {
 		s.rows = cloneData(rows)
 		s.ready = true
+		s.runStatus = s.runStatus.WithPreviewLoaded()
 		s.completePhaseLocked(previewPhase)
 		s.preview.Rows = s.resultLocked().Rows
 		s.publishLocked("ready", map[string]any{"totals": totalsPayload(s.resultLocked().Summary)})
+		s.publishLocked("run_status", s.runStatusLocked())
 	}
 	s.publishLocked("preview", s.preview)
 	s.mu.Unlock()
