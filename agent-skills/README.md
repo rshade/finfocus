@@ -4,9 +4,11 @@ Product-specific agent skills for AI coding assistants (Claude Code, Gemini
 CLI, etc.) that automate common FinFocus workflows.
 
 These skills are tightly coupled to FinFocus CLI commands, file paths, and
-architecture. Generic cost workflow skills (cost-check, cost-drift,
-cost-optimize, budget-setup) live in
-[rshade/agent-skills](https://github.com/rshade/agent-skills).
+architecture. `cost-check` and `cost-drift` started in
+[rshade/agent-skills](https://github.com/rshade/agent-skills) and now live
+here. That repository keeps a stub for each that points back to this
+directory. `cost-optimize` and `budget-setup` were planned there but were
+never published. [finfocus-budget](finfocus-budget/) covers budgets.
 
 ## Available Skills
 
@@ -17,6 +19,8 @@ cost-optimize, budget-setup) live in
 | [finfocus-routing](finfocus-routing/) | Configure plugin routing with priority, patterns, fallback | S |
 | [finfocus-budget](finfocus-budget/) | Configure budget thresholds, health, and CI exit codes | M |
 | [finfocus-diagnose](finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost | M |
+| [cost-check](cost-check/) | Estimate monthly cost from a plan or state, flag thresholds, write COST_CHECK.md | M |
+| [cost-drift](cost-drift/) | Compare actual and projected spend, flag drift, write COST_DRIFT.md | M |
 | [finfocus-plugin-upgrade](finfocus-plugin-upgrade/) | Upgrade a plugin project to a newer finfocus-spec version | M |
 | [finfocus-plugin-dev](finfocus-plugin-dev/) | Implement and test a plugin scaffolded by `plugin init` | M |
 | [plugin-manage](plugin-manage/) | Install, update, remove, validate, and troubleshoot installed plugins | M |
@@ -47,6 +51,8 @@ Each skill follows the SKILL.md + references/ format:
 
 - **Tool-specific skills** (this directory) -- Coupled to FinFocus CLI
   commands, config paths, and gRPC protocol. Live in `rshade/finfocus`.
-- **Generic cost workflow skills** -- Multi-tool skills not tied to any
-  specific cost tool. Live in
+- **Cost workflow skills** (`cost-check`, `cost-drift`) -- Run the FinFocus
+  CLI and read its JSON, so they live here and ship with the CLI release they
+  were checked against. Each one declares the minimum CLI version it needs.
+- **Generic skills** -- Skills that do not depend on FinFocus live in
   [rshade/agent-skills](https://github.com/rshade/agent-skills).
