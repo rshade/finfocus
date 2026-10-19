@@ -22,45 +22,23 @@ func RedactProperties(ctx context.Context, props map[string]any) map[string]any 
 	return engine.BuildAttributes(ctx, props).AsMap()
 }
 
-// RedactValue walks a decoded-JSON-shaped value (map[string]any, []any, or a
-// scalar) and drops credential-like and "__" property names and Pulumi secret
+// RedactValue drops credential-like and "__" property names and Pulumi secret
 // values at any depth, using the same shared rules the engine applies:
-// engine.IsHiddenPropertyKey and history.IsPulumiSecret. An engine.DataKeyed
-// map keeps its keys; its values still pass history.IsPulumiSecret.
-// Non-sensitive values are returned unchanged.
+// engine.IsHiddenPropertyKey and history.IsPulumiSecret. Any Go value is
+// accepted: it is encoded and decoded first, so typed maps, slices and structs
+// are redacted like decoded JSON. An engine.DataKeyed map keeps its keys; its
+// values still pass history.IsPulumiSecret. A value that cannot be encoded
+// yields nil.
 func RedactValue(value any) any {
-	if _, ok := value.(dataKeyedMap); ok {
-		return redactKeepingKeys(reflect.ValueOf(value), nil, 0)
+	decoded, err := decodeForRedaction(value)
+	if err != nil {
+		return nil
 	}
-	switch typed := value.(type) {
-	case map[string]any:
-		if sensitiveRecord(typed) || history.IsPulumiSecret(typed) {
-			return nil
-		}
-		out := make(map[string]any, len(typed))
-		for key, item := range typed {
-			if engine.IsHiddenPropertyKey(key) || history.IsPulumiSecret(item) {
-				continue
-			}
-			if key == "deltas" {
-				item = redactSecretDeltas(item, typed["resource"])
-			}
-			out[key] = RedactValue(item)
-		}
-		return out
-	case []any:
-		return redactArray(typed)
-	default:
-		return value
-	}
+	return redactNode(reflect.ValueOf(value), decoded, false, 0)
 }
 
-// RedactJSON marshals v, applies the shared redaction rules to the decoded
-// JSON, and returns the redacted encoding. Handlers use it for every payload
-// the server emits so no secret or credential value crosses the wire,
-// regardless of how the source structs evolve (FR-018).
-func RedactJSON(v any) ([]byte, error) {
-	data, err := json.Marshal(v)
+func decodeForRedaction(value any) (any, error) {
+	data, err := json.Marshal(value)
 	if err != nil {
 		return nil, fmt.Errorf("webui: marshal payload: %w", err)
 	}
@@ -68,11 +46,24 @@ func RedactJSON(v any) ([]byte, error) {
 	if uerr := json.Unmarshal(data, &decoded); uerr != nil {
 		return nil, fmt.Errorf("webui: decode payload for redaction: %w", uerr)
 	}
-	safe := RedactValue(decoded)
-	// JSON decoding erases engine.DataKeyed and datakey struct tags. Put those
-	// maps back from the original value so domain keys survive and property
-	// maps still follow engine.IsHiddenPropertyKey.
-	safe = preserveDataKeys(v, safe)
+	return decoded, nil
+}
+
+// RedactJSON marshals v, applies the shared redaction rules to the decoded
+// JSON, and returns the redacted encoding. Handlers use it for every payload
+// the server emits so no secret or credential value crosses the wire,
+// regardless of how the source structs evolve (FR-018). v is read twice, by the
+// encoder and by the walk, so callers must pass a value no other goroutine
+// mutates meanwhile: the session builds payloads under its lock from cloned rows.
+func RedactJSON(v any) ([]byte, error) {
+	decoded, err := decodeForRedaction(v)
+	if err != nil {
+		return nil, err
+	}
+	// JSON decoding erases engine.DataKeyed and datakey struct tags, so the
+	// walk follows the original Go value alongside the decoded one. Data-keyed
+	// maps keep their keys; every other map follows engine.IsHiddenPropertyKey.
+	safe := redactNode(reflect.ValueOf(v), decoded, false, 0)
 	// Only the typed session snapshot carries this operational boolean. Raw
 	// property dictionaries still follow engine credential-name redaction.
 	if snapshot, ok := v.(OverviewSnapshot); ok {
@@ -132,43 +123,25 @@ func droppedFromArray(item any) bool {
 	return history.IsPulumiSecret(item)
 }
 
-func redactArray(items []any) []any {
-	out := make([]any, 0, len(items))
-	for _, item := range items {
-		if droppedFromArray(item) {
-			continue
-		}
-		out = append(out, RedactValue(item))
-	}
-	return out
-}
-
 // A secret property's engine delta has an intentionally blank original value.
 // Retain the source property's sensitivity while the original descriptor is
 // still available, before the recursive writer removes that descriptor value.
-func redactSecretDeltas(value, resource any) any {
+// The mask marks the deltas to drop, by position.
+func secretDeltaMask(deltas []any, resource any) []bool {
 	descriptor, ok := resource.(map[string]any)
 	if !ok {
-		return value
+		return nil
 	}
 	props, ok := descriptor["properties"].(map[string]any)
 	if !ok {
-		return value
+		return nil
 	}
-	deltas, ok := value.([]any)
-	if !ok {
-		return value
-	}
-	safe := make([]any, 0, len(deltas))
-	for _, delta := range deltas {
-		record, isRecord := delta.(map[string]any)
-		if isRecord {
+	mask := make([]bool, len(deltas))
+	for i, delta := range deltas {
+		if record, isRecord := delta.(map[string]any); isRecord {
 			property, _ := record["property"].(string)
-			if history.IsPulumiSecret(props[property]) {
-				continue
-			}
+			mask[i] = history.IsPulumiSecret(props[property])
 		}
-		safe = append(safe, delta)
 	}
-	return safe
+	return mask
 }
