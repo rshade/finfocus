@@ -86,7 +86,7 @@ lint-kubernetes:
 	cd $(KUBERNETES_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
 
 SCORER_PLUGIN_DIR=plugins/scorer
-SCORER_VERSION=$(shell jq -r '."plugins/scorer" // "0.0.0"' .release-please-manifest.json)
+SCORER_VERSION=$(shell jq -r '."plugins/scorer" // "0.1.0"' .release-please-manifest.json)
 SCORER_INSTALL_DIR=$(HOME)/.finfocus/plugins/scorer/v$(SCORER_VERSION)
 
 .PHONY: build-scorer

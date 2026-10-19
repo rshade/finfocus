@@ -31,7 +31,9 @@ must fail. The script copies the plugin to a temporary directory, adds the
 spike test and `github.com/rshade/go-decide/clefclient@v0.1.0` there, runs it,
 then deletes the copy. It does not load credentials or call Cloudflare.
 The test transport records the outgoing request and replays fixture bytes.
-The `clefspike` build tag keeps this experiment out of normal repository tests.
+The test is stored as `spike_test.go.txt` so root-module tests and `go mod tidy`
+do not load its plugin-only imports. The runner copies it to a `.go` file in
+the temporary scorer module and enables its `clefspike` build tag.
 
 Recorded outputs are in `output.txt` and `break-output.txt`. Removing the
 adapter produced `/v1/systemone` instead of `/clef`, and decoding the wrapped

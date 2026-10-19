@@ -53,7 +53,7 @@ func liveScorer(t *testing.T) (*scoring.Scorer, *countingBackend) {
 	if os.Getenv("SCORER_LIVE_TEST") != "1" {
 		t.Skip("set SCORER_LIVE_TEST=1 to opt in to hosted backend calls")
 	}
-	cfg, err := ConfigFromEnv(os.Getenv)
+	cfg, err := ConfigFromEnv(os.LookupEnv)
 	require.NoError(t, err)
 	if cfg.APIKey == "" {
 		t.Skipf("set %s to run live tests", EnvAPIKey)
@@ -207,7 +207,7 @@ func TestLive_ListsModels(t *testing.T) {
 	if os.Getenv("SCORER_LIVE_TEST") != "1" {
 		t.Skip("set SCORER_LIVE_TEST=1 to opt in to hosted backend calls")
 	}
-	cfg, err := ConfigFromEnv(os.Getenv)
+	cfg, err := ConfigFromEnv(os.LookupEnv)
 	require.NoError(t, err)
 	if cfg.APIKey == "" {
 		t.Skipf("set %s to run live tests", EnvAPIKey)

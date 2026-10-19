@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func env(values map[string]string) func(string) string {
-	return func(k string) string { return values[k] }
+func env(values map[string]string) func(string) (string, bool) {
+	return func(k string) (string, bool) { value, ok := values[k]; return value, ok }
 }
 
 func TestConfigFromEnv_Defaults(t *testing.T) {
@@ -94,4 +94,53 @@ func TestConfigFromEnv_RejectsInvalidBackendAndModel(t *testing.T) {
 		_, err := ConfigFromEnv(env(values))
 		require.Error(t, err)
 	}
+}
+
+func TestConfigFromEnv_FirstLaunchSettings(t *testing.T) {
+	t.Parallel()
+
+	values := map[string]string{
+		"FINFOCUS_PLUGIN_SCORER_BACKEND":             "clef",
+		"FINFOCUS_PLUGIN_SCORER_CLEF_ACCOUNT_ID":     "0123456789abcdef0123456789abcdef",
+		"FINFOCUS_PLUGIN_SCORER_API_KEY":             "file-token",
+		"FINFOCUS_PLUGIN_SCORER_BASE_URL":            "https://proxy.example.com",
+		"FINFOCUS_PLUGIN_SCORER_MODEL":               "clef",
+		"FINFOCUS_PLUGIN_SCORER_TIMEOUT":             "15s",
+		"FINFOCUS_PLUGIN_SCORER_BATCH_SIZE":          "5",
+		"FINFOCUS_PLUGIN_SCORER_DUPLICATE_THRESHOLD": "0.7",
+	}
+	cfg, err := ConfigFromEnv(env(values))
+	require.NoError(t, err)
+	assert.Equal(t, "clef", cfg.Backend)
+	assert.Equal(t, "0123456789abcdef0123456789abcdef", cfg.ClefAccountID)
+	assert.Equal(t, "file-token", cfg.APIKey)
+	assert.Equal(t, "https://proxy.example.com", cfg.BaseURL)
+	assert.Equal(t, "clef", cfg.Model)
+	assert.Equal(t, 15*time.Second, cfg.Timeout)
+	assert.Equal(t, 5, cfg.BatchSize)
+	assert.InDelta(t, 0.7, cfg.DuplicateThreshold, 1e-9)
+
+	// Explicit backend variables take precedence over the first-launch names.
+	values[EnvAPIKey] = "environment-token"
+	values[EnvClefAccountID] = "abcdef0123456789abcdef0123456789"
+	cfg, err = ConfigFromEnv(env(values))
+	require.NoError(t, err)
+	assert.Equal(t, "environment-token", cfg.APIKey)
+	assert.Equal(t, "abcdef0123456789abcdef0123456789", cfg.ClefAccountID)
+}
+
+func TestConfigFromEnv_ExplicitEmptyOverridesFileSettings(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := ConfigFromEnv(env(map[string]string{
+		EnvAPIKey: "", "FINFOCUS_PLUGIN_SCORER_API_KEY": "file-token",
+		EnvBackend: "", "FINFOCUS_PLUGIN_SCORER_BACKEND": "clef",
+		EnvBaseURL: "", "FINFOCUS_PLUGIN_SCORER_BASE_URL": "https://proxy.example.com",
+		EnvModel: "", "FINFOCUS_PLUGIN_SCORER_MODEL": "clef",
+	}))
+	require.NoError(t, err)
+	assert.Empty(t, cfg.APIKey, "an explicitly cleared token must not activate scoring")
+	assert.Equal(t, "jev", cfg.Backend)
+	assert.Equal(t, DefaultBaseURL, cfg.BaseURL)
+	assert.Equal(t, DefaultModel, cfg.Model)
 }

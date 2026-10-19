@@ -3,11 +3,13 @@ package jev_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -221,31 +223,46 @@ func TestClient_RetryThatOutlastsDeadlineFailsFast(t *testing.T) {
 	}
 }
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
 func TestClient_RetryAfterHTTPDate(t *testing.T) {
 	t.Parallel()
 
-	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if calls.Add(1) == 1 {
-			w.Header().Set("Retry-After", time.Now().Add(5*time.Second).UTC().Format(http.TimeFormat))
-			w.WriteHeader(http.StatusTooManyRequests)
-			return
-		}
-		_, _ = w.Write([]byte(okBody))
-	}))
-	defer srv.Close()
-
-	var slept time.Duration
-	c := newClient(t, srv, func(cfg *jev.Config) {
-		cfg.Sleep = func(_ context.Context, d time.Duration) error {
-			slept = d
-			return nil
-		}
+	// Keep the response and client on one synthetic clock. Network I/O and
+	// wall-clock adjustments must not consume the Retry-After interval.
+	synctest.Test(t, func(t *testing.T) {
+		calls := 0
+		transport := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			calls++
+			if calls == 1 {
+				return &http.Response{
+					StatusCode: http.StatusTooManyRequests,
+					Header: http.Header{
+						"Retry-After": {time.Now().Add(5 * time.Second).UTC().Format(http.TimeFormat)},
+					},
+					Body: http.NoBody,
+				}, nil
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(okBody)),
+			}, nil
+		})
+		c, err := jev.New(jev.Config{
+			BaseURL: "https://example.com", APIKey: testKey,
+			HTTPClient: &http.Client{Transport: transport},
+		})
+		require.NoError(t, err)
+		start := time.Now()
+		_, err = c.SystemOne(t.Context(), sampleRequest())
+		require.NoError(t, err)
+		assert.Equal(t, 5*time.Second, time.Since(start))
+		assert.Equal(t, 2, calls)
 	})
-	_, err := c.SystemOne(t.Context(), sampleRequest())
-	require.NoError(t, err)
-	assert.Greater(t, slept, 2*time.Second)
-	assert.LessOrEqual(t, slept, 5*time.Second)
 }
 
 func TestClient_BackoffWithoutRetryAfterIsBoundedAndJittered(t *testing.T) {

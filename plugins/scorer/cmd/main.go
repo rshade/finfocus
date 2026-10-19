@@ -29,7 +29,7 @@ func run() int {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
-	cfg, err := scorer.ConfigFromEnv(os.Getenv)
+	cfg, err := scorer.ConfigFromEnv(os.LookupEnv)
 	if err != nil {
 		logger.Error().Err(err).Msg("invalid configuration")
 		return 1

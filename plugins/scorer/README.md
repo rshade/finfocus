@@ -116,6 +116,11 @@ recommendations unscored.
 
 ## Configuration
 
+File settings delivered by the host as `FINFOCUS_PLUGIN_SCORER_*` are also
+read on the first launch, before settings discovery. Explicit `SCORER_*`
+variables (including empty values) take precedence, so environment credentials can be combined with
+a file-configured Clef account.
+
 All configuration is environment variables read at startup.
 
 | Variable | Default | Meaning |

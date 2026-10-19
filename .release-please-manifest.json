@@ -1,6 +1,5 @@
 {
   ".": "0.4.6",
   "plugins/kubernetes": "0.1.7",
-  "plugins/scorer": "0.1.0",
   "plugins/prometheus": "0.1.1"
 }

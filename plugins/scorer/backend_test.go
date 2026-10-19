@@ -196,3 +196,29 @@ func TestClef_FailedEnvelopeIsNotAZeroScore(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, codes.Unavailable, status.Code(err))
 }
+
+func TestBackend_MixedEnvironmentAndFileSettings(t *testing.T) {
+	t.Parallel()
+
+	// The host uses generic names before discovery, then advertised names
+	// after restarting the plugin. Both launches must accept the same settings.
+	for _, accountEnv := range []string{"FINFOCUS_PLUGIN_SCORER_CLEF_ACCOUNT_ID", EnvClefAccountID} {
+		t.Run(accountEnv, func(t *testing.T) {
+			t.Parallel()
+			cfg, err := ConfigFromEnv(env(map[string]string{
+				EnvBackend: "clef", EnvAPIKey: "dummy-replay-token",
+				EnvBaseURL: recordedServer(t, "clef").URL,
+				accountEnv: "0123456789abcdef0123456789abcdef",
+			}))
+			require.NoError(t, err)
+			plugin, err := New(cfg)
+			require.NoError(t, err, "plugin must start before the host can discover settings")
+			resp, err := plugin.ScoreRecommendations(t.Context(), &pbc.ScoreRecommendationsRequest{
+				Recommendations: []*pbc.Recommendation{{Id: "mixed-config", Description: "Resize"}},
+			})
+			require.NoError(t, err)
+			require.Len(t, resp.GetResults(), 1)
+			assert.Equal(t, "mixed-config", resp.GetResults()[0].GetRecommendationId())
+		})
+	}
+}

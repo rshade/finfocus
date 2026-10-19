@@ -8,7 +8,7 @@ trap 'rm -rf -- "$spike_tmp"' EXIT
 
 # Isolate the experiment's extra dependency from the production module.
 cp -a "$repo_dir/plugins/scorer/." "$spike_tmp/"
-cp "$spike_dir/spike_test.go" "$spike_tmp/internal/backends/jev/clef_spike_test.go"
+cp "$spike_dir/spike_test.go.txt" "$spike_tmp/internal/backends/jev/clef_spike_test.go"
 mkdir -p "$spike_tmp/internal/backends/jev/testdata"
 cp "$spike_dir/testdata/response.json" "$spike_tmp/internal/backends/jev/testdata/clef-response.json"
 cd "$spike_tmp"

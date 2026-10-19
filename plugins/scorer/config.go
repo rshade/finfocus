@@ -19,8 +19,7 @@ const (
 	EnvBackend = "SCORER_BACKEND"
 	// EnvClefAccountID identifies the Cloudflare account used by Clef.
 	EnvClefAccountID = "SCORER_CLEF_ACCOUNT_ID"
-	// EnvAPIKey holds the selected backend's API key. It is the only place the key is
-	// read from.
+	// EnvAPIKey holds the selected backend's API key.
 	EnvAPIKey = "SCORER_API_KEY" //nolint:gosec // The name of an environment variable, not a credential.
 	// EnvBaseURL overrides the API origin.
 	EnvBaseURL = "SCORER_BASE_URL"
@@ -84,9 +83,18 @@ func DefaultConfig() Config {
 	}
 }
 
-// ConfigFromEnv reads the configuration through getenv, which is [os.Getenv] in
-// production. A missing API key is not an error.
-func ConfigFromEnv(getenv func(string) string) (Config, error) {
+// ConfigFromEnv reads the configuration through lookupEnv, which is [os.LookupEnv] in
+// production. Explicit SCORER_* values (including empty ones) take precedence over the host's initial
+// FINFOCUS_PLUGIN_SCORER_* settings, delivered before discovery. A missing API
+// key is not an error.
+func ConfigFromEnv(lookupEnv func(string) (string, bool)) (Config, error) {
+	getenv := func(key string) string {
+		if value, ok := lookupEnv(key); ok {
+			return value
+		}
+		value, _ := lookupEnv("FINFOCUS_PLUGIN_" + key)
+		return value
+	}
 	cfg := DefaultConfig()
 	if v := strings.TrimSpace(getenv(EnvBackend)); v != "" {
 		cfg.Backend = v
