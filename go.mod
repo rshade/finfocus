@@ -12,7 +12,7 @@ require (
 	github.com/guptarohit/asciigraph v0.10.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/oklog/ulid/v2 v2.1.2
-	github.com/pulumi/pulumi/sdk/v3 v3.268.0
+	github.com/pulumi/pulumi/sdk/v3 v3.270.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.9.0
 	github.com/rshade/finfocus-spec v0.7.7
