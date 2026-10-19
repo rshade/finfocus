@@ -15,7 +15,7 @@ require (
 	github.com/pulumi/pulumi/sdk/v3 v3.268.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.9.0
-	github.com/rshade/finfocus-spec v0.7.6
+	github.com/rshade/finfocus-spec v0.7.7
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f
@@ -31,7 +31,7 @@ require (
 )
 
 require (
-	connectrpc.com/connect v1.21.0 // indirect
+	connectrpc.com/connect v1.21.1 // indirect
 	connectrpc.com/grpchealth v1.5.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

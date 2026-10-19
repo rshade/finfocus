@@ -305,7 +305,8 @@ func ConvertCapabilities(caps []pbc.PluginCapability) []string {
 			result = append(result, CapabilityRecommendationScoring)
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED,
 			pbc.PluginCapability_PLUGIN_CAPABILITY_CONTRACT_COMMITMENTS,
-			pbc.PluginCapability_PLUGIN_CAPABILITY_INVOICE_DATA:
+			pbc.PluginCapability_PLUGIN_CAPABILITY_INVOICE_DATA,
+			pbc.PluginCapability_PLUGIN_CAPABILITY_COST_PARSE:
 			// Not a capability core acts on
 			continue
 		default:

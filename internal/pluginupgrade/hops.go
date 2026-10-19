@@ -129,6 +129,17 @@ var hops = []Hop{
 		},
 		Guide: "to-v0.7.6.md",
 	},
+	{
+		To:      "v0.7.7",
+		Summary: "Additive release; spot on-demand equivalent cost; optional cost parsing and recommendation history",
+		Manual: []string{
+			"Spot pricing plugins: set the on-demand equivalent (pluginsdk.WithProjectedCostOnDemandEquivalent / " +
+				"WithOnDemandEquivalent) on DYNAMIC results; a value on any other category fails validation",
+			"Plugins that list PLUGIN_CAPABILITY_COST_PARSE: advertise pluginsdk.WithParseLimits or " +
+				"GetPluginInfo is rejected",
+		},
+		Guide: "to-v0.7.7.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.
