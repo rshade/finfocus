@@ -477,6 +477,7 @@ func TestRenderDetailView_ShowsCostImpact(t *testing.T) {
 	engine.PopulateComputedDeltas(rows, 15)
 
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.height = 40 // Show the complete cost section without scrolling.
 	model.state = ViewStateDetail
 	model.selected = 0
 	model.allRows = computeRowResults(rows)

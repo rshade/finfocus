@@ -20,9 +20,10 @@ snoozes, hides or applies a recommendation because of a score.
 **Prerequisites**:
 
 - A scorer plugin installed under `~/.finfocus/plugins/<name>/<version>/` that advertises the
-  `recommendation_scoring` capability. The registry provides one: `finfocus plugin install jev` installs the
-  Jev-backed scorer, which needs `TYPESAFE_API_KEY` and sends recommendation data to TypeSafe AI (pseudonymized by
-  default). See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev).
+  `recommendation_scoring` capability. Build the backend-neutral `scorer` from source with `make install-scorer`
+  while its first public release is pending. It uses `SCORER_API_KEY` and supports Jev or Clef. Hosted Jev sends data
+  to TypeSafe AI; hosted Clef sends it to Cloudflare (identifiers are pseudonymized by default). See the
+  [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer).
 - At least one cost-source plugin that returns recommendations
 
 ## Enable Scoring
@@ -71,16 +72,16 @@ configuration is validated on every change.
 `scoring.timeout_seconds` bounds the whole scorer call, including any retries the plugin makes against a hosted model.
 If a hosted scorer reports rate limits often, raise it.
 
-### Quick start with Jev
+### Quick start with scorer
 
-The registry's `jev` plugin scores with TypeSafe AI's Jev model. It needs an API key from the TypeSafe console and sends
-recommendation data to TypeSafe, so read its
-[data-handling notes](https://github.com/rshade/finfocus/tree/main/plugins/jev#opt-in-and-data-handling) first.
+The `scorer` plugin defaults to TypeSafe AI's Jev model. Read the
+[data-handling notes](https://github.com/rshade/finfocus/tree/main/plugins/scorer#opt-in-and-data-handling) first.
 
 ```bash
-finfocus plugin install jev
-export TYPESAFE_API_KEY=...
-finfocus config set scoring.plugin jev
+make install-scorer  # from the repository root; public scorer release pending
+export SCORER_BACKEND=jev
+export SCORER_API_KEY=...
+finfocus config set scoring.plugin scorer
 finfocus config set scoring.enabled true
 
 # See exactly what would be sent, and send nothing
@@ -90,10 +91,37 @@ finfocus cost recommendations --pulumi-json plan.json --scoring-dry-run
 finfocus cost recommendations --pulumi-json plan.json --sort risk:asc
 ```
 
-Without `TYPESAFE_API_KEY` the plugin starts but every scoring call returns `UNAUTHENTICATED`, which appears as a scoring
+Without `SCORER_API_KEY` the plugin starts but every scoring call returns `UNAUTHENTICATED`, which appears as a scoring
 warning while the recommendations are listed unscored.
 
-For a step-by-step run with real output, see the [Jev Scorer Plugin walkthrough](../plugins/jev.md).
+For Clef set `SCORER_BACKEND=clef`, supply a Cloudflare token in `SCORER_API_KEY`, and set `SCORER_CLEF_ACCOUNT_ID`
+to a 32-character hexadecimal account id. The model defaults to `clef`, which is the only accepted Clef model id.
+Jev's model defaults to `jev-1.13.0`. Optional `SCORER_BASE_URL` defaults to `https://api.typesafe.ai` for Jev or
+`https://api.cloudflare.com` for Clef. For Clef it must be an origin without path, query, user info or fragment;
+the adapter adds the account path. `SCORER_TIMEOUT`, `SCORER_BATCH_SIZE` and `SCORER_DUPLICATE_THRESHOLD` default to
+`60s`, `25` and `0.5`.
+
+Both hosted backends send recommendation data to third parties. A compatible local endpoint may avoid hosted calls,
+but Clef self-hosting and vLLM compatibility are untested and outside this change's scope. Both backends provide
+ranking signals, never approval; Jev evaluations do not establish Clef quality or calibration.
+
+The first public scorer release and registry entry are pending. Source install works now; once assets are published,
+use `finfocus plugin install scorer`. The retained `finfocus plugin install jev` command installs the last legacy
+release separately and does not migrate configuration. Historical Jev tags remain available.
+
+The scorer does not read legacy settings. Rename them explicitly:
+
+| Removed setting | Replacement |
+| --- | --- |
+| `TYPESAFE_API_KEY` | `SCORER_API_KEY` |
+| `JEV_MODEL` | `SCORER_MODEL` |
+| `JEV_BASE_URL` | `SCORER_BASE_URL` |
+| `JEV_TIMEOUT` | `SCORER_TIMEOUT` |
+| `JEV_BATCH_SIZE` | `SCORER_BATCH_SIZE` |
+| `JEV_DUPLICATE_THRESHOLD` | `SCORER_DUPLICATE_THRESHOLD` |
+| `scoring.plugin: jev` | `scoring.plugin: scorer` |
+
+For a step-by-step example, see the [Recommendation Scorer Plugin walkthrough](../plugins/scorer.md).
 
 ## Use Scores
 

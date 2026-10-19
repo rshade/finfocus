@@ -168,7 +168,7 @@ Completed Milestones, 2026-Q4).
       ([#1728](https://github.com/rshade/finfocus/issues/1728)) [M]
 - [ ] **Recommendation Scoring — Jev Plugin Ideas** *(brainstorm 2026-10-01;
       ideas only, no issues or specs yet)*
-  - *Placement rule:* Jev stays in `plugins/jev`. Core and
+  - *Placement rule:* Jev stays in `plugins/scorer`. Core and
     [finfocus-spec](https://github.com/rshade/finfocus-spec) get no
     Jev-specific code, names or logic. When an idea needs core or spec work,
     that work is a generic scorer capability any scorer plugin could use.
@@ -254,7 +254,7 @@ Completed Milestones, 2026-Q4).
         anywhere and Jev's quality is measured against a baseline rather than
         asserted.
     - *Placement:* a separate plugin, not core. The labelled dataset moves out
-      of `plugins/jev/testdata` to somewhere both plugins can use.
+      of `plugins/scorer/testdata` to somewhere both plugins can use.
     - *Open question:* what if the rules baseline gets close to Jev? Is that
       worth finding out?
   - [ ] **11. Privacy as the demo** [S] — Lead demos with `--scoring-dry-run`:

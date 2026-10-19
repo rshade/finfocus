@@ -57,8 +57,15 @@ GitHub repository. Fields: `name`, `description`, `repository`,
 | `flexera` | `rshade/finfocus-plugin-flexera` | aws, azure, gcp |
 | `vantage` | `rshade/finfocus-plugin-vantage` | aws, azure, gcp, kubernetes |
 | `kubernetes` | `rshade/finfocus` (tag prefix `kubernetes-`) | kubernetes |
+| `scorer` | `rshade/finfocus` (tag prefix `scorer-`) | any |
 | `jev` | `rshade/finfocus` (tag prefix `jev-`) | any |
 | `carbon` | `rshade/finfocus` (tag prefix `carbon-`) | aws |
+
+The `scorer` plugin replaces legacy `jev` for new installations and supports
+Jev or Clef backends. Until scorer release assets are published, build it with
+`make install-scorer`. Installing `jev` still selects its separate legacy
+release; it does not migrate configuration. See the scorer plugin README for
+the `SCORER_*` settings and migration table.
 
 Run `finfocus plugin list --available` for the live catalog; the table can lag a
 release. Provider-to-plugin mapping and per-plugin credentials are in the

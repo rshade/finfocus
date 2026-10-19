@@ -1,0 +1,15 @@
+go: added github.com/kataras/jev v0.1.0
+go: added github.com/rshade/go-decide v0.1.0
+=== RUN   TestClefSpike
+=== RUN   TestClefSpike/recording_exposes_unsupported_choice
+    clef_spike_test.go:102: full recording rejected: jevapi: malformed response: answer "team" has unsupported type "choice"
+=== RUN   TestClefSpike/recorded_noul_and_score_projection
+    clef_spike_test.go:121: projected recording decoded: model=clef noul=0.9905 score=2.9571 input_tokens=346
+=== RUN   TestClefSpike/mutated_success_false_is_502
+    clef_spike_test.go:109: mutated success:false: HTTP 502
+--- PASS: TestClefSpike (0.00s)
+    --- PASS: TestClefSpike/recording_exposes_unsupported_choice (0.00s)
+    --- PASS: TestClefSpike/recorded_noul_and_score_projection (0.00s)
+    --- PASS: TestClefSpike/mutated_success_false_is_502 (0.00s)
+PASS
+ok  	github.com/rshade/finfocus/plugins/jev/internal/jevapi	0.004s

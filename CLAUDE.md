@@ -46,8 +46,8 @@ make validate          # go mod tidy -diff, go vet
 make docs-lint
 make docs-serve        # Astro site at http://localhost:4321/finfocus/
 make check-plugin-boundaries
-make test-kubernetes   # Also test-jev, test-prometheus (nested plugin modules)
-make install-kubernetes  # Also install-jev, install-prometheus, install-recorder
+make test-kubernetes   # Also test-scorer, test-prometheus (nested plugin modules)
+make install-kubernetes  # Also install-scorer, install-prometheus, install-recorder
 ```
 
 ```bash
@@ -80,7 +80,7 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
 | `internal/analyzer/` | Pulumi Analyzer gRPC server |
 | `internal/tui/` | Bubble Tea v2 / Lipgloss v2 (`charm.land` imports) |
 | `internal/config/` | Two-tier config |
-| `plugins/{kubernetes,jev,prometheus}/` | Nested modules; never import core |
+| `plugins/{kubernetes,scorer,prometheus}/` | Nested modules; never import core |
 
 Entry point `cmd/finfocus/main.go`. Exit codes: 0, 1 (ax `ExitInternal`), and
 the budget code from `cost --exit-code` (default 1), preserved through
@@ -241,11 +241,20 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 - **Recorder** (reference/contract plugin): `FINFOCUS_RECORDER_OUTPUT_DIR`
   (default `./recorded_data`), `FINFOCUS_RECORDER_MOCK_RESPONSE`.
-- **Jev scorer** (`plugins/jev/`): off unless `TYPESAFE_API_KEY` is set; the key
+- **Recommendation scorer** (`plugins/scorer/`): opt-in; `SCORER_BACKEND=jev|clef`
+  defaults to Jev. `SCORER_API_KEY` is the selected backend token; it
   never appears in logs, errors, tests, or files. The recommendation id never
   leaves the plugin (answers map back by position). `priority` is always one
-  record per request (batching drops rank quality). Scores rank only; never
+  record per request. Scores rank only; never
   gate an irreversible action on one.
+  Hosted Jev sends data to TypeSafe AI; hosted Clef sends it to Cloudflare.
+  Keep identifier handling and `field_allowlist` intact. Clef requires a
+  32-hex-character `SCORER_CLEF_ACCOUNT_ID` when a token is provided and only
+  accepts `SCORER_MODEL=clef`; its optional `SCORER_BASE_URL` is an origin.
+  Source install is `make install-scorer`; the first public scorer registry
+  release is pending. The legacy `jev` registry entry remains separate and
+  does not migrate settings. `TYPESAFE_API_KEY` and `JEV_*` are not read by
+  scorer. Live tests require `SCORER_LIVE_TEST=1`; agents must not run them.
 - **Agent skills**: finfocus-specific skills live in `agent-skills/` here;
   generic cost-workflow skills live in `rshade/agent-skills`.
 

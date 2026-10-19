@@ -1,0 +1,96 @@
+go: added github.com/kataras/jev v0.1.0
+go: added github.com/rshade/go-decide v0.1.0
+=== RUN   TestClefSpike
+=== RUN   TestClefSpike/recording_exposes_unsupported_choice
+    clef_spike_test.go:77:
+            Error Trace:    /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:77
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:22
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:266
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:187
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:745
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:604
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/client.go:236
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/client.go:191
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/client.go:158
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:97
+            Error:          Not equal:
+                            expected: "https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/clef"
+                            actual  : "https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/v1/systemone"
+
+                            Diff:
+                            --- Expected
+                            +++ Actual
+                            @@ -1 +1 @@
+                            -https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/clef
+                            +https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/v1/systemone
+            Test:           TestClefSpike/recording_exposes_unsupported_choice
+    clef_spike_test.go:101:
+            Error Trace:    /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:101
+            Error:          Error "jevapi: malformed response: no answers" does not contain "unsupported type \"choice\""
+            Test:           TestClefSpike/recording_exposes_unsupported_choice
+    clef_spike_test.go:102: full recording rejected: jevapi: malformed response: no answers
+=== RUN   TestClefSpike/recorded_noul_and_score_projection
+    clef_spike_test.go:77:
+            Error Trace:    /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:77
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:22
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:266
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:187
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:745
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:604
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/client.go:236
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/client.go:191
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/client.go:158
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:97
+            Error:          Not equal:
+                            expected: "https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/clef"
+                            actual  : "https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/v1/systemone"
+
+                            Diff:
+                            --- Expected
+                            +++ Actual
+                            @@ -1 +1 @@
+                            -https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/clef
+                            +https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/v1/systemone
+            Test:           TestClefSpike/recorded_noul_and_score_projection
+    clef_spike_test.go:112:
+            Error Trace:    /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:112
+            Error:          Received unexpected error:
+                            jevapi: malformed response: no answers
+            Test:           TestClefSpike/recorded_noul_and_score_projection
+=== RUN   TestClefSpike/mutated_success_false_is_502
+    clef_spike_test.go:77:
+            Error Trace:    /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:77
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:22
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:266
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:187
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:745
+                                        /home/richard-shade/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/net/http/client.go:604
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/client.go:236
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/client.go:191
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/client.go:158
+                                        /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:97
+            Error:          Not equal:
+                            expected: "https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/clef"
+                            actual  : "https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/v1/systemone"
+
+                            Diff:
+                            --- Expected
+                            +++ Actual
+                            @@ -1 +1 @@
+                            -https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/clef
+                            +https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/run/@cf/cloudflare/v1/systemone
+            Test:           TestClefSpike/mutated_success_false_is_502
+    clef_spike_test.go:107:
+            Error Trace:    /tmp/finfocus-clef-spike.2i7shL/internal/jevapi/clef_spike_test.go:107
+            Error:          Should be in error chain:
+                            expected: *jevapi.APIError
+                            in chain: "jevapi: malformed response: no answers" (*fmt.wrapError)
+                                "jevapi: malformed response" (*errors.errorString)
+            Test:           TestClefSpike/mutated_success_false_is_502
+--- FAIL: TestClefSpike (0.00s)
+    --- FAIL: TestClefSpike/recording_exposes_unsupported_choice (0.00s)
+    --- FAIL: TestClefSpike/recorded_noul_and_score_projection (0.00s)
+    --- FAIL: TestClefSpike/mutated_success_false_is_502 (0.00s)
+FAIL
+FAIL    github.com/rshade/finfocus/plugins/jev/internal/jevapi  0.011s
+FAIL

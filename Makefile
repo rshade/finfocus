@@ -87,41 +87,41 @@ test-kubernetes:
 lint-kubernetes:
 	cd $(KUBERNETES_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
 
-JEV_PLUGIN_DIR=plugins/jev
-JEV_VERSION=$(shell jq -r '."plugins/jev" // "0.0.0"' .release-please-manifest.json)
-JEV_INSTALL_DIR=$(HOME)/.finfocus/plugins/jev/v$(JEV_VERSION)
+SCORER_PLUGIN_DIR=plugins/scorer
+SCORER_VERSION=$(shell jq -r '."plugins/scorer" // "0.1.0"' .release-please-manifest.json)
+SCORER_INSTALL_DIR=$(HOME)/.finfocus/plugins/scorer/v$(SCORER_VERSION)
 
-.PHONY: build-jev
-build-jev:
+.PHONY: build-scorer
+build-scorer:
 	@mkdir -p bin
-	go -C $(JEV_PLUGIN_DIR) build -ldflags "-X main.version=v$(JEV_VERSION)" \
-		-o $(CURDIR)/bin/finfocus-plugin-jev ./cmd
+	go -C $(SCORER_PLUGIN_DIR) build -ldflags "-X main.version=v$(SCORER_VERSION)" \
+		-o $(CURDIR)/bin/finfocus-plugin-scorer ./cmd
 
-.PHONY: install-jev
-install-jev: build-jev
+.PHONY: install-scorer
+install-scorer: build-scorer
 	@command -v jq >/dev/null 2>&1 || { \
-		echo "install-jev requires jq to stamp the installed plugin manifest version; install jq and retry" >&2; \
+		echo "install-scorer requires jq to stamp the installed plugin manifest version; install jq and retry" >&2; \
 		exit 1; \
 	}
-	@if [ -z "$(JEV_VERSION)" ]; then \
-		echo "install-jev: JEV_VERSION resolved empty (check jq and .release-please-manifest.json)" >&2; \
+	@if [ -z "$(SCORER_VERSION)" ]; then \
+		echo "install-scorer: SCORER_VERSION resolved empty (check jq and .release-please-manifest.json)" >&2; \
 		exit 1; \
 	fi
-	@mkdir -p $(JEV_INSTALL_DIR)
-	cp bin/finfocus-plugin-jev $(JEV_INSTALL_DIR)/
-	jq --arg v "v$(JEV_VERSION)" '.version = $$v' \
-		$(JEV_PLUGIN_DIR)/plugin.manifest.json > $(JEV_INSTALL_DIR)/plugin.manifest.json
-	chmod 644 $(JEV_INSTALL_DIR)/plugin.manifest.json
-	@echo "Set TYPESAFE_API_KEY to enable scoring; see plugins/jev/README.md for what is sent to TypeSafe AI."
+	@mkdir -p $(SCORER_INSTALL_DIR)
+	cp bin/finfocus-plugin-scorer $(SCORER_INSTALL_DIR)/
+	jq --arg v "v$(SCORER_VERSION)" '.version = $$v' \
+		$(SCORER_PLUGIN_DIR)/plugin.manifest.json > $(SCORER_INSTALL_DIR)/plugin.manifest.json
+	chmod 644 $(SCORER_INSTALL_DIR)/plugin.manifest.json
+	@echo "Set SCORER_API_KEY to enable scoring; see plugins/scorer/README.md for backend selection and data handling."
 	@echo "Verify with: finfocus plugin list"
 
-.PHONY: test-jev
-test-jev:
-	go -C $(JEV_PLUGIN_DIR) test -race ./...
+.PHONY: test-scorer
+test-scorer:
+	go -C $(SCORER_PLUGIN_DIR) test -race ./...
 
-.PHONY: lint-jev
-lint-jev:
-	cd $(JEV_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
+.PHONY: lint-scorer
+lint-scorer:
+	cd $(SCORER_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
 
 PROMETHEUS_PLUGIN_DIR=plugins/prometheus
 PROMETHEUS_VERSION=$(shell jq -r '."plugins/prometheus" // "0.0.0"' .release-please-manifest.json)
@@ -195,19 +195,19 @@ lint-carbon:
 
 .PHONY: check-plugin-boundaries
 check-plugin-boundaries:
-	@for dir in $(KUBERNETES_PLUGIN_DIR) $(JEV_PLUGIN_DIR) $(PROMETHEUS_PLUGIN_DIR) $(CARBON_PLUGIN_DIR); do \
+	@for dir in $(KUBERNETES_PLUGIN_DIR) $(SCORER_PLUGIN_DIR) $(PROMETHEUS_PLUGIN_DIR) $(CARBON_PLUGIN_DIR); do \
 		if go -C $$dir list -deps ./... | grep -E '^github.com/rshade/finfocus/(internal|pkg)(/|$$)'; then \
 			echo "$$dir must not import finfocus core packages" >&2; exit 1; fi; \
 	done
 	@echo "plugin boundaries OK"
 
 .PHONY: build-all
-build-all: build build-recorder build-plugin build-kubernetes build-jev build-prometheus build-carbon
+build-all: build build-recorder build-plugin build-kubernetes build-scorer build-prometheus build-carbon
 
 # Default test target - runs unit tests only (fast, for CI and local dev)
 # Unit tests are colocated with source; see test/README.md for details
 .PHONY: test
-test: test-unit test-frontend test-kubernetes test-jev test-prometheus test-carbon
+test: test-unit test-frontend test-kubernetes test-scorer test-prometheus test-carbon
 
 # Browser renderer regression tests use the Node version pinned in mise.toml.
 .PHONY: test-frontend
@@ -274,7 +274,7 @@ test-all:
 	go test -v -timeout 15m ./internal/... ./pkg/... ./test/integration/...
 
 .PHONY: lint
-lint: lint-kubernetes lint-jev lint-prometheus lint-carbon check-plugin-boundaries
+lint: lint-kubernetes lint-scorer lint-prometheus lint-carbon check-plugin-boundaries
 	@echo "Running golangci-lint (expected version $(GOLANGCI_LINT_VERSION))..."
 	@$(GOLANGCI_LINT) --version | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "golangci-lint $(GOLANGCI_LINT_VERSION) required. Install with"; \
@@ -441,8 +441,8 @@ help:
 	@echo "  install-recorder - Build and install recorder plugin to ~/.finfocus/plugins/"
 	@echo "  build-kubernetes - Build the kubernetes plugin"
 	@echo "  install-kubernetes - Build and install kubernetes plugin to ~/.finfocus/plugins/"
-	@echo "  build-jev        - Build the jev scorer plugin"
-	@echo "  install-jev      - Build and install jev scorer plugin to ~/.finfocus/plugins/"
+	@echo "  build-scorer        - Build the recommendation scorer plugin"
+	@echo "  install-scorer      - Build and install recommendation scorer plugin to ~/.finfocus/plugins/"
 	@echo "  build-carbon     - Build the carbon estimation plugin"
 	@echo "  install-carbon   - Install the carbon estimation plugin"
 	@echo "  test-carbon      - Test the carbon plugin with race detection"
@@ -453,7 +453,7 @@ help:
 	@echo "  test             - Run unit tests (fast, default)"
 	@echo "  test-unit        - Run unit tests only"
 	@echo "  test-kubernetes  - Run kubernetes plugin module tests"
-	@echo "  test-jev         - Run jev plugin module tests"
+	@echo "  test-scorer         - Run scorer plugin module tests"
 	@echo "  test-prometheus  - Run prometheus plugin module tests"
 	@echo "  test-race        - Run unit tests with race detector"
 	@echo "  test-integration - Run integration tests (slower)"
@@ -466,9 +466,9 @@ help:
 	@echo "  gen-terraform-goldens - Regenerate real Terraform state goldens (docker + mise)"
 	@echo "  lint             - Run Go + Markdown linters"
 	@echo "  lint-kubernetes  - Run golangci-lint on the kubernetes plugin module"
-	@echo "  lint-jev         - Run golangci-lint on the jev plugin module"
+	@echo "  lint-scorer         - Run golangci-lint on the scorer plugin module"
 	@echo "  lint-prometheus  - Run golangci-lint on the prometheus plugin module"
-	@echo "  check-plugin-boundaries - Verify plugins/kubernetes, plugins/jev, and plugins/prometheus do not import finfocus core packages"
+	@echo "  check-plugin-boundaries - Verify plugins/kubernetes, plugins/scorer, and plugins/prometheus do not import finfocus core packages"
 	@echo "  lint-actions     - Run actionlint on GitHub workflows"
 	@echo "  validate         - Run validation (go mod tidy, go vet)"
 	@echo "  tools            - Install toolchain pinned in mise.toml (mise install)"

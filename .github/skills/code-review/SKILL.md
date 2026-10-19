@@ -86,7 +86,7 @@ linked issue.
   copies properties into a request, a tag, a note, a log field, or a cache
   value without going through those helpers. Flag a second, separate
   credential or secret rule as well: there must be only one.
-- The Jev scorer key (`TYPESAFE_API_KEY`) and any plugin credential must never
+- The scorer backend token (`SCORER_API_KEY`) and any plugin credential must never
   appear in logs, errors, test fixtures, or committed files.
 - Recommendation scoring sends pseudonymized identifiers by default. Flag new
   fields sent to a scorer that bypass `identifier_mode` or `field_allowlist`.
