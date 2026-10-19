@@ -106,6 +106,14 @@ func (m *estimateMockPlugin) GetPricingSpec(
 	return &pbc.GetPricingSpecResponse{}, nil
 }
 
+func (m *estimateMockPlugin) GetRecommendationHistory(
+	_ context.Context,
+	_ *proto.GetRecommendationHistoryRequest,
+	_ ...grpc.CallOption,
+) (*proto.GetRecommendationHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "GetRecommendationHistory not implemented")
+}
+
 // errNoSpec is a sentinel error for missing specs in tests.
 var errNoSpec = errors.New("no spec available")
 

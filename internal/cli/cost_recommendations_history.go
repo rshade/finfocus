@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -10,7 +13,16 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginhost"
 )
+
+// historyPluginOpener opens installed plugins for recommendation history.
+// Tests replace it so the command can run without launching plugin processes.
+var historyPluginOpener = defaultHistoryPlugins //nolint:gochecknoglobals // test seam, set only from export_test.go
+
+func defaultHistoryPlugins(ctx context.Context) ([]*pluginhost.Client, func(), error) {
+	return openPlugins(ctx, "", nil)
+}
 
 // newRecommendationsHistoryCmd creates the "history" subcommand for viewing
 // the lifecycle history of a recommendation.
@@ -19,16 +31,24 @@ func newRecommendationsHistoryCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "history <recommendation-id>",
-		Short: "View lifecycle history of a recommendation",
-		Long: `Display the dismiss/snooze/undismiss history for a specific recommendation.
-Shows all lifecycle events in chronological order.
+		Short: "View local and plugin lifecycle history of a recommendation",
+		Long: `Display the dismiss, snooze, and undismiss history for one recommendation.
 
-This operates on local state only and does not require plugin connections.`,
+History combines the local dismissal record with lifecycle events from
+installed plugins, including an actor when a plugin supplies one. Events
+are shown oldest first. Plugins that do not provide history are skipped.
+With no plugins installed, the command shows the local record only.
+
+This command does not read a Pulumi plan and does not change the local
+dismissal file.`,
 		Example: `  # View history in table format
   finfocus cost recommendations history rec-123abc
 
   # View history as JSON
-  finfocus cost recommendations history rec-123abc --output json`,
+  finfocus cost recommendations history rec-123abc --output json
+
+  # View history as NDJSON
+  finfocus cost recommendations history rec-123abc --output ndjson`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return executeHistory(cmd, args[0], output)
@@ -54,6 +74,9 @@ func executeHistory(cmd *cobra.Command, recommendationID string, output string) 
 	default:
 		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", output)
 	}
+	if recommendationID == "" {
+		return errors.New("recommendation ID is required")
+	}
 
 	// Load dismissal store
 	store, err := loadDismissalStore()
@@ -61,10 +84,22 @@ func executeHistory(cmd *cobra.Command, recommendationID string, output string) 
 		return fmt.Errorf("load dismissal store: %w", err)
 	}
 
-	// Create engine (no plugins needed for history)
-	eng := engine.New(nil, nil)
+	clients, cleanup, openErr := historyPluginOpener(ctx)
+	if cleanup == nil {
+		cleanup = func() {}
+	}
+	defer cleanup()
+	if openErr != nil {
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "recommendation_history").
+			Err(openErr).
+			Msg("plugins unavailable, showing local recommendation history")
+		clients = nil
+	}
 
-	// Get history
+	eng := engine.New(clients, nil)
 	events, err := eng.GetRecommendationHistory(ctx, store, recommendationID)
 	if err != nil {
 		return fmt.Errorf("getting recommendation history: %w", err)
@@ -104,8 +139,8 @@ func renderHistoryTable(cmd *cobra.Command, recommendationID string, events []co
 
 	tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, tabPadding, ' ', 0)
 
-	fmt.Fprintln(tw, "TIMESTAMP\tACTION\tREASON\tNOTE\tEXPIRES")
-	fmt.Fprintln(tw, "---------\t------\t------\t----\t-------")
+	fmt.Fprintln(tw, "TIMESTAMP\tACTION\tREASON\tNOTE\tEXPIRES\tACTOR")
+	fmt.Fprintln(tw, "---------\t------\t------\t----\t-------\t-----")
 
 	for _, event := range events {
 		expiresStr := ""
@@ -113,22 +148,28 @@ func renderHistoryTable(cmd *cobra.Command, recommendationID string, events []co
 			expiresStr = event.ExpiresAt.Format("2006-01-02")
 		}
 
-		noteStr := event.CustomReason
+		noteStr := historyCell(event.CustomReason)
 		const maxNoteLen = 30
 		if len(noteStr) > maxNoteLen {
 			noteStr = noteStr[:maxNoteLen-3] + "..."
 		}
 
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			event.Timestamp.Format("2006-01-02 15:04:05"),
-			string(event.Action),
-			event.Reason,
+			historyCell(string(event.Action)),
+			historyCell(event.Reason),
 			noteStr,
 			expiresStr,
+			historyCell(event.Actor),
 		)
 	}
 
 	return tw.Flush()
+}
+
+// historyCell keeps one table row when a plugin string contains tabs or newlines.
+func historyCell(value string) string {
+	return strings.NewReplacer("\t", " ", "\n", " ", "\r", " ").Replace(value)
 }
 
 // historyJSONOutput represents the JSON output for history.

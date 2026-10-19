@@ -131,6 +131,14 @@ func (m *mockCostSourceClient) GetPricingSpec(
 	return &pbc.GetPricingSpecResponse{}, nil
 }
 
+func (m *mockCostSourceClient) GetRecommendationHistory(
+	_ context.Context,
+	_ *proto.GetRecommendationHistoryRequest,
+	_ ...grpc.CallOption,
+) (*proto.GetRecommendationHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "GetRecommendationHistory not implemented")
+}
+
 //nolint:paralleltest // table cases share the parent-scoped fixture budget1
 func TestEngine_GetBudgets(t *testing.T) {
 	ctx := context.Background()

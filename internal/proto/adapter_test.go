@@ -220,6 +220,14 @@ func (m *mockCostSourceClient) GetPricingSpec(
 	return &pbc.GetPricingSpecResponse{}, nil
 }
 
+func (m *mockCostSourceClient) GetRecommendationHistory(
+	_ context.Context,
+	_ *GetRecommendationHistoryRequest,
+	_ ...grpc.CallOption,
+) (*GetRecommendationHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "GetRecommendationHistory not implemented")
+}
+
 // T020: Unit test for DryRun wrapper.
 func TestDryRun(t *testing.T) {
 	t.Parallel()
@@ -3282,6 +3290,11 @@ type mockPbcCostSourceServiceClient struct {
 		in *pbc.GetRecommendationsRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.GetRecommendationsResponse, error)
+	getRecommendationHistoryFunc func(
+		ctx context.Context,
+		in *pbc.GetRecommendationHistoryRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.GetRecommendationHistoryResponse, error)
 }
 
 func (m *mockPbcCostSourceServiceClient) Name(
@@ -3339,8 +3352,11 @@ func (m *mockPbcCostSourceServiceClient) GetRecommendations(
 }
 
 func (m *mockPbcCostSourceServiceClient) GetRecommendationHistory(
-	_ context.Context, _ *pbc.GetRecommendationHistoryRequest, _ ...grpc.CallOption,
+	ctx context.Context, in *pbc.GetRecommendationHistoryRequest, opts ...grpc.CallOption,
 ) (*pbc.GetRecommendationHistoryResponse, error) {
+	if m.getRecommendationHistoryFunc != nil {
+		return m.getRecommendationHistoryFunc(ctx, in, opts...)
+	}
 	return &pbc.GetRecommendationHistoryResponse{}, nil
 }
 

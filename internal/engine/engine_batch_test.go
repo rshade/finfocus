@@ -122,6 +122,14 @@ func (m *mockBatchCostSourceClient) GetPricingSpec(
 	return &pbc.GetPricingSpecResponse{}, nil
 }
 
+func (m *mockBatchCostSourceClient) GetRecommendationHistory(
+	_ context.Context,
+	_ *proto.GetRecommendationHistoryRequest,
+	_ ...grpc.CallOption,
+) (*proto.GetRecommendationHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "GetRecommendationHistory not implemented")
+}
+
 // makeBatchCapableClient creates a pluginhost.Client with batch_cost capability.
 func makeBatchCapableClient(name string, api proto.CostSourceClient) *pluginhost.Client {
 	return &pluginhost.Client{

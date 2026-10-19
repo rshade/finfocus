@@ -36,6 +36,18 @@ func SetPluginListLauncherForTest(t *testing.T, launcher pluginhost.Launcher) {
 	t.Cleanup(func() { pluginListLauncher = prev })
 }
 
+// SetHistoryPluginOpenerForTest replaces plugin discovery for recommendation
+// history and restores it when the test ends.
+func SetHistoryPluginOpenerForTest(
+	t *testing.T,
+	opener func(context.Context) ([]*pluginhost.Client, func(), error),
+) {
+	t.Helper()
+	prev := historyPluginOpener
+	historyPluginOpener = opener
+	t.Cleanup(func() { historyPluginOpener = prev })
+}
+
 // SetNotificationClientForTest routes budget notifications through client and
 // returns a function that restores the previous client.
 func SetNotificationClientForTest(client *http.Client) func() {

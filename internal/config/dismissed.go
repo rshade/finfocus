@@ -66,12 +66,15 @@ type LastKnownRecommendation struct {
 }
 
 // LifecycleEvent is a timestamped action in a recommendation's history.
+// Actor is optional. Dismissal files written before actors existed omit the
+// field and still load.
 type LifecycleEvent struct {
 	Action       LifecycleAction `json:"action"`
 	Reason       string          `json:"reason"`
 	CustomReason string          `json:"custom_reason,omitempty"`
 	Timestamp    time.Time       `json:"timestamp"`
 	ExpiresAt    *time.Time      `json:"expires_at,omitempty"`
+	Actor        string          `json:"actor,omitempty"`
 }
 
 // dismissalStoreData is the serialized form of the dismissal store.

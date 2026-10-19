@@ -872,6 +872,13 @@ type CostSourceClient interface {
 		in *DismissRecommendationRequest,
 		opts ...grpc.CallOption,
 	) (*DismissRecommendationResponse, error)
+	// GetRecommendationHistory is optional. Plugins that do not record
+	// lifecycle history return a status of Unimplemented.
+	GetRecommendationHistory(
+		ctx context.Context,
+		in *GetRecommendationHistoryRequest,
+		opts ...grpc.CallOption,
+	) (*GetRecommendationHistoryResponse, error)
 	Supports(
 		ctx context.Context,
 		in *pbc.SupportsRequest,
