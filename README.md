@@ -869,9 +869,9 @@ FinFocus ships [agent skills](agent-skills/) for AI coding assistants
 | [finfocus-routing](agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
 | [finfocus-budget](agent-skills/finfocus-budget/) | Configure budget thresholds, health, and CI exit codes |
 | [finfocus-diagnose](agent-skills/finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost |
+| [plugin-manage](agent-skills/plugin-manage/) | Install, update, remove, validate, and troubleshoot plugins |
 
-See [agent-skills/README.md](agent-skills/README.md) for the full list and
-planned skills.
+See [agent-skills/README.md](agent-skills/README.md) for the full list.
 
 ## Related Projects
 
