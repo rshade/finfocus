@@ -282,7 +282,7 @@ For any feature whose spec has user-facing output, EVERY checklist MUST include 
 - "Does the contract name the exact Go method(s) each `internal/webui` endpoint calls? [Clarity, Gap]"
 - "Is it clear that the web layer adds no engine or redaction logic of its own? [Consistency]"
 - "Is the layout fit described in the existing slots (heading, controls row, status line, summary strip, captioned table)? [Clarity]"
-- "Is a Playwright render of the nearest existing view against a populated stack recorded? [Traceability]"
+- "Does the spec require a Playwright render of the nearest existing view against a populated stack, and say where its result is recorded? [Traceability]"
 - "Is the follow-up `web-ui` issue scoped to UX only, with no engine, API, or data-shape work? [Measurability]"
 
 ## Example Checklist Types & Sample Items

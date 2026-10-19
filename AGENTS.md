@@ -138,6 +138,7 @@ Use `require.*` for setup failures and nil checks, `assert.*` for value comparis
 - Constitution Principle VII (Web Parity): the spec has a `Web UI Fit`
   section, an `internal/webui` hook that calls the CLI's Go method is part of
   the feature, and a UX-only `web-ui` follow-up issue is filed on completion.
+  A feature with no web surface records `Not applicable` and a reason instead.
 - Layout: `docs/src/content/docs/architecture/web-ui.md`.
 
 #### Plugin Development
