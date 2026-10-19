@@ -295,6 +295,8 @@ finfocus cost history export --stack <name> --format <json|csv|ndjson>
 `json` is one document with snapshots and annotations. `csv` has a header
 and one row per snapshot. `ndjson` is one snapshot per line. `cost projected`
 and `cost actual` add a Trend column when that stack's history file exists.
+The interactive detail view in `finfocus overview` and `cost actual` reads
+that same file when you open a resource.
 
 ## cost recommendations
 
@@ -525,6 +527,13 @@ flag shows the column. Levels:
 | HIGH   | Real billing data from plugin (AWS Cost Explorer, Kubecost)     |
 | MEDIUM | Runtime estimate for Pulumi-created resources                   |
 | LOW    | Runtime estimate for imported resources (creation time unknown) |
+
+### Interactive detail (cost actual)
+
+On a terminal, `cost actual` opens an interactive table. Enter opens one
+resource. That detail view loads the resource's stored cost history for
+`--stack` when you open it. The list does not load it. A failure stays on
+the detail view and `r` tries again.
 
 ### Examples (cost actual)
 

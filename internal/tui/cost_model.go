@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/table"
 	"charm.land/bubbles/v2/textinput"
@@ -10,6 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/tui/detail"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
@@ -32,16 +34,18 @@ const msgSelectedOutOfBounds = "Error: selected index out of bounds"
 
 // Keyboard constants.
 const (
-	keyEsc   = "esc"
-	keyEnter = "enter"
-	keyQuit  = "q"
-	keyCtrlC = "ctrl+c"
-	keySlash = "/"
-	keyS     = "s"
-	keyP     = "p"
-	keyE     = "e"
-	keyRight = "right"
-	keyLeft  = "left"
+	keyEsc    = "esc"
+	keyEnter  = "enter"
+	keyQuit   = "q"
+	keyCtrlC  = "ctrl+c"
+	keySlash  = "/"
+	keyS      = "s"
+	keyP      = "p"
+	keyE      = "e"
+	keyRight  = "right"
+	keyLeft   = "left"
+	keyPgUp   = "pgup"
+	keyPgDown = "pgdown"
 )
 
 // ViewState represents the current state of the TUI view.
@@ -107,8 +111,11 @@ type CostViewModel struct {
 	showFilter bool
 
 	// Loading state
-	loading  *LoadingState
-	fetchCmd tea.Cmd
+	loading       *LoadingState
+	fetchCmd      tea.Cmd
+	historyLoader detail.Loader
+	history       *detail.Model
+	detailScroll  int
 
 	// Actual Cost specific
 	groupBy      engine.GroupBy
@@ -272,7 +279,31 @@ func (m *CostViewModel) handleLoadingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, m.loading.Update(msg)
 }
 
+// WithHistoryLoader attaches the cost-history fetch used when a detail view opens.
+// A nil loader leaves the detail view unchanged.
+func (m *CostViewModel) WithHistoryLoader(loader detail.Loader) *CostViewModel {
+	if m == nil {
+		return nil
+	}
+	m.historyLoader = loader
+	return m
+}
+
+func (m *CostViewModel) openHistory(resourceID string) tea.Cmd {
+	if m.historyLoader == nil || resourceID == "" {
+		m.history = nil
+		return nil
+	}
+	m.history = detail.New(resourceID, m.historyLoader)
+	m.detailScroll = 0
+	return m.history.Activate(m.ctx)
+}
+
 func (m *CostViewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, isKey := msg.(tea.KeyPressMsg); !isKey && m.history != nil {
+		_, cmd := m.history.Update(msg)
+		return m, cmd
+	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case keyQuit, keyCtrlC:
@@ -284,7 +315,10 @@ func (m *CostViewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.selected = m.table.Cursor()
 			m.state = ViewStateDetail
-			return m, nil
+			if m.selected < 0 || m.selected >= len(m.results) {
+				return m, nil
+			}
+			return m, m.openHistory(m.results[m.selected].ResourceID)
 		case keySlash:
 			m.showFilter = true
 			m.textInput.Focus()
@@ -313,11 +347,34 @@ func (m *CostViewModel) handleGenericUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case keyEsc:
 			if m.state == ViewStateDetail {
+				if m.history != nil {
+					m.history.Invalidate()
+				}
 				m.state = ViewStateList
+				m.detailScroll = 0
 				m.table.Focus()
 			}
 			return m, nil
+		case "up", "k", "down", "j", keyPgUp, keyPgDown:
+			if m.state != ViewStateDetail {
+				return m, nil
+			}
+			delta := 1
+			switch keyMsg.String() {
+			case "up", "k":
+				delta = -1
+			case keyPgUp:
+				delta = -m.height
+			case keyPgDown:
+				delta = m.height
+			}
+			m.detailScroll = clampDetailScroll(m.detailScroll+delta, m.detailLineCount(), m.height)
+			return m, nil
 		}
+	}
+	if m.state == ViewStateDetail && m.history != nil {
+		_, cmd := m.history.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
@@ -386,7 +443,7 @@ func (m *CostViewModel) View() tea.View {
 		return tea.NewView(RenderLoading(m.loading))
 	case ViewStateDetail:
 		if m.selected >= 0 && m.selected < len(m.results) {
-			return tea.NewView(RenderDetailView(m.results[m.selected], m.width))
+			return tea.NewView(m.renderCostDetail(m.results[m.selected]))
 		}
 		return tea.NewView(msgSelectedOutOfBounds)
 	case ViewStateList:
@@ -394,6 +451,28 @@ func (m *CostViewModel) View() tea.View {
 	default:
 		return tea.NewView("")
 	}
+}
+
+func (m *CostViewModel) detailLineCount() int {
+	if m.selected < 0 || m.selected >= len(m.results) {
+		return 1
+	}
+	return strings.Count(m.costDetailBody(m.results[m.selected]), "\n") + 1
+}
+
+func (m *CostViewModel) costDetailBody(resource engine.CostResult) string {
+	body := RenderDetailView(resource, m.width)
+	if m.history != nil {
+		if section := m.history.View().Content; section != "" {
+			body += "\n" + section
+		}
+	}
+	return body
+}
+
+func (m *CostViewModel) renderCostDetail(resource engine.CostResult) string {
+	shown, _ := visibleDetail(m.costDetailBody(resource), m.detailScroll, m.height)
+	return shown
 }
 
 func (m *CostViewModel) renderListView() string {

@@ -57,8 +57,9 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
 ```
 
 - `make lint` checks golangci-lint's version against `mise.toml` and runs
-  `$(HOME)/go/bin/golangci-lint`. When that binary lags the pin, run
-  `make lint GOLANGCI_LINT="$(mise which golangci-lint)"`.
+  `mise which golangci-lint`. Install it with `mise install` (`make tools`).
+  Do not point `GOLANGCI_LINT` at `$(HOME)/go/bin/golangci-lint`: that copy
+  can lag the pin and reject the current config.
 - `pkill golangci-lint || true` clears a parallel-runner conflict. Lint can run
   longer than five minutes.
 - After a rebase, run `go vet ./...` before trusting `make test`. A widened
@@ -559,6 +560,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   env var are trusted. The working-dir fallback is made absolute.
   `collect` fails a checkpoint rather than store an inaccurate
   total (#549). `internal/history` must not import `engine` or `ingest`.
+  The overview and `cost actual` interactive detail views load one resource's
+  series from that database only after Enter (`internal/tui/detail`). An empty
+  stack or a missing database returns `detail.ErrHistorySkipped` and the
+  section is omitted. Any other error stays
+  inline; `r` retries that load and leaves the detail view open. Replies carry
+  the model pointer and a generation so a late fetch cannot fill a newer view.
   History subcommands reuse the parent `--stack`. `cost history export` takes
   `csv`/`ndjson` through the root `--format` by rewriting it in `Args` before
   `ax.Execute` resolves the mode. `pulumi stack history` is read in pages of

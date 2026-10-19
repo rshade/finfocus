@@ -3,7 +3,9 @@ VERSION?=$(shell git describe --tags --match 'v[0-9]*' --always --dirty)
 COMMIT=$(shell git rev-parse HEAD)
 BUILD_DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-GOLANGCI_LINT?=$(HOME)/go/bin/golangci-lint
+# mise.toml is the pin. `mise which` returns that binary. A copy under
+# $(HOME)/go/bin can lag the pin and reject the current config.
+GOLANGCI_LINT?=$(shell mise which golangci-lint)
 # Read from mise.toml, the single source of tool versions, so Renovate bumps
 # to mise.toml cannot leave this check expecting an older release.
 GOLANGCI_LINT_VERSION?=$(shell sed -n 's/^golangci-lint = "\(.*\)"/\1/p' mise.toml)
@@ -241,7 +243,7 @@ lint: lint-kubernetes lint-jev lint-prometheus check-plugin-boundaries
 	@echo "Running golangci-lint (expected version $(GOLANGCI_LINT_VERSION))..."
 	@$(GOLANGCI_LINT) --version | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "golangci-lint $(GOLANGCI_LINT_VERSION) required. Install with"; \
-		echo "  curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $$HOME/go/bin v$(GOLANGCI_LINT_VERSION)"; exit 1)
+		echo "  mise install"; exit 1)
 	$(GOLANGCI_LINT) run --allow-parallel-runners
 	@echo "Running markdownlint..."
 	@command -v $(MARKDOWNLINT) >/dev/null 2>&1 || \
@@ -280,7 +282,7 @@ ensure-golangci-lint:
 	@echo "==> golangci-lint $(GOLANGCI_LINT_VERSION)"
 	@$(GOLANGCI_LINT) --version 2>/dev/null | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "    Installing golangci-lint v$(GOLANGCI_LINT_VERSION)..." && \
-		curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $$HOME/go/bin v$(GOLANGCI_LINT_VERSION))
+		mise install golangci-lint)
 	@echo "    OK"
 
 .PHONY: ensure-markdownlint
