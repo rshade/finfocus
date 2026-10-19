@@ -99,9 +99,7 @@
     },
     "jev": {
       "name": "jev",
-      "description": "Deprecated. Use scorer, which rates recommendations with the Jev or Clef backend",
-      "deprecated": true,
-      "replacement": "scorer",
+      "description": "Recommendation scorer that rates risk, false positives, worth and priority and groups duplicates using TypeSafe AI's Jev model",
       "repository": "rshade/finfocus",
       "author": "FinFocus Team",
       "license": "Apache-2.0",

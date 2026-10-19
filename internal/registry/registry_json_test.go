@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/registry"
 )
@@ -190,18 +189,4 @@ func TestRegistryJSONNoDuplicates(t *testing.T) {
 		}
 		sources[key] = name
 	}
-}
-
-func TestRegistryJSONDeprecationPointsAtCurrentEntry(t *testing.T) {
-	t.Parallel()
-
-	reg, err := registry.GetEmbeddedRegistry()
-	require.NoError(t, err)
-	jev, ok := reg.Plugins["jev"]
-	require.True(t, ok)
-	assert.True(t, jev.Deprecated)
-	replacement, ok := reg.Plugins[jev.Replacement]
-	require.True(t, ok)
-	assert.False(t, replacement.Deprecated)
-	assert.Equal(t, "jev is deprecated; use scorer for new installs", jev.DeprecationNotice())
 }

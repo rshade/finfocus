@@ -252,11 +252,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   32-hex-character `SCORER_CLEF_ACCOUNT_ID` when a token is provided and only
   accepts `SCORER_MODEL=clef`; its optional `SCORER_BASE_URL` is an origin.
   Source install is `make install-scorer`; the first public scorer registry
-  release is pending. The legacy `jev` registry entry is deprecated
-  (`deprecated` and `replacement: scorer` in `internal/registry/registry.json`).
-  It stays installable, `plugin list --available` and the dashboard catalog
-  say to use scorer, and install prints `DeprecationNotice` without migrating
-  settings. `SCORER_BACKEND=jev` is the scorer backend, not that catalog entry. `TYPESAFE_API_KEY` and `JEV_*` are not read by
+  release is pending. The legacy `jev` registry entry remains separate and
+  does not migrate settings. `TYPESAFE_API_KEY` and `JEV_*` are not read by
   scorer. Live tests require `SCORER_LIVE_TEST=1`; agents must not run them.
 - **Agent skills**: finfocus-specific skills live in `agent-skills/` here;
   generic cost-workflow skills live in `rshade/agent-skills`.

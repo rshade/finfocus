@@ -29,8 +29,6 @@ type PluginCatalogRow struct {
 	LatestVersion     string   `json:"latestVersion"`
 	UpdateAvailable   bool     `json:"updateAvailable"`
 	Warning           string   `json:"warning,omitempty"`
-	Deprecated        bool     `json:"deprecated,omitempty"`
-	Replacement       string   `json:"replacement,omitempty"`
 }
 
 // PluginPlanRequest asks for a confirmation summary. Version is optional for
@@ -50,8 +48,6 @@ type PluginPlan struct {
 	FallbackFrom  string `json:"fallbackFrom"`
 	ChecksumFile  string `json:"checksumFile"`
 	InCatalog     bool   `json:"inCatalog"`
-	Deprecated    bool   `json:"deprecated,omitempty"`
-	Replacement   string `json:"replacement,omitempty"`
 }
 
 // PluginOperationRequest confirms a plan. CatalogOnly and RequireChecksumFile

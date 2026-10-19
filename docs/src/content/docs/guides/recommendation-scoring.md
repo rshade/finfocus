@@ -76,8 +76,6 @@ If a hosted scorer reports rate limits often, raise it.
 
 The `scorer` plugin defaults to TypeSafe AI's Jev model. Read the
 [data-handling notes](https://github.com/rshade/finfocus/tree/main/plugins/scorer#opt-in-and-data-handling) first.
-The catalog plugin named `jev` is deprecated. `SCORER_BACKEND=jev` selects the
-Jev model inside `scorer`; it does not install the old plugin.
 
 ```bash
 make install-scorer  # from the repository root; public scorer release pending

@@ -33,12 +33,6 @@ func TestPluginListAvailableScorer(t *testing.T) {
 	assert.Equal(t, "official", scorer.SecurityLevel)
 	assert.Equal(t, []string{"*"}, scorer.SupportedProviders)
 	assert.Equal(t, []string{"recommendation_scoring"}, scorer.Capabilities)
-	require.Contains(t, byName, "jev", "legacy installs remain available")
-	jev := byName["jev"]
-	assert.NotEqual(t, jev.TagPrefix, scorer.TagPrefix)
-	assert.True(t, jev.Deprecated)
-	assert.Equal(t, "scorer", jev.Replacement)
-	assert.Equal(t, "jev is deprecated; use scorer for new installs", jev.DeprecationNotice())
-	assert.False(t, scorer.Deprecated)
-	assert.Empty(t, scorer.DeprecationNotice())
+	require.Contains(t, byName, "jev", "legacy installs remain available until scorer assets are published")
+	assert.NotEqual(t, byName["jev"].TagPrefix, scorer.TagPrefix)
 }
