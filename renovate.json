@@ -15,6 +15,19 @@
       "enabled": true
     },
     {
+      "description": "Never bump indirect Go dependencies across a major version. Go treats a major as a different import path, and Renovate guesses it: #1850 pointed Charm at github.com/charmbracelet/*/v2 (now charm.land/*/v2) and broke every module. The direct dependency that needs the new major pulls it in.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
       "description": "gh-aw generates .github/workflows/*.lock.yml via 'gh aw compile'. Their pinned action SHAs and container tags are managed by gh-aw (recompiling bumps them), so Renovate must not touch them: edits would be reverted on the next compile and can break the gh-aw integrity manifest.",
       "matchFileNames": [
         ".github/workflows/*.lock.yml"
@@ -50,14 +63,15 @@
       "groupSlug": "go-deps"
     },
     {
+      "description": "Direct Go major bumps are one PR per dependency, opened only when approved on the Dependency Dashboard, and never automerged. A major changes the import path and usually the API, so each needs a human to fix call sites and confirm CI is green.",
       "matchManagers": [
         "gomod"
       ],
       "matchUpdateTypes": [
         "major"
       ],
-      "groupName": "go major dependencies",
-      "groupSlug": "go-major-deps"
+      "dependencyDashboardApproval": true,
+      "automerge": false
     }
   ],
   "postUpdateOptions": [

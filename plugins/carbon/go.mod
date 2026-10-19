@@ -1,6 +1,6 @@
 module github.com/rshade/finfocus/plugins/carbon
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/rs/zerolog v1.35.1
@@ -12,12 +12,9 @@ require (
 
 require (
 	connectrpc.com/connect v1.21.1 // indirect
-	connectrpc.com/connect/v2 v2.0.1 // indirect
 	connectrpc.com/grpchealth v1.5.0 // indirect
-	connectrpc.com/grpchealth/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
-	github.com/cenkalti/backoff/v7 v7.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
