@@ -57,8 +57,9 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
 ```
 
 - `make lint` checks golangci-lint's version against `mise.toml` and runs
-  `$(HOME)/go/bin/golangci-lint`. When that binary lags the pin, run
-  `make lint GOLANGCI_LINT="$(mise which golangci-lint)"`.
+  `mise which golangci-lint`. Install it with `mise install` (`make tools`).
+  Do not point `GOLANGCI_LINT` at `$(HOME)/go/bin/golangci-lint`: that copy
+  can lag the pin and reject the current config.
 - `pkill golangci-lint || true` clears a parallel-runner conflict. Lint can run
   longer than five minutes.
 - After a rebase, run `go vet ./...` before trusting `make test`. A widened
