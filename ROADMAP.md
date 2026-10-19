@@ -6,16 +6,17 @@ guardrails in `CONTEXT.md`.
 
 ## Table of Contents
 
-- [Immediate Focus (Post v0.4.0)](#immediate-focus-post-v040)
-- [Near-Term Vision (v0.3.x)](#near-term-vision-v03x---forecasting--profiles)
+- [Immediate Focus (Post v0.5.0)](#immediate-focus-post-v050)
+- [Near-Term Vision (Forecasting & Profiles)](#near-term-vision-forecasting--profiles)
 - [Future Vision (Later)](#future-vision-later---notifications-integrations--backlog)
 - [Completed Milestones](#completed-milestones)
 - [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
 - [Boundary Safeguards](#boundary-safeguards)
 
-## Immediate Focus (Post v0.4.0)
+## Immediate Focus (Post v0.5.0)
 
-*v0.4.0 released 2026-10-03. Everything below targets the next release.*
+*v0.5.0 released 2026-10-19 with finfocus-spec v0.7.7. Everything below
+targets the next release.*
 
 The 2026-10-02 Overnight Queue finished: all 22 items closed 2026-10-03 (see
 Completed Milestones, 2026-Q4).
@@ -26,12 +27,20 @@ Completed Milestones, 2026-Q4).
   - *Promoted by /roadmap sync on 2026-10-05 — builds on the #853
     compute-once refactor; #658 comes first so the speed-ups can be
     measured against a baseline.*
+- [ ] **Recommendation Lifecycle Enhancements** *(cross-repo: the RPC shipped
+      in finfocus-spec v0.7.7,
+      [finfocus-spec issue 640](https://github.com/rshade/finfocus-spec/issues/640))*
+  - [ ] Merge plugin `GetRecommendationHistory` events into
+        `cost recommendations history`
+        ([#1816](https://github.com/rshade/finfocus/issues/1816)) [M]
+  - *Promoted by /roadmap sync on 2026-10-18 — unblocked by spec v0.7.7,
+    which core already pins.*
   - *#693 and #691 shipped 2026-10-06, and #692 shipped 2026-10-18 (see
     Completed Milestones, 2026-Q4).*
   - *Web UI Settings & Plugin Setup (#1763, #1764, #1765) shipped
     2026-10-16 to 2026-10-17.*
 
-## Near-Term Vision (v0.3.x - Forecasting & Profiles)
+## Near-Term Vision (Forecasting & Profiles)
 
 - [ ] **Estimate What-If Usability** *(#1731 shipped 2026-10-18)*
   - [ ] Show cost-affecting properties by default in What-If
@@ -39,16 +48,16 @@ Completed Milestones, 2026-Q4).
 - [ ] **Overview TUI Quality** *(deferred from v0.3.2)*
   - [ ] Show phase progress lines sequentially and add preview phase
         ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
-- [ ] **Spec v0.5.7 Features**
-  - *All v0.5.7 consumer items promoted to Immediate Focus*
 - [ ] **Time-Series Forecasting Enhancement**
   - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
         ([#539](https://github.com/rshade/finfocus/issues/539)) [L]
 - [ ] **Kubernetes Cost Allocation — Usage & Pricing**
-  - *Cross-Repo:* spot pricing for EC2 nodes is tracked in
+  - *Cross-Repo:* spot pricing for EC2 nodes was tracked in
     [finfocus-plugin-aws-ce issue 56](https://github.com/rshade/finfocus-plugin-aws-ce/issues/56)
-    (moved from finfocus-plugin-aws-public). The finfocus-spec v0.6.2 bump in
-    finfocus-plugin-aws-public shipped 2026-10-04. The Prometheus usage source
+    (moved from finfocus-plugin-aws-public). It is still open and says
+    aws-public has no spot pricing, while #1838 expects aws-public to
+    populate the on-demand equivalent for spot results. Decide which plugin
+    owns spot pricing before #1838 starts. The Prometheus usage source
     (#1529) shipped 2026-10-06.
 - [x] **Azure Resource Resolution — Sparse-SKU Pre-Flight** *(decided in
       #1610)*
@@ -74,19 +83,12 @@ Completed Milestones, 2026-Q4).
         ([#1702](https://github.com/rshade/finfocus/issues/1702)) [M]
   - [ ] PagerDuty (Events API v2) destination for budget alert notifications
         ([#1703](https://github.com/rshade/finfocus/issues/1703)) [M]
-- [ ] **Recommendation Lifecycle Enhancements** *(spec-first, cross-repo:
-      the RPC itself is
-      [finfocus-spec issue 640](https://github.com/rshade/finfocus-spec/issues/640))*
-  - [ ] Merge plugin `GetRecommendationHistory` events into
-        `cost recommendations history`
-        ([#1816](https://github.com/rshade/finfocus/issues/1816)) [M]
 - [ ] **Cost Time Machine** *(Phases 1 and 3 and the follow-ups shipped
       2026-10-03; Phase 2 stays here because it needs visual TUI
       verification)*
   - [ ] Phase 2 — Interactive TUI: ntcharts TimeSeriesLineChart with
         pan/zoom, provider split, budget overlay
         ([#550](https://github.com/rshade/finfocus/issues/550)) [L]
-- [ ] TUI Lazy Loading & Error Recovery (#483) [L] *Deferred from TUI Phase 7*
 - [ ] Plugin integrity verification strategy (#164) [M]
 - [ ] Custom plugin registry sources for the web UI and CLI
       ([#1766](https://github.com/rshade/finfocus/issues/1766)) [L]
@@ -100,15 +102,22 @@ Completed Milestones, 2026-Q4).
     [finfocus-spec](https://github.com/rshade/finfocus-spec)
 - [ ] **Spot Market Advisor**
       ([#367](https://github.com/rshade/finfocus/issues/367)) [L]
-  - [ ] TUI: Highlight Spot savings in Cyan; show Risk Icon
-  - [ ] Display "Savings vs On-Demand" percentage
-  - *Cross-Repo:* Requires `PricingTier`/`SpotRisk` enums in
-    [finfocus-spec](https://github.com/rshade/finfocus-spec); CE plugin
-    implements `DescribeSpotPriceHistory`
-- [ ] **Carbon Footprint Estimation**
-  - [ ] Carbon footprint estimation plugin using Cloud Carbon Footprint
-        methodology
-        ([#688](https://github.com/rshade/finfocus/issues/688)) [L]
+  - [ ] Spot badge: show spot pricing and interruption risk on every cost
+        surface ([#1836](https://github.com/rshade/finfocus/issues/1836)) [M]
+  - [ ] Spot exposure totals: spot share of spend and weighted interruption
+        risk ([#1837](https://github.com/rshade/finfocus/issues/1837)) [M]
+  - [ ] Spot savings vs on-demand from a plugin-supplied on-demand equivalent
+        ([#1838](https://github.com/rshade/finfocus/issues/1838)) [L]
+  - [ ] Spot recommendations from plugins
+        ([#1839](https://github.com/rshade/finfocus/issues/1839)) [L]
+  - [ ] Kubernetes cluster spend split by capacity type (spot vs on-demand)
+        ([#1840](https://github.com/rshade/finfocus/issues/1840)) [M]
+  - [ ] Optional: what-if estimate mode priced as spot
+        ([#1841](https://github.com/rshade/finfocus/issues/1841)) [M]
+  - *Cross-Repo:* spot is `FocusPricingCategory.DYNAMIC` in
+    [finfocus-spec](https://github.com/rshade/finfocus-spec), not a
+    `PricingTier`. The on-demand equivalent field shipped in spec v0.7.7
+    (finfocus-spec#646), so #1838 now waits on the plugin, then core.
 - [ ] **Mixed-Currency Aggregation Strategy (MCP Alignment)**
   - *Objective*: Implement core-level grouping for multi-currency stacks so
     MCP clients of the built-in server (`finfocus --mcp` /
@@ -164,8 +173,6 @@ Completed Milestones, 2026-Q4).
   - [ ] Flag-only `cost anomalies` command over actual-cost history, exposed
         as an MCP tool
         ([#1590](https://github.com/rshade/finfocus/issues/1590)) [L]
-- [ ] Backend-neutral scorer plugin with Jev and Clef backends
-      ([#1728](https://github.com/rshade/finfocus/issues/1728)) [M]
 - [ ] **Recommendation Scoring — Jev Plugin Ideas** *(brainstorm 2026-10-01;
       ideas only, no issues or specs yet)*
   - *Placement rule:* Jev stays in `plugins/scorer`. Core and
@@ -184,6 +191,10 @@ Completed Milestones, 2026-Q4).
       `ScoreRecommendationsRequest`; core fills it from the dismissal store
       with the same identifier handling and scrubbing as recommendations; the
       plugin decides how Jev uses it.
+    - *Spec status:* finfocus-spec v0.7.7 `GetRecommendationHistory` does not
+      cover this. It returns a plugin's own lifecycle events to core (action,
+      reason, actor, timestamps); this idea needs core to send prior
+      decisions to a scorer, so the request field is still missing.
     - *Open question:* does sending past dismissal reasons to a hosted model
       feel worse, privacy-wise, than sending the recommendations themselves?
   - [ ] **2. Explain scores by breaking the question into parts** [S-M] — Back
@@ -268,6 +279,12 @@ Completed Milestones, 2026-Q4).
 
 ### 2026-Q4
 
+- [x] #1728 `scorer`: backend-neutral scorer plugin with Jev and Clef backends.
+      Closed 2026-10-19. [M]
+- [x] #483 `tui`: lazy-load detail cost history with inline error recovery.
+      Closed 2026-10-19. [L]
+- [x] #688 `carbon`: add offline EC2 carbon estimates.
+      Closed 2026-10-19. [L]
 - [x] #1727 `cli`: `plugin list` shows the latest version; `--all` lists every one.
       Closed 2026-10-19. [M]
 - [x] #911 `skills`: add the plugin-manage agent skill.
@@ -711,10 +728,10 @@ Completed Milestones, 2026-Q4).
 | YOLO Mode | BypassReason (missing) | --yolo flag | N/A | N/A |
 | Blast Radius | Lineage | Impact Tree | Parent/child | N/A |
 | GreenOps Receipt | CarbonFootprint | Converter | CCF Math | N/A |
-| Spot Market Advisor | PricingTier | Cyan style | N/A | SpotHistory |
+| Spot Market Advisor | FocusPricingCategory.DYNAMIC, on-demand equivalent (v0.7.7) | Spot badge, savings (#1836 to #1841) | On-demand equivalent (#1838) | SpotHistory (#56) |
 | Dev Mode | UsageProfile (v0.5.5) | --profile | Burstable | IOPS warn |
 | What-If Analysis | EstimateCost | cost estimate | PropertyDelta | N/A |
-| Rec Lifecycle | DismissRecommendation | dismiss/snooze | Dismiss | N/A |
+| Rec Lifecycle | DismissRecommendation, GetRecommendationHistory (v0.7.7) | dismiss/snooze, plugin history (#1816) | Dismiss | N/A |
 | Auto-Detect | N/A | pulumi detect | N/A | N/A |
 | Resource Filter | N/A | provider/component filter | N/A | N/A |
 | Pricing Transparency | GetPricingSpec | --explain + fallback | PricingSpec | N/A |
