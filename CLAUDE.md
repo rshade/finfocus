@@ -609,8 +609,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   plugin `GetRecommendationHistory` events with the local dismissal record.
   It queries every connected plugin, including when that id has no local
   record, and does not need a Pulumi plan. `Unimplemented`, an empty result,
-  and any other plugin failure are logged and local history stays. Cancellation
-  and deadline abort the query. The read copies events before sorting and does
+  and any other plugin failure are logged and local history stays. Each plugin
+  call uses `perResourceTimeout`. A plugin that hits that deadline, or that
+  returns `Canceled` or `DeadlineExceeded` on its own, is skipped. Only the
+  caller's context being canceled or past its deadline aborts the query. The
+  read copies events before sorting and does
   not write `dismissed.json`. `actor` on `config.LifecycleEvent` is omitted
   when empty, so older files load with no migration. A missing timestamp sorts
   after dated events. A timestamp or expiry that is present but invalid drops

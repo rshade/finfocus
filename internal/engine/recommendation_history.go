@@ -16,9 +16,14 @@ import (
 	"github.com/rshade/finfocus/internal/proto"
 )
 
+// recommendationHistoryTimeout bounds one GetRecommendationHistory RPC.
+// Tests shorten it. Production matches the other per-call plugin deadlines.
+var recommendationHistoryTimeout = perResourceTimeout //nolint:gochecknoglobals // tests shorten it
+
 // GetRecommendationHistory returns local and plugin lifecycle events for one
 // recommendation, oldest first. It does not modify the dismissal store.
-// Cancellation stops the query. Other plugin failures are logged and skipped.
+// The caller's cancellation stops the query. A plugin that times out, or that
+// reports cancellation on its own, is logged and skipped.
 func (e *Engine) GetRecommendationHistory(
 	ctx context.Context,
 	store *config.DismissalStore,
@@ -64,13 +69,14 @@ func (e *Engine) pluginRecommendationHistory(
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		events, err := recommendationHistoryFromClient(ctx, client, recommendationID)
+		callCtx, cancel := context.WithTimeout(ctx, recommendationHistoryTimeout)
+		events, err := recommendationHistoryFromClient(callCtx, client, recommendationID)
+		cancel()
 		if err != nil {
-			if historyQueryStopped(ctx, err) {
-				if ctx.Err() != nil {
-					return nil, ctx.Err()
-				}
-				return nil, err
+			// A deadline on this one call is that plugin's failure. Stop only
+			// when the caller is done, matching batch cost's parent-context check.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, ctxErr
 			}
 			if status.Code(err) == codes.Unimplemented {
 				log.Debug().
@@ -141,14 +147,6 @@ func pluginClientName(client *pluginhost.Client) string {
 		return "unnamed"
 	}
 	return client.Name
-}
-
-func historyQueryStopped(ctx context.Context, err error) bool {
-	if ctx.Err() != nil {
-		return true
-	}
-	code := status.Code(err)
-	return code == codes.Canceled || code == codes.DeadlineExceeded
 }
 
 // mergeRecommendationHistory orders events oldest first.

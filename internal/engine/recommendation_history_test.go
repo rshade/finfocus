@@ -257,19 +257,96 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 		assert.Zero(t, plugin.calls)
 	})
 
-	t.Run("plugin cancellation aborts the merge", func(t *testing.T) {
+	t.Run("plugin cancellation keeps local history", func(t *testing.T) {
 		t.Parallel()
 		store := createTestStore(t)
 		localDismiss(t, store, "rec-stop", historyAt(8))
-		plugin := &historyPlugin{fn: func(
+		next := &historyPlugin{fn: func(
 			context.Context, *proto.GetRecommendationHistoryRequest,
 		) (*proto.GetRecommendationHistoryResponse, error) {
-			return nil, status.Error(codes.Canceled, "stopped")
+			return &proto.GetRecommendationHistoryResponse{Events: []proto.RecommendationLifecycleEvent{{
+				Action: "acknowledged",
+				Actor:  "ada",
+			}}}, nil
 		}}
-		eng := enginepkg.New([]*pluginhost.Client{historyClient("aws", plugin)}, nil)
-		history, err := eng.GetRecommendationHistory(context.Background(), store, "rec-stop")
-		require.Error(t, err)
-		assert.Equal(t, codes.Canceled, status.Code(err))
-		assert.Nil(t, history)
+		for _, code := range []codes.Code{codes.Canceled, codes.DeadlineExceeded} {
+			plugin := &historyPlugin{fn: func(
+				context.Context, *proto.GetRecommendationHistoryRequest,
+			) (*proto.GetRecommendationHistoryResponse, error) {
+				return nil, status.Error(code, "plugin stopped")
+			}}
+			eng := enginepkg.New([]*pluginhost.Client{
+				historyClient("aws", plugin),
+				historyClient("next", next),
+			}, nil)
+			history, err := eng.GetRecommendationHistory(context.Background(), store, "rec-stop")
+			require.NoError(t, err)
+			require.Len(t, history, 2)
+			assert.Equal(t, config.ActionDismissed, history[0].Action)
+			assert.Equal(t, config.LifecycleAction("acknowledged"), history[1].Action)
+			assert.Equal(t, 1, next.calls)
+			next.calls = 0
+		}
 	})
+}
+
+//nolint:paralleltest // shortens the process-wide recommendation history RPC timeout
+func TestEngine_GetRecommendationHistory_PluginTimeoutKeepsLocal(t *testing.T) {
+	enginepkg.SetRecommendationHistoryTimeoutForTest(t, 20*time.Millisecond)
+	store := createTestStore(t)
+	localDismiss(t, store, "rec-hang", historyAt(9))
+	hung := &historyPlugin{fn: func(
+		ctx context.Context, _ *proto.GetRecommendationHistoryRequest,
+	) (*proto.GetRecommendationHistoryResponse, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	next := &historyPlugin{fn: func(
+		context.Context, *proto.GetRecommendationHistoryRequest,
+	) (*proto.GetRecommendationHistoryResponse, error) {
+		return &proto.GetRecommendationHistoryResponse{Events: []proto.RecommendationLifecycleEvent{{
+			Action: "acknowledged",
+			Actor:  "ada",
+		}}}, nil
+	}}
+	eng := enginepkg.New([]*pluginhost.Client{
+		historyClient("hung", hung),
+		historyClient("next", next),
+	}, nil)
+
+	started := time.Now()
+	history, err := eng.GetRecommendationHistory(context.Background(), store, "rec-hang")
+	elapsed := time.Since(started)
+
+	require.NoError(t, err)
+	assert.Less(t, elapsed, time.Second)
+	require.Len(t, history, 2)
+	assert.Equal(t, config.ActionDismissed, history[0].Action)
+	assert.Equal(t, "ada", history[1].Actor)
+	assert.Equal(t, 1, hung.calls)
+	assert.Equal(t, 1, next.calls)
+}
+
+func TestEngine_GetRecommendationHistory_CallerCancelDuringPluginCall(t *testing.T) {
+	t.Parallel()
+	started := make(chan struct{})
+	plugin := &historyPlugin{fn: func(
+		ctx context.Context, _ *proto.GetRecommendationHistoryRequest,
+	) (*proto.GetRecommendationHistoryResponse, error) {
+		close(started)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	eng := enginepkg.New([]*pluginhost.Client{historyClient("aws", plugin)}, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-started
+		cancel()
+	}()
+
+	history, err := eng.GetRecommendationHistory(ctx, createTestStore(t), "rec-cancel-mid")
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, history)
+	assert.Equal(t, 1, plugin.calls)
 }

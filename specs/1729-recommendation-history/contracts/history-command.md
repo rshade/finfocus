@@ -19,9 +19,10 @@ It opens every installed plugin, queries history, and closes those connections.
 
 ## Failures
 
-- Plugin unsupported, empty, unreachable, or any status other than
-  cancellation: stderr or log diagnostic, local and other plugin events still
-  print, exit success when the local read succeeded.
-- Cancellation or deadline: the command returns that error and does not print
-  a successful history listing.
+- Plugin unsupported, empty, unreachable, timed out, or any plugin status,
+  including a plugin's own cancellation or deadline: stderr or log diagnostic,
+  local and other plugin events still print, exit success when the local read
+  succeeded.
+- The caller's context being canceled or past its deadline: the command
+  returns that error and does not print a successful history listing.
 - The dismissal file is not rewritten on any of these paths.
