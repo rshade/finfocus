@@ -527,6 +527,21 @@ func TestRedactJSONIgnoresInvalidJSONTagNamesLikeTheEncoder(t *testing.T) {
 	assert.NotContains(t, string(data), credentialMarker)
 }
 
+func TestRedactJSONInvalidTagOnEmbeddedStructKeepsCredentialsOut(t *testing.T) {
+	t.Parallel()
+
+	type inner struct {
+		Entry    map[string]float64 `json:"Entry"    datakey:"true"`
+		Password string             `json:"password"`
+	}
+	type promoted struct {
+		inner `json:"bad'name"` //nolint:staticcheck // malformed on purpose
+	}
+	data, err := RedactJSON(promoted{inner{Entry: map[string]float64{"password": 1}, Password: credentialMarker}})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), credentialMarker)
+}
+
 func TestEncodesAsComparesTheSourceWithTheDecodedObject(t *testing.T) {
 	t.Parallel()
 

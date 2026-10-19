@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/rshade/finfocus/internal/engine"
@@ -296,7 +297,24 @@ func buildFields(root reflect.Type) map[string]fieldRef {
 
 func jsonTagName(field reflect.StructField) string {
 	name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+	if !validTagName(name) {
+		return ""
+	}
 	return name
+}
+
+// validTagName mirrors the v1 encoder, which ignores a tag name holding a
+// character other than a letter, digit or these punctuation marks.
+func validTagName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, c := range name {
+		if !strings.ContainsRune("!#$%&()*+-./:;<=>?@[]^_{|}~ ", c) && !unicode.IsLetter(c) && !unicode.IsDigit(c) {
+			return false
+		}
+	}
+	return true
 }
 
 // jsonFieldName returns the JSON key of a field, or the struct type of an
@@ -306,7 +324,7 @@ func jsonFieldName(field reflect.StructField) (string, reflect.Type, bool) {
 	if tag == "-" {
 		return "", nil, true
 	}
-	name, _, _ := strings.Cut(tag, ",")
+	name := jsonTagName(field)
 	if name == "" && field.Anonymous {
 		embedded := field.Type
 		if embedded.Kind() == reflect.Pointer {
