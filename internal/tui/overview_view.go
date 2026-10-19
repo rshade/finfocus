@@ -267,7 +267,15 @@ func (m OverviewModel) renderDetailViewForDay(dayOfMonth int) string {
 
 	content.WriteString(SubtleStyle.Render("\nPress ESC to return"))
 
-	return BoxStyle.Width(m.width - borderPadding).Render(content.String())
+	body := BoxStyle.Width(m.width - borderPadding).Render(content.String())
+	if m.history == nil {
+		return body
+	}
+	section := m.history.View().Content
+	if section == "" {
+		return body
+	}
+	return body + "\n" + section
 }
 
 // renderDetailActualCost writes actual cost details to the builder.

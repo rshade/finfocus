@@ -1,12 +1,8 @@
-// Package detail provides lazy loading and error recovery for TUI detail views.
+// Package detail loads cost history for a TUI detail view when that view opens.
 //
-// This package implements on-demand data loading for resource-intensive operations
-// (e.g., fetching historical cost data) to keep the TUI responsive. Key features:
-//   - Lazy loading: data fetched only when detail view is activated
-//   - Async loading with immediate loading state display
-//   - Inline error recovery with keyboard-navigable retry ('r' key)
-//   - Non-blocking error states that don't crash the application
-//
-// Lazy loading ensures fast navigation through lists without waiting for secondary
-// data to load, meeting the <500ms detail view load target or immediate loading state.
+// The list view does not call the loader. Activate moves the model to the
+// loading state before the fetch runs, so the detail view can show
+// "Loading cost history..." immediately. A failed fetch stays on the detail
+// view; r retries that fetch. ErrHistorySkipped means there is nothing to
+// show, and the section is omitted.
 package detail

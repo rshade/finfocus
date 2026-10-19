@@ -97,9 +97,9 @@ Successfully implemented comprehensive CLI pagination and performance optimizati
 - Verified with `head -n 5`, `jq -c '.'`, streaming scenarios
 - All tests passing ✅
 
-### 🔄 Phase 7: TUI Lazy Loading & Error Recovery (T052-T058) - DEFERRED
-**Status**: Deferred to GitHub Issue #483
-**0/7 tasks complete**
+### Phase 7: TUI Lazy Loading & Error Recovery (T052-T058)
+**Status**: Implemented on issue #483. `internal/tui/detail` loads stored cost history when a detail view opens.
+**7/7 tasks complete**
 
 **Rationale for Deferral:**
 - Requires significant new infrastructure (async loading, error recovery mechanisms)

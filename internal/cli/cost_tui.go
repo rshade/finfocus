@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
@@ -87,7 +88,8 @@ func RenderActualCostOutput(
 	mode := outputModeFromCmd(cmd)
 	opts := actualTableOptions(cmd, groupBy, estimateConfidence, showBreakdown, showConfidence)
 	if mode == tui.OutputModeInteractive && !showBreakdown && !showConfidence {
-		return runInteractiveActualCostTUI(ctx, resultWithErrors, engine.GroupBy(groupBy), opts.Trends)
+		stack, _ := cmd.Flags().GetString("stack")
+		return runInteractiveActualCostTUI(ctx, resultWithErrors, engine.GroupBy(groupBy), opts.Trends, stack)
 	}
 
 	if err := renderActualResourceTable(cmd.OutOrStdout(), resultWithErrors.Results, groupBy, opts); err != nil {
@@ -133,8 +135,12 @@ func runInteractiveActualCostTUI(
 	resultWithErrors *engine.CostResultWithErrors,
 	groupBy engine.GroupBy,
 	trends map[string]string,
+	stack string,
 ) error {
 	model := tui.NewCostViewModelFromActual(ctx, resultWithErrors.Results, groupBy).WithTrends(trends)
+	if strings.TrimSpace(stack) != "" {
+		model.WithHistoryLoader(costActualHistoryLoader(stack))
+	}
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive TUI: %w", err)

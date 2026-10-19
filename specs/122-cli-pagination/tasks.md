@@ -208,13 +208,13 @@ Tasks are organized by user story priority to enable independent implementation 
 
 ### Tasks
 
-- [~] T052 (Deferred to #483) [P] [US3] Write unit tests for lazy loading in test/unit/tui/detail/loader_test.go (verify async loading, loading state transitions)
-- [~] T053 (Deferred to #483) [P] [US3] Write unit tests for error recovery in test/unit/tui/detail/error_test.go (verify error state rendering, retry action)
-- [~] T054 (Deferred to #483) [US3] Implement DetailViewModel struct in internal/tui/detail/loader.go (includes resource, costHistory, loadState [Loading/Loaded/Error], errorMessage)
-- [~] T055 (Deferred to #483) [US3] Implement async data loading in internal/tui/detail/loader.go (fetch cost history only on detail view activation)
-- [~] T056 (Deferred to #483) [US3] Implement error state rendering in internal/tui/detail/error.go (show inline error with keyboard-navigable retry)
-- [~] T057 (Deferred to #483) [US3] Implement retry action in internal/tui/detail/loader.go Update() method (handle 'r' key press, re-attempt loading)
-- [~] T058 (Deferred to #483) [US3] Write integration test in test/integration/tui_lazy_loading_test.go (verify lazy loading triggers, error recovery with retry)
+- [x] T052 [P] [US3] Unit tests for lazy loading in internal/tui/detail/loader_test.go (async loading, state transitions, one fetch for concurrent opens). The old test/unit path is not a module.
+- [x] T053 [P] [US3] Unit tests for error recovery in internal/tui/detail/error_test.go (error rendering, r retry, retry count)
+- [x] T054 [US3] Detail history model in internal/tui/detail/loader.go (resource ID, points, load state, error message, retry count)
+- [x] T055 [US3] Async loading in internal/tui/detail/loader.go, started when overview or cost actual opens the detail view
+- [x] T056 [US3] Inline error rendering in internal/tui/detail/error.go with a keyboard retry hint
+- [x] T057 [US3] r retry in Detail Model.Update; the parent detail view stays open
+- [x] T058 [US3] Integration test in test/integration/tui_lazy_loading_test.go (lazy load on enter, error recovery with retry)
 
 **Completion Criteria**:
 - Cost history loads only when detail view is opened (not eagerly)

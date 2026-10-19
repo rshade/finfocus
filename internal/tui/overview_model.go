@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/tui/detail"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
@@ -170,6 +171,11 @@ type OverviewModel struct {
 	expanded       map[string]bool // parent URN → expanded
 	displayToRows  []int           // display row index → index into m.rows
 	expansionNotes []string        // `†` footnotes for the list view
+
+	// historyLoader reads stored cost history for the stack and resource URN.
+	// A nil loader leaves the detail view unchanged.
+	historyLoader func(context.Context, string, string) ([]detail.Point, error)
+	history       *detail.Model
 }
 
 // NewOverviewModel creates a new interactive overview model.
@@ -563,7 +569,43 @@ func (m OverviewModel) handlePassphraseInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// SetHistoryLoader attaches the fetch used when a detail view opens.
+// The function receives the stack name and the resource URN.
+func (m *OverviewModel) SetHistoryLoader(load func(context.Context, string, string) ([]detail.Point, error)) {
+	if m == nil {
+		return
+	}
+	m.historyLoader = load
+}
+
+func (m OverviewModel) openDetail() (tea.Model, tea.Cmd) {
+	m.selected = m.displayIndex(m.table.Cursor())
+	if m.selected < 0 || m.selected >= len(m.rows) {
+		return m, nil
+	}
+	m.state = ViewStateDetail
+	return m, m.openHistory()
+}
+
+func (m *OverviewModel) openHistory() tea.Cmd {
+	if m.historyLoader == nil || m.selected < 0 || m.selected >= len(m.rows) {
+		m.history = nil
+		return nil
+	}
+	resourceID := m.rows[m.selected].URN
+	stack := m.stackName
+	load := m.historyLoader
+	m.history = detail.New(resourceID, func(ctx context.Context, id string) ([]detail.Point, error) {
+		return load(ctx, stack, id)
+	})
+	return m.history.Activate(m.ctx)
+}
+
 func (m OverviewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, isKey := msg.(tea.KeyPressMsg); !isKey && m.history != nil {
+		_, cmd := m.history.Update(msg)
+		return m, cmd
+	}
 	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		var cmd tea.Cmd
@@ -580,11 +622,7 @@ func (m OverviewModel) handleListKeypress(keyMsg tea.KeyPressMsg) (tea.Model, te
 		m.state = ViewStateQuitting
 		return m, tea.Quit
 	case keyEnter:
-		m.selected = m.displayIndex(m.table.Cursor())
-		if m.selected >= 0 && m.selected < len(m.rows) {
-			m.state = ViewStateDetail
-		}
-		return m, nil
+		return m.openDetail()
 	case keyE:
 		m.toggleExpansion(m.table.Cursor())
 		return m, nil
@@ -700,10 +738,17 @@ func (m OverviewModel) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = ViewStateQuitting
 			return m, tea.Quit
 		case keyEsc:
+			if m.history != nil {
+				m.history.Invalidate()
+			}
 			m.state = ViewStateList
 			m.table.Focus()
 			return m, nil
 		}
+	}
+	if m.history != nil {
+		_, cmd := m.history.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }

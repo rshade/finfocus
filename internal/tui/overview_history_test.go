@@ -1,0 +1,52 @@
+package tui
+
+import (
+	"context"
+	"sync/atomic"
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/tui/detail"
+)
+
+func TestOverviewModel_HistoryLoadsWhenDetailOpens(t *testing.T) {
+	t.Parallel()
+
+	model, _ := NewOverviewModel(context.Background(), nil, 0, nil, nil)
+	var calls atomic.Int32
+	model.SetHistoryLoader(func(_ context.Context, stack, resourceID string) ([]detail.Point, error) {
+		calls.Add(1)
+		assert.Equal(t, "dev", stack)
+		assert.Equal(t, "urn:web", resourceID)
+		return nil, detail.ErrHistorySkipped
+	})
+
+	rows := []engine.OverviewRow{{
+		URN:    "urn:web",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusActive,
+	}}
+	updated, _ := model.Update(OverviewDataReadyMsg{Rows: rows, TotalCount: 1, StackName: "dev"})
+	model = updated.(OverviewModel)
+	updated, _ = model.Update(OverviewAllResourcesLoadedMsg{})
+	model = updated.(OverviewModel)
+	assert.Equal(t, int32(0), calls.Load())
+
+	updated, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	model = updated.(OverviewModel)
+	assert.Equal(t, ViewStateDetail, model.state)
+	assert.Contains(t, model.View().Content, "Loading cost history...")
+	require.NotNil(t, cmd)
+	assert.Equal(t, int32(0), calls.Load())
+
+	updated, _ = model.Update(cmd())
+	model = updated.(OverviewModel)
+	assert.Equal(t, ViewStateDetail, model.state)
+	assert.Equal(t, int32(1), calls.Load())
+	assert.NotContains(t, model.View().Content, "COST HISTORY")
+	assert.Contains(t, model.View().Content, "RESOURCE DETAIL")
+}

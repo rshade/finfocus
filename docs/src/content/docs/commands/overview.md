@@ -181,6 +181,7 @@ flags; see [Use the browser dashboard](../guides/web-ui.md).
 | `e` | Toggle expansion of a cluster row (Kubernetes workloads) |
 | `Right` | Expand a cluster row |
 | `Left` | Collapse a cluster row |
+| `r` | In the detail view, retry a cost-history load that failed |
 | `q` / `Ctrl+C` | Quit |
 
 ### Progressive loading
@@ -196,6 +197,10 @@ Press Enter on a resource to see a detailed breakdown including:
 - Projected cost (monthly) with breakdown
 - Cost drift analysis with extrapolation
 - Optimization recommendations with estimated savings
+- Stored cost history for this resource, loaded when the detail view opens.
+  The series comes from `cost history collect` for the stack. A missing
+  history database leaves this section out. A read failure stays in the
+  detail view; press `r` to try again.
 
 ## Kubernetes cluster expansion
 

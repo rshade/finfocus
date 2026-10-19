@@ -1152,6 +1152,7 @@ func runInteractiveOverviewWithInit(
 	// previewCmd is injected after data loading completes; pass nil here and
 	// let overviewInitAndEnrich update the model via OverviewDataReadyMsg extension.
 	model, _ := tui.NewOverviewModel(ctx, nil, 0, passphraseChan, nil)
+	model.SetHistoryLoader(overviewHistoryLoader())
 
 	// Create Bubble Tea program
 	p := tea.NewProgram(model)
