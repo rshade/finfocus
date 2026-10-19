@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0 (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **plugins/scorer:** The jev plugin module, binary, build targets and scoring plugin name are now scorer. Replace TYPESAFE_API_KEY with SCORER_API_KEY and JEV_* configuration with the documented SCORER_* equivalents; select SCORER_BACKEND=jev or clef and set SCORER_CLEF_ACCOUNT_ID for hosted Clef. Legacy environment variables are no longer read. Existing jev installations remain separate and require an explicit scorer install and configuration migration.
+
+### Code Refactoring
+
+* **plugins/scorer:** add Jev and Clef backends ([#1819](https://github.com/rshade/finfocus/issues/1819)) ([aa6da86](https://github.com/rshade/finfocus/commit/aa6da86963cb223ccc46c2b53b2080ea9cf293ea))
+
 ## [0.1.4](https://github.com/rshade/finfocus/compare/jev-v0.1.3...jev-v0.1.4) (2026-10-09)
 
 
