@@ -198,9 +198,11 @@ Press Enter on a resource to see a detailed breakdown including:
 - Cost drift analysis with extrapolation
 - Optimization recommendations with estimated savings
 - Stored cost history for this resource, loaded when the detail view opens.
-  The series comes from `cost history collect` for the stack. A missing
-  history database leaves this section out. A read failure stays in the
-  detail view; press `r` to try again.
+  The series comes from `cost history collect` for the stack named by the
+  resource, not the state-file name. A missing history database leaves this
+  section out. A read failure stays in the detail view; press `r` to try
+  again. On a short terminal, Up and Down scroll the detail view so the
+  history section and the retry hint stay reachable.
 
 ## Kubernetes cluster expansion
 

@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/table"
 	"charm.land/bubbles/v2/textinput"
@@ -33,16 +34,18 @@ const msgSelectedOutOfBounds = "Error: selected index out of bounds"
 
 // Keyboard constants.
 const (
-	keyEsc   = "esc"
-	keyEnter = "enter"
-	keyQuit  = "q"
-	keyCtrlC = "ctrl+c"
-	keySlash = "/"
-	keyS     = "s"
-	keyP     = "p"
-	keyE     = "e"
-	keyRight = "right"
-	keyLeft  = "left"
+	keyEsc    = "esc"
+	keyEnter  = "enter"
+	keyQuit   = "q"
+	keyCtrlC  = "ctrl+c"
+	keySlash  = "/"
+	keyS      = "s"
+	keyP      = "p"
+	keyE      = "e"
+	keyRight  = "right"
+	keyLeft   = "left"
+	keyPgUp   = "pgup"
+	keyPgDown = "pgdown"
 )
 
 // ViewState represents the current state of the TUI view.
@@ -112,6 +115,7 @@ type CostViewModel struct {
 	fetchCmd      tea.Cmd
 	historyLoader detail.Loader
 	history       *detail.Model
+	detailScroll  int
 
 	// Actual Cost specific
 	groupBy      engine.GroupBy
@@ -291,6 +295,7 @@ func (m *CostViewModel) openHistory(resourceID string) tea.Cmd {
 		return nil
 	}
 	m.history = detail.New(resourceID, m.historyLoader)
+	m.detailScroll = 0
 	return m.history.Activate(m.ctx)
 }
 
@@ -346,8 +351,24 @@ func (m *CostViewModel) handleGenericUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.history.Invalidate()
 				}
 				m.state = ViewStateList
+				m.detailScroll = 0
 				m.table.Focus()
 			}
+			return m, nil
+		case "up", "k", "down", "j", keyPgUp, keyPgDown:
+			if m.state != ViewStateDetail {
+				return m, nil
+			}
+			delta := 1
+			switch keyMsg.String() {
+			case "up", "k":
+				delta = -1
+			case keyPgUp:
+				delta = -m.height
+			case keyPgDown:
+				delta = m.height
+			}
+			m.detailScroll = clampDetailScroll(m.detailScroll+delta, m.detailLineCount(), m.height)
 			return m, nil
 		}
 	}
@@ -432,16 +453,26 @@ func (m *CostViewModel) View() tea.View {
 	}
 }
 
-func (m *CostViewModel) renderCostDetail(resource engine.CostResult) string {
+func (m *CostViewModel) detailLineCount() int {
+	if m.selected < 0 || m.selected >= len(m.results) {
+		return 1
+	}
+	return strings.Count(m.costDetailBody(m.results[m.selected]), "\n") + 1
+}
+
+func (m *CostViewModel) costDetailBody(resource engine.CostResult) string {
 	body := RenderDetailView(resource, m.width)
-	if m.history == nil {
-		return body
+	if m.history != nil {
+		if section := m.history.View().Content; section != "" {
+			body += "\n" + section
+		}
 	}
-	section := m.history.View().Content
-	if section == "" {
-		return body
-	}
-	return body + "\n" + section
+	return body
+}
+
+func (m *CostViewModel) renderCostDetail(resource engine.CostResult) string {
+	shown, _ := visibleDetail(m.costDetailBody(resource), m.detailScroll, m.height)
+	return shown
 }
 
 func (m *CostViewModel) renderListView() string {

@@ -75,7 +75,9 @@ func TestTUILazyLoading(t *testing.T) {
 			Type:   "aws:ec2/instance:Instance",
 			Status: engine.StatusActive,
 		}}
-		updated, _ := model.Update(tui.OverviewDataReadyMsg{Rows: rows, TotalCount: 1, StackName: "dev"})
+		updated, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 80})
+		model = updated.(tui.OverviewModel)
+		updated, _ = model.Update(tui.OverviewDataReadyMsg{Rows: rows, TotalCount: 1, StackName: "dev"})
 		model = updated.(tui.OverviewModel)
 		updated, _ = model.Update(tui.OverviewAllResourcesLoadedMsg{})
 		model = updated.(tui.OverviewModel)

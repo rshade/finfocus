@@ -77,6 +77,9 @@ func TestProjectFromURN(t *testing.T) {
 	assert.Equal(t, "app", ProjectFromURN("urn:pulumi:dev::app::aws:ec2/instance:Instance::web"))
 	assert.Empty(t, ProjectFromURN("urn:web"))
 	assert.Empty(t, ProjectFromURN(""))
+	assert.Equal(t, "dev", StackFromURN("urn:pulumi:dev::app::aws:ec2/instance:Instance::web"))
+	assert.Empty(t, StackFromURN("urn:web"))
+	assert.Empty(t, StackFromURN(""))
 }
 
 func TestProjectFromFileName(t *testing.T) {

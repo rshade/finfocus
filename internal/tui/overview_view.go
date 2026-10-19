@@ -223,7 +223,8 @@ func (m OverviewModel) getSortLabel() string {
 
 // renderDetailView renders the detail view for a selected resource.
 func (m OverviewModel) renderDetailView() string {
-	return m.renderDetailViewForDay(time.Now().Day())
+	shown, _ := visibleDetail(m.renderDetailViewForDay(time.Now().Day()), m.detailScroll, m.height)
+	return shown
 }
 
 // renderDetailViewForDay is the testable core of renderDetailView.
@@ -268,14 +269,12 @@ func (m OverviewModel) renderDetailViewForDay(dayOfMonth int) string {
 	content.WriteString(SubtleStyle.Render("\nPress ESC to return"))
 
 	body := BoxStyle.Width(m.width - borderPadding).Render(content.String())
-	if m.history == nil {
-		return body
+	if m.history != nil {
+		if section := m.history.View().Content; section != "" {
+			body += "\n" + section
+		}
 	}
-	section := m.history.View().Content
-	if section == "" {
-		return body
-	}
-	return body + "\n" + section
+	return body
 }
 
 // renderDetailActualCost writes actual cost details to the builder.

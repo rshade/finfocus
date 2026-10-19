@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -176,6 +177,7 @@ type OverviewModel struct {
 	// A nil loader leaves the detail view unchanged.
 	historyLoader func(context.Context, string, string) ([]detail.Point, error)
 	history       *detail.Model
+	detailScroll  int
 }
 
 // NewOverviewModel creates a new interactive overview model.
@@ -584,6 +586,7 @@ func (m OverviewModel) openDetail() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.state = ViewStateDetail
+	m.detailScroll = 0
 	return m, m.openHistory()
 }
 
@@ -655,13 +658,13 @@ func (m OverviewModel) handleListKeypress(keyMsg tea.KeyPressMsg) (tea.Model, te
 			m.applyFilter("")
 		}
 		return m, nil
-	case "pgup":
+	case keyPgUp:
 		if m.paginationEnabled && m.currentPage > 1 {
 			m.currentPage--
 			m.rebuildTable()
 		}
 		return m, nil
-	case "pgdown":
+	case keyPgDown:
 		if m.paginationEnabled && m.currentPage < m.totalPages {
 			m.currentPage++
 			m.rebuildTable()
@@ -731,6 +734,10 @@ func (m *OverviewModel) setExpansion(cursor int, expand bool) {
 	}
 }
 
+func (m OverviewModel) detailLineCount() int {
+	return strings.Count(m.renderDetailViewForDay(time.Now().Day()), "\n") + 1
+}
+
 func (m OverviewModel) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
@@ -742,7 +749,20 @@ func (m OverviewModel) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.history.Invalidate()
 			}
 			m.state = ViewStateList
+			m.detailScroll = 0
 			m.table.Focus()
+			return m, nil
+		case "up", "k":
+			m.detailScroll = clampDetailScroll(m.detailScroll-1, m.detailLineCount(), m.height)
+			return m, nil
+		case "down", "j":
+			m.detailScroll = clampDetailScroll(m.detailScroll+1, m.detailLineCount(), m.height)
+			return m, nil
+		case keyPgUp:
+			m.detailScroll = clampDetailScroll(m.detailScroll-m.height, m.detailLineCount(), m.height)
+			return m, nil
+		case keyPgDown:
+			m.detailScroll = clampDetailScroll(m.detailScroll+m.height, m.detailLineCount(), m.height)
 			return m, nil
 		}
 	}
