@@ -151,6 +151,26 @@ requires a new interface or broader behavior, reassess its scope and whether
 an existing specification covers it. FinFocus does not inherit ax-go's rule
 that every runtime change requires a new spec.
 
+### Web parity (Constitution Principle VII)
+
+A user-facing CLI feature is not complete until it is reachable from
+`finfocus --web`. Decide this at routing time, from the issue body:
+
+- **Hook**: the feature needs an `internal/webui` handler that calls the same
+  Go method as the CLI command. Name those methods in the spec's contract.
+  The hook is part of this issue, never deferred to a web ticket.
+- **Fit**: place the feature in the existing layout (see
+  [Web UI design](../../docs/src/content/docs/architecture/web-ui.md)) and
+  record it in the spec's `Web UI Fit` section.
+- **Follow-up**: when the work is complete, file one UX-only `web-ui` issue
+  (Phase 5). If a candidate follow-up needs engine, API, redaction, or
+  data-shape work, that work belongs to this issue; widen it or report the
+  blocker.
+- **Exempt**: a feature with no web surface records `Not applicable` and a
+  reason in the spec. Bug fixes, maintenance, refactors, CI, and
+  documentation need only a check that an existing web endpoint still returns
+  the CLI's values; run `parity_*_test.go` when the shared Go path changed.
+
 ### Spec Kit route
 
 Look for an existing feature under `specs/` and resume its branch and artifacts
@@ -158,12 +178,15 @@ where appropriate. For a new feature, run specification creation **inside the
 worktree**. The command creates a numbered feature branch; use the branch and
 paths it returns for all later work, including the PR.
 
-1. [speckit.specify](speckit.specify.md): create `spec.md`.
+1. [speckit.specify](speckit.specify.md): create `spec.md`, including the
+   `Web UI Fit` section.
 2. [speckit.clarify](speckit.clarify.md): resolve material ambiguity if needed.
 3. [speckit.plan](speckit.plan.md): create `plan.md` and supporting design.
 4. [speckit.tasks](speckit.tasks.md): create `tasks.md`.
 5. [speckit.analyze](speckit.analyze.md): reconcile requirements, design, and
    tasks; address valid findings before implementation and rerun after changes.
+   A Principle VII finding (missing `Web UI Fit`, an API hook that names no Go
+   method, or missing Web Parity tasks) is CRITICAL and blocks implementation.
 6. [speckit.implement](speckit.implement.md): implement and update task status.
 
 Follow FinFocus's feature-creation script: let it discover the next number;
@@ -201,6 +224,12 @@ acceptance criteria. Use the available `code-review` skill (or the local
 is available, report its improvement opportunities without expanding this
 issue's scope. Spec analysis does not replace review of the implemented diff.
 
+For a user-facing feature, render the nearest existing web view against a
+populated stack, such as `initial-30` or `../finfocus-demo`, with Playwright.
+Start `finfocus --web --no-browser --port <port>` from that project, then
+compare the page with the spec's `Web UI Fit` section. Run `make test-e2e-web`
+when the hook, view, or shared layout changed. Stop the server afterward.
+
 Report actual failures and unavailable tools. Do not import ax-go's build-tag
 matrix, surface/size gates, or assumptions about environmental lint failures.
 
@@ -218,7 +247,9 @@ use a breaking-change marker when warranted. Preserve the current session's
 authorization for pushing and opening a PR rather than asking again.
 
 The PR body should describe the problem, resulting behavior, linked issue,
-spec if any, and validation results. Store the body in a temporary file outside
+spec if any, validation results, and, for a user-facing feature, the web
+parity status: the hook's Go methods, the render check, and the follow-up
+issue number or the `Not applicable` reason. Store the body in a temporary file outside
 the worktree and pass it with `--body-file`.
 
 ```bash
@@ -234,6 +265,23 @@ closing reference to resolve on merge. Stop at the PR; merging requires the
 user's instruction.
 
 ## Phase 5 — Release or retain the claim
+
+For a user-facing feature, file the UX-only follow-up before releasing the
+claim. Check first that none exists for this issue. Create the `web-ui` label
+if it is absent, the same way as `processing:roadmap`:
+
+```bash
+gh label create web-ui --repo "$REPO" --color 1D76DB \
+  --description "Web dashboard UX follow-up"
+gh issue create --repo "$REPO" --label web-ui --label enhancement \
+  --title "<conventional commit subject>" --body-file "$FOLLOWUP_BODY_FILE"
+```
+
+The body names the CLI issue and PR, the view it extends or adds, the Web UI
+Fit notes, and UX-only acceptance criteria (layout, rendering, interaction,
+copy, accessibility). It lists no engine, API, redaction, or data-shape work.
+Do not assign a roadmap label. Filing the issue is outward-facing: follow the
+session's authorization, as with the PR.
 
 After opening the PR, or explicitly abandoning the attempt, record the PR or
 remaining work in an issue comment. Re-read ownership before cleanup. Remove
@@ -258,5 +306,6 @@ run removal from the original checkout and never force it.
 
 Report the issue and selection reason, route and spec directory if any,
 validation and review results, branch and worktree, PR URL or prepared handoff,
+and the web parity result (follow-up issue number, or `Not applicable` and why),
 and whether the claim is released or retained. Mention selection outside
 `roadmap/current` explicitly. Do not pick another issue.

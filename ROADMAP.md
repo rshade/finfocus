@@ -27,21 +27,23 @@ Completed Milestones, 2026-Q4).
   - *Promoted by /roadmap sync on 2026-10-05 — builds on the #853
     compute-once refactor; #658 comes first so the speed-ups can be
     measured against a baseline.*
-- [ ] **Recommendation Lifecycle Enhancements** *(cross-repo: the RPC shipped
-      in finfocus-spec v0.7.7,
-      [finfocus-spec issue 640](https://github.com/rshade/finfocus-spec/issues/640))*
-  - [ ] Merge plugin `GetRecommendationHistory` events into
-        `cost recommendations history`
-        ([#1816](https://github.com/rshade/finfocus/issues/1816)) [M]
-  - *Promoted by /roadmap sync on 2026-10-18 — unblocked by spec v0.7.7,
-    which core already pins.*
-  - *#693 and #691 shipped 2026-10-06, and #692 shipped 2026-10-18 (see
-    Completed Milestones, 2026-Q4).*
-  - *Web UI Settings & Plugin Setup (#1763, #1764, #1765) shipped
-    2026-10-16 to 2026-10-17.*
+- *Recommendation Lifecycle Enhancements finished: #1816 shipped 2026-10-19
+  (PR #1854) on the `GetRecommendationHistory` RPC from finfocus-spec v0.7.7
+  ([finfocus-spec issue 640](https://github.com/rshade/finfocus-spec/issues/640)).
+  Its web API hook is #1858 in Near-Term Vision, the first gap under
+  Constitution Principle VII (Web Parity, v1.8.0).*
 
 ## Near-Term Vision (Forecasting & Profiles)
 
+- [ ] **Web Parity — Base API Hooks** *(Constitution Principle VII, v1.8.0:
+      a user-facing CLI feature ships its `internal/webui` hook; the later
+      `web-ui` issue is UX only)*
+  - [ ] Recommendation lifecycle history through a web API hook
+        ([#1858](https://github.com/rshade/finfocus/issues/1858)) [M]
+  - [ ] Cost forecast through a web API hook
+        ([#1859](https://github.com/rshade/finfocus/issues/1859)) [M]
+  - *#1859 is the base hook the web side of #539 would extend; with it in
+    place, #539 only adds to the payload.*
 - [ ] **Estimate What-If Usability** *(#1731 shipped 2026-10-18)*
   - [ ] Show cost-affecting properties by default in What-If
         ([#1732](https://github.com/rshade/finfocus/issues/1732)) [M]
@@ -71,6 +73,13 @@ Completed Milestones, 2026-Q4).
 
 ## Future Vision (Later - Notifications, Integrations & Backlog)
 
+- [ ] **Web Parity — Base API Hooks (later)** *(Constitution Principle VII)*
+  - [ ] Cost history view, diff, and resource series through web API hooks
+        ([#1860](https://github.com/rshade/finfocus/issues/1860)) [L]
+        *The base hook a web view of #550's history chart would extend*
+  - [ ] Cost cluster allocation through a web API hook
+        ([#1861](https://github.com/rshade/finfocus/issues/1861)) [L]
+        *The base hook a web view of #1840 or Jev idea 8 would extend*
 - [ ] **Governance Overrides ("YOLO Mode")**
       ([#365](https://github.com/rshade/finfocus/issues/365)) [M]
   - [ ] CLI: Implement `--yolo` / `--force` flag to bypass budget gates
@@ -170,9 +179,13 @@ Completed Milestones, 2026-Q4).
   - [ ] Pool opted-in plugins and pass per-request credentials
         ([#1539](https://github.com/rshade/finfocus/issues/1539)) [L]
 - [ ] **Cost Anomaly Detection**
-  - [ ] Flag-only `cost anomalies` command over actual-cost history, exposed
-        as an MCP tool
-        ([#1590](https://github.com/rshade/finfocus/issues/1590)) [L]
+  - [ ] Flag-only `cost anomalies` over overview drift, exposed as an MCP tool
+        ([#1590](https://github.com/rshade/finfocus/issues/1590)) [M]
+  - [ ] Daily actual-cost series beside the projected timeline
+        ([#1862](https://github.com/rshade/finfocus/issues/1862)) [L]
+  - [ ] Robust-median method on `cost anomalies`
+        ([#1863](https://github.com/rshade/finfocus/issues/1863)) [M]
+        *Blocked by #1590 and #1862*
 - [ ] **Recommendation Scoring — Jev Plugin Ideas** *(brainstorm 2026-10-01;
       ideas only, no issues or specs yet)*
   - *Placement rule:* Jev stays in `plugins/scorer`. Core and
@@ -244,8 +257,9 @@ Completed Milestones, 2026-Q4).
     - *Placement:* same as idea 6, over drift rows.
     - *Open question:* a drift row carries far less context than a
       recommendation. Is there enough for a scorer to judge?
-    - *Related:* the statistical `cost anomalies` command (#1590) would
-      produce rows a scorer could rank the same way.
+    - *Related:* `cost anomalies` (#1590) prints the drift rows. #1863
+      adds a robust-median row from the daily series (#1862). Either
+      row is something a scorer could rank the same way.
   - [ ] **8. Kubernetes idle capacity: headroom or waste?** [M-L] — Ask whether
         idle capacity from the `kubernetes` plugin is intentional headroom (HPA
         burst, PDBs, reserved pools). Combines both differentiators.
@@ -279,6 +293,8 @@ Completed Milestones, 2026-Q4).
 
 ### 2026-Q4
 
+- [x] #1816 `recommendations`: merge plugin lifecycle events into `history`.
+      Closed 2026-10-19. [M]
 - [x] #1728 `scorer`: backend-neutral scorer plugin with Jev and Clef backends.
       Closed 2026-10-19. [M]
 - [x] #483 `tui`: lazy-load detail cost history with inline error recovery.

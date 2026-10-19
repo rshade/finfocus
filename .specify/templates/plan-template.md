@@ -42,6 +42,9 @@ Verify compliance with PulumiCost Core Constitution (`.specify/memory/constituti
 - [ ] **Implementation Completeness**: Is the feature fully implemented without stubs or TODOs?
 - [ ] **Persistence Model**: If adding persistent state, is it optional (commands work without it)?
   Does it handle corruption gracefully? Is it documented in CONTEXT.md and constitution?
+- [ ] **Web Parity**: Does the spec carry a Web UI Fit section, and does the
+  contract name the exact Go methods the `internal/webui` hook calls (no web-only
+  engine logic)? Or is the feature recorded as Not applicable with a reason?
 - [ ] **Quality Gates**: Are all CI checks (tests, lint, security) passing?
 - [ ] **Multi-Repo Coordination**: Are cross-repo dependencies documented?
 

@@ -169,6 +169,21 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
+## Phase N-1: Web Parity (Constitution Principle VII; omit only when the spec says Not applicable)
+
+**Purpose**: The CLI feature is not complete without its API hook and fit check
+
+- [ ] TXXX `internal/webui` handler for [feature] calling [exact Go method(s)], with redaction and a
+  parity test against the CLI output (no web-only engine logic)
+- [ ] TXXX [P] Contract entry in `specs/[###-feature-name]/contracts/http-api.md` naming the Go methods
+- [ ] TXXX Render the nearest web view with Playwright against a populated stack, compare with the
+  spec's Web UI Fit section, and record the result in the spec
+- [ ] TXXX [P] Update `docs/src/content/docs/reference/web-ui.md` for the endpoint and view
+- [ ] TXXX Final task: file one `web-ui` follow-up issue, UX only (layout, rendering, interaction,
+  copy, accessibility); no engine, API, redaction, or data-shape work
+
+---
+
 ## Phase N: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories
@@ -193,6 +208,7 @@ Examples of foundational tasks (adjust based on your project):
 - **User Stories (Phase 3+)**: All depend on Foundational phase completion
   - User stories can then proceed in parallel (if staffed)
   - Or sequentially in priority order (P1 → P2 → P3)
+- **Web Parity (Phase N-1)**: Depends on the CLI user stories it exposes; MUST finish before the feature is complete
 - **Polish (Final Phase)**: Depends on all desired user stories being complete
 
 ### User Story Dependencies

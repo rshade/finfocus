@@ -104,6 +104,36 @@ each setting and its set or source status stay in the response, and the handler
 writes that document directly. A redactor that drops credential-looking keys
 would delete settings the page is supposed to list.
 
+## Layout and adding a feature
+
+Every view is built from the same slots, in the same order, so a new feature
+reads as part of the page rather than an add-on:
+
+1. The header: the product name, the view links, and the connection status.
+2. The view heading.
+3. A toolbar (`.toolbar`): filter, sort, and an apply or run button.
+4. A status line (`role="status"`) for loading, progress, and errors.
+5. A totals bar (`.totals-bar`) that summarizes the table below it.
+6. A captioned table (`.table-wrap`, `.overview-table` or `.detail-table`)
+   with numeric columns aligned, a pager, and a detail panel opened from a row.
+7. Panels below the table, such as budget health.
+
+The Overview is the reference. A feature that adds columns, badges, deltas, or
+a detail section extends it. A feature with its own data and controls becomes
+a new view built from the same slots. Neither adds arithmetic to the
+JavaScript, since display strings come from the Go side.
+
+A CLI feature that produces user-visible output ships its web hook together
+with the CLI feature. The handler in `internal/webui` calls the same Go method
+as the CLI command, and the spec's HTTP contract names that method. The later
+web ticket is then UX only: layout, rendering, interaction, copy, and
+accessibility. If it needs engine, API, redaction, or data-shape work, that
+work was part of the CLI feature.
+
+To check a fit, render the nearest existing view in a browser against a
+project with real resources, and compare it with the spec's `Web UI Fit`
+section before the CLI feature is called complete.
+
 ## Boundaries
 
 - **Read-only toward cloud infrastructure.** The dashboard cannot run

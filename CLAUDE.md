@@ -31,6 +31,20 @@ Specs, plans, and tasks live in `specs/NNN-*/`, produced by **Spec Kit**
 from other planning tools must become a Spec Kit feature folder before
 implementation.
 
+### Web parity (constitution Principle VII)
+
+A user-facing CLI feature is not complete until `finfocus --web` reaches it.
+The spec carries a `Web UI Fit` section; the `internal/webui` hook calls the
+same Go method as the CLI and the contract names it; completion files one
+UX-only `web-ui` issue. Engine, API, or data-shape work never goes in that
+issue. Layout: `docs/src/content/docs/architecture/web-ui.md`.
+
+- To check a fit, run `finfocus --web --no-browser --port <port>` from a
+  populated project (`initial-30`, `PULUMI_CONFIG_PASSPHRASE=''`, or
+  `../finfocus-demo`) and render it with playwright-mcp. The MCP can write
+  screenshots only under the repo (`.playwright-mcp/`), not the scratchpad.
+  Stop the server with an anchored `pkill -f '^<path>/finfocus --web'`.
+
 ## Commands
 
 ```bash

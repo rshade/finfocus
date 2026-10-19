@@ -139,6 +139,11 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 - Any requirement or plan element conflicting with a MUST principle
 - Missing mandated sections or quality gates from constitution
+- Web Parity (Principle VII), each CRITICAL for a user-facing feature:
+  - spec.md has no `Web UI Fit` section, or it is neither filled in nor `Not applicable` with a reason
+  - the API hook does not name the exact Go method(s) it calls, or describes engine logic that exists only in `internal/webui`
+  - tasks.md lacks the Web Parity tasks: `internal/webui` handler, contract entry, Playwright render check, and the final UX-only `web-ui` follow-up issue
+  - a planned follow-up issue contains engine, API, redaction, or data-shape work (it must be UX only)
 
 #### E. Coverage Gaps
 

@@ -100,6 +100,28 @@
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+## Web UI Fit *(mandatory)*
+
+<!--
+  Constitution Principle VII. Never remove this section: a feature with no
+  web surface keeps it and writes "Not applicable" with a reason, which
+  review must accept.
+  Place the feature in the existing web layout. Read
+  docs/src/content/docs/architecture/web-ui.md first. Render the nearest
+  existing view with Playwright against a populated stack and compare.
+  A feature with no web surface writes "Not applicable" and a reason.
+-->
+
+- **Disposition**: [Extends {view} | New view | Not applicable - {reason}]
+- **API hook**: [`internal/webui` handler -> exact Go method(s) it calls, e.g.
+  `engine.Foo` / `pkg.Bar`; endpoint and contract entry. No web-only logic]
+- **Layout fit**: [Which slots it fills: controls row, status line, summary
+  strip, captioned table, detail; how it matches the Overview table]
+- **Additions**: [Extras beyond a plain table, or "none"]
+- **Render evidence**: [Stack and date of the Playwright check of the nearest view]
+- **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
+  accessibility). No engine, API, redaction, or data-shape work.
+
 ## Success Criteria *(mandatory)*
 
 <!--
