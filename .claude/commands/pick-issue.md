@@ -224,7 +224,8 @@ acceptance criteria. Use the available `code-review` skill (or the local
 is available, report its improvement opportunities without expanding this
 issue's scope. Spec analysis does not replace review of the implemented diff.
 
-For a user-facing feature, render the nearest existing web view against a
+For a user-facing feature whose Web UI Fit is not an accepted
+`Not applicable`, render the nearest existing web view against a
 populated stack, such as `initial-30` or `../finfocus-demo`, with Playwright.
 Start `finfocus --web --no-browser --port <port>` from that project, then
 compare the page with the spec's `Web UI Fit` section. Run `make test-e2e-web`
@@ -266,8 +267,11 @@ user's instruction.
 
 ## Phase 5 — Release or retain the claim
 
-For a user-facing feature, file the UX-only follow-up before releasing the
-claim. Check first that none exists for this issue. Create the `web-ui` label
+When the PR is open for a user-facing feature whose Web UI Fit is not an
+accepted `Not applicable`, file the UX-only follow-up before releasing the
+claim. Do not file one for an abandoned attempt or an exempt feature; those
+go straight to the claim cleanup below. Check first that none exists for
+this issue. Create the `web-ui` label
 if it is absent, the same way as `processing:roadmap`:
 
 ```bash

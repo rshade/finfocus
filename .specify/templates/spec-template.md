@@ -109,12 +109,13 @@
   Place the feature in the existing web layout. Read
   docs/src/content/docs/architecture/web-ui.md first. Render the nearest
   existing view with Playwright against a populated stack and compare.
-  A feature with no web surface writes "Not applicable" and a reason.
+  Stay at the level of what users see: the Go methods the hook calls are
+  named later, in the plan's contracts/http-api.md.
 -->
 
 - **Disposition**: [Extends {view} | New view | Not applicable - {reason}]
-- **API hook**: [`internal/webui` handler -> exact Go method(s) it calls, e.g.
-  `engine.Foo` / `pkg.Bar`; endpoint and contract entry. No web-only logic]
+- **Web data**: [Which results of the CLI feature the view needs, in user
+  terms. The web shows the same values as the CLI and computes nothing itself]
 - **Layout fit**: [Which slots it fills: controls row, status line, summary
   strip, captioned table, detail; how it matches the Overview table]
 - **Additions**: [Extras beyond a plain table, or "none"]

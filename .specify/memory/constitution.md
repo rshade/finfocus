@@ -354,7 +354,9 @@ true, and all three belong to the CLI feature:
    status line, summary strip, captioned table). The fit is checked against a
    Playwright render of a populated stack. A feature with no web surface
    (for example `analyzer serve`, `mcp-server`) records `Not applicable` and a
-   reason in the spec, which review MUST accept before implementation.
+   reason in the spec, which review MUST accept before implementation. An
+   accepted `Not applicable` exempts the feature from requirement 1, the
+   render check, and requirement 3.
 3. **UX-only follow-up**: When the CLI feature is complete, file one
    follow-up issue labeled `web-ui`. It covers layout, rendering,
    interaction, copy, and accessibility only. Engine, API, redaction, or
@@ -362,8 +364,10 @@ true, and all three belong to the CLI feature:
    complete.
 
 `/speckit.tasks` MUST generate tasks for the hook, the render check, and the
-follow-up issue. `/speckit.checklist` and `/speckit.analyze` MUST flag their
-absence, and a missing Web UI Fit section or an unnamed Go method is CRITICAL.
+follow-up issue unless the feature is exempt. `/speckit.checklist` and
+`/speckit.analyze` MUST flag their absence. A missing Web UI Fit section is
+always CRITICAL; for a feature that is not exempt, so is a contract that does
+not name the hook's Go methods.
 
 **Rationale**: The web handlers are transport only, so every capability has
 one implementation. Shipping the CLI feature without its hook pushes engine
