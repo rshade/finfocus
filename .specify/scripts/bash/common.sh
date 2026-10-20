@@ -37,7 +37,7 @@ get_current_branch() {
         for dir in "$specs_dir"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
-                if [[ "$dirname" =~ ^([0-9]{3})- ]]; then
+                if [[ "$dirname" =~ ^([0-9]{3,})- ]]; then
                     local number=${BASH_REMATCH[1]}
                     number=$((10#$number))
                     if [[ "$number" -gt "$highest" ]]; then
@@ -72,7 +72,7 @@ check_feature_branch() {
         return 0
     fi
 
-    if [[ ! "$branch" =~ ^[0-9]{3}- ]]; then
+    if [[ ! "$branch" =~ ^[0-9]{3,}- ]]; then
         echo "ERROR: Not on a feature branch. Current branch: $branch" >&2
         echo "Feature branches should be named like: 001-feature-name" >&2
         return 1
@@ -91,7 +91,7 @@ find_feature_dir_by_prefix() {
     local specs_dir="$repo_root/specs"
 
     # Extract numeric prefix from branch (e.g., "004" from "004-whatever")
-    if [[ ! "$branch_name" =~ ^([0-9]{3})- ]]; then
+    if [[ ! "$branch_name" =~ ^([0-9]{3,})- ]]; then
         # If branch doesn't have numeric prefix, fall back to exact match
         echo "$specs_dir/$branch_name"
         return

@@ -13,6 +13,7 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
@@ -40,6 +41,7 @@ type pluginSettingState struct {
 	descriptors []webui.PluginSettingDescriptor
 	project     map[string]string
 	global      map[string]string
+	origins     map[string]esc.Ref
 }
 
 func pluginSettingsView(
@@ -63,7 +65,9 @@ func preparePluginSettings(
 	}
 	config.NotePluginSecretKeys(secretSettingKeys(name, state.descriptors))
 	_ = config.PersistPluginSecretKeys()
-	return filterPluginChanges(name, state.descriptors, state.project, state.global, os.Environ(), request)
+	return filterPluginChanges(
+		name, state.descriptors, state.project, state.global, os.Environ(), state.origins, request,
+	)
 }
 
 func secretSettingKeys(name string, descriptors []webui.PluginSettingDescriptor) []string {
@@ -105,17 +109,54 @@ func loadPluginSettingState(
 	}
 	internal, mode := pluginDescriptors(ctx, name, info, installedOK)
 	keys := pluginSettingKeys(internal, projectValues, globalValues)
+	delivered := resolvePluginDelivery(ctx, name, internal, projectValues, globalValues)
 	view := webui.PluginSettingsView{
 		Name:             name,
 		Mode:             mode,
 		Descriptors:      publicDescriptors(internal),
 		Versions:         versions,
 		ProjectAvailable: projectAvailable,
-		Values:           pluginSettingValues(name, keys, internal, projectValues, globalValues, os.Environ()),
+		Values: pluginSettingValues(
+			name, keys, internal, projectValues, globalValues, os.Environ(), delivered,
+		),
 	}
 	return pluginSettingState{
 		view: view, descriptors: internal, project: projectValues, global: globalValues,
+		origins: delivered.Origins,
 	}, nil
+}
+
+func resolvePluginDelivery(
+	ctx context.Context,
+	name string,
+	descriptors []webui.PluginSettingDescriptor,
+	project, global map[string]string,
+) pluginhost.Delivered {
+	var from esc.Delivery
+	if src, ok := esc.SourceFromContext(ctx); ok {
+		from = src.Delivery(ctx, name)
+	}
+	return pluginhost.ResolveDeliveredEnv(
+		ctx, name, os.Environ(), project, global, webSettingDescs(descriptors), from,
+	)
+}
+
+func webSettingDescs(descriptors []webui.PluginSettingDescriptor) []pluginhost.SettingDesc {
+	out := make([]pluginhost.SettingDesc, 0, len(descriptors))
+	for _, descriptor := range descriptors {
+		if descriptor.Key == "" || descriptor.Env == "" {
+			continue
+		}
+		out = append(out, pluginhost.SettingDesc{
+			Key:        descriptor.Key,
+			Env:        descriptor.Env,
+			Default:    descriptor.Default,
+			HasDefault: descriptor.DefaultSet,
+			Secret:     descriptor.Secret,
+			Required:   descriptor.Required,
+		})
+	}
+	return out
 }
 
 func readPluginConfig(ctx context.Context, name, globalPath, projectDir string) (map[string]string, map[string]string) {
@@ -271,6 +312,7 @@ func pluginSettingValues(
 	descriptors []webui.PluginSettingDescriptor,
 	project, global map[string]string,
 	environ []string,
+	delivered pluginhost.Delivered,
 ) []webui.PluginSettingValue {
 	byKey := descriptorMap(descriptors)
 	if keys == nil {
@@ -287,19 +329,25 @@ func pluginSettingValues(
 		envSet := environSet(environ, envName)
 		projectSide := valueSide(project, key, secret)
 		globalSide := valueSide(global, key, secret)
-		values = append(values, webui.PluginSettingValue{
+		origin, fromESC := delivered.Origins[envName]
+		row := webui.PluginSettingValue{
 			Key:     key,
 			Secret:  secret,
 			Project: projectSide,
 			Global:  globalSide,
 			EnvSet:  envSet,
 			EffectiveSource: effectiveSource(
+				fromESC,
 				envSet,
 				projectSide.Set,
 				globalSide.Set,
 				described && descriptor.DefaultSet,
 			),
-		})
+		}
+		if fromESC {
+			row.ESCEnvironment = origin.String()
+		}
+		values = append(values, row)
 	}
 	return values
 }
@@ -316,8 +364,10 @@ func valueSide(values map[string]string, key string, secret bool) webui.PluginVa
 	return side
 }
 
-func effectiveSource(envSet, projectSet, globalSet, defaultSet bool) string {
+func effectiveSource(escSet, envSet, projectSet, globalSet, defaultSet bool) string {
 	switch {
+	case escSet:
+		return "esc"
 	case envSet:
 		return "env"
 	case projectSet:
@@ -336,6 +386,7 @@ func filterPluginChanges(
 	descriptors []webui.PluginSettingDescriptor,
 	project, global map[string]string,
 	environ []string,
+	origins map[string]esc.Ref,
 	request config.WriteRequest,
 ) (config.WriteRequest, error) {
 	byKey := descriptorMap(descriptors)
@@ -366,7 +417,9 @@ func filterPluginChanges(
 		filtered = append(filtered, change)
 		applied[key] = change
 	}
-	if err := requirePluginSettings(name, byKey, project, global, environ, request.Tier, applied); err != nil {
+	if err := requirePluginSettings(
+		name, byKey, project, global, environ, origins, request.Tier, applied,
+	); err != nil {
 		return config.WriteRequest{}, err
 	}
 	request.Changes = filtered
@@ -378,6 +431,7 @@ func requirePluginSettings(
 	byKey map[string]webui.PluginSettingDescriptor,
 	project, global map[string]string,
 	environ []string,
+	origins map[string]esc.Ref,
 	tier string,
 	applied map[string]config.Change,
 ) error {
@@ -391,6 +445,9 @@ func requirePluginSettings(
 		}
 		envSet := environSet(environ, envName)
 		if envSet {
+			continue
+		}
+		if _, fromESC := origins[envName]; fromESC {
 			continue
 		}
 		effective := descriptor.Default

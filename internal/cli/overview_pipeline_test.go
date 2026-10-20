@@ -18,6 +18,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/tui"
@@ -145,6 +146,28 @@ func fakeOpenPlugins(
 	_ context.Context, _ string, _ *auditContext,
 ) ([]*pluginhost.Client, func(), error) {
 	return nil, func() {}, nil
+}
+
+func TestOverviewPipelineCarriesESCSource(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	src := esc.NewSource(esc.Options{Budget: time.Second, Getenv: func(string) string { return "" }})
+	ctx := esc.WithSource(context.Background(), src)
+	var phases []int
+	var saw bool
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: fakePipelineLoader(fakePipelineRows()),
+		openPlugins: func(openCtx context.Context, _ string, _ *auditContext) ([]*pluginhost.Client, func(), error) {
+			_, saw = esc.SourceFromContext(openCtx)
+			return nil, func() {}, nil
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+	pipe.OnPhase = func(phase int, _ string) { phases = append(phases, phase) }
+	require.NoError(t, pipe.Run(ctx))
+	assert.True(t, saw)
+	assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, phases)
 }
 
 func TestOverviewPipeline_EngineAvailableBeforeDataReady(t *testing.T) {

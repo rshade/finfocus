@@ -15,6 +15,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/engine/cache"
+	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
@@ -203,6 +204,11 @@ func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*p
 	}
 	log.Debug().Ctx(ctx).Int("plugin_count", len(clients)).Msg("plugins opened")
 	pluginhost.ReplacePluginEnvDigests(clients)
+	if len(clients) == 0 {
+		if src, ok := esc.SourceFromContext(ctx); ok {
+			_ = src.Delivery(ctx, "")
+		}
+	}
 
 	return clients, cleanup, nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/webui"
 )
 
@@ -99,6 +100,7 @@ func TestPluginSettingValuesOmitSecretText(t *testing.T) {
 			"api_token":              "super-secret",
 		},
 		nil,
+		pluginhost.Delivered{},
 	)
 	byKey := map[string]webui.PluginSettingValue{}
 	for _, value := range values {

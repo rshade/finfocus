@@ -18,6 +18,7 @@ test failures.
 - [Cost Calculation Errors](#cost-calculation-errors)
 - [E2E Test Timeouts](#e2e-test-timeouts)
 - [Resource Cleanup Issues](#resource-cleanup-issues)
+- [ESC environment skipped](#esc-environment-skipped)
 
 ## Installation Failures
 
@@ -146,3 +147,24 @@ Use the `cleanup` utility or manually delete resources tagged with `finfocus-e2e
 # Example manual cleanup
 aws ec2 terminate-instances --instance-ids i-xxxx
 ```
+
+## ESC environment skipped
+
+FinFocus reads plugin environment variables from Pulumi ESC. When that read
+fails, the command still finishes. Plugins keep the values from the shell and
+from `config.hujson`. Stderr shows one `Warning: ESC …` line for each
+environment and category. The warning names the environment reference and the
+category. It never includes a variable value.
+
+| Category | Cause | Fix |
+| --- | --- | --- |
+| `not_logged_in` | No usable Pulumi Cloud token or organization. A keychain-encrypted login has no token finfocus can read. | Set `PULUMI_ACCESS_TOKEN`, or run `pulumi login`. Set `PULUMI_DEFAULT_ORGANIZATION` when the reference has no organization. |
+| `not_found` | The environment does not exist, or this identity cannot see it. The warning says "not found or no access". | Check the reference and who can open that environment. |
+| `access_denied` | Pulumi Cloud returned 403. | Ask for access to the environment, or sign in as an identity that has it. |
+| `unsupported_backend` | State is not on Pulumi Cloud. `file://`, `s3://`, `gs://`, `azblob://`, and non-loopback `http://` cannot host ESC. A `backend.url` in `Pulumi.yaml` also does not receive `PULUMI_ACCESS_TOKEN`. | Use Pulumi Cloud, or set `PULUMI_BACKEND_URL` to the Pulumi Cloud API and log in there. `http://127.0.0.1` is accepted for a local API. |
+| `unsupported_definition` | The stack's `environment:` block is not a list of imports. Inline `values:` and per-import merge options are not read. | Import an environment, or set `esc.environments` to a list of references. |
+| `timed_out` | The ESC service did not answer inside the five-second wait. | Retry when the network is available. The command already continued with shell and config values. |
+| `unavailable` | The service, the network, or the client failed in some other way. | Check connectivity to the Pulumi Cloud API and try again. |
+
+An empty `esc.environments` list turns ESC off and prints no warning. See
+[Pulumi ESC credentials](esc-credentials.md).

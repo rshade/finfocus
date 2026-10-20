@@ -109,6 +109,70 @@ output:
   Equivalent to setting the `FINFOCUS_PLUGIN_DIR` environment variable (env var takes precedence).
   Example: `plugin_dir: /opt/finfocus/plugins`
 
+### ESC
+
+Pulumi ESC can supply plugin process environment variables. The section is
+top-level. It does not live under `plugins.<name>`, because that object is
+injected into the plugin process.
+
+```json
+{
+  "esc": {
+    "environments": ["billing/aws-readonly@stable"],
+    "plugins": {
+      "vantage": {
+        "environments": ["billing/vantage"],
+        "variables": ["VANTAGE_TOKEN"]
+      }
+    }
+  }
+}
+```
+
+| Key | Kind | Meaning |
+| --- | --- | --- |
+| `esc.environments` | String list | References used for every plugin. Replaces the stack's ESC imports. |
+| `esc.plugins.<name>.environments` | String list | References for that plugin. Replaces `esc.environments` and the stack imports. |
+| `esc.plugins.<name>.variables` | String list | Extra variable names that plugin may receive from ESC. |
+
+A missing `environments` key means "no preference": finfocus uses the stack
+imports. An empty list (`[]`) turns ESC off for what that key covers. A
+per-plugin empty list disables ESC for that plugin only. An empty global list
+disables ESC for every plugin that does not set its own list.
+
+A project `esc` section replaces the global `esc` section as a whole, the
+same way every other top-level section merges. Keys under `esc` are not
+secrets. `config get` and the Config page show the references and the
+variable names.
+
+`config set` takes a comma-separated list:
+
+```bash
+finfocus config set esc.environments 'billing/aws-readonly@stable,shared/tags'
+finfocus config set esc.plugins.vantage.variables 'VANTAGE_TOKEN'
+finfocus config set esc.environments ''
+```
+
+The empty string writes `[]`, which disables ESC. There is no unset command.
+Delete the key from the file, or remove it on the Config page, to return to
+"not set".
+
+`config validate`, and every `cost` command, reject a bad value before a
+plugin starts. Validation does not contact Pulumi Cloud.
+
+| Problem | Message |
+| --- | --- |
+| Malformed reference | `esc.environments[0]: invalid ESC environment reference "a//b": empty segment` |
+| Bad variable name | `esc.plugins.vantage.variables[1]: invalid environment variable name "1BAD"` |
+| Reserved variable | `esc.plugins.vantage.variables[0]: FINFOCUS_PLUGIN_PORT is reserved for plugin startup` |
+| Unknown plugin | `esc.plugins.foo: no plugin named "foo" is installed` (warning) |
+| Wrong JSON type | The usual type-mismatch error for `esc.environments` |
+
+`config set` still accepts a replacement while the file contains a bad
+reference, so the value can be repaired. `config validate` keeps reporting
+that error until the file is valid. See
+[Pulumi ESC credentials](../guides/esc-credentials.md).
+
 ### Cache
 
 Configure the BoltDB-backed cost calculation cache.

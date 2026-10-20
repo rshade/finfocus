@@ -4,14 +4,17 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/logging"
 )
 
@@ -45,29 +48,35 @@ func InstallNameFromContext(ctx context.Context) (string, bool) {
 	return name, true
 }
 
-// WithDeliveredEnv attaches KEY=VALUE pairs for the plugin process.
-// Pairs already present in the parent environment are not applied.
-func WithDeliveredEnv(ctx context.Context, pairs []string) context.Context {
-	copied := append([]string(nil), pairs...)
-	return context.WithValue(ctx, deliveredEnvContextKey{}, copied)
+// Delivered is the environment a plugin process receives.
+type Delivered struct {
+	Pairs     []string
+	Overrides map[string]bool
+	Digest    string
+	Origins   map[string]esc.Ref
 }
 
-// DeliveredEnvFromContext returns pairs attached by WithDeliveredEnv.
-func DeliveredEnvFromContext(ctx context.Context) ([]string, bool) {
-	pairs, ok := ctx.Value(deliveredEnvContextKey{}).([]string)
+// WithDeliveredEnv attaches the environment for the plugin process.
+// Names in Overrides replace a value inherited from the parent.
+func WithDeliveredEnv(ctx context.Context, delivered Delivered) context.Context {
+	return context.WithValue(ctx, deliveredEnvContextKey{}, copyDelivered(delivered))
+}
+
+// DeliveredEnvFromContext returns the environment attached by WithDeliveredEnv.
+func DeliveredEnvFromContext(ctx context.Context) (Delivered, bool) {
+	delivered, ok := ctx.Value(deliveredEnvContextKey{}).(Delivered)
 	if !ok {
-		return nil, false
+		return Delivered{}, false
 	}
-	return pairs, true
+	return delivered, true
 }
 
 // ResolveDeliveredEnv chooses the environment a plugin receives.
-// Precedence for each key is parent environment, project file, global file,
-// then the descriptor default. Descriptor keys use descriptor.Env.
-// Keys with no descriptor use FINFOCUS_PLUGIN_<NAME>_<KEY>.
-// injected lists only pairs that are not already in parent.
-// digest is a hash of every effective pair, including parent values.
-// An empty effective set returns an empty digest.
+// An allowed ESC value wins over the parent, the project file, the global
+// file, and the descriptor default. Every other name keeps that order.
+// Pairs lists values to add. Overrides names replace a parent value.
+// Digest hashes every effective name. ESC names hash the reference and
+// revision key, never the value. An empty effective set returns an empty digest.
 // Secret values are never written to the log.
 func ResolveDeliveredEnv(
 	ctx context.Context,
@@ -75,17 +84,19 @@ func ResolveDeliveredEnv(
 	parent []string,
 	project, global map[string]string,
 	settings []SettingDesc,
-) ([]string, string) {
-	var injected []string
+	fromESC esc.Delivery,
+) Delivered {
 	parentSet, parentValues := parentEnvironment(parent)
 	effective := map[string]string{}
 	described := map[string]bool{}
+	allowed := map[string]bool{}
 
 	for _, setting := range settings {
 		if setting.Key == "" || setting.Env == "" {
 			continue
 		}
 		described[setting.Key] = true
+		allowed[setting.Env] = true
 		value, ok := pickSetting(parentSet, parentValues, project, global, setting)
 		if ok {
 			effective[setting.Env] = value
@@ -101,32 +112,57 @@ func ResolveDeliveredEnv(
 			effective[envName] = value
 		}
 	}
+	if src, ok := esc.SourceFromContext(ctx); ok {
+		for _, name := range src.Variables(plugin) {
+			if name != "" {
+				allowed[name] = true
+			}
+		}
+	}
+	return finishDelivered(ctx, plugin, parentSet, effective, allowed, fromESC)
+}
+
+func finishDelivered(
+	ctx context.Context,
+	plugin string,
+	parentSet map[string]bool,
+	effective map[string]string,
+	allowed map[string]bool,
+	fromESC esc.Delivery,
+) Delivered {
+	origins := map[string]esc.Ref{}
+	stamps := map[string]escStamp{}
+	overrides := map[string]bool{}
+	applyESC(effective, allowed, fromESC, origins, stamps, overrides)
 
 	names := make([]string, 0, len(effective))
 	for envName := range effective {
 		names = append(names, envName)
 	}
 	slices.Sort(names)
+	pairs := make([]string, 0, len(names))
 	for _, envName := range names {
-		if parentSet[envName] {
+		if parentSet[envName] && !overrides[envName] {
 			continue
 		}
-		injected = append(injected, envName+"="+effective[envName])
+		pairs = append(pairs, envName+"="+effective[envName])
 	}
-
-	log := logging.FromContext(ctx)
-	log.Debug().
-		Str("component", "pluginhost").
-		Str("operation", "resolve_settings").
-		Str("plugin", plugin).
-		Int("count", len(names)).
-		Strs("env", names).
-		Msg("resolved plugin settings")
-
+	logResolved(ctx, plugin, names, stamps)
 	if len(names) == 0 {
-		return injected, ""
+		return Delivered{Pairs: pairs}
 	}
-	return injected, hashDelivered(plugin, names, effective)
+	if len(overrides) == 0 {
+		overrides = nil
+	}
+	if len(origins) == 0 {
+		origins = nil
+	}
+	return Delivered{
+		Pairs:     pairs,
+		Overrides: overrides,
+		Digest:    hashDelivered(plugin, names, effective, stamps),
+		Origins:   origins,
+	}
 }
 
 func parentEnvironment(parent []string) (map[string]bool, map[string]string) {
@@ -210,26 +246,123 @@ func GenericPluginEnv(plugin, key string) string {
 	return genericPluginEnv(plugin, key)
 }
 
-func hashDelivered(plugin string, names []string, values map[string]string) string {
+type escStamp struct {
+	ref      string
+	revision string
+}
+
+func applyESC(
+	effective map[string]string,
+	allowed map[string]bool,
+	fromESC esc.Delivery,
+	origins map[string]esc.Ref,
+	stamps map[string]escStamp,
+	overrides map[string]bool,
+) {
+	names := make([]string, 0, len(fromESC.Values))
+	for name := range fromESC.Values {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	for _, name := range names {
+		if reservedEnv(name) || !allowed[name] {
+			continue
+		}
+		effective[name] = fromESC.Values[name]
+		overrides[name] = true
+		ref, ok := fromESC.Origins[name]
+		if !ok {
+			continue
+		}
+		origins[name] = ref
+		stamps[name] = escStamp{ref: ref.String(), revision: fromESC.Fingerprints[name]}
+	}
+}
+
+func reservedEnv(name string) bool {
+	switch name {
+	case pluginsdk.EnvPort, pluginsdk.EnvLogFile, pluginsdk.EnvTraceID:
+		return true
+	default:
+		return false
+	}
+}
+
+func logResolved(ctx context.Context, plugin string, names []string, stamps map[string]escStamp) {
+	escNames := make([]string, 0, len(stamps))
+	refSeen := map[string]struct{}{}
+	var escRefs []string
+	for name, stamp := range stamps {
+		escNames = append(escNames, name)
+		if _, ok := refSeen[stamp.ref]; ok {
+			continue
+		}
+		refSeen[stamp.ref] = struct{}{}
+		escRefs = append(escRefs, stamp.ref)
+	}
+	slices.Sort(escNames)
+	slices.Sort(escRefs)
+	logging.FromContext(ctx).Debug().
+		Str("component", "pluginhost").
+		Str("operation", "resolve_settings").
+		Str("plugin", plugin).
+		Int("count", len(names)).
+		Strs("env", names).
+		Strs("esc_env", escNames).
+		Strs("esc_refs", escRefs).
+		Msg("resolved plugin settings")
+}
+
+func hashDelivered(plugin string, names []string, values map[string]string, stamps map[string]escStamp) string {
 	sum := sha256.New()
 	_, _ = sum.Write([]byte(plugin))
 	_, _ = sum.Write([]byte{0})
 	for _, name := range names {
 		_, _ = sum.Write([]byte(name))
 		_, _ = sum.Write([]byte{0})
+		if stamp, ok := stamps[name]; ok {
+			_, _ = sum.Write([]byte("esc"))
+			_, _ = sum.Write([]byte{0})
+			_, _ = sum.Write([]byte(stamp.ref))
+			_, _ = sum.Write([]byte{0})
+			_, _ = sum.Write([]byte(stamp.revision))
+			_, _ = sum.Write([]byte{0})
+			continue
+		}
 		_, _ = sum.Write([]byte(values[name]))
 		_, _ = sum.Write([]byte{0})
 	}
 	return hex.EncodeToString(sum.Sum(nil))
 }
 
+func copyDelivered(delivered Delivered) Delivered {
+	delivered.Pairs = append([]string(nil), delivered.Pairs...)
+	if len(delivered.Overrides) > 0 {
+		overrides := make(map[string]bool, len(delivered.Overrides))
+		for name := range delivered.Overrides {
+			overrides[name] = true
+		}
+		delivered.Overrides = overrides
+	}
+	if len(delivered.Origins) > 0 {
+		origins := make(map[string]esc.Ref, len(delivered.Origins))
+		maps.Copy(origins, delivered.Origins)
+		delivered.Origins = origins
+	}
+	return delivered
+}
+
 func resolveInjected(
 	ctx context.Context,
 	plugin string,
 	settings []*pbc.PluginSetting,
-) ([]string, string) {
+) Delivered {
 	project, global := pluginFileMaps(ctx, plugin)
-	return ResolveDeliveredEnv(ctx, plugin, os.Environ(), project, global, settingDescs(settings))
+	var fromESC esc.Delivery
+	if src, ok := esc.SourceFromContext(ctx); ok {
+		fromESC = src.Delivery(ctx, plugin)
+	}
+	return ResolveDeliveredEnv(ctx, plugin, os.Environ(), project, global, settingDescs(settings), fromESC)
 }
 
 func pluginFileMaps(ctx context.Context, plugin string) (map[string]string, map[string]string) {

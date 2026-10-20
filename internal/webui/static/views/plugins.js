@@ -460,6 +460,9 @@ export function mount(container, { api }) {
     if (field.env) parts.push(`Environment variable ${field.env}.`);
     if (field.required) parts.push('Required.');
     if (field.row?.envSet) parts.push('An environment value is set and overrides the file.');
+    if (field.row?.effectiveSource === 'esc') {
+      parts.push(`Supplied by Pulumi ESC environment \`${field.row.escEnvironment}\`, which overrides the shell and both files.`);
+    }
     return parts.join(' ');
   }
 

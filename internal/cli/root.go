@@ -108,6 +108,9 @@ func NewRootCmdWithArgs(
 			config.InitGlobalConfigWithProject(cmd.Context(), resolvedDir)
 
 			lifecycle.startLogging(cmd)
+			if attachErr := attachESCSource(cmd, cwd); attachErr != nil {
+				return attachErr
+			}
 			return nil
 		},
 		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {

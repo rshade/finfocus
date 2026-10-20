@@ -53,12 +53,11 @@ type Launcher interface {
 // is started once more when GetPluginInfo names variables the first launch did not have.
 func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client, error) {
 	installName, named := InstallNameFromContext(ctx)
-	var injected []string
-	var digest string
+	var delivered Delivered
 	launchCtx := ctx
 	if named {
-		injected, digest = resolveInjected(ctx, installName, nil)
-		launchCtx = WithDeliveredEnv(ctx, injected)
+		delivered = resolveInjected(ctx, installName, nil)
+		launchCtx = WithDeliveredEnv(ctx, delivered)
 	}
 
 	started, err := connectPlugin(launchCtx, launcher, binPath)
@@ -66,7 +65,7 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 		return nil, err
 	}
 	if named {
-		started, digest, err = applyAdvertisedSettings(ctx, launcher, binPath, installName, started, injected, digest)
+		started, delivered, err = applyAdvertisedSettings(ctx, launcher, binPath, installName, started, delivered)
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +76,7 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 		Conn:            started.conn,
 		API:             started.api,
 		Close:           started.idempotentClose(),
-		DeliveredDigest: digest,
+		DeliveredDigest: delivered.Digest,
 	}
 	if started.info == nil {
 		return client, nil
@@ -100,15 +99,14 @@ func applyAdvertisedSettings(
 	launcher Launcher,
 	binPath, installName string,
 	started pluginConnection,
-	injected []string,
-	digest string,
-) (pluginConnection, string, error) {
+	delivered Delivered,
+) (pluginConnection, Delivered, error) {
 	if started.info == nil {
-		return started, digest, nil
+		return started, delivered, nil
 	}
-	next, digest := resolveInjected(ctx, installName, started.info.GetSettings())
-	if sameStringSet(injected, next) {
-		return started, digest, nil
+	next := resolveInjected(ctx, installName, started.info.GetSettings())
+	if sameDelivery(delivered, next) {
+		return started, next, nil
 	}
 	if closeErr := started.closeFn(); closeErr != nil {
 		logging.FromContext(ctx).Warn().
@@ -122,16 +120,29 @@ func applyAdvertisedSettings(
 		Str("component", "pluginhost").
 		Str("operation", "restart_plugin").
 		Str("plugin", installName).
-		Int("count", len(next)).
+		Int("count", len(next.Pairs)).
 		Msg("restarting plugin to apply advertised settings")
 	restarted, err := connectPlugin(WithDeliveredEnv(ctx, next), launcher, binPath)
 	if err != nil {
-		return pluginConnection{}, "", err
+		return pluginConnection{}, Delivered{}, err
 	}
 	if restarted.info != nil {
-		_, digest = resolveInjected(ctx, installName, restarted.info.GetSettings())
+		next = resolveInjected(ctx, installName, restarted.info.GetSettings())
 	}
-	return restarted, digest, nil
+	return restarted, next, nil
+}
+
+func sameDelivery(left, right Delivered) bool {
+	return sameStringSet(left.Pairs, right.Pairs) &&
+		sameStringSet(overrideKeys(left.Overrides), overrideKeys(right.Overrides))
+}
+
+func overrideKeys(overrides map[string]bool) []string {
+	keys := make([]string, 0, len(overrides))
+	for name := range overrides {
+		keys = append(keys, name)
+	}
+	return keys
 }
 
 type pluginConnection struct {

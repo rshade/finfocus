@@ -199,9 +199,13 @@ func newValidationResult(path string) ValidationResult {
 }
 
 func appendSemantic(result *ValidationResult, cfg *Config, lines map[string]int) {
+	savedESC := cfg.ESC
+	cfg.ESC = nil
 	if err := cfg.Validate(); err != nil {
 		addSemanticError(result, err, lines)
 	}
+	cfg.ESC = savedESC
+	appendESCFindings(result, cfg, lines)
 	if cfg.Cost.Budgets == nil {
 		return
 	}
@@ -210,6 +214,24 @@ func appendSemantic(result *ValidationResult, cfg *Config, lines map[string]int)
 		result.Warnings = append(result.Warnings, ValidationWarning{
 			Path:    costBudgetsPath,
 			Message: warning,
+		})
+	}
+}
+
+func appendESCFindings(result *ValidationResult, cfg *Config, lines map[string]int) {
+	errs, warns := cfg.escFindings()
+	for _, item := range errs {
+		result.Errors = append(result.Errors, ValidationError{
+			Line:    lineForPath(lines, item.path),
+			Path:    item.path,
+			Message: item.message,
+		})
+	}
+	for _, item := range warns {
+		result.Warnings = append(result.Warnings, ValidationWarning{
+			Line:    lineForPath(lines, item.path),
+			Path:    item.path,
+			Message: item.message,
 		})
 	}
 }
