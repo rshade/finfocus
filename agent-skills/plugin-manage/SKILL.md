@@ -49,7 +49,7 @@ finfocus plugin list --available      # registry catalog
 runtime metadata. A plugin that cannot start stays in the output with
 `notes: "Failed: <error>"`, so read `notes` rather than assuming it is absent.
 
-Official registry plugins: `aws-public`, `azure-public`, `opencost`, `flexera`,
+Official registry plugins: `aws-public`, `aws-ce`, `azure-public`, `opencost`, `flexera`,
 `vantage`, `kubernetes`, `scorer`, `carbon`, and deprecated `jev`. Details and provider mapping:
 [references/registry-and-layout.md](references/registry-and-layout.md).
 
