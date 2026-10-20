@@ -102,6 +102,7 @@ A: The main plugins today:
 | Plugin | Projected Costs | Actual Costs | Notes |
 |--------|----------------|--------------|-------|
 | `aws-public` | ✓ | ✓ | AWS public pricing API |
+| `aws-ce` | — | ✓ | Billed AWS cost from Cost Explorer by account, service, or EC2 instance; needs AWS credentials with Cost Explorer read access |
 | `azure-public` | ✓ | ✓ | Azure Retail Prices API, no credentials |
 | `vantage` | — | ✓ | Imported billing from a Vantage Cost Report; needs a Vantage account |
 | `flexera` | ✓ | ✓ | Flexera One Bill Analysis for AWS, Azure, and GCP; needs a Flexera org and billing center |

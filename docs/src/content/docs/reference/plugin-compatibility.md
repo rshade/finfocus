@@ -16,7 +16,7 @@ workflows.
 | Plugin Name          | Provider | Projected Costs | Actual Costs     | Auth Required | E2E Support | Notes                                                                              |
 | -------------------- | -------- | --------------- | ---------------- | ------------- | ----------- | ---------------------------------------------------------------------------------- |
 | aws-public           | AWS      | [X]             | [!] (Fallback\*) | [ ]           | [X]         | Uses embedded list prices. \*Actual costs are estimated by `runtime × list price`. |
-| aws-costexplorer     | AWS      | [ ]             | [X]              | [X]           | [X]         | Queries real billing data. Includes discounts/RIs.                                 |
+| aws-ce               | AWS      | [ ]             | [X]              | [X]           | [ ]         | Queries billed cost from Cost Explorer. Account, service, and EC2 instance scopes. Data lags by 24 hours or more. |
 | azure-public         | Azure    | [X]             | [!] (Fallback\*) | [ ]           | [ ]         | Uses the Azure Retail Prices API. \*Actual costs are `hours × list price`.         |
 | opencost             | Kubernetes | [X]           | [X]              | [ ]           | [ ]         | Reads OpenCost allocation data. Projected cost is a 30-day trailing average.       |
 | vantage              | AWS, Azure, GCP, Kubernetes | [ ] | [X]          | [X]           | [ ]         | Reads imported cost from a Vantage Cost Report. Billing can lag usage by days.     |

@@ -19,6 +19,20 @@ The embedded registry (`internal/registry/registry.json`) contains official plug
 Default plugin installed by `finfocus setup`. Supports region-specific binaries
 via `--metadata="region=<region>"` and a multi-region router binary (default).
 
+### aws-ce
+
+| Field | Value |
+|-------|-------|
+| Repository | `rshade/finfocus-plugin-aws-ce` |
+| Providers | `aws` |
+| Capabilities | `cost_retrieval` |
+| Security | official |
+| Asset prefix | `finfocus-plugin-aws-ce` |
+
+Reads billed AWS cost from Cost Explorer by account, service, or EC2 instance.
+It needs AWS credentials with Cost Explorer read access and reports actual cost
+only. `finfocus setup` does not install it; run `finfocus plugin install aws-ce`.
+
 ### azure-public
 
 | Field | Value |
