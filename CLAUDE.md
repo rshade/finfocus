@@ -359,6 +359,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   published when the engine is built (`newCleanupPublisher`), so the abandon
   path still closes plugins before the process exits; a detached goroutine
   (`runLateOverviewCleanup`) covers a cleanup that appears later.
+- The overview hands off to `runWebSession` only after plugin cleanup, through
+  the `startWebSession` seam. The hint and `w` live inside the interactive
+  model, so non-interactive runs never see them.
 - `finfocus --web` shuts down on SIGINT and SIGTERM (`webui.Server.ServeUntilInterrupt`,
   the single owner; `Run` is Listen plus that). That is the path that stops
   plugin children.
@@ -371,6 +374,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   the direct child, and a grandchild that leaves the group (`Setsid` or its own
   `Setpgid`) survives either way. Those cases belong in the plugin.
   `analyzer serve` already handles both signals.
+  Under WSL (`WSL_DISTRO_NAME` or `WSL_INTEROP`), `runWebSession` waits
+  `wslBrowserOpenDelay` (1.5s) before opening the browser. The Windows-side
+  localhost relay refuses a freshly bound port for about a second, so an
+  immediate open fails until the user reloads. `--no-browser` skips the wait.
 - On-demand overview preview passes `capturePlan` into `resolveOverviewPlan`
   (the hook is a normal parameter, not a variadic). The web Estimate page
   reads that captured plan. Web Overview appends plan-only creates through

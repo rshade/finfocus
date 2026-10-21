@@ -41,6 +41,7 @@ const (
 	keySlash  = "/"
 	keyS      = "s"
 	keyP      = "p"
+	keyW      = "w"
 	keyE      = "e"
 	keyRight  = "right"
 	keyLeft   = "left"

@@ -405,8 +405,11 @@ func TestRootCmd_OutsidePulumiProject(t *testing.T) {
 
 	require.Equal(t, 0, result.ExitCode, "outside Pulumi project, bare invocation should show help (exit 0)")
 	output := string(result.Stdout)
+	assert.Contains(t, output, "Usage:", "help output should contain the usage line")
 	assert.Contains(t, output, "FinFocus", "help output should contain product name")
 	assert.Contains(t, output, "Available Commands:", "help output should list commands")
+	assert.NotContains(t, output, "[w]")
+	assert.NotContains(t, output, "finfocus --web")
 }
 
 // TestRootCmd_InPulumiProject verifies that running finfocus with no args

@@ -30,6 +30,13 @@ const webShutdownTimeout = 5 * time.Second
 // opener and the test helpers that fake platform binaries.
 const goosWindows = "windows"
 
+// wslBrowserOpenDelay is how long a WSL session waits before opening the
+// browser. The Windows-side localhost relay needs about a second to notice a
+// newly bound port, and an earlier open is refused until the user reloads.
+//
+//nolint:gochecknoglobals // Test seam so the wait does not slow the suite.
+var wslBrowserOpenDelay = 1500 * time.Millisecond
+
 // webCompanionFlags are the root-local flags that are only meaningful with
 // --web; used without it they are rejected, because a root-local flag would
 // otherwise be parsed silently.
@@ -47,6 +54,29 @@ var webCompanionFlags = []string{
 //
 //nolint:gochecknoglobals // Test/wiring seam for the --web entry point.
 var webPipelineHook = func(*OverviewPipeline) {}
+
+// startWebSession starts the dashboard. The overview calls it only after
+// plugin cleanup. Tests replace it; production uses runWebSession.
+//
+//nolint:gochecknoglobals // Test seam for the overview web hand-off.
+var startWebSession = runWebSession
+
+// webFlagsFromOverview copies the overview's source into the flags runWebSession
+// already accepts. The port stays ephemeral and the browser opens.
+func webFlagsFromOverview(params overviewParams) *webFlagValues {
+	return &webFlagValues{
+		web:         true,
+		port:        0,
+		noBrowser:   false,
+		pulumiJSON:  params.pulumiJSON,
+		pulumiState: params.pulumiState,
+		stack:       params.stack,
+		from:        params.fromStr,
+		to:          params.toStr,
+		adapter:     params.adapter,
+		filter:      params.filter,
+	}
+}
 
 // webFlagValues holds the parsed values of the --web root-local flags.
 type webFlagValues struct {
@@ -170,6 +200,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	go func() { defer close(pipeDone); _ = pipe.Run(pipeCtx) }()
 
 	if !flags.noBrowser {
+		waitForBrowserRelay(ctx)
 		if browserErr := openWebBrowser(ctx, srv.URL()); browserErr != nil {
 			log.Warn().
 				Ctx(ctx).
@@ -198,6 +229,29 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	}
 	audit.logSuccess(ctx, pipe.Result().RowsEnriched, 0)
 	return nil
+}
+
+// runningUnderWSL reports whether the process runs inside WSL, where the
+// default browser is usually on the Windows side.
+//
+//nolint:gochecknoglobals // Test seam for WSL detection.
+var runningUnderWSL = func() bool {
+	return os.Getenv("WSL_DISTRO_NAME") != "" || os.Getenv("WSL_INTEROP") != ""
+}
+
+// waitForBrowserRelay pauses under WSL so the Windows localhost relay can
+// forward the freshly bound port before the browser connects. It returns early
+// when ctx is canceled.
+func waitForBrowserRelay(ctx context.Context) {
+	if !runningUnderWSL() {
+		return
+	}
+	timer := time.NewTimer(wslBrowserOpenDelay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-ctx.Done():
+	}
 }
 
 // openWebBrowser opens url in the system default browser via the platform

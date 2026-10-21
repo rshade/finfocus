@@ -176,8 +176,12 @@ type OverviewModel struct {
 	// historyLoader reads stored cost history for the stack and resource URN.
 	// A nil loader leaves the detail view unchanged.
 	historyLoader func(context.Context, string, string) ([]detail.Point, error)
-	history       *detail.Model
-	detailScroll  int
+
+	// webRequested is set when w is pressed in the list view. The program
+	// reads it after exit and does not reset it.
+	webRequested bool
+	history      *detail.Model
+	detailScroll int
 }
 
 // NewOverviewModel creates a new interactive overview model.
@@ -239,6 +243,13 @@ func NewOverviewModel(
 // Err returns any error that caused the TUI to exit (e.g., init failure).
 func (m OverviewModel) Err() error {
 	return m.err
+}
+
+// WebRequested reports whether w was pressed in the list view to open the
+// web dashboard. It is false until that key is handled, and the caller reads
+// it after the program exits.
+func (m OverviewModel) WebRequested() bool {
+	return m.webRequested
 }
 
 // resourceColumnWidth returns the computed width for the Resource column.
@@ -619,11 +630,21 @@ func (m OverviewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m.handleListKeypress(keyMsg)
 }
 
+// quitToWeb leaves the list view and records that the caller should start
+// the web session after the program exits.
+func (m OverviewModel) quitToWeb() (tea.Model, tea.Cmd) {
+	m.webRequested = true
+	m.state = ViewStateQuitting
+	return m, tea.Quit
+}
+
 func (m OverviewModel) handleListKeypress(keyMsg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch keyMsg.String() {
 	case keyQuit, keyCtrlC:
 		m.state = ViewStateQuitting
 		return m, tea.Quit
+	case keyW:
+		return m.quitToWeb()
 	case keyEnter:
 		return m.openDetail()
 	case keyE:

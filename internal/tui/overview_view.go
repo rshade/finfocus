@@ -134,6 +134,10 @@ func (m OverviewModel) renderListView() string {
 	statusBar := m.renderStatusBar()
 	sections = append(sections, statusBar)
 
+	if hint := renderWebHint(m.width); hint != "" {
+		sections = append(sections, hint)
+	}
+
 	// Filter input (if active)
 	if m.showFilter {
 		filterView := LabelStyle.Render("Filter: ") + m.textInput.View()
@@ -152,6 +156,29 @@ func (m OverviewModel) renderListView() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+}
+
+const (
+	webHintLongForm  = "[w] web dashboard · finfocus --web"
+	webHintShortForm = "[w] web"
+)
+
+// renderWebHint returns the dashboard hint for the list view. The long form
+// is used when it fits in width, otherwise the short form, otherwise an empty
+// string so the caller omits the line. The result is at most width columns.
+func renderWebHint(width int) string {
+	if width <= 0 {
+		return ""
+	}
+	long := SubtleStyle.Render(webHintLongForm)
+	if lipgloss.Width(long) <= width {
+		return long
+	}
+	short := SubtleStyle.Render(webHintShortForm)
+	if lipgloss.Width(short) <= width {
+		return short
+	}
+	return ""
 }
 
 // renderStatusBar displays current sort field, filter status, and preview hints.

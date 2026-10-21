@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine"
 )
@@ -489,4 +491,141 @@ func TestRenderDetailView_ShowsCostImpact(t *testing.T) {
 	assert.Contains(t, output, "After Change")
 	assert.Contains(t, output, "$150.00")
 	assert.Contains(t, output, "Delta")
+}
+
+func listModelAtWidth(width int, rows []engine.OverviewRow) OverviewModel {
+	model, _ := NewOverviewModel(context.Background(), rows, len(rows), nil, nil)
+	model.state = ViewStateList
+	model.width = width
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
+	model.rebuildTable()
+	return model
+}
+
+func webHintLine(output string) (string, bool) {
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "[w]") {
+			return line, true
+		}
+	}
+	return "", false
+}
+
+func TestOverviewWebHint_Width(t *testing.T) {
+	t.Parallel()
+
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+	tests := []struct {
+		name  string
+		width int
+		want  string
+	}{
+		{name: "long form", width: 120, want: "[w] web dashboard · finfocus --web"},
+		{name: "short form", width: 20, want: "[w] web"},
+		{name: "omitted when five columns", width: 5, want: ""},
+		{name: "omitted when zero columns", width: 0, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			output := listModelAtWidth(tt.width, rows).renderListView()
+			line, ok := webHintLine(output)
+			if tt.want == "" {
+				assert.False(t, ok, "hint line: %q", line)
+				assert.Empty(t, renderWebHint(tt.width))
+				return
+			}
+			require.True(t, ok, "expected a hint line in %q", output)
+			hint := strings.TrimRight(line, " ")
+			assert.Contains(t, hint, tt.want)
+			if tt.width == 20 {
+				assert.NotContains(t, hint, "finfocus --web")
+			}
+			assert.LessOrEqual(t, lipgloss.Width(hint), tt.width)
+			assert.LessOrEqual(t, lipgloss.Width(renderWebHint(tt.width)), tt.width)
+		})
+	}
+}
+
+func TestOverviewWebHint_NotInOtherViews(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	assertNoWebHint := func(t *testing.T, output string) {
+		t.Helper()
+		assert.NotContains(t, output, "[w]")
+		assert.NotContains(t, output, "finfocus --web")
+	}
+
+	t.Run("initializing", func(t *testing.T) {
+		t.Parallel()
+		model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
+		assert.Equal(t, ViewStateInitializing, model.state)
+		assertNoWebHint(t, model.View().Content)
+	})
+
+	t.Run("passphrase", func(t *testing.T) {
+		t.Parallel()
+		model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
+		model.showPassphraseInput = true
+		output := model.View().Content
+		assert.Contains(t, output, "PULUMI_CONFIG_PASSPHRASE")
+		assertNoWebHint(t, output)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+		model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
+		model.state = ViewStateError
+		model.err = assert.AnError
+		output := model.View().Content
+		assert.Contains(t, output, assert.AnError.Error())
+		assertNoWebHint(t, output)
+	})
+
+	t.Run("detail", func(t *testing.T) {
+		t.Parallel()
+		rows := []engine.OverviewRow{
+			{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+		}
+		model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+		model.state = ViewStateDetail
+		model.selected = 0
+		model.allRows = computeRowResults(rows)
+		model.rows = computeRowResults(rows)
+		output := model.View().Content
+		assert.Contains(t, output, "RESOURCE DETAIL")
+		assertNoWebHint(t, output)
+	})
+}
+
+func TestOverviewWebHint_ErrorRowStillShowsHint(t *testing.T) {
+	t.Parallel()
+
+	t.Run("error row", func(t *testing.T) {
+		t.Parallel()
+		rows := []engine.OverviewRow{{
+			URN:    "urn:pulumi:dev::app::aws:ec2/instance:Instance::broken",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusActive,
+			Error:  &engine.OverviewRowError{Message: "plugin failed"},
+		}}
+		output := listModelAtWidth(120, rows).renderListView()
+		assert.Contains(t, output, "ERR")
+		line, ok := webHintLine(output)
+		require.True(t, ok)
+		assert.Contains(t, line, "[w] web dashboard · finfocus --web")
+	})
+
+	t.Run("empty stack", func(t *testing.T) {
+		t.Parallel()
+		output := listModelAtWidth(120, nil).renderListView()
+		line, ok := webHintLine(output)
+		require.True(t, ok)
+		assert.Contains(t, line, "[w] web dashboard · finfocus --web")
+	})
 }
