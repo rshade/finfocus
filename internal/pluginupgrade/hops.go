@@ -140,6 +140,25 @@ var hops = []Hop{
 		},
 		Guide: "to-v0.7.7.md",
 	},
+	{
+		To:      "v0.7.8",
+		Summary: "Additive release; optional ParsedResource.action hint",
+		Manual: []string{
+			"Cost-parse plugins that set ParsedResource.action: use only defined ParseAction values, " +
+				"because response validation rejects an unknown number",
+		},
+		Guide: "to-v0.7.8.md",
+	},
+	{
+		To:      "v0.7.9",
+		Summary: "Additive release; conformance honors the capabilities a plugin declares",
+		Manual: []string{
+			"If GetPluginInfo sets Capabilities by hand, list every implemented service and rerun conformance: " +
+				"the suite now requires Unimplemented for each unlisted actual-cost, projected-cost, " +
+				"pricing-spec, or budgets capability",
+		},
+		Guide: "to-v0.7.9.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.
