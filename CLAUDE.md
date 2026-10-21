@@ -612,7 +612,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   returns `ResourceExhausted`, or per-resource code 8, is retried as a
   batch. Those resources are not sent back through `GetProjectedCost` or
   `GetActualCost` on the rate-limited plugin. A deadline that fires during
-  the wait stops the chain.
+  the wait stops the chain. `priceChunk` gives RPC-level and per-item rate
+  limits one shared three-attempt budget, resends only the still-limited
+  resources, and splits each retry by the smallest `MaxBatchSize` seen. A
+  later chunk's ordinary failure keeps earlier rate-limit markers: only the
+  unfinished rows get an error, because callers ignore results when
+  `executeBatchForPlugin` returns one.
 - Cost history (`internal/history`, `cost history *`): files are
   `<project>@<stack>.history.db`, separate from the resource-observation
   `history.db`. Both use one directory: `FINFOCUS_HISTORY_DIR`, then
