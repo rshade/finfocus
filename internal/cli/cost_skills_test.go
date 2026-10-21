@@ -201,7 +201,6 @@ func TestCostDriftSkillMatchesDriftOmissionRules(t *testing.T) {
 	assert.Contains(t, drift, "less than 2 days")
 	assert.Contains(t, drift, "new or deleted")
 	assert.Contains(t, drift, "insufficient data")
-	assert.Contains(t, drift, "30.4167")
 	assert.InDelta(t, 30.4167, float64(engine.HoursPerMonth)/24.0, 0.0001)
 }
 
@@ -264,10 +263,12 @@ func TestCostSkillsDocumentDefaultThresholds(t *testing.T) {
 	for _, row := range []string{
 		"| `drift.drift_pct` | 10 |",
 		"| `drift.drift_absolute` | 50 |",
-		"| `drift.total_drift_pct` | 15 |",
 	} {
 		assert.Contains(t, drift, row)
 	}
+	assert.NotContains(t, drift, "total_drift_pct`  |")
+	assert.NotContains(t, drift, "Overall drift (derived)")
+	assert.Contains(t, check, "empty-plan")
 	assert.Contains(t, check, "COST_CHECK_RESULT:")
 	assert.Contains(t, drift, "COST_DRIFT_RESULT:")
 }
@@ -313,7 +314,7 @@ func TestCostSkillsArchives(t *testing.T) {
 func TestCostSkillsMentionOnlyLiveFlags(t *testing.T) {
 	t.Parallel()
 
-	known := map[string]bool{"json": true, "format": true, "version": true}
+	known := map[string]bool{"json": true, "format": true, "version": true, "show-sames": true}
 	usageFlag := regexp.MustCompile(`--([a-z][a-z-]*)`)
 	for _, cmd := range []*cobra.Command{
 		costSubcommand(t, "projected"), costSubcommand(t, "forecast"), NewOverviewCmd(), NewPluginListCmd(),

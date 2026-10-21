@@ -58,7 +58,8 @@ Every failure and its handling:
 
 Read the `drift:` section of `.cost-check.yml`. Absent keys use the defaults:
 [references/thresholds.md](references/thresholds.md). If a previous
-`COST_DRIFT.md` exists, keep its overall drift and actual total for the trend.
+`COST_DRIFT.md` exists, keep its drifting-resource count and actual total for
+the trend.
 
 ## 4. Run the CLI
 
@@ -100,9 +101,10 @@ Read each row's `costDrift`:
 
 1. `abs(percentDrift)` above `drift_pct`.
 2. `abs(delta)` above `drift_absolute`.
-3. Overall drift above `total_drift_pct`. This one is derived, not a CLI
-   field. The formula and its limits are in
-   [references/thresholds.md](references/thresholds.md).
+
+There is no overall drift figure. The CLI measures each row from its real
+start, and the summary totals cannot be compared fairly (see
+[references/thresholds.md](references/thresholds.md)).
 
 Overspend and underspend both count. `drift_pct` below 10 cannot flag more
 than the CLI reports, and the report says so when the user set one.
@@ -117,8 +119,9 @@ investigation step.
 
 ## 8. Report
 
-Print the overall drift, the trend against the previous check, and each
-flagged resource with actual, projected, delta, drift, cause, and next step.
+Print the drifting-resource count, the trend against the previous check, and
+each flagged resource with actual, projected, delta, drift, cause, and next
+step.
 Write `COST_DRIFT.md` from
 [references/report-template.md](references/report-template.md). Run
 `markdownlint COST_DRIFT.md` when the tool is installed.

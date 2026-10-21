@@ -18,7 +18,6 @@ Period: [metadata.timeWindow.start] to [metadata.timeWindow.end]
 | --- | --- |
 | Total actual (window) | X,XXX.XX CUR |
 | Total projected (month) | X,XXX.XX CUR |
-| Overall drift (derived) | +/- X.X% |
 | Drifting resources | N |
 | Resources with actuals | N |
 | Trend | better / worse / stable / none |
@@ -71,7 +70,6 @@ Source: .cost-check.yml drift section | defaults
 ## Caveats
 
 - Actuals can lag the billing source by 24 to 48 hours.
-- Overall drift is derived and approximate.
 - [Version unverified, a drift_pct below 10, partial data.]
 ````
 
