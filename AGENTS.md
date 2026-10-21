@@ -47,7 +47,7 @@ layout: "docs"
 
 ### Go Formatting and Imports
 
-- Go 1.27.2+; use tabs for indentation and run `gofmt` on Go files.
+- Go 1.27.3+; use tabs for indentation and run `gofmt` on Go files.
 - Imports grouped as: standard library, third-party, internal packages.
 - `goimports`/`golines` enforced via `golangci-lint`; keep lines tidy.
 - Avoid `init()` and global variables (lint rule).

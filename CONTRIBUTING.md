@@ -62,7 +62,7 @@ submit a pull request directly.
 
 | Tool             | Version    | Purpose             |
 | ---------------- | ---------- | ------------------- |
-| Go               | 1.27.2+    | Core development    |
+| Go               | 1.27.3+    | Core development    |
 | golangci-lint    | `mise.toml` | Go linting         |
 | markdownlint-cli | v0.45.0    | Markdown linting    |
 | Git              | Latest     | Version control     |
