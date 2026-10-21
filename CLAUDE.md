@@ -452,6 +452,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   that bus runs `RedactJSON` and drops slow subscribers. Settings GET uses
   `writePlainJSON`. Secret values are absent from the body. Bool and enum
   plugin settings skip `IsCredentialName` unless the descriptor sets `secret`.
+  Plugins → Settings paints an ESC row in `plugins.js` only. The Status cell
+  reads `from ESC (<reference>)` from `effectiveSource` and `escEnvironment`,
+  and the help reference is a `code` element. Do not put Markdown backticks in
+  that sentence, and do not add a display string to the settings JSON.
   Data-keyed maps keep their keys through `RedactJSON`: use `engine.DataKeyed`
   or the struct tag `datakey:"true"` (trends, breakdowns, and the cost-summary
   groupings). `RedactJSON` redacts in one pass (`redaction_walk.go`): it walks

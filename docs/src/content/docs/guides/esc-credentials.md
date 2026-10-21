@@ -111,6 +111,8 @@ opened.
 
 ## Dashboard
 
-Plugin settings in `finfocus --web` report `effectiveSource: "esc"` and
-`escEnvironment` (the reference) for a row ESC supplies. The page does not
-show the value. A required setting that ESC supplies counts as set.
+Plugin settings in `finfocus --web` show an ESC-supplied row as
+`from ESC (<reference>)` in the Status column. The reference is the
+environment name, never the variable value. The row's help text names that
+environment and says Pulumi ESC overrides the shell and both configuration
+files. A required setting that ESC supplies counts as set.
