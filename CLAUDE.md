@@ -813,4 +813,4 @@ Specs 613-623 hold the details. Invariants:
 
 ## Active Technologies
 
-- Go 1.27.3 (`go.mod`), finfocus-spec v0.7.7 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only; `github.com/pulumi/esc-sdk/sdk` v0.14.0
+- Go 1.27.3 (`go.mod`), finfocus-spec v0.7.9 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only; `github.com/pulumi/esc-sdk/sdk` v0.14.0
