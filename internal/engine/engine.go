@@ -678,6 +678,9 @@ func (e *Engine) GetProjectedCost(
 	}
 
 	batchHandled := make(map[int][]CostResult) // index → results for batch-handled resources
+	// rateLimitedPlugins records a plugin that rate-limited a batch for a
+	// resource. The unary worker must not call that plugin again.
+	rateLimitedPlugins := make(map[int]string)
 
 	// BatchCostRequest has no usage profile. A set profile must use the unary RPC.
 	if e.hasBatchCapableClient() && e.usageProfile == pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED {
@@ -715,6 +718,9 @@ func (e *Engine) GetProjectedCost(
 				ctx, pluginBatch.plugin, uncached,
 				batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
 			)
+			if batchErr != nil && ctx.Err() != nil {
+				break
+			}
 			if batchErr != nil {
 				// Batch-level error: fall back to per-resource worker pool for all resources
 				log.Warn().
@@ -729,7 +735,12 @@ func (e *Engine) GetProjectedCost(
 
 			// Process batch results: successful results are stored and marked handled;
 			// errors and skips fall through to the per-resource worker pool.
+			// Rate-limited rows stay out of that pool for this plugin.
 			for _, br := range batchResults {
+				if br.rateLimited {
+					rateLimitedPlugins[br.index] = pluginBatch.plugin.Name
+					continue
+				}
 				if br.skip {
 					log.Warn().
 						Ctx(ctx).
@@ -804,6 +815,29 @@ func (e *Engine) GetProjectedCost(
 
 			for i, match := range selectedMatches {
 				client := match.Client
+				if rateLimitedPlugins[j.index] == client.Name {
+					pluginErrs = append(pluginErrs, ErrorDetail{
+						ResourceType: resource.Type,
+						ResourceID:   resource.ID,
+						PluginName:   client.Name,
+						Error:        fmt.Errorf("plugin call failed: %w", errBatchRateLimited),
+						Timestamp:    time.Now(),
+					})
+					if !match.Fallback {
+						chainStopped = true
+						break
+					}
+					if i < len(selectedMatches)-1 {
+						log.Info().
+							Ctx(ctx).
+							Str("component", "engine").
+							Str("resource_type", resource.Type).
+							Str("failed_plugin", client.Name).
+							Str("next_plugin", selectedMatches[i+1].Client.Name).
+							Msg("plugin rate limited, falling back to next priority plugin")
+					}
+					continue
+				}
 				log.Debug().
 					Ctx(ctx).
 					Str("component", "engine").
@@ -813,11 +847,14 @@ func (e *Engine) GetProjectedCost(
 					Int("priority", match.Priority).
 					Msg("querying plugin for projected cost")
 
-				// Apply per-resource timeout for plugin calls
-				resourceCtx, resourceCancel := context.WithTimeout(ctx, perResourceTimeout)
-				result, err := e.getProjectedCostFromPlugin(resourceCtx, client, resource, e.usageProfile)
-				resourceCancel()
+				// Each attempt gets its own timeout. A rate-limit wait uses the
+				// parent context so the retry is not already out of time.
+				result, err := e.projectedFromPlugin(ctx, client, resource, perResourceTimeout)
 				if err != nil {
+					if ctx.Err() != nil {
+						chainStopped = true
+						break
+					}
 					pluginErrs = append(pluginErrs, ErrorDetail{
 						ResourceType: resource.Type,
 						ResourceID:   resource.ID,
@@ -833,7 +870,7 @@ func (e *Engine) GetProjectedCost(
 							Str("resource_type", resource.Type).
 							Str("plugin", client.Name).
 							Err(err).
-							Msg("plugin failed and fallback disabled, stopping fallback chain")
+							Msg(stoppedChainMessage(err))
 						chainStopped = true
 						break // Stop trying more plugins
 					}
@@ -847,7 +884,7 @@ func (e *Engine) GetProjectedCost(
 							Str("failed_plugin", client.Name).
 							Str("next_plugin", nextPlugin).
 							Err(err).
-							Msg("plugin failed, falling back to next priority plugin")
+							Msg(fallbackMessage(err))
 					} else {
 						log.Debug().
 							Ctx(ctx).
@@ -1012,7 +1049,6 @@ func (e *Engine) GetProjectedCostWithErrors(
 
 			var resourceResults []CostResult
 			var resourceErrors []ErrorDetail
-			log := logging.FromContext(ctx)
 
 			// Select plugin matches using router (if configured) or all clients
 			selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
@@ -1028,29 +1064,18 @@ func (e *Engine) GetProjectedCostWithErrors(
 				}
 
 				client := match.Client
-				pluginResult, err := e.getProjectedCostFromPlugin(ctx, client, resource, e.usageProfile)
+				pluginResult, err := e.projectedFromPlugin(ctx, client, resource, 0)
 				if err != nil {
-					// Check if fallback is enabled for this plugin
-					if !match.Fallback {
-						log.Info().
-							Ctx(ctx).
-							Str("component", "engine").
-							Str("resource_type", resource.Type).
-							Str("plugin", client.Name).
-							Err(err).
-							Msg("plugin failed and fallback disabled, stopping fallback chain")
+					if ctx.Err() != nil {
 						fallbackChainBroken = true
-					} else if i < len(selectedMatches)-1 {
-						// Log fallback event at INFO level per FR-020
-						nextPlugin := selectedMatches[i+1].Client.Name
-						log.Info().
-							Ctx(ctx).
-							Str("component", "engine").
-							Str("resource_type", resource.Type).
-							Str("failed_plugin", client.Name).
-							Str("next_plugin", nextPlugin).
-							Err(err).
-							Msg("plugin failed, falling back to next priority plugin")
+						break
+					}
+					nextPlugin := ""
+					if i < len(selectedMatches)-1 {
+						nextPlugin = selectedMatches[i+1].Client.Name
+					}
+					if notePluginFailure(ctx, resource.Type, client.Name, nextPlugin, match.Fallback, err) {
+						fallbackChainBroken = true
 					}
 
 					// Track error
@@ -1201,6 +1226,9 @@ func (e *Engine) GetActualCostWithOptions(
 	}
 
 	batchHandled := make(map[int]*CostResult) // index → result for batch-handled resources
+	// rateLimitedPlugins records a plugin that rate-limited a batch for a
+	// resource. The unary worker must not call that plugin again.
+	rateLimitedPlugins := make(map[int]string)
 
 	if e.hasBatchCapableClient() {
 		batchGroups := e.groupResourcesByPlugin(ctx, request.Resources)
@@ -1245,6 +1273,9 @@ func (e *Engine) GetActualCostWithOptions(
 					end:       timestamppb.New(request.To),
 				},
 			)
+			if batchErr != nil && ctx.Err() != nil {
+				break
+			}
 			if batchErr != nil {
 				// Batch-level error: fall back to per-resource worker pool
 				log.Warn().
@@ -1258,6 +1289,10 @@ func (e *Engine) GetActualCostWithOptions(
 			}
 
 			for _, br := range batchResults {
+				if br.rateLimited {
+					rateLimitedPlugins[br.index] = pb.plugin.Name
+					continue
+				}
 				if br.skip {
 					log.Warn().
 						Ctx(ctx).
@@ -1342,6 +1377,27 @@ func (e *Engine) GetActualCostWithOptions(
 				if request.Adapter != "" && client.Name != request.Adapter {
 					continue
 				}
+				if rateLimitedPlugins[j.index] == client.Name {
+					limitErr := fmt.Errorf("plugin %s: %w", client.Name, errBatchRateLimited)
+					if partialErr == nil {
+						partialErr = limitErr
+					} else {
+						partialErr = errors.Join(partialErr, limitErr)
+					}
+					if !match.Fallback {
+						break
+					}
+					if i < len(selectedMatches)-1 {
+						log.Info().
+							Ctx(ctx).
+							Str("component", "engine").
+							Str("resource_type", resource.Type).
+							Str("failed_plugin", client.Name).
+							Str("next_plugin", selectedMatches[i+1].Client.Name).
+							Msg("plugin rate limited, falling back to next priority plugin")
+					}
+					continue
+				}
 
 				log.Debug().
 					Ctx(ctx).
@@ -1352,17 +1408,20 @@ func (e *Engine) GetActualCostWithOptions(
 					Int("priority", match.Priority).
 					Msg("querying plugin for actual cost")
 
-				// Apply per-resource timeout for plugin calls
-				resourceCtx, resourceCancel := context.WithTimeout(ctx, perResourceTimeout)
-				result, err := e.getActualCostFromPlugin(
-					resourceCtx,
+				// Each attempt gets its own timeout. A rate-limit wait uses the
+				// parent context so the retry is not already out of time.
+				result, err := e.actualFromPlugin(
+					ctx,
 					client,
 					resource,
 					request.From,
 					request.To,
+					perResourceTimeout,
 				)
-				resourceCancel()
 				if err != nil {
+					if ctx.Err() != nil {
+						break
+					}
 					// Check if fallback is enabled for this plugin
 					if !match.Fallback {
 						log.Info().
@@ -1371,7 +1430,7 @@ func (e *Engine) GetActualCostWithOptions(
 							Str("resource_type", resource.Type).
 							Str("plugin", client.Name).
 							Err(err).
-							Msg("plugin failed and fallback disabled, stopping fallback chain")
+							Msg(stoppedChainMessage(err))
 						fallbackChainBroken = true
 					} else if i < len(selectedMatches)-1 {
 						// Log fallback event at INFO level per FR-020
@@ -1383,7 +1442,7 @@ func (e *Engine) GetActualCostWithOptions(
 							Str("failed_plugin", client.Name).
 							Str("next_plugin", nextPlugin).
 							Err(err).
-							Msg("plugin failed, falling back to next priority plugin")
+							Msg(fallbackMessage(err))
 					}
 
 					newErr := fmt.Errorf("plugin %s: %w", client.Name, err)
@@ -1666,35 +1725,24 @@ func (e *Engine) getActualCostForResource(
 			continue
 		}
 
-		costResult, err := e.getActualCostFromPlugin(
+		costResult, err := e.actualFromPlugin(
 			ctx,
 			client,
 			resource,
 			request.From,
 			request.To,
+			0,
 		)
 		if err != nil {
-			// Check if fallback is enabled for this plugin
-			if !match.Fallback {
-				log.Info().
-					Ctx(ctx).
-					Str("component", "engine").
-					Str("resource_type", resource.Type).
-					Str("plugin", client.Name).
-					Err(err).
-					Msg("plugin failed and fallback disabled, stopping fallback chain")
+			if ctx.Err() != nil {
+				break
+			}
+			nextPlugin := ""
+			if i < len(selectedMatches)-1 {
+				nextPlugin = selectedMatches[i+1].Client.Name
+			}
+			if notePluginFailure(ctx, resource.Type, client.Name, nextPlugin, match.Fallback, err) {
 				fallbackChainBroken = true
-			} else if i < len(selectedMatches)-1 {
-				// Log fallback event at INFO level per FR-020
-				nextPlugin := selectedMatches[i+1].Client.Name
-				log.Info().
-					Ctx(ctx).
-					Str("component", "engine").
-					Str("resource_type", resource.Type).
-					Str("failed_plugin", client.Name).
-					Str("next_plugin", nextPlugin).
-					Err(err).
-					Msg("plugin failed, falling back to next priority plugin")
 			}
 
 			errors = append(errors, ErrorDetail{
@@ -1868,10 +1916,15 @@ func (e *Engine) getHourlyRateForResource(
 ) (float64, error) {
 	matches, _ := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
 	for _, match := range matches {
+		if ctx.Err() != nil {
+			break
+		}
 		// Actual cost's hourly lookup must not carry a planning hint.
-		costResult, err := e.getProjectedCostFromPlugin(
-			ctx, match.Client, resource, pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED,
-		)
+		costResult, err := retryRateLimited(ctx, 0, func(attemptCtx context.Context) (*CostResult, error) {
+			return e.getProjectedCostFromPlugin(
+				attemptCtx, match.Client, resource, pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED,
+			)
+		})
 		if err != nil {
 			continue
 		}

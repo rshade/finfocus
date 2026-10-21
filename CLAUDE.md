@@ -603,6 +603,21 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `BatchCostRequest` has no field, and appends `/profile-dev|prod|burst`
   after the other cache suffixes. Unspecified adds nothing. Do not set the
   profile inside `newEngineWithCache`.
+- `ResourceExhausted` is a rate limit, not a reason to switch plugins.
+  Projected and actual cost retry that same plugin (`retryRateLimited`,
+  three attempts) before the fallback log. A wait uses the caller context.
+  `ErrorDetail.retry_after_seconds`, when set, is the wait; otherwise the
+  wait is bounded jitter. Each attempt still gets its own
+  `perResourceTimeout` where that timeout already applied. A batch that
+  returns `ResourceExhausted`, or per-resource code 8, is retried as a
+  batch. Those resources are not sent back through `GetProjectedCost` or
+  `GetActualCost` on the rate-limited plugin. A deadline that fires during
+  the wait stops the chain. `priceChunk` gives RPC-level and per-item rate
+  limits one shared three-attempt budget, resends only the still-limited
+  resources, and splits each retry by the smallest `MaxBatchSize` seen. A
+  later chunk's ordinary failure keeps earlier rate-limit markers: only the
+  unfinished rows get an error, because callers ignore results when
+  `executeBatchForPlugin` returns one.
 - Cost history (`internal/history`, `cost history *`): files are
   `<project>@<stack>.history.db`, separate from the resource-observation
   `history.db`. Both use one directory: `FINFOCUS_HISTORY_DIR`, then

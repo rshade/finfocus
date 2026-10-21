@@ -149,6 +149,12 @@ EOF
 ```
 
 > **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
+>
+> A `ResourceExhausted` status is a rate limit. Core retries that plugin before
+> it asks the next one, and waits for `ErrorDetail.retry_after_seconds` when
+> the plugin sets it. A batch that returns `ResourceExhausted` is retried as a
+> batch. Core does not split that batch into one call per resource on the
+> rate-limited plugin.
 
 #### Package Manager Installation (Future)
 
@@ -572,6 +578,12 @@ Optional `plugin.manifest.json` file provides metadata:
 ```
 
 > **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
+>
+> A `ResourceExhausted` status is a rate limit. Core retries that plugin before
+> it asks the next one, and waits for `ErrorDetail.retry_after_seconds` when
+> the plugin sets it. A batch that returns `ResourceExhausted` is retried as a
+> batch. Core does not split that batch into one call per resource on the
+> rate-limited plugin.
 
 ### Authentication
 

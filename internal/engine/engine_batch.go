@@ -51,6 +51,10 @@ type batchResult struct {
 	err error
 	// skip is true when the resource type is unsupported.
 	skip bool
+	// rateLimited is set when ResourceExhausted survived a batch retry.
+	// The caller must not price that resource with a single-resource RPC
+	// against the same plugin.
+	rateLimited bool
 }
 
 // batchOptions holds configuration for a batch cost request.
@@ -225,37 +229,60 @@ func (e *Engine) executeBatchForPlugin(
 			Int("skipped_invalid", len(built.invalidResults)).
 			Msg("sending batch cost request")
 
-		chunkCtx, chunkCancel := context.WithTimeout(ctx, batchChunkTimeout(ctx, len(built.validResources)))
-		resp, err := plugin.API.BatchCost(chunkCtx, built.request)
-		chunkCancel()
+		out, unfinished, err := e.priceChunk(ctx, plugin, built, chunkSize, opts)
+		allResults = append(allResults, out.results...)
 		if err != nil {
-			// On DeadlineExceeded: if the parent context is still valid, the error is
-			// batch-specific and the caller can fall back to per-resource queries.
 			// If the parent context is done, propagate the cancellation directly so
 			// the caller does not waste time on a fallback that will also fail.
 			if ctx.Err() != nil {
-				return nil, fmt.Errorf("batch cost cancelled for plugin %s: %w", plugin.Name, ctx.Err())
+				return allResults, fmt.Errorf("batch cost cancelled for plugin %s: %w", plugin.Name, ctx.Err())
 			}
-			return nil, fmt.Errorf("batch cost RPC failed for plugin %s: %w", plugin.Name, err)
+			// A batch-level error normally sends every resource through the
+			// per-resource pool. Once a rate-limit marker or a retried row exists,
+			// returning the error would drop it, because the caller ignores results
+			// on error. Keep those rows and give only the unfinished ones an error.
+			if out.retried || hasRateLimitMarker(allResults) {
+				pending := slices.Concat(chunks[chunkIdx+1:]...)
+				log.Warn().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("operation", "execute_batch").
+					Str("plugin", plugin.Name).
+					Err(err).
+					Int("resource_count", len(unfinished)+len(pending)).
+					Msg("batch cost failed after a rate limit, falling back to per-resource queries for unfinished resources")
+				allResults = append(allResults, failedBatchResults(unfinished, err)...)
+				allResults = append(allResults, failedBatchResults(pending, err)...)
+				return allResults, nil
+			}
+			return nil, err
 		}
 
-		// Validate response count matches request (only validated resources were sent)
-		if len(resp.GetResults()) != len(built.validResources) {
-			return nil, fmt.Errorf(
-				"batch response count mismatch from plugin %s: got %d, expected %d",
-				plugin.Name, len(resp.GetResults()), len(built.validResources),
-			)
+		if out.rpcLimited {
+			// A rate limit that survives retries keeps prices already collected and
+			// marks every chunk not yet sent, so those resources are not priced one
+			// by one on this plugin.
+			log.Warn().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("operation", "execute_batch").
+				Str("plugin", plugin.Name).
+				Int("resource_count", len(built.validResources)).
+				Msg("batch cost rate limited, not retrying resources individually")
+			pending := slices.Concat(chunks[chunkIdx+1:]...)
+			allResults = append(allResults, rateLimitedBatchResults(pending, errBatchRateLimited)...)
+			return allResults, nil
 		}
 
-		if resp.GetMaxBatchSize() > 0 && int(resp.GetMaxBatchSize()) < chunkSize {
+		if out.maxBatchSize > 0 && out.maxBatchSize < chunkSize {
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").
 				Str("plugin", plugin.Name).
-				Int32("max_batch_size", resp.GetMaxBatchSize()).
+				Int("max_batch_size", out.maxBatchSize).
 				Int("previous_chunk_size", chunkSize).
 				Msg("adjusting chunk size based on plugin hint")
-			chunkSize = int(resp.GetMaxBatchSize())
+			chunkSize = out.maxBatchSize
 			// Re-chunk remaining resources with the new size
 			remaining := make([]indexedResource, 0)
 			for _, futureChunk := range chunks[chunkIdx+1:] {
@@ -265,42 +292,221 @@ func (e *Engine) executeBatchForPlugin(
 				chunks = append(chunks[:chunkIdx+1], chunkResources(remaining, chunkSize)...)
 			}
 		}
-
-		// Resolve the request time window for actual-cost rate derivation
-		var from, to time.Time
-		if opts.start != nil {
-			from = opts.start.AsTime()
-		}
-		if opts.end != nil {
-			to = opts.end.AsTime()
-		}
-
-		// Map results based on query type
-		var mapped []proto.BatchMappedResult
-		if opts.queryType == pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
-			mapped = proto.MapBatchActualResults(resp)
-		} else {
-			mapped = proto.MapBatchProjectedResults(resp)
-		}
-
-		for i, m := range mapped {
-			br := batchResult{
-				index: built.validResources[i].index,
-				skip:  m.Skip,
-				err:   m.Err,
-			}
-			if m.Result != nil {
-				br.result = mapProtoCostResultToEngine(built.validResources[i].resource, plugin.Name, m.Result)
-			}
-			if m.ActualResult != nil {
-				br.actualResult = mapProtoActualCostResultToEngine(
-					built.validResources[i].resource, plugin.Name, m.ActualResult, from, to,
-				)
-			}
-			allResults = append(allResults, br)
-		}
 	}
 	return allResults, nil
+}
+
+// chunkOutcome is what priceChunk learned while pricing one chunk.
+type chunkOutcome struct {
+	// results holds every row that is finished: priced, skipped, an ordinary
+	// per-resource error, or marked rate limited.
+	results []batchResult
+	// maxBatchSize is the smallest size hint any response advertised, or zero.
+	maxBatchSize int
+	// rpcLimited is set when a BatchCost call was still rate limited on the
+	// last attempt, so the plugin should not be sent the remaining chunks.
+	rpcLimited bool
+	// retried is set when at least one attempt followed the first.
+	retried bool
+}
+
+// priceChunk prices one chunk against a plugin. RPC-level and per-item rate
+// limits share one rateLimitMaxAttempts budget. Each retry sends only the
+// resources that are still limited, split by the smallest size hint seen so
+// far. Resources still limited after the last attempt are marked rate limited.
+// On a non-rate-limit error it returns the resources that are not finished so
+// the caller can decide how to report them.
+//
+//nolint:gocognit // One loop owns the shared attempt budget for both rate-limit kinds.
+func (e *Engine) priceChunk(
+	ctx context.Context,
+	plugin *pluginhost.Client,
+	built buildBatchResult,
+	chunkSize int,
+	opts batchOptions,
+) (chunkOutcome, []indexedResource, error) {
+	log := logging.FromContext(ctx)
+	var out chunkOutcome
+	var from, to time.Time
+	if opts.start != nil {
+		from = opts.start.AsTime()
+	}
+	if opts.end != nil {
+		to = opts.end.AsTime()
+	}
+
+	groups := []buildBatchResult{built}
+	var pending []indexedResource
+	for attempt := range rateLimitMaxAttempts {
+		if attempt > 0 {
+			out.retried = true
+			groups = groups[:0]
+			for _, part := range chunkResources(pending, retryChunkSize(chunkSize, out.maxBatchSize)) {
+				retry := buildBatchCostRequest(ctx, part, opts)
+				out.results = append(out.results, retry.invalidResults...)
+				if retry.request != nil {
+					groups = append(groups, retry)
+				}
+			}
+		}
+
+		var again []indexedResource
+		var limitErr error
+		out.rpcLimited = false
+		for i, group := range groups {
+			resp, err := sendBatchRPC(ctx, plugin, group.request, len(group.validResources))
+			if isRateLimited(err) {
+				again = append(again, group.validResources...)
+				limitErr = err
+				out.rpcLimited = true
+				continue
+			}
+			if err != nil {
+				return out, unfinishedGroups(again, groups[i:]), fmt.Errorf(
+					"batch cost RPC failed for plugin %s: %w", plugin.Name, err,
+				)
+			}
+			if len(resp.GetResults()) != len(group.validResources) {
+				return out, unfinishedGroups(again, groups[i:]), fmt.Errorf(
+					"batch response count mismatch from plugin %s: got %d, expected %d",
+					plugin.Name, len(resp.GetResults()), len(group.validResources),
+				)
+			}
+			if hint := int(resp.GetMaxBatchSize()); hint > 0 && (out.maxBatchSize == 0 || hint < out.maxBatchSize) {
+				out.maxBatchSize = hint
+			}
+			kept, limited := splitMappedBatch(mapBatchResponse(resp, opts), group.validResources, plugin.Name, from, to)
+			out.results = append(out.results, kept...)
+			again = append(again, limited...)
+		}
+
+		pending = again
+		if len(pending) == 0 {
+			return out, nil, nil
+		}
+		if attempt == rateLimitMaxAttempts-1 {
+			break
+		}
+		delay := backoffDelay(attempt)
+		if limitErr != nil {
+			delay = rateLimitDelay(limitErr, attempt)
+		}
+		log.Info().
+			Ctx(ctx).
+			Str("component", "engine").
+			Str("operation", "batch_rate_limit_retry").
+			Str("plugin", plugin.Name).
+			Int("attempt", attempt+1).
+			Int("resource_count", len(pending)).
+			Dur("delay", delay).
+			Msg("plugin rate limited, retrying the limited resources")
+		if waitErr := waitRateLimit(ctx, delay); waitErr != nil {
+			return out, pending, waitErr
+		}
+	}
+	out.results = append(out.results, rateLimitedBatchResults(pending, errBatchRateLimited)...)
+	return out, nil, nil
+}
+
+// sendBatchRPC makes one BatchCost call bounded by the chunk timeout. A call
+// that fails because the parent context ended reports that context error.
+func sendBatchRPC(
+	ctx context.Context,
+	plugin *pluginhost.Client,
+	request *pbc.BatchCostRequest,
+	resourceCount int,
+) (*pbc.BatchCostResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	chunkCtx, cancel := context.WithTimeout(ctx, batchChunkTimeout(ctx, resourceCount))
+	defer cancel()
+	resp, err := plugin.API.BatchCost(chunkCtx, request)
+	if err != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return resp, err
+}
+
+// retryChunkSize is the largest batch a retry may send: the chunk size, or a
+// smaller size the plugin advertised.
+func retryChunkSize(chunkSize, hint int) int {
+	if hint > 0 && hint < chunkSize {
+		return hint
+	}
+	return chunkSize
+}
+
+// unfinishedGroups joins the resources already waiting for a retry with every
+// resource in the groups that were not sent or not accepted.
+func unfinishedGroups(again []indexedResource, groups []buildBatchResult) []indexedResource {
+	out := slices.Clone(again)
+	for _, group := range groups {
+		out = append(out, group.validResources...)
+	}
+	return out
+}
+
+// failedBatchResults gives resources an ordinary error, so the caller prices
+// them one by one. They carry no rate-limit marker.
+func failedBatchResults(resources []indexedResource, err error) []batchResult {
+	out := make([]batchResult, len(resources))
+	for i, ir := range resources {
+		out[i] = batchResult{index: ir.index, err: err}
+	}
+	return out
+}
+
+func hasRateLimitMarker(results []batchResult) bool {
+	return slices.ContainsFunc(results, func(r batchResult) bool { return r.rateLimited })
+}
+
+// rateLimitedBatchResults marks resources that must not be sent to this plugin
+// again as single-resource RPCs.
+func rateLimitedBatchResults(resources []indexedResource, err error) []batchResult {
+	if len(resources) == 0 {
+		return nil
+	}
+	out := make([]batchResult, len(resources))
+	for i, ir := range resources {
+		out[i] = batchResult{index: ir.index, rateLimited: true, err: err}
+	}
+	return out
+}
+
+func mapBatchResponse(resp *pbc.BatchCostResponse, opts batchOptions) []proto.BatchMappedResult {
+	if opts.queryType == pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
+		return proto.MapBatchActualResults(resp)
+	}
+	return proto.MapBatchProjectedResults(resp)
+}
+
+// splitMappedBatch keeps successful, skipped, and ordinary errors, and returns
+// the resources whose error is a rate limit so they can be retried together.
+func splitMappedBatch(
+	mapped []proto.BatchMappedResult,
+	valid []indexedResource,
+	pluginName string,
+	from, to time.Time,
+) ([]batchResult, []indexedResource) {
+	kept := make([]batchResult, 0, len(mapped))
+	var again []indexedResource
+	for i, m := range mapped {
+		ir := valid[i]
+		if isRateLimited(m.Err) {
+			again = append(again, ir)
+			continue
+		}
+		br := batchResult{index: ir.index, skip: m.Skip, err: m.Err}
+		if m.Result != nil {
+			br.result = mapProtoCostResultToEngine(ir.resource, pluginName, m.Result)
+		}
+		if m.ActualResult != nil {
+			br.actualResult = mapProtoActualCostResultToEngine(ir.resource, pluginName, m.ActualResult, from, to)
+		}
+		kept = append(kept, br)
+	}
+	return kept, again
 }
 
 // buildBatchResult holds the output of buildBatchCostRequest: a valid BatchCostRequest
