@@ -77,6 +77,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Recommendation Scoring](guides/recommendation-scoring.md) | Rank recommendations with a scorer plugin |
 | [Accessibility](guides/accessibility.md)      | Configure colors, contrast, and TUI      |
 | [Browser Dashboard](guides/web-ui.md)         | Explore costs in a local browser with `finfocus --web` |
+| [Pulumi ESC credentials](guides/esc-credentials.md) | Supply plugin credentials from Pulumi ESC |
 
 ### 🏗️ Architecture & Design
 

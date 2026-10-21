@@ -22,6 +22,9 @@ import (
 const (
 	DefaultPreviewTimeout = 5 * time.Minute
 	DefaultExportTimeout  = 60 * time.Second
+
+	pulumiProjectYAML = "Pulumi.yaml"
+	pulumiProjectYML  = "Pulumi.yml"
 )
 
 // PreviewOptions configures a Pulumi preview command execution.
@@ -125,7 +128,7 @@ func FindProject(dir string) (string, error) {
 
 	current := absDir
 	for {
-		for _, name := range []string{"Pulumi.yaml", "Pulumi.yml"} {
+		for _, name := range []string{pulumiProjectYAML, pulumiProjectYML} {
 			candidate := filepath.Join(current, name)
 			if _, statErr := os.Stat(candidate); statErr == nil {
 				return current, nil
@@ -142,10 +145,17 @@ func FindProject(dir string) (string, error) {
 }
 
 // pulumiProjectFile is the minimal structure of Pulumi.yaml/Pulumi.yml needed
-// to extract the project name.
+// to extract the project name and the optional backend URL.
 type pulumiProjectFile struct {
-	Name string `yaml:"name"`
+	Name    string        `yaml:"name"`
+	Backend pulumiBackend `yaml:"backend"`
 }
+
+type pulumiBackend struct {
+	URL string `yaml:"url"`
+}
+
+var errProjectDirRequired = errors.New("project directory must not be empty")
 
 // GetProjectName reads the project name from the Pulumi.yaml (or Pulumi.yml)
 // file in the given directory. Returns empty string and error if the file
@@ -153,28 +163,36 @@ type pulumiProjectFile struct {
 // errors are ignored (the loop tries the next candidate); permission and IO
 // errors are returned with the candidate path.
 func GetProjectName(projectDir string) (string, error) {
-	if strings.TrimSpace(projectDir) == "" {
-		return "", errors.New("project directory must not be empty")
+	proj, err := readProjectFile(projectDir)
+	if err != nil {
+		return "", err
 	}
-	for _, name := range []string{"Pulumi.yaml", "Pulumi.yml"} {
+	return proj.Name, nil
+}
+
+func readProjectFile(projectDir string) (pulumiProjectFile, error) {
+	if strings.TrimSpace(projectDir) == "" {
+		return pulumiProjectFile{}, errProjectDirRequired
+	}
+	for _, name := range []string{pulumiProjectYAML, pulumiProjectYML} {
 		candidate := filepath.Join(projectDir, name)
 		data, err := os.ReadFile(candidate)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
-			return "", fmt.Errorf("reading %s: %w", candidate, err)
+			return pulumiProjectFile{}, fmt.Errorf("reading %s: %w", candidate, err)
 		}
 		var proj pulumiProjectFile
 		if yamlErr := yaml.Unmarshal(data, &proj); yamlErr != nil {
-			return "", fmt.Errorf("parsing %s: %w", candidate, yamlErr)
+			return pulumiProjectFile{}, fmt.Errorf("parsing %s: %w", candidate, yamlErr)
 		}
 		if proj.Name == "" {
-			return "", fmt.Errorf("%s has no 'name' field", candidate)
+			return pulumiProjectFile{}, fmt.Errorf("%s has no 'name' field", candidate)
 		}
-		return proj.Name, nil
+		return proj, nil
 	}
-	return "", fmt.Errorf("no Pulumi.yaml or Pulumi.yml found in %s", projectDir)
+	return pulumiProjectFile{}, fmt.Errorf("no Pulumi.yaml or Pulumi.yml found in %s", projectDir)
 }
 
 // GetCurrentStack returns the name of the currently selected Pulumi stack for the project

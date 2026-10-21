@@ -210,14 +210,14 @@ func TestConvertStateResources_NilCreatedAtOK(t *testing.T) {
 func TestStackSettingsNameCandidates_QualifiedStack(t *testing.T) {
 	t.Parallel()
 
-	candidates := stackSettingsNameCandidates("acme/infra/dev")
+	candidates := pulumidetect.StackSettingsNameCandidates("acme/infra/dev")
 	require.Equal(t, []string{"dev", "acme/infra/dev"}, candidates)
 }
 
 func TestStackSettingsNameCandidates_QualifiedStack_Windows(t *testing.T) {
 	t.Parallel()
 
-	candidates := stackSettingsNameCandidates(`acme\infra\dev`)
+	candidates := pulumidetect.StackSettingsNameCandidates(`acme\infra\dev`)
 	require.Equal(t, []string{"dev", `acme\infra\dev`}, candidates)
 }
 
@@ -231,7 +231,7 @@ func TestReadStackSettingsFile_QualifiedStackUsesShortName(t *testing.T) {
 		os.WriteFile(filepath.Join(tmpDir, "Pulumi.dev.yaml"), []byte(want), 0o600),
 	)
 
-	got, err := readStackSettingsFile(tmpDir, "acme/infra/dev")
+	got, err := pulumidetect.ReadStackSettingsFile(tmpDir, "acme/infra/dev")
 	require.NoError(t, err)
 	assert.Equal(t, want, string(got))
 }

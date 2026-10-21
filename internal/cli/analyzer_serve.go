@@ -104,7 +104,10 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) (analyzerInfr
 	specLoader := spec.NewLoader(cfg.SpecDir)
 	reg := registry.NewDefault()
 
-	// Open plugin clients (empty adapter means all available plugins)
+	// Open plugin clients (empty adapter means all available plugins).
+	// The analyzer inherits stack variables from Pulumi, so ESC uses only
+	// explicit configuration.
+	ctx = analyzerESCContext(ctx, cmd)
 	clients, cleanup, err := reg.Open(ctx, "")
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to open plugins, continuing with spec-only mode")

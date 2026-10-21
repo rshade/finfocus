@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
@@ -56,14 +57,24 @@ func wirePlugins(ctx context.Context, options *webui.SessionOptions, cmd *cobra.
 	}
 	options.PluginValidate = validateInstalledPlugin
 	options.PluginSettings = func(settingsCtx context.Context, name string) (webui.PluginSettingsView, error) {
-		return pluginSettingsView(settingsCtx, name, globalPath, projectDir)
+		return pluginSettingsView(withSessionESC(settingsCtx, data), name, globalPath, projectDir)
 	}
 	options.PluginSettingsPrepare = func(
 		prepareCtx context.Context, name string, request config.WriteRequest,
 	) (config.WriteRequest, error) {
-		return preparePluginSettings(prepareCtx, name, globalPath, projectDir, request)
+		return preparePluginSettings(withSessionESC(prepareCtx, data), name, globalPath, projectDir, request)
 	}
 	options.ReloadPlugins = data.reloadPlugins
+}
+
+func withSessionESC(ctx context.Context, data *webData) context.Context {
+	if data == nil {
+		return ctx
+	}
+	if src := data.ESCSource(); src != nil {
+		return esc.WithSource(ctx, src)
+	}
+	return ctx
 }
 
 func pluginCatalog(ctx context.Context) ([]webui.PluginCatalogRow, error) {

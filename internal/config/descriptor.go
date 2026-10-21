@@ -97,6 +97,11 @@ func KnownSettings() []Setting {
 		{Key: keyScoringTimeout, Kind: KindInt, Help: "Scorer timeout in seconds", Min: &zero},
 		{Key: "scoring.field_allowlist", Kind: KindStringList, Help: "Recommendation fields the scorer may receive"},
 		{
+			Key:  "esc.environments",
+			Kind: KindStringList,
+			Help: "ESC environments for every plugin. An empty list disables ESC.",
+		},
+		{
 			Key:  "scoring.needs_review.risk",
 			Kind: KindNumber,
 			Help: "Risk threshold for needs-review",
@@ -161,7 +166,31 @@ func LookupSetting(key string) (Setting, bool) {
 	if setting, ok := pluginSetting(key); ok {
 		return setting, true
 	}
+	if setting, ok := escPluginSetting(key); ok {
+		return setting, true
+	}
 	return Setting{}, false
+}
+
+func escPluginSetting(key string) (Setting, bool) {
+	rest, ok := strings.CutPrefix(key, "esc.plugins.")
+	if !ok {
+		return Setting{}, false
+	}
+	name, field, found := strings.Cut(rest, ".")
+	if !found || name == "" {
+		return Setting{}, false
+	}
+	switch field {
+	case escKeyEnvironments, escKeyVariables:
+		return Setting{
+			Key:  key,
+			Kind: KindStringList,
+			Help: "ESC " + field + " for plugin " + name,
+		}, true
+	default:
+		return Setting{}, false
+	}
 }
 
 func pluginSetting(key string) (Setting, bool) {
@@ -202,7 +231,7 @@ func pointerFor(key string) (string, error) {
 		segments = []string{"overview", "cluster_contexts", cluster}
 	case setting.Kind == KindPlugin:
 		name, configKey, _ := splitPluginKey(setting.Key)
-		segments = []string{"plugins", name, configKey}
+		segments = []string{keyPlugins, name, configKey}
 	default:
 		segments = strings.Split(setting.Key, ".")
 	}

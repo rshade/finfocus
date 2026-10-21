@@ -121,12 +121,16 @@ type PluginValueSide struct {
 
 // PluginSettingValue is the stored state of one key.
 type PluginSettingValue struct {
-	Key             string          `json:"key"`
-	Secret          bool            `json:"secret"`
-	Project         PluginValueSide `json:"project"`
-	Global          PluginValueSide `json:"global"`
-	EnvSet          bool            `json:"envSet"`
-	EffectiveSource string          `json:"effectiveSource"`
+	Key     string          `json:"key"`
+	Secret  bool            `json:"secret"`
+	Project PluginValueSide `json:"project"`
+	Global  PluginValueSide `json:"global"`
+	EnvSet  bool            `json:"envSet"`
+	// EffectiveSource is esc, env, project, global, default, or empty.
+	// esc means Pulumi ESC supplied the value and overrides the shell and both files.
+	EffectiveSource string `json:"effectiveSource"`
+	// ESCEnvironment is the canonical ESC reference when EffectiveSource is esc.
+	ESCEnvironment string `json:"escEnvironment,omitempty"`
 }
 
 // PluginSettingsView is the settings form for one plugin.

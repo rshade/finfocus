@@ -13,6 +13,7 @@ const RedactedValue = "[REDACTED]"
 // struct, so masking must never touch the configuration that is saved.
 func (c *Config) MaskedForDisplay() *Config {
 	masked := *c
+	masked.ESC = CloneESC(c.ESC)
 	masked.Cost.Budgets = cloneBudgets(c.Cost.Budgets)
 	forEachDestination(masked.Cost.Budgets, func(_ string, dest *NotificationDestination) {
 		dest.URL = maskNotificationValue(dest.URL)

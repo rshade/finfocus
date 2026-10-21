@@ -475,6 +475,25 @@ resources:
       currency: USD
 ```
 
+### Plugin settings from Pulumi ESC
+
+A stack that already imports an ESC environment can supply plugin credentials
+from that environment. ESC wins over the shell, which is a change from
+earlier releases: a variable exported in the shell does not hide the ESC
+value. Only names the plugin advertises, plus names you list for that plugin,
+are delivered.
+
+```bash
+finfocus config set esc.environments 'billing/aws-readonly'
+finfocus config set esc.plugins.vantage.variables 'VANTAGE_TOKEN'
+```
+
+An empty list turns ESC off. When ESC cannot be opened, the command continues
+with shell and config values and prints one warning. The dashboard settings
+page names the environment that supplied a row and does not show the value.
+
+See [Pulumi ESC credentials](esc-credentials.md).
+
 ---
 
 ## Budget Management

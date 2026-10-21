@@ -22,6 +22,7 @@ const (
 	keyCost            = "cost"
 	keyRouting         = "routing"
 	keyOverview        = "overview"
+	keyESC             = "esc"
 	keyPluginDir       = "plugin_dir"
 	keyInstalledPlugin = "installed_plugins"
 )
@@ -40,6 +41,7 @@ var knownTopLevelKeys = map[string]bool{
 	keyRouting:    true,
 	keyScoring:    true,
 	keyOverview:   true,
+	keyESC:        true,
 }
 
 // ShallowMergeYAML loads a Hujson/JSON file (or legacy YAML for backward compatibility)
@@ -101,6 +103,16 @@ func ShallowMergeYAML(target *Config, overlayPath string) error {
 	return nil
 }
 
+func applyCostSection(target *Config, data []byte) error {
+	var section CostConfig
+	if err := json.Unmarshal(data, &section); err != nil {
+		return err
+	}
+	markProjectDestinations(section.Budgets)
+	target.Cost = section
+	return nil
+}
+
 // unmarshalSection unmarshals raw JSON bytes into the correct field of target
 // based on the given key name. Each section is unmarshalled into a fresh
 // zero-value to ensure complete replacement (json.Unmarshal merges into
@@ -143,13 +155,7 @@ func unmarshalSection(target *Config, key string, data []byte) error {
 		target.PluginHostConfig = v
 		return nil
 	case keyCost:
-		var v CostConfig
-		if err := json.Unmarshal(data, &v); err != nil {
-			return err
-		}
-		markProjectDestinations(v.Budgets)
-		target.Cost = v
-		return nil
+		return applyCostSection(target, data)
 	case keyRouting:
 		var v RoutingConfig
 		if err := json.Unmarshal(data, &v); err != nil {
@@ -161,6 +167,8 @@ func unmarshalSection(target *Config, key string, data []byte) error {
 		return unmarshalPtr(data, &target.Scoring)
 	case keyOverview:
 		return unmarshalPtr(data, &target.Overview)
+	case keyESC:
+		return unmarshalPtr(data, &target.ESC)
 	default:
 		// Defensive safety net: callers filter keys against knownTopLevelKeys before
 		// calling unmarshalSection, so this branch is effectively unreachable. It exists

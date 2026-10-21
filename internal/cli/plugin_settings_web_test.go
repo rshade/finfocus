@@ -5,25 +5,115 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/esc"
+	"github.com/rshade/finfocus/internal/esc/esctest"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/webui"
 )
 
 func settingText(value string) *string { return &value }
 
+func TestPluginSettingValuesESCOrigin(t *testing.T) {
+	t.Parallel()
+	ref := esc.Ref{Org: "acme", Project: "billing", Name: "prod"}
+	descriptors := []webui.PluginSettingDescriptor{{
+		Key: "api_key", Type: "string", Secret: true, Env: "RECORDER_TOKEN", Required: true,
+	}}
+	delivered := pluginhost.Delivered{Origins: map[string]esc.Ref{"RECORDER_TOKEN": ref}}
+	values := pluginSettingValues(
+		"recorder", []string{"api_key"}, descriptors, nil, nil,
+		[]string{"RECORDER_TOKEN=from-shell"}, delivered,
+	)
+	require.Len(t, values, 1)
+	assert.Equal(t, "esc", values[0].EffectiveSource)
+	assert.Equal(t, "acme/billing/prod", values[0].ESCEnvironment)
+	assert.True(t, values[0].EnvSet)
+	assert.Empty(t, values[0].Project.Value)
+
+	failed := pluginSettingValues(
+		"recorder", []string{"api_key"}, descriptors, nil, nil,
+		[]string{"RECORDER_TOKEN=from-shell"}, pluginhost.Delivered{},
+	)
+	assert.Equal(t, "env", failed[0].EffectiveSource)
+	assert.Empty(t, failed[0].ESCEnvironment)
+
+	err := requirePluginSettings(
+		"recorder", map[string]webui.PluginSettingDescriptor{"api_key": descriptors[0]},
+		nil, nil, nil, delivered.Origins, config.TierGlobal, nil,
+	)
+	require.NoError(t, err)
+}
+
+func TestPluginSettingValuesMatchLaunchResolution(t *testing.T) {
+	t.Parallel()
+	api := esctest.New("tok", map[string]*esctest.Environment{
+		"acme/billing/prod": {
+			ETag: "etag-1",
+			Variables: map[string]esctest.Variable{
+				"FINFOCUS_RECORDER_OUTPUT_DIR": {Value: "/from/esc"},
+			},
+		},
+	})
+	t.Cleanup(api.Close)
+	list := []string{"acme/billing/prod"}
+	src := esc.NewSource(esc.Options{
+		Global: &list,
+		Getenv: func(key string) string {
+			switch key {
+			case "PULUMI_ACCESS_TOKEN":
+				return "tok"
+			case "PULUMI_BACKEND_URL":
+				return api.URL
+			default:
+				return ""
+			}
+		},
+		Budget: 5 * time.Second,
+	})
+	ctx := esc.WithSource(context.Background(), src)
+	descriptors := []webui.PluginSettingDescriptor{{
+		Key: "output_dir", Type: "string", Env: "FINFOCUS_RECORDER_OUTPUT_DIR",
+	}}
+	delivered := resolvePluginDelivery(ctx, "recorder", descriptors, nil, nil)
+	direct := pluginhost.ResolveDeliveredEnv(
+		ctx, "recorder", nil, nil, nil, webSettingDescs(descriptors), src.Delivery(ctx, "recorder"),
+	)
+	assert.Equal(t, direct.Origins, delivered.Origins)
+	values := pluginSettingValues(
+		"recorder",
+		[]string{"output_dir"},
+		descriptors,
+		nil,
+		nil,
+		[]string{"FINFOCUS_RECORDER_OUTPUT_DIR=/from/shell"},
+		delivered,
+	)
+	require.Len(t, values, 1)
+	assert.Equal(t, "esc", values[0].EffectiveSource)
+	assert.True(t, values[0].EnvSet)
+	origin, ok := delivered.Origins["FINFOCUS_RECORDER_OUTPUT_DIR"]
+	require.True(t, ok)
+	assert.Equal(t, origin.String(), values[0].ESCEnvironment)
+	assert.NotContains(t, values[0].ESCEnvironment, "/from/esc")
+}
+
 func TestFilterPluginChanges_GenericEnvSatisfiesRequired(t *testing.T) {
 	t.Parallel()
 	descriptors := []webui.PluginSettingDescriptor{{Key: "license", Type: "string", Required: true}}
 	request := config.WriteRequest{Tier: config.TierGlobal}
-	_, err := filterPluginChanges("jev", descriptors, nil, nil, []string{"FINFOCUS_PLUGIN_JEV_LICENSE=set"}, request)
+	_, err := filterPluginChanges(
+		"jev", descriptors, nil, nil, []string{"FINFOCUS_PLUGIN_JEV_LICENSE=set"}, nil, request,
+	)
 	require.NoError(t, err)
 
-	_, err = filterPluginChanges("jev", descriptors, nil, nil, nil, request)
+	_, err = filterPluginChanges("jev", descriptors, nil, nil, nil, nil, request)
 	require.ErrorContains(t, err, "required")
 }
 
@@ -136,7 +226,9 @@ func TestFilterPluginChanges(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := filterPluginChanges("jev", descriptors, tt.project, tt.global, tt.environ, tt.request)
+			got, err := filterPluginChanges(
+				"jev", descriptors, tt.project, tt.global, tt.environ, nil, tt.request,
+			)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				var status *webui.StatusError

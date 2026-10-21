@@ -178,7 +178,7 @@ func finishConfigValidate(
 		printVerboseDetails(cmd, cfg)
 	}
 	if !result.Valid {
-		return errConfigurationInvalid
+		return toValidationError(cmd.Context(), errConfigurationInvalid)
 	}
 	return nil
 }

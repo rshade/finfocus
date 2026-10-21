@@ -182,6 +182,35 @@
         }
       }
     },
+    "esc": {
+      "type": "object",
+      "description": "Pulumi ESC environments that supply plugin credentials.",
+      "properties": {
+        "environments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "ESC environments for every plugin. An empty list disables ESC."
+        },
+        "plugins": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "environments": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "ESC environments for this plugin. An empty list disables ESC for the plugin."
+              },
+              "variables": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Extra environment variable names this plugin may receive from ESC."
+              }
+            }
+          }
+        }
+      }
+    },
     "plugins": {
       "type": "object",
       "description": "Per-plugin settings. Credential-named keys are write-only.",

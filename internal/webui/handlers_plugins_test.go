@@ -264,6 +264,45 @@ func TestPluginSettingsHideSecretsAndRejectForeignKeys(t *testing.T) {
 	assert.Equal(t, 1, prepared)
 }
 
+func TestPluginSettingsIncludeESCReference(t *testing.T) {
+	t.Parallel()
+	view := PluginSettingsView{
+		Name: "recorder", Mode: "descriptor",
+		Descriptors: []PluginSettingDescriptor{{
+			Key: "output_dir", Type: "string", Env: "FINFOCUS_RECORDER_OUTPUT_DIR",
+		}},
+		Values: []PluginSettingValue{
+			{
+				Key: "output_dir", EffectiveSource: "esc", ESCEnvironment: "billing/recorder",
+				EnvSet: true,
+			},
+			{
+				Key: "note", Secret: true, EffectiveSource: "esc", ESCEnvironment: "billing/recorder",
+				Project: PluginValueSide{Set: true, Value: "super-secret"},
+			},
+		},
+		Versions: map[string]string{"global": "absent", "project": "absent"},
+	}
+	session := NewSession(context.Background(), SessionOptions{
+		PluginSettings: func(context.Context, string) (PluginSettingsView, error) {
+			return view, nil
+		},
+	})
+	server := newRunningServer(t, Options{Session: session})
+	got := pluginRequest(t, server, http.MethodGet, "/api/plugins/recorder/settings", "")
+	body := readBody(t, got)
+	assert.Contains(t, body, `"escEnvironment":"billing/recorder"`)
+	assert.NotContains(t, body, "super-secret")
+	assert.NotContains(t, body, `"value"`)
+	plain, err := json.Marshal(stripSecretSettings(view))
+	require.NoError(t, err)
+	assert.JSONEq(t, string(plain), body)
+	redacted, err := RedactJSON(stripSecretSettings(view))
+	require.NoError(t, err)
+	assert.Contains(t, string(redacted), `"escEnvironment":"billing/recorder"`)
+	assert.NotContains(t, string(redacted), "super-secret")
+}
+
 func TestPluginValidateNotInstalled(t *testing.T) {
 	t.Parallel()
 	session := NewSession(context.Background(), SessionOptions{

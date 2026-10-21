@@ -109,6 +109,10 @@ type Config struct {
 	// Overview configures the overview command. Nil means defaults everywhere.
 	Overview *OverviewConfig `yaml:"overview,omitempty" json:"overview,omitempty"`
 
+	// ESC selects Pulumi ESC environments for plugin credentials.
+	// Nil means the section is unset.
+	ESC *ESCConfig `yaml:"esc,omitempty" json:"esc,omitempty"`
+
 	InstalledPlugins []InstalledPlugin `yaml:"installed_plugins,omitempty" json:"installed_plugins,omitempty"`
 
 	// Internal fields
@@ -449,7 +453,7 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for _, key := range []string{keyOutput, keyPlugins, keyLogging, keyAnalyzer, keyPluginHost,
-		keyCost, keyRouting, keyScoring, keyOverview, keyPluginDir, keyInstalledPlugin} {
+		keyCost, keyRouting, keyScoring, keyOverview, keyESC, keyPluginDir, keyInstalledPlugin} {
 		delete(keys, key)
 	}
 	c.extraKeys = keys
@@ -613,6 +617,8 @@ func (c *Config) Set(key, value string) error {
 		return c.setScoringValue(parts[1:], value)
 	case keyOverview:
 		return c.setOverviewValue(parts[1:], value)
+	case keyESC:
+		return c.setESCValue(parts[1:], value)
 	default:
 		return fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -640,6 +646,8 @@ func (c *Config) Get(key string) (any, error) {
 		return c.getScoringValue(parts[1:])
 	case keyOverview:
 		return c.getOverviewValue(parts[1:])
+	case keyESC:
+		return c.getESCValue(parts[1:])
 	default:
 		return nil, fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -657,6 +665,7 @@ func (c *Config) List() map[string]any {
 		keyRouting:    c.Routing,
 		keyScoring:    c.Scoring,
 		keyOverview:   c.Overview,
+		keyESC:        c.ESC,
 	}
 }
 

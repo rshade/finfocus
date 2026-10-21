@@ -254,6 +254,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   them from anything shown to users.
 - Analyzer import: `pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"`
   (not `.../proto/go/pulumirpc`).
+- `analyzer serve` does not open stack ESC imports. Pulumi already put those
+  variables in the process environment, and the stack is unknown until
+  `ConfigureStack`. Explicit `esc` configuration is still opened. The ESC
+  client is the hand-built one in `internal/esc` (see Plugin Host).
 
 ## Plugins
 
@@ -310,6 +314,21 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `FINFOCUS_PLUGIN_PORT`, the log-file variable, and the trace id. Do not
   inject from redacted `pluginValue` or `config.effective()`: the config
   loader shallow-replaces the whole `plugins` object.
+- ESC is the highest-precedence plugin environment source, and only for names
+  the plugin advertises or that `esc.plugins.<name>.variables` lists.
+  `appendDeliveredEnv` removes an inherited `KEY=` entry only for names in
+  `Delivered.Overrides`. The projected cache key hashes `name`, the ESC
+  reference, and the revision key, never the value. The `esc` config section
+  is top-level because `plugins.<name>` is injected as environment. The
+  selected stack comes from the Pulumi workspace file unless `--stack` is set.
+  `PULUMI_CREDENTIALS_PATH` is a directory holding `credentials.json`, as in
+  the Pulumi SDK. Workspace stack selection uses the same active backend as ESC
+  auth (`PULUMI_BACKEND_URL`, `backend.url`, `credentials.json` `current`) and
+  never falls back to another backend's stack. A value is read at a pinned
+  revision (tag to number, `latest` ETag checked before and after the open); an
+  unknown revision is an ESC failure. The ESC SDK client is hand-built (`Servers` = `<backend>/api/esc`, no
+  redirects, token on the context). Open calls use `recover()` because a
+  non-string trace panics the SDK. Never read `GenericOpenAPIError.Body()`.
 - After `GetPluginInfo` (5s, request `*proto.Empty`), `NewClient` restarts
   the process once when advertised settings change the injected pairs. That
   restart happens before the version check, so stderr from the new process
@@ -761,6 +780,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 1730-pulumi-esc-plugin-credentials: Pulumi ESC `environmentVariables` as the highest-precedence plugin env source, per-plugin allowlist, fallback with categorized warnings (`specs/1730-pulumi-esc-plugin-credentials/`)
 - 1729-recommendation-history: `cost recommendations history` merges plugin lifecycle events, including actor (`specs/1729-recommendation-history/`)
 - 630-usage-profile: `--profile` / `FINFOCUS_PROFILE` / `cost.profile` sent on projected cost and recommendations (`specs/630-usage-profile/`)
 - 629-web-plugin-page: Plugins page in `finfocus --web` (catalog, install, settings)
@@ -771,4 +791,4 @@ Specs 613-623 hold the details. Invariants:
 
 ## Active Technologies
 
-- Go 1.27.2 (`go.mod`), finfocus-spec v0.7.7 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only
+- Go 1.27.2 (`go.mod`), finfocus-spec v0.7.7 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only; `github.com/pulumi/esc-sdk/sdk` v0.14.0

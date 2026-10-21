@@ -5,12 +5,14 @@ import (
 	"errors"
 	"io"
 	"slices"
+	"sync"
 
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/engine/cache"
+	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
@@ -48,18 +50,63 @@ type webData struct {
 	loadDismissals func(context.Context) map[string]*config.DismissalRecord
 	reloadCleanup  func()
 	replaced       bool
+	escMu          sync.Mutex
+	escSource      *esc.Source
 }
 
 func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRange, audit *auditContext) *webData {
 	if params.cfg == nil {
 		params.cfg = config.New()
 	}
-	return &webData{
+	data := &webData{
 		cmd: cmd, params: params, dates: dates, audit: audit, gate: make(chan struct{}, 1),
 		resolveScorer: resolveScorerClient, fetchRecommendations: fetchRecommendationsWithProgress,
 		scoreRecommendations: runScoringStep, mergeDismissed: mergeDismissedRecommendations,
 		loadDismissals: loadDismissalRecordsForOverview,
 	}
+	if cmd != nil {
+		data.noteESC(cmd.Context())
+	}
+	return data
+}
+
+// ESCSource returns the session's current ESC resolver.
+func (d *webData) ESCSource() *esc.Source {
+	if d == nil {
+		return nil
+	}
+	d.escMu.Lock()
+	defer d.escMu.Unlock()
+	return d.escSource
+}
+
+func (d *webData) noteESC(ctx context.Context) {
+	src, ok := esc.SourceFromContext(ctx)
+	if !ok {
+		return
+	}
+	d.escMu.Lock()
+	d.escSource = src
+	d.escMu.Unlock()
+}
+
+func (d *webData) freshESC(ctx context.Context) context.Context {
+	d.escMu.Lock()
+	current := d.escSource
+	d.escMu.Unlock()
+	if current == nil {
+		if src, ok := esc.SourceFromContext(ctx); ok {
+			current = src
+		}
+	}
+	if current == nil {
+		return ctx
+	}
+	next := current.Fresh()
+	d.escMu.Lock()
+	d.escSource = next
+	d.escMu.Unlock()
+	return esc.WithSource(ctx, next)
 }
 
 func (d *webData) overviewParams() overviewParams {
@@ -177,6 +224,7 @@ func (d *webData) reloadPlugins(ctx context.Context) error {
 		return err
 	}
 	defer unlock()
+	ctx = d.freshESC(ctx)
 	clients, pluginCleanup, err := openPlugins(ctx, d.params.adapter, d.audit)
 	if err != nil {
 		return err

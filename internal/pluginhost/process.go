@@ -521,11 +521,15 @@ func isPortCollisionError(err error) bool {
 		strings.Contains(errStr, "failed to bind to port")
 }
 
+// appendDeliveredEnv adds settings to the plugin process environment.
+// Overrides replace an inherited value. The stdio launcher in stdio.go does
+// not apply a delivered environment and has no production caller.
 func appendDeliveredEnv(ctx context.Context, environ []string) []string {
-	pairs, ok := DeliveredEnvFromContext(ctx)
+	delivered, ok := DeliveredEnvFromContext(ctx)
 	if !ok {
 		return environ
 	}
+	environ = dropOverrides(environ, delivered.Overrides)
 	existing := make(map[string]bool, len(environ))
 	for _, entry := range environ {
 		key, _, found := strings.Cut(entry, "=")
@@ -538,7 +542,7 @@ func appendDeliveredEnv(ctx context.Context, environ []string) []string {
 		pluginsdk.EnvLogFile: true,
 		pluginsdk.EnvTraceID: true,
 	}
-	for _, pair := range pairs {
+	for _, pair := range delivered.Pairs {
 		key, _, found := strings.Cut(pair, "=")
 		if !found || key == "" || existing[key] || reserved[key] {
 			continue
@@ -547,6 +551,21 @@ func appendDeliveredEnv(ctx context.Context, environ []string) []string {
 		existing[key] = true
 	}
 	return environ
+}
+
+func dropOverrides(environ []string, overrides map[string]bool) []string {
+	if len(overrides) == 0 {
+		return environ
+	}
+	filtered := make([]string, 0, len(environ))
+	for _, entry := range environ {
+		key, _, found := strings.Cut(entry, "=")
+		if found && overrides[key] && !reservedEnv(key) {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
 }
 
 func (p *ProcessLauncher) startPlugin(

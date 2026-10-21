@@ -291,6 +291,23 @@ test('validate shows pass or the reason without treating a failed check as trans
   t.mounted.unmount();
 });
 
+test('ESC help names the environment and not the value', async () => {
+  const t = await open();
+  t.container.querySelector('#plugin-configure-aws').dispatch('click');
+  const settings = descriptorSettings();
+  settings.values[0] = {
+    key: 'api_key', secret: true, project: { set: false }, global: { set: false },
+    envSet: true, effectiveSource: 'esc', escEnvironment: 'billing/vantage@stable',
+  };
+  t.calls.at(-1).resolve(settings);
+  await flush();
+  const help = t.container.querySelector('#plugin-help-api_key').textContent;
+  assert.match(help, /Supplied by Pulumi ESC environment `billing\/vantage@stable`, which overrides the shell and both files/);
+  assert.match(help, /An environment value is set and overrides the file/);
+  assert.doesNotMatch(t.container.textContent, /stored-secret/);
+  t.mounted.unmount();
+});
+
 test('descriptor form previews typed controls and omits an empty secret', async () => {
   const t = await open();
   t.container.querySelector('#plugin-configure-aws').dispatch('click');

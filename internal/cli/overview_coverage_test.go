@@ -670,11 +670,11 @@ func TestOverviewInitAndEnrich_StateOnlyFile(t *testing.T) {
 func TestReadStackSettingsFile_EmptyAndMissing(t *testing.T) {
 	t.Parallel()
 
-	assert.Nil(t, stackSettingsNameCandidates("  "))
-	_, err := readStackSettingsFile(t.TempDir(), "  ")
+	assert.Nil(t, pulumidetect.StackSettingsNameCandidates("  "))
+	_, err := pulumidetect.ReadStackSettingsFile(t.TempDir(), "  ")
 	require.ErrorContains(t, err, "stack name is required")
 
-	_, err = readStackSettingsFile(t.TempDir(), "dev")
+	_, err = pulumidetect.ReadStackSettingsFile(t.TempDir(), "dev")
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
