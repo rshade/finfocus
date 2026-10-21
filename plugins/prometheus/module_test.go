@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/prometheus/client_golang/api"
@@ -14,12 +15,16 @@ import (
 )
 
 // TestModuleRequirements keeps the module graph go mod tidy would otherwise
-// drop before the plugin packages import these libraries, and pins the
-// finfocus-spec version the historical stats fields come from.
+// drop before the plugin packages import these libraries, and requires the
+// finfocus-spec release the historical stats fields first shipped in.
 func TestModuleRequirements(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "v0.7.9", pluginsdk.SpecVersion)
+	var major, minor, patch int
+	_, err := fmt.Sscanf(pluginsdk.SpecVersion, "v%d.%d.%d", &major, &minor, &patch)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, major*1_000_000+minor*1_000+patch, 7_007,
+		"historical stats fields need finfocus-spec v0.7.7 or newer")
 
 	cfg := api.Config{Address: "http://prometheus.example"}
 	assert.NotEmpty(t, cfg.Address)
