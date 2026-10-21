@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/carbonreport"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/viewmodel"
@@ -29,6 +31,7 @@ type ErrorEvent struct {
 
 // SessionOptions supplies the CLI domain pipelines to transport adapters.
 type SessionOptions struct {
+	HistoricalCarbon  func(context.Context, *pbc.GetCarbonEmissionsRequest) (*carbonreport.Report, error)
 	EstimateResources func(context.Context) ([]engine.ResourceDescriptor, error)
 	// QueryEngine runs while the caller holds the engine. The returned function
 	// releases it. Reload waits until that function runs. When nil, Engine()

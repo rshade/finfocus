@@ -292,6 +292,8 @@ func ConvertCapabilities(caps []pbc.PluginCapability) []string {
 			result = append(result, "dry_run")
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS:
 			result = append(result, "budgets")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_HISTORICAL_CARBON:
+			result = append(result, CapabilityHistoricalCarbon)
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON:
 			result = append(result, "carbon")
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_ENERGY:

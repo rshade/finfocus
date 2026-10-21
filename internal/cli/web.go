@@ -425,6 +425,7 @@ func webSessionOptions(
 	passphrases chan<- string,
 ) webui.SessionOptions {
 	return webui.SessionOptions{
+		HistoricalCarbon:  queryHistoricalCarbon,
 		EstimateResources: data.estimateResources,
 		QueryEngine:       data.queryEngine,
 		ActualCosts:       data.actualCosts, Recommendations: data.recommendations, Trends: data.tableTrends,
