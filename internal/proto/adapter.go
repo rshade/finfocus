@@ -1045,10 +1045,7 @@ func MapBatchProjectedResults(resp *pbc.BatchCostResponse) []BatchMappedResult {
 				results[i] = BatchMappedResult{Skip: true}
 			} else {
 				results[i] = BatchMappedResult{
-					Err: fmt.Errorf("resource %s: %s (code %d)",
-						rcr.GetResource().GetResourceType(),
-						resErr.GetMessage(),
-						resErr.GetCode()),
+					Err: resourceBatchError(rcr.GetResource().GetResourceType(), resErr),
 				}
 			}
 			continue
@@ -1128,6 +1125,16 @@ func growthTypeLabel(growth pbc.GrowthType) string {
 	}
 }
 
+// resourceBatchError preserves a rate-limit code as a gRPC status so the
+// engine can retry those resources together. Other codes stay plain errors.
+func resourceBatchError(resourceType string, resErr *pbc.ResourceError) error {
+	msg := fmt.Sprintf("resource %s: %s (code %d)", resourceType, resErr.GetMessage(), resErr.GetCode())
+	if resErr.GetCode() == int32(codes.ResourceExhausted) {
+		return status.Error(codes.ResourceExhausted, msg)
+	}
+	return errors.New(msg)
+}
+
 // MapBatchActualResults maps a BatchCostResponse to a slice of BatchMappedResult for
 // actual cost queries. Each ResourceCostResult is mapped to either an ActualCostResult
 // (on success), an error (on ResourceError), or a skip (on ResourceTypeUnsupported).
@@ -1139,10 +1146,7 @@ func MapBatchActualResults(resp *pbc.BatchCostResponse) []BatchMappedResult {
 				results[i] = BatchMappedResult{Skip: true}
 			} else {
 				results[i] = BatchMappedResult{
-					Err: fmt.Errorf("resource %s: %s (code %d)",
-						rcr.GetResource().GetResourceType(),
-						resErr.GetMessage(),
-						resErr.GetCode()),
+					Err: resourceBatchError(rcr.GetResource().GetResourceType(), resErr),
 				}
 			}
 			continue

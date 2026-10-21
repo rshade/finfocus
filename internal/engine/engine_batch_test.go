@@ -31,6 +31,7 @@ import (
 // mockBatchCostSourceClient implements proto.CostSourceClient for batch testing.
 type mockBatchCostSourceClient struct {
 	batchCostFunc            func(ctx context.Context, in *pbc.BatchCostRequest, opts ...grpc.CallOption) (*pbc.BatchCostResponse, error)
+	getProjectedCostFunc     func(ctx context.Context, in *proto.GetProjectedCostRequest, opts ...grpc.CallOption) (*proto.GetProjectedCostResponse, error)
 	getActualCostFunc        func(ctx context.Context, in *proto.GetActualCostRequest, opts ...grpc.CallOption) (*proto.GetActualCostResponse, error)
 	resolveResourceTypesFunc func(ctx context.Context, in *pbc.ResolveResourceTypesRequest, opts ...grpc.CallOption) (*pbc.ResolveResourceTypesResponse, error)
 }
@@ -42,8 +43,11 @@ func (m *mockBatchCostSourceClient) Name(
 }
 
 func (m *mockBatchCostSourceClient) GetProjectedCost(
-	_ context.Context, _ *proto.GetProjectedCostRequest, _ ...grpc.CallOption,
+	ctx context.Context, in *proto.GetProjectedCostRequest, opts ...grpc.CallOption,
 ) (*proto.GetProjectedCostResponse, error) {
+	if m.getProjectedCostFunc != nil {
+		return m.getProjectedCostFunc(ctx, in, opts...)
+	}
 	return &proto.GetProjectedCostResponse{}, nil
 }
 
