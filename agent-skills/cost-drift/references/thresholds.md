@@ -13,14 +13,12 @@ currency: USD
 drift:
   drift_pct: 10
   drift_absolute: 50
-  total_drift_pct: 15
 ```
 
 | Key | Default | Unit | Flags when |
 | --- | --- | --- | --- |
 | `drift.drift_pct` | 10 | percent | `abs(costDrift.percentDrift)` is above it |
 | `drift.drift_absolute` | 50 | per month | `abs(costDrift.delta)` is above it |
-| `drift.total_drift_pct` | 15 | percent | overall derived drift is above it |
 | `currency` | USD | code | the currency the amounts are written in |
 
 A value that is not a non-negative number is an error. If `currency` differs
@@ -34,37 +32,22 @@ and add a report caveat when it is below 10. Rows without `costDrift` are
 shown in the non-drifting table with actual and projected values and a drift
 column that reads `within 10%`, `new or deleted`, or `insufficient data`.
 
-## Overall drift (derived)
+## No overall drift
 
-`summary.totalActualMTD` and `summary.projectedMonthly` are summed
-independently. The CLI skips actuals for rows with `status` `creating`, but
-their projection is in the projected total, so a pending $100 create next to a
-$100 resource that spends as projected reads as about -50%. Missing actuals on
-other rows do the same. Do not divide the two summary totals.
-
-Use only comparable rows: rows that have both `actualCost` and
-`projectedCost` and whose `status` is not `creating`. Label the figure
-"derived" and give the row count. If any row with a projection lacks actuals,
-or the rows are fewer than all projected rows, say which are left out.
-Report the overall figure as unavailable when no comparable row exists or
-`projectedMonthly` over those rows is `0`.
-
-```text
-elapsed_days = (metadata.timeWindow.end - metadata.timeWindow.start) in days
-days_in_month = days in the month of metadata.timeWindow.end
-actual_month = sum(mtdCost over comparable rows) * days_in_month / elapsed_days
-projected_month = sum(monthlyCost over comparable rows) * days_in_month / 30.4167
-overall_drift_pct = (actual_month - projected_month) / projected_month * 100
-```
-
-`30.4167` is 730 hours divided by 24, the month the projection is priced on.
-A resource created inside the window makes `elapsed_days` too long for it, so
-the figure is approximate.
+The skill reports no overall drift percentage. `summary.totalActualMTD` and
+`summary.projectedMonthly` are summed independently, so dividing one by the
+other mixes unlike things: the CLI skips actuals for rows with `status`
+`creating`, but their projection is in the projected total, and missing actuals
+on other rows do the same. Scaling the actuals to a month does not help,
+because a resource created inside the window makes the elapsed time too long
+for it. On a stack whose resources are days old, the result reads as a large
+underspend that the CLI does not report on any row. A `total_drift_pct` key in
+an existing file is ignored.
 
 ## Baseline for the trend
 
-The previous `COST_DRIFT.md` gives the earlier overall drift and actual
-total. Without one, the trend section is omitted.
+The previous `COST_DRIFT.md` gives the earlier drifting-resource count and
+actual total. Without one, the trend section is omitted.
 
 ## CI exit codes
 
