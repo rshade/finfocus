@@ -36,7 +36,9 @@ finfocus carbon actual --start 2026-01-01 --end 2026-03-01 \
 `--start` is inclusive and `--end` is exclusive. Both are required first-of-month
 UTC dates in `YYYY-MM-DD` format. `--method` accepts `market-based` (default) or
 `location-based`. `--scope` accepts `total` (default), `1`, `2`, or `3`.
-`--output` accepts `table` (default) or `json`.
+`--output` accepts `table` (default) or `json`. Global `--format json`,
+`AGENT_MODE`, and MCP tool invocations select JSON when `--output` is omitted.
+An explicit `--output` value takes precedence.
 
 Filter using `--account`, `--region`, and `--service`. Each accepts comma-separated
 values or repeated flags, for example `--account 111111111111,222222222222`
@@ -93,3 +95,22 @@ The endpoint requires the existing active web session and session authentication
 The response has the same JSON request, records, and optional total as CLI JSON.
 No separate browser calculation is used. A browser query form and provenance
 table are tracked as a local UX-only follow-up; this change adds the domain hook.
+
+The endpoint returns stable error codes and fixed safe messages rather than raw
+provider diagnostics:
+
+| HTTP status | Error code | Meaning |
+| --- | --- | --- |
+| 400 | `carbon_invalid_query` | Provider rejected the selected query |
+| 401 | `carbon_authentication_required` | AWS credentials were rejected |
+| 403 | `carbon_permission_denied` | AWS Sustainability access was denied |
+| 429 | `carbon_throttled` | Provider request budget or AWS throttling |
+| 502 | `carbon_invalid_data` | Returned records or pagination failed report validation |
+| 502 | `carbon_provider_error` | Provider reported malformed data or an internal failure |
+| 502 | `carbon_provider_unavailable` | Provider transport unavailable |
+| 503 | `carbon_disabled` | Historical capability disabled or unsupported |
+| 504 | `carbon_timeout` | Provider query timed out |
+| 500 | `carbon_internal_error` | Unexpected local failure or missing report |
+
+Only disabled/unsupported failures recommend installation or opt-in. Permission,
+authentication, and throttling failures retain their separate recovery guidance.

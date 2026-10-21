@@ -12,6 +12,8 @@ import (
 
 	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
@@ -55,14 +57,15 @@ func newCarbonActualCmd(query carbonQuery) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if output != "table" && output != "json" {
+			format := resolveOutputFormat(cmd, "output", output)
+			if format != "table" && format != "json" {
 				return errors.New("output must be table or json")
 			}
 			report, err := query(cmd.Context(), req)
 			if err != nil {
 				return err
 			}
-			return writeCarbonReport(cmd.OutOrStdout(), report, output)
+			return writeCarbonReport(cmd.OutOrStdout(), report, format)
 		},
 	}
 	cmd.Flags().StringVar(&selectors.Start, "start", "", "inclusive UTC month boundary (YYYY-MM-DD; required)")
@@ -97,7 +100,8 @@ func queryHistoricalCarbon(ctx context.Context, req *pbc.GetCarbonEmissionsReque
 	}
 	defer cleanup()
 	if len(clients) != 1 {
-		return nil, errors.New(
+		return nil, status.Error(
+			codes.FailedPrecondition,
 			"aws-ce historical carbon provider unavailable: install aws-ce and enable FINFOCUS_AWS_CARBON_ENABLED=true or plugins.aws-ce.carbon_enabled=true",
 		)
 	}

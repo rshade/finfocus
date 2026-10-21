@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
@@ -17,7 +20,8 @@ func (c *Client) GetCarbonEmissions(
 	req *pbc.GetCarbonEmissionsRequest,
 ) (*pbc.GetCarbonEmissionsResponse, error) {
 	if !c.HasCapability(CapabilityHistoricalCarbon) {
-		return nil, errors.New(
+		return nil, status.Error(
+			codes.FailedPrecondition,
 			"aws-ce historical carbon reporting unavailable: enable FINFOCUS_AWS_CARBON_ENABLED=true (or plugins.aws-ce.carbon_enabled=true in config) and restart; requires a plugin with historical_carbon support",
 		)
 	}

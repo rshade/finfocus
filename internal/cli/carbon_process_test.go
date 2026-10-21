@@ -179,6 +179,7 @@ func TestCarbonPluginProcess(t *testing.T) {
 				assert.True(t, strings.HasPrefix(string(launches), "true\n"))
 				assert.NotContains(t, string(launches), "unset")
 			}
+			runCarbonMCPReport(ctx, t, core, project, env)
 			mode.Store("error")
 			stdout, stderr, err = run(args...)
 			require.Error(t, err)
@@ -286,4 +287,68 @@ func TestCarbonMonetaryHelper(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
+}
+
+func runCarbonMCPReport(ctx context.Context, t *testing.T, core, project string, env []string) {
+	t.Helper()
+	callCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(callCtx, core, "mcp-server")
+	cmd.Dir = project
+	cmd.Env = env
+	stdin, err := cmd.StdinPipe()
+	require.NoError(t, err)
+	stdout, err := cmd.StdoutPipe()
+	require.NoError(t, err)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	require.NoError(t, cmd.Start())
+	defer func() {
+		require.NoError(t, stdin.Close())
+		waitErr := cmd.Wait()
+		require.NoError(t, waitErr, stderr.String())
+	}()
+	decoder := json.NewDecoder(stdout)
+	_, err = fmt.Fprintln(
+		stdin,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"carbon-fixture","version":"1.0"}}}`,
+	)
+	require.NoError(t, err)
+	var initialized json.RawMessage
+	require.NoError(t, decoder.Decode(&initialized))
+	_, err = fmt.Fprintln(stdin, `{"jsonrpc":"2.0","method":"notifications/initialized"}`)
+	require.NoError(t, err)
+	_, err = fmt.Fprintln(
+		stdin,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"finfocus-carbon-actual","arguments":{"start":"2026-01-01","end":"2026-03-01"}}}`,
+	)
+	require.NoError(t, err)
+	for {
+		var response struct {
+			ID     int `json:"id"`
+			Result struct {
+				IsError bool `json:"isError"`
+				Content []struct {
+					Text string `json:"text"`
+				} `json:"content"`
+			} `json:"result"`
+		}
+		require.NoError(t, decoder.Decode(&response))
+		if response.ID != 2 {
+			continue
+		}
+		require.False(t, response.Result.IsError)
+		require.NotEmpty(t, response.Result.Content)
+		text := response.Result.Content[0].Text
+		require.True(t, json.Valid([]byte(text)), "MCP report must be JSON without --output: %s", text)
+		var report struct {
+			TotalGrams float64           `json:"totalGrams"`
+			Records    []json.RawMessage `json:"records"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(text), &report))
+		assert.InDelta(t, 4500000.0, report.TotalGrams, 0)
+		assert.Len(t, report.Records, 4)
+		assert.Contains(t, text, "modelVersion")
+		return
+	}
 }

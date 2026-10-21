@@ -16,6 +16,9 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
+// ErrInvalidResponse identifies provider data or pagination that cannot form a valid report.
+var ErrInvalidResponse = errors.New("invalid historical carbon response")
+
 // Client is the optional typed historical emissions interface.
 type Client interface {
 	GetCarbonEmissions(context.Context, *pbc.GetCarbonEmissionsRequest) (*pbc.GetCarbonEmissionsResponse, error)
@@ -52,10 +55,10 @@ func Query(ctx context.Context, client Client, req *pbc.GetCarbonEmissionsReques
 			return nil, fmt.Errorf("historical carbon page %d: %w", page+1, err)
 		}
 		if err = validatePage(query, resp); err != nil {
-			return nil, fmt.Errorf("invalid historical carbon page %d: %w", page+1, err)
+			return nil, fmt.Errorf("%w: page %d: %w", ErrInvalidResponse, page+1, err)
 		}
 		if err = seen.append(report, query, resp.GetRecords()); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", ErrInvalidResponse, err)
 		}
 		next := resp.GetNextPageToken()
 		if next == "" {
@@ -65,12 +68,12 @@ func Query(ctx context.Context, client Client, req *pbc.GetCarbonEmissionsReques
 			return report, nil
 		}
 		if len(next) > pluginsdk.MaxCarbonPageTokenBytes || tokens[next] {
-			return nil, errors.New("invalid or repeated historical carbon page token")
+			return nil, fmt.Errorf("%w: invalid or repeated historical carbon page token", ErrInvalidResponse)
 		}
 		tokens[next] = true
 		query.PageToken = next
 	}
-	return nil, errors.New("historical carbon report exceeds 100-page limit")
+	return nil, fmt.Errorf("%w: report exceeds 100-page limit", ErrInvalidResponse)
 }
 
 type identity struct {

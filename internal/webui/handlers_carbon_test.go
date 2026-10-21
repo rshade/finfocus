@@ -3,6 +3,8 @@ package webui
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -10,8 +12,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/rshade/finfocus/internal/pluginhost"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/carbonreport"
@@ -133,4 +139,63 @@ func TestCarbonQuerySharedOperationParity(t *testing.T) {
 	data, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.JSONEq(t, string(expectedJSON), string(data))
+}
+
+func TestCarbonQueryErrorCategories(t *testing.T) {
+	t.Parallel()
+	_, disabled := (&pluginhost.Client{}).GetCarbonEmissions(context.Background(), nil)
+	req, err := (carbonreport.Selectors{Start: "2026-01-01", End: "2026-02-01"}).Request()
+	require.NoError(t, err)
+	_, invalid := carbonreport.Query(
+		context.Background(),
+		carbonPageClient(
+			func(context.Context, *pbc.GetCarbonEmissionsRequest) (*pbc.GetCarbonEmissionsResponse, error) {
+				return &pbc.GetCarbonEmissionsResponse{Records: []*pbc.CarbonEmissionRecord{{}}}, nil
+			},
+		),
+		req,
+	)
+	require.Error(t, invalid)
+	for _, tc := range []struct {
+		name string
+		err  error
+		http int
+		code string
+	}{{"local malformed", invalid, http.StatusBadGateway, "carbon_invalid_data"}, {"permission", status.Error(codes.PermissionDenied, "secret diagnostic"), http.StatusForbidden, "carbon_permission_denied"}, {"authentication", status.Error(codes.Unauthenticated, "secret diagnostic"), http.StatusUnauthorized, "carbon_authentication_required"}, {"throttled", status.Error(codes.ResourceExhausted, "secret diagnostic"), http.StatusTooManyRequests, "carbon_throttled"}, {"malformed upstream", status.Error(codes.Internal, "secret diagnostic"), http.StatusBadGateway, "carbon_provider_error"}, {"upstream unavailable", status.Error(codes.Unavailable, "secret diagnostic"), http.StatusBadGateway, "carbon_provider_unavailable"}, {"disabled RPC", status.Error(codes.FailedPrecondition, "secret diagnostic"), http.StatusServiceUnavailable, "carbon_disabled"}, {"disabled capability", disabled, http.StatusServiceUnavailable, "carbon_disabled"}, {"unsupported plugin", status.Error(codes.Unimplemented, "secret diagnostic"), http.StatusServiceUnavailable, "carbon_disabled"}, {"internal", errors.New("secret diagnostic"), http.StatusInternalServerError, "carbon_internal_error"}, {"nil report", nil, http.StatusInternalServerError, "carbon_internal_error"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			session := NewSession(
+				context.Background(),
+				SessionOptions{
+					HistoricalCarbon: func(context.Context, *pbc.GetCarbonEmissionsRequest) (*carbonreport.Report, error) {
+						if tc.err == nil {
+							return nil, nil //nolint:nilnil // Deliberately missing callback report.
+						}
+						return nil, fmt.Errorf("report page: %w", tc.err)
+					},
+				},
+			)
+			defer session.Close()
+			session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "dev")
+			s := newRunningServer(t, Options{Session: session})
+			resp := overviewRequest(
+				t,
+				s,
+				http.MethodPost,
+				"/api/carbon/actual/query",
+				`{"start":"2026-01-01","end":"2026-02-01"}`,
+			)
+			defer resp.Body.Close()
+			assert.Equal(t, tc.http, resp.StatusCode)
+			var got apiError
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+			assert.Equal(t, tc.code, got.Code)
+			assert.NotContains(t, got.Error, "secret diagnostic")
+			if tc.code == "carbon_disabled" {
+				assert.Contains(t, got.Error, "FINFOCUS_AWS_CARBON_ENABLED=true")
+			} else {
+				assert.NotContains(t, got.Error, "enable")
+			}
+		})
+	}
 }

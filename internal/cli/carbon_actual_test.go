@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -176,4 +177,39 @@ func TestCarbonMCPSchemaReadOnlyAndFlags(t *testing.T) {
 		return
 	}
 	t.Fatal("historical carbon tool missing")
+}
+
+func TestCarbonActualMachineOutput(t *testing.T) {
+	for _, tc := range []struct {
+		name, agent, format, output string
+		wantJSON                    bool
+	}{{name: "format json", format: "json", wantJSON: true}, {name: "agent mode", agent: "1", wantJSON: true}, {name: "explicit table wins", format: "json", agent: "1", output: "table"}, {name: "explicit JSON", format: "human", output: "json", wantJSON: true}, {name: "default table"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(agentModeEnv, tc.agent)
+			root := &cobra.Command{Use: "finfocus"}
+			root.PersistentFlags().String(axFormatFlag, "", "agent output format")
+			cmd := newCarbonActualCmd(
+				func(_ context.Context, req *pbc.GetCarbonEmissionsRequest) (*carbonreport.Report, error) {
+					return &carbonreport.Report{Request: req, Records: []*pbc.CarbonEmissionRecord{}}, nil
+				},
+			)
+			root.AddCommand(cmd)
+			args := []string{"actual", "--start", "2026-01-01", "--end", "2026-02-01"}
+			if tc.format != "" {
+				args = append(args, "--format="+tc.format)
+			}
+			if tc.output != "" {
+				args = append(args, "--output="+tc.output)
+			}
+			var out bytes.Buffer
+			root.SetOut(&out)
+			root.SetErr(&bytes.Buffer{})
+			root.SetArgs(args)
+			require.NoError(t, root.Execute())
+			assert.Equal(t, tc.wantJSON, json.Valid(out.Bytes()), out.String())
+			if tc.wantJSON {
+				assert.Contains(t, out.String(), `"totalGrams":null`)
+			}
+		})
+	}
 }
