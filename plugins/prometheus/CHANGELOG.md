@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/rshade/finfocus/compare/prometheus-v0.1.2...prometheus-v0.1.3) (2026-10-21)
+
+
+### Bug Fixes
+
+* **pluginupgrade:** add hops for finfocus-spec v0.7.8 and v0.7.9 ([#1880](https://github.com/rshade/finfocus/issues/1880)) ([e369027](https://github.com/rshade/finfocus/commit/e369027090d10d581392bd163cf79a5c3ab5c1ed))
+
 ## [0.1.2](https://github.com/rshade/finfocus/compare/prometheus-v0.1.1...prometheus-v0.1.2) (2026-10-19)
 
 

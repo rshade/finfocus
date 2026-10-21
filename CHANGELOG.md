@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1](https://github.com/rshade/finfocus/compare/v0.5.0...v0.5.1) (2026-10-21)
+
+
+### Added
+
+* **overview:** hint at the web dashboard and open it with w ([#1875](https://github.com/rshade/finfocus/issues/1875)) ([3b3ff71](https://github.com/rshade/finfocus/commit/3b3ff7111a04fae8ee0af04735a50a79659ecc6f))
+* **pluginhost:** deliver Pulumi ESC variables to plugins ([#1868](https://github.com/rshade/finfocus/issues/1868)) ([a95cd5b](https://github.com/rshade/finfocus/commit/a95cd5b6476462adb9f58225d4ed748d0707192a))
+* **recommendations:** merge plugin lifecycle history ([#1854](https://github.com/rshade/finfocus/issues/1854)) ([3cb7ded](https://github.com/rshade/finfocus/commit/3cb7ded11d064fe10d75d6c4d601fc4c14bb71c2))
+* **registry:** deprecate the legacy jev catalog entry ([#1856](https://github.com/rshade/finfocus/issues/1856)) ([c40b1e0](https://github.com/rshade/finfocus/commit/c40b1e0493fc973958f0c70ff067cdb9b93c5187))
+* **skills:** add cost-check and cost-drift agent skills ([#1866](https://github.com/rshade/finfocus/issues/1866)) ([03c49eb](https://github.com/rshade/finfocus/commit/03c49ebc3d03d0fe994a85a5557c199b0d72d335))
+
+
+### Fixed
+
+* **e2e:** pin kind e2e to finfocus-plugin-aws-public v0.2.4 ([#1884](https://github.com/rshade/finfocus/issues/1884)) ([e1f9930](https://github.com/rshade/finfocus/commit/e1f9930761f39a5e94195018bc657518cb1640de))
+* **engine:** retry rate-limited plugin calls ([#1874](https://github.com/rshade/finfocus/issues/1874)) ([a4b22ac](https://github.com/rshade/finfocus/commit/a4b22ac84e894567afbe2a167b8021313a9c169e))
+* **pluginupgrade:** add hops for finfocus-spec v0.7.8 and v0.7.9 ([#1880](https://github.com/rshade/finfocus/issues/1880)) ([e369027](https://github.com/rshade/finfocus/commit/e369027090d10d581392bd163cf79a5c3ab5c1ed))
+* **skills:** stop on an empty plan and drop the derived overall drift ([#1876](https://github.com/rshade/finfocus/issues/1876)) ([3000892](https://github.com/rshade/finfocus/commit/300089204c186b8eba2c67d27444b28a4beb09c2))
+* **web:** show Pulumi ESC in the plugin setting status ([#1882](https://github.com/rshade/finfocus/issues/1882)) ([081acfb](https://github.com/rshade/finfocus/commit/081acfb03e29610c862ea808c524834cc2d8ef2f))
+
+
+### Documentation
+
+* **constitution:** require web parity for user-facing CLI features ([#1864](https://github.com/rshade/finfocus/issues/1864)) ([220dbe7](https://github.com/rshade/finfocus/commit/220dbe7df59eccf690fe4351ce34839e7b2ad28e))
+* refresh finfocus-spec version and loosen the prometheus module test ([#1881](https://github.com/rshade/finfocus/issues/1881)) ([39d6754](https://github.com/rshade/finfocus/commit/39d6754e9182dfdb640acc74ac23019d9c78d773))
+* **roadmap:** sync with GitHub after v0.5.0 ([#1852](https://github.com/rshade/finfocus/issues/1852)) ([2a76671](https://github.com/rshade/finfocus/commit/2a76671333ad311e15992e3ecc0d578860184f0a))
+
 ## [0.5.0](https://github.com/rshade/finfocus/compare/v0.4.6...v0.5.0) (2026-10-19)
 
 
