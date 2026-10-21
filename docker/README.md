@@ -70,7 +70,7 @@ docker run --rm \
 ## Image Details
 
 - **Base Image**: Alpine Linux (latest)
-- **Go Version**: 1.27.2 (golang:1.27.2-alpine)
+- **Go Version**: 1.27.3 (golang:1.27.3-alpine)
 - **User**: Non-root user `finfocus` (UID: 1001, GID: 1001)
 - **Working Directory**: `/home/finfocus`
 - **Plugin Directory**: `/home/finfocus/.finfocus/plugins`

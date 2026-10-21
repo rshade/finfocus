@@ -1,6 +1,6 @@
 module github.com/rshade/finfocus/test/e2e/kind/fixedcost
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/rs/zerolog v1.35.1
