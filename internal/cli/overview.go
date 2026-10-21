@@ -1185,22 +1185,50 @@ func runInteractiveOverviewWithInit(
 	finalModel, err := p.Run()
 	enrichCancel()
 
+	return completeInteractiveOverview(
+		ctx, cmd, params, audit, finalModel, err, rowCount.Load(), totalStart, enrichDone, cleanupChan,
+	)
+}
+
+// completeInteractiveOverview closes the overview's plugins, then starts the
+// web session when the model requested it. Audit success is recorded only when
+// this function returns nil; a model error or a web start error is a failure.
+func completeInteractiveOverview(
+	ctx context.Context,
+	cmd *cobra.Command,
+	params overviewParams,
+	audit *auditContext,
+	finalModel tea.Model,
+	runErr error,
+	rowCount int64,
+	totalStart time.Time,
+	enrichDone <-chan struct{},
+	cleanupChan <-chan func(),
+) error {
 	// Wait for enrichment, then stop plugins. A stuck call is abandoned after
 	// overviewShutdownGrace; cleanup still has a short handoff window.
 	finishInteractiveOverview(ctx, enrichDone, cleanupChan)
 
-	if err != nil {
-		audit.logFailure(ctx, err)
-		return fmt.Errorf("running TUI: %w", err)
+	if runErr != nil {
+		audit.logFailure(ctx, runErr)
+		return fmt.Errorf("running TUI: %w", runErr)
 	}
 
 	// Check if the TUI exited due to an initialization error. tea.Quit is a
 	// normal termination so p.Run() returns nil; the actual error is stored
 	// in the model's error state.
-	if m, ok := finalModel.(tui.OverviewModel); ok && m.Err() != nil {
-		initErr := m.Err()
-		audit.logFailure(ctx, initErr)
-		return fmt.Errorf("overview initialization: %w", initErr)
+	if m, ok := finalModel.(tui.OverviewModel); ok {
+		if m.Err() != nil {
+			initErr := m.Err()
+			audit.logFailure(ctx, initErr)
+			return fmt.Errorf("overview initialization: %w", initErr)
+		}
+		if m.WebRequested() {
+			if webErr := startWebSession(cmd, webFlagsFromOverview(params)); webErr != nil {
+				audit.logFailure(ctx, webErr)
+				return fmt.Errorf("running web session: %w", webErr)
+			}
+		}
 	}
 
 	log := logging.FromContext(ctx)
@@ -1211,7 +1239,7 @@ func runInteractiveOverviewWithInit(
 		Int64("total_elapsed_ms", time.Since(totalStart).Milliseconds()).
 		Msg("overview TUI complete")
 
-	audit.logSuccess(ctx, int(rowCount.Load()), 0)
+	audit.logSuccess(ctx, int(rowCount), 0)
 	return nil
 }
 

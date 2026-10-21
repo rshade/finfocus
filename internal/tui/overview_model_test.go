@@ -1490,3 +1490,70 @@ func TestOverviewModel_BudgetDataReadyMsg(t *testing.T) {
 		})
 	}
 }
+
+func TestOverviewModel_WebKey(t *testing.T) {
+	t.Parallel()
+
+	model, _ := NewOverviewModel(context.Background(), []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}, 1, nil, nil)
+	model.state = ViewStateList
+
+	updated, cmd := model.Update(tea.KeyPressMsg{Text: "w"})
+	model = updated.(OverviewModel)
+	assert.True(t, model.WebRequested())
+	assert.Equal(t, ViewStateQuitting, model.state)
+	require.NotNil(t, cmd)
+	_, ok := cmd().(tea.QuitMsg)
+	assert.True(t, ok)
+}
+
+func TestOverviewModel_WebKeyIgnoredWhenTyping(t *testing.T) {
+	t.Parallel()
+
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+	wKey := tea.KeyPressMsg{Text: "w"}
+
+	t.Run("filter", func(t *testing.T) {
+		t.Parallel()
+		model, _ := NewOverviewModel(context.Background(), rows, 1, nil, nil)
+		model.state = ViewStateList
+		updated, _ := model.Update(tea.KeyPressMsg{Text: "/"})
+		model = updated.(OverviewModel)
+		require.True(t, model.showFilter)
+
+		updated, _ = model.Update(wKey)
+		model = updated.(OverviewModel)
+		assert.False(t, model.WebRequested())
+		assert.Equal(t, "w", model.textInput.Value())
+		assert.Equal(t, ViewStateList, model.state)
+	})
+
+	t.Run("passphrase", func(t *testing.T) {
+		t.Parallel()
+		model, _ := NewOverviewModel(context.Background(), nil, 0, make(chan string, 1), nil)
+		updated, _ := model.Update(OverviewPassphraseRequiredMsg{})
+		model = updated.(OverviewModel)
+		require.True(t, model.showPassphraseInput)
+
+		updated, _ = model.Update(wKey)
+		model = updated.(OverviewModel)
+		assert.False(t, model.WebRequested())
+		assert.Equal(t, "w", model.passphraseInput.Value())
+	})
+
+	t.Run("detail", func(t *testing.T) {
+		t.Parallel()
+		model, _ := NewOverviewModel(context.Background(), rows, 1, nil, nil)
+		model.state = ViewStateDetail
+		model.selected = 0
+		model.rows = computeRowResults(rows)
+
+		updated, _ := model.Update(wKey)
+		model = updated.(OverviewModel)
+		assert.False(t, model.WebRequested())
+		assert.Equal(t, ViewStateDetail, model.state)
+	})
+}

@@ -168,6 +168,15 @@ flags; see [Use the browser dashboard](../guides/web-ui.md).
 
 ### Keyboard shortcuts
 
+The list view shows a one-line hint under the status bar:
+
+```text
+[w] web dashboard · finfocus --web
+```
+
+On a narrow terminal the hint shortens to `[w] web`, then disappears. It stays
+on one line. The hint is not shown in plain text, JSON, or the detail view.
+
 | Key | Action |
 |-----|--------|
 | `Up` / `k` | Move cursor up |
@@ -176,6 +185,7 @@ flags; see [Use the browser dashboard](../guides/web-ui.md).
 | `Escape` | Return to list / clear filter |
 | `s` | Cycle sort field (Cost, Name, Type, Delta) |
 | `/` | Enter filter mode |
+| `w` | Close the overview and start the browser dashboard (`finfocus --web`) |
 | `p` | In state-only mode, run `pulumi preview` and apply pending changes to the open table |
 | `PgUp` / `PgDn` | Navigate pages (when >250 resources) |
 | `e` | Toggle expansion of a cluster row (Kubernetes workloads) |
