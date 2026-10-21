@@ -211,6 +211,10 @@ An environment variable that is already set for the dashboard process takes
 precedence over the project file, the global file, and the plugin's default.
 Set a secret that way when you do not want it written to a file.
 
+When Pulumi ESC supplies a plugin setting, the Status cell reads
+`from ESC (<reference>)`. The help text names that environment and says it
+overrides the shell and both configuration files. The value stays hidden.
+
 ## Stop the session
 
 Closing the browser tab does not stop FinFocus. Press `Ctrl+C` in the terminal

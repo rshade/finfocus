@@ -55,5 +55,7 @@ There are no handler changes. `esc.*` keys are listed in
 
 ## Follow-up (`web-ui` label, UX only)
 
-The design of the Status cell for `esc` rows, copy, and accessibility. No
-data or endpoint work.
+Implemented in `internal/webui/static/views/plugins.js` (#1867). An
+`effectiveSource: "esc"` row's Status cell reads `from ESC (<reference>)`.
+The help paragraph names that reference in a code element. The settings
+response is unchanged.

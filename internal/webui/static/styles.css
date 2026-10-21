@@ -603,6 +603,22 @@ button:disabled {
   font-weight: 400;
 }
 
+/* Status copy for an ESC-supplied plugin setting. --fg on --bg and on
+   --bg-inset stays above WCAG AA for this size in both color schemes. */
+.setting-source {
+  color: var(--fg);
+}
+
+.setting-source code,
+.config-help code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.9em;
+  color: var(--fg);
+  background: var(--bg-inset);
+  padding: 0 0.25em;
+  border-radius: 0.2em;
+}
+
 .config-message {
   margin: 0.75rem 0;
   padding: 0.6rem 1rem;

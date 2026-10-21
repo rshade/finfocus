@@ -136,7 +136,7 @@ running session keeps its startup configuration.
 | Progress | Shows the current phase and, while downloading, bytes received and the total when the host reports one. |
 | **Validate** | Checks the installed files and that the plugin process starts. A failure stays on the page with the reason. |
 | Settings tier | Selects the project or global `config.hujson`, the same files as Config. |
-| Setting editor | Edits one plugin setting. A secret field starts empty; leaving it blank keeps the stored secret. ESC-supplied rows report `effectiveSource` `esc` and `escEnvironment` (the environment reference). The response never includes the variable's value. |
+| Setting editor | Edits one plugin setting. A secret field starts empty; leaving it blank keeps the stored secret. When ESC supplies the effective value, the Status cell reads `from ESC (<reference>)` and the help text names that environment. The page never shows the variable's value. |
 | **Review changes** / **Confirm** | Previews, then writes, through the same configuration writer as Config. |
 | Save notice | Saved settings apply the next time that plugin is launched. |
 

@@ -318,9 +318,11 @@ environment reference, and reveals no value.
 - **Layout fit**: Fills the existing **Status** cell of the "Plugin settings"
   captioned table, which today shows `not set`, `set`, or the tier value, and
   the row's help paragraph, which today says "An environment value is set and
-  overrides the file." An ESC-supplied row reads, for example, "from ESC
-  (`team/aws-billing`)", and its help paragraph says that ESC overrides the
-  shell and both files.
+  overrides the file." An ESC-supplied row's Status cell reads
+  `from ESC (team/aws-billing)`, with the reference in a code element. The
+  help paragraph says Pulumi ESC supplies the setting and overrides the shell
+  and both files, and names the same reference in a code element. The page
+  does not show Markdown backticks or the variable value.
 - **Additions**: none
 - **Render evidence**: `../finfocus-demo`, stack `dev`, 2026-10-20. Playwright
   opened `finfocus --web` with `esc.plugins.recorder.environments` set to
@@ -330,6 +332,8 @@ environment reference, and reveals no value.
   files." The Status cell still reads `not set`. No variable value is shown.
   Screenshot: `.playwright-mcp/esc-recorder-settings.png`. The demo
   `Pulumi.dev.yaml` already had local edits, so it was not rewritten.
+  Issue #1867 replaces that Status cell with `from ESC (<reference>)` and
+  renders the help reference as text in a code element.
 - **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
   accessibility). No engine, API, redaction, or data-shape work. Filed as
   #1867.

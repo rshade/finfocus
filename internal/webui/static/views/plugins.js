@@ -90,6 +90,33 @@ function statusText(field, tier) {
   return String(side.value);
 }
 
+// escReference is the environment name the settings response already sent.
+// It is never a variable value. A missing or blank name stays empty so the
+// status does not render "from ESC ()".
+function escReference(field) {
+  const ref = field.row?.escEnvironment;
+  return typeof ref === 'string' ? ref.trim() : '';
+}
+
+function escStatusLabel(field) {
+  const ref = escReference(field);
+  return ref === '' ? 'from ESC' : `from ESC (${ref})`;
+}
+
+function statusCell(field, tier) {
+  if (field.row?.effectiveSource !== 'esc') {
+    return el('td', { text: statusText(field, tier) });
+  }
+  const ref = escReference(field);
+  const label = escStatusLabel(field);
+  const visible = ref === ''
+    ? ['from ESC']
+    : ['from ESC (', el('code', { text: ref }), ')'];
+  return el('td', { class: 'setting-source' },
+    el('span', { class: 'setting-source-label', 'aria-label': label }, ...visible),
+  );
+}
+
 function describePlugin(plugin) {
   const parts = [];
   if (plugin.description) parts.push(plugin.description);
@@ -454,16 +481,28 @@ export function mount(container, { api }) {
     return changes;
   }
 
-  function fieldHelp(field) {
+  function helpParagraph(field, helpID) {
     const parts = [];
     if (field.description) parts.push(field.description);
     if (field.env) parts.push(`Environment variable ${field.env}.`);
     if (field.required) parts.push('Required.');
     if (field.row?.envSet) parts.push('An environment value is set and overrides the file.');
+    const children = [];
+    if (parts.length) children.push(parts.join(' '));
     if (field.row?.effectiveSource === 'esc') {
-      parts.push(`Supplied by Pulumi ESC environment \`${field.row.escEnvironment}\`, which overrides the shell and both files.`);
+      if (children.length) children.push(' ');
+      const ref = escReference(field);
+      if (ref === '') {
+        children.push('Supplied by a Pulumi ESC environment, which overrides the shell and both files.');
+      } else {
+        children.push(
+          'Supplied by Pulumi ESC environment ',
+          el('code', { text: ref }),
+          ', which overrides the shell and both files.',
+        );
+      }
     }
-    return parts.join(' ');
+    return el('p', { id: helpID, class: 'config-help' }, ...children);
   }
 
   function fieldRow(field) {
@@ -475,9 +514,9 @@ export function mount(container, { api }) {
     return el('tr', {},
       el('th', { scope: 'row' },
         el('label', { for: input.id, text: field.key }),
-        el('p', { id: helpID, class: 'config-help', text: fieldHelp(field) }),
+        helpParagraph(field, helpID),
       ),
-      el('td', { text: statusText(field, settingsTier) }),
+      statusCell(field, settingsTier),
       el('td', { class: 'config-edit' }, input, clear),
     );
   }

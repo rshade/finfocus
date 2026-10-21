@@ -291,20 +291,64 @@ test('validate shows pass or the reason without treating a failed check as trans
   t.mounted.unmount();
 });
 
-test('ESC help names the environment and not the value', async () => {
+function statusCellOf(container, key) {
+  const help = container.querySelector(`#plugin-help-${key}`);
+  return help.parent.parent.children.find((child) => child.tagName === 'td');
+}
+
+test('ESC status names the environment and not the value', async () => {
   const t = await open();
   t.container.querySelector('#plugin-configure-aws').dispatch('click');
   const settings = descriptorSettings();
   settings.values[0] = {
     key: 'api_key', secret: true, project: { set: false }, global: { set: false },
     envSet: true, effectiveSource: 'esc', escEnvironment: 'billing/vantage@stable',
+    value: 'leaked-esc-secret',
   };
   t.calls.at(-1).resolve(settings);
   await flush();
-  const help = t.container.querySelector('#plugin-help-api_key').textContent;
-  assert.match(help, /Supplied by Pulumi ESC environment `billing\/vantage@stable`, which overrides the shell and both files/);
-  assert.match(help, /An environment value is set and overrides the file/);
+  const help = t.container.querySelector('#plugin-help-api_key');
+  assert.equal(help.querySelector('code').textContent, 'billing/vantage@stable');
+  assert.match(help.textContent, /Supplied by Pulumi ESC environment billing\/vantage@stable, which overrides the shell and both files/);
+  assert.match(help.textContent, /An environment value is set and overrides the file/);
+  assert.doesNotMatch(help.textContent, /`/);
+  const status = statusCellOf(t.container, 'api_key');
+  assert.equal(status.className, 'setting-source');
+  assert.equal(status.textContent, 'from ESC (billing/vantage@stable)');
+  assert.equal(status.querySelector('code').textContent, 'billing/vantage@stable');
+  assert.equal(status.querySelector('.setting-source-label').attrs['aria-label'], 'from ESC (billing/vantage@stable)');
+  assert.equal(statusCellOf(t.container, 'base_url').textContent, 'https://old.example');
+  assert.equal(statusCellOf(t.container, 'mock_response').textContent, 'not set');
+  assert.doesNotMatch(t.container.textContent, /leaked-esc-secret/);
   assert.doesNotMatch(t.container.textContent, /stored-secret/);
+
+  const tier = t.container.querySelector('#plugin-tier');
+  tier.value = 'global';
+  tier.dispatch('change');
+  assert.equal(statusCellOf(t.container, 'api_key').textContent, 'from ESC (billing/vantage@stable)');
+  t.mounted.unmount();
+});
+
+test('ESC status without a reference does not invent one', async () => {
+  const t = await open();
+  t.container.querySelector('#plugin-configure-aws').dispatch('click');
+  const settings = descriptorSettings();
+  settings.values[1] = {
+    key: 'base_url', secret: false, project: { set: true, value: 'https://old.example' },
+    global: { set: false }, effectiveSource: 'esc', escEnvironment: '   ',
+  };
+  t.calls.at(-1).resolve(settings);
+  await flush();
+  const status = statusCellOf(t.container, 'base_url');
+  assert.equal(status.textContent, 'from ESC');
+  assert.equal(status.querySelector('code'), undefined);
+  assert.equal(status.querySelector('.setting-source-label').attrs['aria-label'], 'from ESC');
+  const help = t.container.querySelector('#plugin-help-base_url');
+  assert.match(help.textContent, /Supplied by a Pulumi ESC environment, which overrides the shell and both files/);
+  assert.equal(help.querySelector('code'), undefined);
+  assert.doesNotMatch(help.textContent, /`/);
+  assert.doesNotMatch(status.textContent, /old\.example/);
+  assert.equal(t.container.querySelector('#plugin-setting-base_url').value, 'https://old.example');
   t.mounted.unmount();
 });
 
