@@ -227,8 +227,8 @@ func orGetenv(getenv func(string) string) func(string) string {
 }
 
 func credentialsPath(getenv func(string) string) string {
-	if path := getenv("PULUMI_CREDENTIALS_PATH"); path != "" {
-		return path
+	if dir := getenv("PULUMI_CREDENTIALS_PATH"); dir != "" {
+		return filepath.Join(dir, "credentials.json")
 	}
 	return filepath.Join(pulumiHome(getenv), "credentials.json")
 }

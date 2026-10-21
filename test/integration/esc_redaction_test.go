@@ -88,7 +88,10 @@ func TestESCRedaction(t *testing.T) {
 	)
 	require.NoError(t, err, "stderr: %s", helper.Stderr())
 
+	opensBeforeWeb := api.Opens("acme", "billing", "redact")
 	settingsBody, webOut, webErr := fetchRecorderSettings(t, plan)
+	assert.Greater(t, api.Opens("acme", "billing", "redact"), opensBeforeWeb,
+		"the web session must open the stack environment")
 	scanned := stdout + helper.Stderr() + webOut + webErr + settingsBody + readAllFiles(t, home)
 	assert.NotContains(t, scanned, escRedactionSecret)
 }
@@ -121,7 +124,7 @@ func fetchRecorderSettings(t *testing.T, plan string) (string, string, string) {
 	defer cancel()
 	var out, errBuf lockedBuffer
 	cmd := cli.NewRootCmd("test")
-	cmd.SetArgs([]string{"--web", "--no-browser", "--port", port, "--pulumi-json", plan})
+	cmd.SetArgs([]string{"--web", "--no-browser", "--port", port, "--pulumi-json", plan, "--stack", "dev"})
 	config.ResetGlobalConfigForTest()
 	done := make(chan int, 1)
 	go func() {
@@ -209,6 +212,7 @@ func getPluginSettings(t *testing.T, sessionURL string) string {
 	settings, err := client.Get(parsed.Scheme + "://" + parsed.Host + "/api/plugins/recorder/settings")
 	require.NoError(t, err)
 	defer settings.Body.Close()
+	require.Equal(t, http.StatusOK, settings.StatusCode)
 	payload, err := io.ReadAll(bufio.NewReader(settings.Body))
 	require.NoError(t, err)
 	return string(payload)

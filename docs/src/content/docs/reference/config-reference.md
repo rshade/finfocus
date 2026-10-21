@@ -157,8 +157,9 @@ The empty string writes `[]`, which disables ESC. There is no unset command.
 Delete the key from the file, or remove it on the Config page, to return to
 "not set".
 
-`config validate`, and every `cost` command, reject a bad value before a
-plugin starts. Validation does not contact Pulumi Cloud.
+Every command except the `config` commands rejects a bad value with exit
+code 2 before a plugin starts. `config validate` reports it. Validation does
+not contact Pulumi Cloud.
 
 | Problem | Message |
 | --- | --- |

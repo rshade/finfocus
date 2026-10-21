@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 
@@ -31,15 +32,22 @@ type ESCPluginConfig struct {
 }
 
 // escCatalogNames, when set, adds catalog plugin names to the unknown-plugin check.
-var escCatalogNames func() []string //nolint:gochecknoglobals // Set by the CLI before validation.
+var escCatalogNames atomic.Pointer[func() []string] //nolint:gochecknoglobals // Set by the CLI before validation.
 
-// SetESCCatalogNamesForTest installs the catalog names used by ESC validation
+// SetESCCatalogNames installs the source of catalog plugin names that ESC
+// validation accepts without a local install.
+func SetESCCatalogNames(names func() []string) {
+	escCatalogNames.Store(&names)
+}
+
+// SetESCCatalogNamesForTest installs fixed catalog names for ESC validation
 // and returns a restore function.
 func SetESCCatalogNamesForTest(names []string) func() {
-	previous := escCatalogNames
+	previous := escCatalogNames.Load()
 	copied := append([]string(nil), names...)
-	escCatalogNames = func() []string { return copied }
-	return func() { escCatalogNames = previous }
+	fixed := func() []string { return copied }
+	escCatalogNames.Store(&fixed)
+	return func() { escCatalogNames.Store(previous) }
 }
 
 func (c *Config) ensureESC() *ESCConfig {
@@ -222,8 +230,8 @@ func reservedEnvName(name string) bool {
 
 func (c *Config) knownESCPluginNames() map[string]struct{} {
 	names := map[string]struct{}{}
-	if escCatalogNames != nil {
-		for _, name := range escCatalogNames() {
+	if source := escCatalogNames.Load(); source != nil && *source != nil {
+		for _, name := range (*source)() {
 			if name != "" {
 				names[name] = struct{}{}
 			}

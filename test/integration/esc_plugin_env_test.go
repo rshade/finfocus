@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha1"
 	"fmt"
@@ -68,7 +67,7 @@ func TestESCPluginEnvOverridesShell(t *testing.T) {
 		Getenv:   os.Getenv,
 		Budget:   5 * time.Second,
 	})
-	var logs bytes.Buffer
+	var logs lockedBuffer
 	logger := zerolog.New(&logs)
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), 20*time.Second)
 	defer cancel()

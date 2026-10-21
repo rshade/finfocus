@@ -12,6 +12,7 @@ import (
 	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/logging"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
+	"github.com/rshade/finfocus/internal/registry"
 )
 
 const escOpenBudget = 5 * time.Second
@@ -98,6 +99,7 @@ func ReleaseESCWarnings(ctx context.Context) {
 // A malformed configured reference fails every command except config,
 // which can still report or repair the value.
 func attachESCSource(cmd *cobra.Command, cwd string) error {
+	config.SetESCCatalogNames(embeddedCatalogNames)
 	global, perPlugin, err := escSelection(config.InitializedGlobalConfig())
 	if err != nil && !inConfigCommand(cmd) {
 		return toValidationError(cmd.Context(), err)
@@ -115,6 +117,14 @@ func attachESCSource(cmd *cobra.Command, cwd string) error {
 	ctx := esc.WithSource(cmd.Context(), src)
 	cmd.SetContext(contextWithESCWarn(ctx, sink))
 	return nil
+}
+
+func embeddedCatalogNames() []string {
+	names, err := registry.ListPluginsFromRegistry()
+	if err != nil {
+		return nil
+	}
+	return names
 }
 
 func escSelection(cfg *config.Config) (*[]string, map[string]esc.PluginOptions, error) {

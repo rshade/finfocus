@@ -10,13 +10,16 @@ import (
 	"strings"
 )
 
+const defaultBackend = "https://api.pulumi.com"
+
 // SelectedStack reads the stack Pulumi selected for projectDir from the
 // workspace file. A missing or unreadable file returns an error.
 func SelectedStack(projectDir string) (string, error) {
-	name, err := GetProjectName(projectDir)
+	project, err := readProjectFile(projectDir)
 	if err != nil {
 		return "", err
 	}
+	name := project.Name
 	filePath, err := projectYAMLPath(projectDir)
 	if err != nil {
 		return "", err
@@ -40,7 +43,7 @@ func SelectedStack(projectDir string) (string, error) {
 	if parseErr := json.Unmarshal(data, &file); parseErr != nil {
 		return "", fmt.Errorf("parsing workspace file: %w", parseErr)
 	}
-	return pickWorkspaceStack(file)
+	return pickWorkspaceStack(file, activeBackend(project.Backend.URL))
 }
 
 type workspaceFile struct {
@@ -48,32 +51,59 @@ type workspaceFile struct {
 	Stacks map[string]string `json:"stacks"`
 }
 
-func pickWorkspaceStack(file workspaceFile) (string, error) {
+func pickWorkspaceStack(file workspaceFile, backend string) (string, error) {
 	if len(file.Stacks) == 0 {
 		if strings.TrimSpace(file.Stack) == "" {
 			return "", errors.New("workspace file has no stack")
 		}
 		return file.Stack, nil
 	}
-	if len(file.Stacks) == 1 {
-		for _, name := range file.Stacks {
-			return name, nil
-		}
-	}
-	for _, key := range preferredBackendKeys() {
+	for _, key := range backendKeys(backend) {
 		if name, ok := file.Stacks[key]; ok && name != "" {
 			return name, nil
 		}
 	}
-	return "", errors.New("workspace file has more than one stack")
+	return "", fmt.Errorf("workspace file has no stack for backend %s", backend)
 }
 
-func preferredBackendKeys() []string {
-	keys := []string{}
+// activeBackend resolves the backend the same way ESC authentication does:
+// PULUMI_BACKEND_URL, then the project's backend.url, then the current login
+// in credentials.json, then Pulumi Cloud.
+func activeBackend(projectURL string) string {
 	if backend := os.Getenv("PULUMI_BACKEND_URL"); backend != "" {
-		keys = append(keys, backend)
+		return backend
 	}
-	return append(keys, "https://api.pulumi.com")
+	if backend := strings.TrimSpace(projectURL); backend != "" {
+		return backend
+	}
+	if backend := currentLogin(); backend != "" {
+		return backend
+	}
+	return defaultBackend
+}
+
+func currentLogin() string {
+	dir := os.Getenv("PULUMI_CREDENTIALS_PATH")
+	if dir == "" {
+		dir = pulumiHomeDir()
+	}
+	//nolint:gosec // G703: Pulumi's own credentials location.
+	data, err := os.ReadFile(filepath.Join(dir, "credentials.json"))
+	if err != nil {
+		return ""
+	}
+	var creds struct {
+		Current string `json:"current"`
+	}
+	if json.Unmarshal(data, &creds) != nil {
+		return ""
+	}
+	return creds.Current
+}
+
+func backendKeys(backend string) []string {
+	trimmed := strings.TrimRight(backend, "/")
+	return []string{backend, trimmed, trimmed + "/"}
 }
 
 func projectYAMLPath(projectDir string) (string, error) {

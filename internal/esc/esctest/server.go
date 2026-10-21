@@ -36,6 +36,14 @@ type Environment struct {
 	OmitMessage bool
 	// Delay waits before the response and stops early when the request is canceled.
 	Delay time.Duration
+	// Versions maps a revision number to the variables a versioned open returns.
+	// A revision that is not listed returns Variables.
+	Versions map[int]map[string]Variable
+	// AfterHead runs after a HEAD is answered, so a test can change the
+	// environment between two calls. Use Server.Update inside it.
+	AfterHead func()
+	// AfterTag runs after a tag read is answered, like AfterHead.
+	AfterTag func()
 	// MalformedTrace returns a trace object that panics the esc-sdk.
 	MalformedTrace bool
 }
@@ -128,6 +136,13 @@ func (s *Server) handleOpenVersion(w http.ResponseWriter, r *http.Request) {
 	s.open(w, r, r.PathValue("org"), r.PathValue("project"), r.PathValue("env"))
 }
 
+// Update changes the named environment while holding the server lock.
+func (s *Server) Update(org, project, name string, change func(*Environment)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	change(s.envs[refKey(org, project, name)])
+}
+
 func (s *Server) open(w http.ResponseWriter, r *http.Request, org, project, name string) {
 	if !s.authorize(w, r) {
 		return
@@ -144,7 +159,7 @@ func (s *Server) open(w http.ResponseWriter, r *http.Request, org, project, name
 		s.addOpen(org, project, name)
 		return
 	}
-	id, _ := s.snapshot(org, project, name, env)
+	id, _ := s.snapshot(org, project, name, env, r.PathValue("version"))
 	s.addOpen(org, project, name)
 	writeJSON(w, http.StatusOK, map[string]string{"id": id})
 }
@@ -194,13 +209,16 @@ func (s *Server) handleHead(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	s.heads[refKey(org, project, name)]++
-	etag := env.ETag
+	etag, after := env.ETag, env.AfterHead
 	s.mu.Unlock()
 	if writeStatus(w, env) {
 		return
 	}
 	if etag != "" {
 		w.Header().Set("ETag", etag)
+	}
+	if after != nil {
+		after()
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -222,6 +240,7 @@ func (s *Server) handleTag(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.tagReads[refKey(org, project, name)]++
 	revision, ok := env.Tags[r.PathValue("tag")]
+	after := env.AfterTag
 	s.mu.Unlock()
 	if writeStatus(w, env) {
 		return
@@ -229,6 +248,9 @@ func (s *Server) handleTag(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		writeMissing(w)
 		return
+	}
+	if after != nil {
+		after()
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"revision": revision,
@@ -259,9 +281,16 @@ func (s *Server) addOpen(org, project, name string) {
 	s.mu.Unlock()
 }
 
-func (s *Server) snapshot(org, project, name string, env *Environment) (string, []byte) {
+func (s *Server) snapshot(org, project, name string, env *Environment, version string) (string, []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if revision, err := strconv.Atoi(version); err == nil {
+		if vars, ok := env.Versions[revision]; ok {
+			versioned := *env
+			versioned.Variables = vars
+			env = &versioned
+		}
+	}
 	s.nextID++
 	id := "open-" + strconv.Itoa(s.nextID)
 	openN := s.opens[refKey(org, project, name)] + 1

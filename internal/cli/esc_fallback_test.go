@@ -3,7 +3,9 @@ package cli_test
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -118,6 +120,8 @@ func assertESCFallback(t *testing.T, tc escFallbackCase) {
 	t.Setenv("FINFOCUS_PROJECT_DIR", "")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_LOG_LEVEL", "debug")
+	t.Setenv("FINFOCUS_RECORDER_OUTPUT_DIR", t.TempDir())
+	installRecorderPlugin(t, home)
 	tc.env(t, api)
 
 	plan := escAbsPlan(t)
@@ -149,12 +153,32 @@ func TestESCNoEnvironmentMakesNoRequests(t *testing.T) {
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("PULUMI_ACCESS_TOKEN", "tok")
 	t.Setenv("PULUMI_BACKEND_URL", api.URL)
+	t.Setenv("FINFOCUS_RECORDER_OUTPUT_DIR", t.TempDir())
+	installRecorderPlugin(t, home)
 	project := escWriteProject(t, "config: {}\n")
 	result := runProjectedIn(t, project, escAbsPlan(t))
 	require.Equal(t, 0, result.ExitCode, "stderr: %s", result.Stderr)
 	assert.Equal(t, 0, api.Requests())
 	assert.NotContains(t, string(result.Stderr), "Warning: ESC")
 	assert.NotContains(t, string(result.Stdout), escFixtureSecret)
+}
+
+func TestESCNoPluginMakesNoRequests(t *testing.T) {
+	t.Cleanup(pulumidetect.SetRunnerForTest(escCLIRunner{t: t}))
+	api := esctest.New("tok", map[string]*esctest.Environment{
+		"acme/billing/prod": {ETag: "e1", Variables: map[string]esctest.Variable{"TOKEN": {Value: escFixtureSecret}}},
+	})
+	t.Cleanup(api.Close)
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv("PULUMI_HOME", t.TempDir())
+	t.Setenv("FINFOCUS_PROJECT_DIR", "")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Setenv("PULUMI_ACCESS_TOKEN", "tok")
+	t.Setenv("PULUMI_BACKEND_URL", api.URL)
+	project := escWriteProject(t, "environment:\n  - acme/billing/prod\n")
+	result := runProjectedIn(t, project, escAbsPlan(t))
+	require.Equal(t, 0, result.ExitCode, "stderr: %s", result.Stderr)
+	assert.Equal(t, 0, api.Requests(), "no plugin launches, so nothing needs the values")
 }
 
 func TestEmptyESCDeliveryMatchesNoSource(t *testing.T) {
@@ -213,4 +237,26 @@ type escCLIRunner struct {
 func (r escCLIRunner) Run(context.Context, string, string, []string, ...string) ([]byte, []byte, error) {
 	r.t.Fatal("pulumi CLI was invoked")
 	return nil, nil, nil
+}
+
+func installRecorderPlugin(t *testing.T, home string) {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	root := filepath.Join(filepath.Dir(file), "..", "..")
+	dir := filepath.Join(home, "plugins", "recorder", "0.1.0")
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	name := "finfocus-plugin-recorder"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	build := exec.CommandContext(
+		context.Background(), "go", "build", "-o", filepath.Join(dir, name), "./plugins/recorder/cmd",
+	)
+	build.Dir = root
+	output, err := build.CombinedOutput()
+	require.NoError(t, err, "building the recorder plugin: %s", output)
+	manifest, err := os.ReadFile(filepath.Join(root, "plugins", "recorder", "plugin.manifest.json"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "plugin.manifest.json"), manifest, 0o600))
 }

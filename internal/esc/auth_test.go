@@ -141,13 +141,13 @@ func TestDiscoverUnusableCredentials(t *testing.T) {
 
 	t.Run("credentials path then home", func(t *testing.T) {
 		t.Parallel()
-		path := filepath.Join(t.TempDir(), "creds.json")
-		writeJSON(t, path, map[string]any{
+		dir := t.TempDir()
+		writeJSON(t, filepath.Join(dir, "credentials.json"), map[string]any{
 			"current":      "https://api.pulumi.com",
 			"accessTokens": map[string]string{"https://api.pulumi.com": "from-path"},
 		})
 		session, fail := discover(getenv(map[string]string{
-			"PULUMI_CREDENTIALS_PATH": path,
+			"PULUMI_CREDENTIALS_PATH": dir,
 			"PULUMI_HOME":             t.TempDir(),
 		}), "")
 		require.Nil(t, fail)

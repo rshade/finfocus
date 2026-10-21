@@ -321,7 +321,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   reference, and the revision key, never the value. The `esc` config section
   is top-level because `plugins.<name>` is injected as environment. The
   selected stack comes from the Pulumi workspace file unless `--stack` is set.
-  The ESC SDK client is hand-built (`Servers` = `<backend>/api/esc`, no
+  `PULUMI_CREDENTIALS_PATH` is a directory holding `credentials.json`, as in
+  the Pulumi SDK. Workspace stack selection uses the same active backend as ESC
+  auth (`PULUMI_BACKEND_URL`, `backend.url`, `credentials.json` `current`) and
+  never falls back to another backend's stack. A value is read at a pinned
+  revision (tag to number, `latest` ETag checked before and after the open); an
+  unknown revision is an ESC failure. The ESC SDK client is hand-built (`Servers` = `<backend>/api/esc`, no
   redirects, token on the context). Open calls use `recover()` because a
   non-string trace panics the SDK. Never read `GenericOpenAPIError.Body()`.
 - After `GetPluginInfo` (5s, request `*proto.Empty`), `NewClient` restarts

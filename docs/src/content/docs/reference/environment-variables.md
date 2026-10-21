@@ -29,10 +29,10 @@ not write Pulumi's credential files.
 
 | Variable | Why finfocus reads it |
 | --- | --- |
-| `PULUMI_ACCESS_TOKEN` | Pulumi Cloud token. Used when the credentials file has no token for the selected backend. A keychain-encrypted login has nothing finfocus can read, so set this. |
+| `PULUMI_ACCESS_TOKEN` | Pulumi Cloud token. Wins over a token saved in `credentials.json`, except for a backend chosen by `backend.url` in `Pulumi.yaml`, which uses only its saved token. A keychain-encrypted login has nothing finfocus can read, so set this. |
 | `PULUMI_BACKEND_URL` | Pulumi Cloud API to open. Wins over `backend.url` in `Pulumi.yaml` and over `credentials.json`. |
 | `PULUMI_HOME` | Directory of `credentials.json` and the workspace file that names the selected stack. |
-| `PULUMI_CREDENTIALS_PATH` | Alternate path to `credentials.json`. |
+| `PULUMI_CREDENTIALS_PATH` | Alternate directory that holds `credentials.json`. Wins over `PULUMI_HOME`. |
 | `PULUMI_DEFAULT_ORGANIZATION` | Organization for a reference that does not include one, when the stack name does not supply it either. |
 
 A `backend.url` in `Pulumi.yaml` does not receive `PULUMI_ACCESS_TOKEN`. For a

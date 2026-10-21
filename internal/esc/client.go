@@ -12,6 +12,8 @@ import (
 	sdk "github.com/pulumi/esc-sdk/sdk/go"
 )
 
+var errRevisionMoved = errors.New("esc environment changed while it was opened")
+
 type sdkClient struct {
 	api   *sdk.EscClient
 	token string
@@ -76,13 +78,31 @@ func (c *sdkClient) open(ctx context.Context, ref Ref) (vars map[string]entry, r
 			err = panicError{}
 		}
 	}()
-	vars, err = c.read(ctx, ref)
+	revision, latest, pinErr := c.pin(ctx, ref)
+	if pinErr != nil && !latest {
+		return nil, "", pinErr
+	}
+	pinned := ref
+	if !latest {
+		pinned.Version = revision
+	}
+	// A failed HEAD has no body to classify, so latest reads first and lets a
+	// 401, 403 or 404 from the open report its own category.
+	vars, err = c.read(ctx, pinned)
 	if err != nil {
 		return nil, "", err
 	}
-	revision, keyErr := c.revisionKey(ctx, ref)
-	if keyErr != nil {
-		return vars, "", nil
+	if pinErr != nil {
+		return nil, "", pinErr
+	}
+	if latest {
+		after, afterErr := c.etag(ctx, ref)
+		if afterErr != nil {
+			return nil, "", afterErr
+		}
+		if after != revision {
+			return nil, "", errRevisionMoved
+		}
 	}
 	return vars, revision, nil
 }
@@ -105,14 +125,20 @@ func (c *sdkClient) openEnvironment(ctx context.Context, ref Ref) (*sdk.Environm
 	return env, err
 }
 
-func (c *sdkClient) revisionKey(ctx context.Context, ref Ref) (string, error) {
+// pin returns the revision the values must be read at, and whether that
+// revision is the ETag of latest. A tag resolves to its numeric revision, so
+// the read cannot see a later move. Latest has no numeric handle: its ETag is
+// read here and checked again after the read.
+func (c *sdkClient) pin(ctx context.Context, ref Ref) (string, bool, error) {
 	switch {
 	case ref.Version == "" || ref.Version == "latest":
-		return c.etag(ctx, ref)
+		etag, err := c.etag(ctx, ref)
+		return etag, true, err
 	case isRevision(ref.Version):
-		return ref.Version, nil
+		return ref.Version, false, nil
 	default:
-		return c.tagRevision(ctx, ref)
+		revision, err := c.tagRevision(ctx, ref)
+		return revision, false, err
 	}
 }
 
@@ -122,7 +148,11 @@ func (c *sdkClient) etag(ctx context.Context, ref Ref) (string, error) {
 	if err != nil || resp == nil || resp.StatusCode >= 300 {
 		return "", errOrStatus(err)
 	}
-	return resp.Header.Get("ETag"), nil
+	etag := resp.Header.Get("ETag")
+	if etag == "" {
+		return "", errOrStatus(nil)
+	}
+	return etag, nil
 }
 
 func (c *sdkClient) tagRevision(ctx context.Context, ref Ref) (string, error) {
@@ -130,7 +160,7 @@ func (c *sdkClient) tagRevision(ctx context.Context, ref Ref) (string, error) {
 		c.authContext(ctx), ref.Org, ref.Project, ref.Name, ref.Version,
 	).Execute()
 	defer closeResponse(resp)
-	if err != nil || tag == nil {
+	if err != nil || tag == nil || tag.Revision <= 0 {
 		return "", errOrStatus(err)
 	}
 	return strconv.FormatInt(int64(tag.Revision), 10), nil
