@@ -287,3 +287,11 @@ test('list recovery preserves a baseline unavailable marker from the updated API
  assert.equal(mode.value,'opaque-mode');assert.equal(t.container.querySelector('.totals-bar').textContent,'');
  assert.ok(t.container.querySelectorAll('.estimate-input').length>0);t.mounted.unmount();
 });
+test('reserved terraform metadata is not offered as an editable property',async()=>{
+ const t=await setup('estimate');
+ t.calls[0].resolve({resources:[{id:'aws_instance.web',type:'aws:ec2/instance:Instance'}]});await flush();
+ const base=baseline();base.display.properties=[{key:'terraform:address',originalValue:'aws_instance.web',currentValue:'aws_instance.web',delta:''},{key:'size',originalValue:'2',currentValue:'2',delta:''}];
+ t.calls[1].resolve(base);await flush();
+ const keys=t.container.querySelectorAll('.estimate-input').map(n=>n.dataset.key);
+ assert.deepEqual(keys,['size']);t.mounted.unmount();
+});

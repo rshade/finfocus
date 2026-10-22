@@ -322,6 +322,63 @@ test('preview is offered only for a ready state-only run and clears after a prev
   t.mounted.unmount();
 });
 
+test('a disabled preview button says why for a session that already planned', async () => {
+  const t = await setup();
+  const button = t.container.querySelector('.preview-button');
+  const reason = t.container.querySelector('.preview-reason');
+  t.stream.emit('snapshot', { phases: [], rows: [row('aws_instance.web')], ready: true, stateOnly: false, previewLoaded: false, detectFailed: false, footnote: '' });
+  await flush();
+  assert.equal(button.disabled, true);
+  assert.doesNotMatch(button.attrs['aria-label'], /pulumi/i);
+  assert.equal(button.attrs['aria-describedby'], reason.id);
+  assert.equal(reason.hidden, false);
+  assert.match(reason.textContent, /already included/);
+  assert.equal(button.attrs.title, reason.textContent);
+  t.stream.emit('run_status', { stateOnly: true, previewLoaded: false, detectFailed: false, footnote: '' });
+  await flush();
+  assert.equal(button.disabled, false);
+  assert.equal(reason.hidden, true);
+  assert.equal(button.attrs.title, undefined);
+  t.mounted.unmount();
+});
+
+test('a row with no projected price reads as unavailable, not zero or a dash', async () => {
+  const t = await setup();
+  const priced = row('aws_instance.web', { status: 'creating', projected: 7.59 });
+  const free = row('aws_s3_bucket.free', { status: 'creating', projected: 0, projectedDisplay: '$0.00' });
+  const unpriced = row('aws_s3_bucket.assets', { status: 'creating', projectedDisplay: '-' });
+  const deleting = row('aws_old', { status: 'deleting', projectedDisplay: '-' });
+  const failed = row('aws_bad', { status: 'creating', hasError: true, projectedDisplay: 'ERR' });
+  t.stream.emit('snapshot', { phases: [], rows: [], ready: true });
+  await flush();
+  t.calls.at(-1)?.resolve?.(page([priced, free, unpriced, deleting, failed]));
+  await flush();
+  const cells = (urn) => t.container.querySelector(`tr[data-urn="${urn}"]`).querySelectorAll('.col-num');
+  const projectedOf = (urn) => cells(urn)[1];
+  assert.equal(projectedOf('aws_instance.web').textContent, '$25.00');
+  assert.equal(projectedOf('aws_s3_bucket.free').textContent, '$0.00');
+  assert.equal(projectedOf('aws_s3_bucket.assets').classList.contains('price-unavailable'), true);
+  assert.match(projectedOf('aws_s3_bucket.assets').textContent, /Price unavailable/);
+  assert.equal(projectedOf('aws_old').classList.contains('price-unavailable'), false);
+  assert.equal(projectedOf('aws_bad').classList.contains('price-unavailable'), false);
+  t.mounted.unmount();
+});
+
+test('a long address keeps its full value for selectors and offers break points', async () => {
+  const t = await setup();
+  const address = 'module.network.aws_instance.web["a-b"]';
+  t.stream.emit('snapshot', { phases: [], rows: [], ready: true });
+  await flush();
+  t.calls.at(-1)?.resolve?.(page([row(address)]));
+  await flush();
+  const tr = t.container.querySelector(`tr[data-urn="${address}"]`);
+  const link = tr.querySelector('.resource-link');
+  assert.equal(link.textContent, address);
+  assert.equal(link.attrs.title, address);
+  assert.ok(link.children.some((child) => child.tagName === 'wbr'));
+  t.mounted.unmount();
+});
+
 test('a remount after preview keeps the preview gate closed', async () => {
   const t = await setup();
   t.stream.emit('snapshot', {

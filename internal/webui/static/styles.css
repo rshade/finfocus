@@ -234,6 +234,28 @@ button:disabled {
   color: var(--accent-fg);
 }
 
+.preview-reason {
+  align-self: center;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+
+.price-unavailable {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .preview-button:hover:not(:disabled),
 .dialog-submit:hover:not(:disabled) {
   background: var(--accent-hover);
@@ -340,6 +362,7 @@ button:disabled {
 }
 
 .col-resource {
+  min-width: 12rem;
   max-width: 28rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -383,7 +406,7 @@ button:disabled {
   text-underline-offset: 2px;
   white-space: normal;
   text-align: left;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .resource-link:hover:not(:disabled) {
