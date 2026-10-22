@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3](https://github.com/rshade/finfocus/compare/v0.5.2...v0.5.3) (2026-10-22)
+
+
+### Documentation
+
+* **specs:** add analyzer language plugin spec for Pulumi 3.270+ ([#1900](https://github.com/rshade/finfocus/issues/1900)) ([0efe9bb](https://github.com/rshade/finfocus/commit/0efe9bb4d1c9a465ab9a5d036a7f021b4bce6aca)), closes [#1895](https://github.com/rshade/finfocus/issues/1895)
+* tell the two installation pages apart ([#1898](https://github.com/rshade/finfocus/issues/1898)) ([da406d0](https://github.com/rshade/finfocus/commit/da406d0113ddb8ec1250909bd29add1429d6e3ec))
+
 ## [0.5.2](https://github.com/rshade/finfocus/compare/v0.5.1...v0.5.2) (2026-10-22)
 
 
