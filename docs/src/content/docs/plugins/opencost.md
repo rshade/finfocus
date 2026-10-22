@@ -8,9 +8,17 @@ nav_order: 12
 ## Overview
 
 The `opencost` plugin reads Kubernetes allocation cost over HTTP from an
-[OpenCost](https://www.opencost.io/) endpoint and serves it to FinFocus. It
+[OpenCost](https://opencost.io/) endpoint and serves it to FinFocus. It
 reports what the cluster actually spent per namespace, controller, pod, or
-node, so it is the source for Kubernetes actual cost.
+node, so it is the source for Kubernetes actual cost. For cluster-level allocation
+see the [Kubernetes cluster costs guide](../guides/cluster-costs.md).
+
+**About OpenCost:** [opencost.io](https://opencost.io/), the
+[OpenCost documentation](https://opencost.io/docs/), and the
+[opencost/opencost repository on GitHub](https://github.com/opencost/opencost).
+[Kubecost](https://www.apptio.com/products/kubecost/) is the commercial
+product built on OpenCost. Its kubecost.com address now redirects to Apptio's
+Kubecost page.
 
 It needs a reachable OpenCost allocation API. It does not read cloud provider
 credentials. With the default `opencost` profile it sends no token.
@@ -80,7 +88,9 @@ for every key.
 
 ## Supported Providers
 
-The registry lists provider `kubernetes`.
+The registry lists provider `kubernetes`. Resource types follow the
+[Kubernetes](https://kubernetes.io/docs/concepts/overview/) objects Pulumi
+manages.
 
 ## Supported Resource Types
 

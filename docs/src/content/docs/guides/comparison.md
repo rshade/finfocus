@@ -2,7 +2,9 @@
 title: Competitive Comparison
 ---
 
-FinFocus is designed specifically for the Pulumi ecosystem, offering unique advantages over generic cost estimation tools.
+FinFocus is designed specifically for the [Pulumi](https://www.pulumi.com/) ecosystem,
+offering unique advantages over generic cost estimation tools such as
+[Infracost](https://www.infracost.io/).
 
 ## Feature Comparison
 
@@ -33,5 +35,7 @@ core team to implement it.
 
 FinFocus aims to close the loop between what you _think_ you will spend
 (Projected) and what you _actually_ spend (Actual). By integrating with
-providers like Vantage or AWS Cost Explorer (via plugins), you get a complete
+providers like [Vantage](../plugins/vantage.md) or
+[AWS Cost Explorer](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-what-is.html)
+(via plugins), you get a complete
 financial picture.

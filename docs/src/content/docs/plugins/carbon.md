@@ -6,8 +6,8 @@ layout: "docs"
 
 ## Overview
 
-The carbon plugin estimates operational emissions for EC2 t3, m5, c5, and r5
-instances using a pinned Cloud Carbon Footprint dataset. It works offline without
+The carbon plugin estimates operational emissions for [Amazon EC2](https://aws.amazon.com/ec2/) t3, m5, c5, and r5
+instances using a pinned [Cloud Carbon Footprint](https://www.cloudcarbonfootprint.org/) dataset. It works offline without
 AWS credentials. Core adds carbon to the monetary result while retaining its
 amount, currency, source, and resource count.
 
@@ -42,7 +42,7 @@ power, and provisioned memory is not scaled by CPU utilization.
 The canonical `carbon_footprint` metric contains a monthly total in `gCO2e`, based
 on 730 hours. At the default utilization, t3.medium in us-east-1 estimates
 1437.00152 grams CO2e/month. Existing output converts qualifying totals into
-carbon equivalencies. A monetary source's existing carbon takes precedence;
+[carbon equivalencies](../guides/greenops-equivalencies.md). A monetary source's existing carbon takes precedence;
 carbon failures do not discard successful monetary prices.
 
 Carbon enrichment runs again on monetary cache hits, so changed assumptions take

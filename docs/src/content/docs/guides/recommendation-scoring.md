@@ -22,7 +22,8 @@ snoozes, hides or applies a recommendation because of a score.
 - A scorer plugin installed under `~/.finfocus/plugins/<name>/<version>/` that advertises the
   `recommendation_scoring` capability. Build the backend-neutral `scorer` from source with `make install-scorer`
   while its first public release is pending. It uses `SCORER_API_KEY` and supports Jev or Clef. Hosted Jev sends data
-  to TypeSafe AI; hosted Clef sends it to Cloudflare (identifiers are pseudonymized by default). See the
+  to [TypeSafe AI](https://typesafe.ai/); hosted Clef sends it to
+  [Cloudflare](https://blog.cloudflare.com/clef-decision-models/) (identifiers are pseudonymized by default). See the
   [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer).
 - At least one cost-source plugin that returns recommendations
 
