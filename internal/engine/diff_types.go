@@ -46,6 +46,9 @@ type DiffResult struct {
 	Errors  []ErrorDetail
 	// Profile is the resolved usage profile for this diff. "default" is no preference.
 	Profile string
+	// EmptyPlan is set by the caller when the plan held nothing to price, so a
+	// $0 total is not mistaken for an estimate.
+	EmptyPlan bool
 }
 
 // AfterCosts returns the after-change cost of every entry.

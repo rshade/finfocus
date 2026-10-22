@@ -1,0 +1,23 @@
+{
+  "steps": [
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+      "newState": {
+        "urn": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "type": "pulumi:pulumi:Stack",
+        "inputs": {},
+        "outputs": {}
+      },
+      "oldState": {
+        "urn": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "type": "pulumi:pulumi:Stack",
+        "inputs": {},
+        "outputs": {}
+      }
+    }
+  ],
+  "changeSummary": {
+    "same": 59
+  }
+}

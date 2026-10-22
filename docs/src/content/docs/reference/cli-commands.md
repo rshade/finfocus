@@ -184,6 +184,13 @@ finfocus overview --from 2026-01-01 --to 2026-01-31 --plain --yes
 Calculate estimated costs from Pulumi plan. When `--pulumi-json` is omitted,
 FinFocus auto-detects the Pulumi project and runs `pulumi preview --json`.
 
+A default `pulumi preview --json` omits unchanged resources, so a plan can hold nothing
+to price. In that case `cost projected` prints a warning on stderr and, with
+`--output json`, sets `finfocus.emptyPlan` to `true`; the `$0` total is not an estimate.
+Make the plan with `pulumi preview --json --show-sames` to price the whole stack, or run
+`finfocus overview`, which reads the stack state. A result emptied by `--filter` is not
+flagged.
+
 ### Usage (cost projected)
 
 ```bash

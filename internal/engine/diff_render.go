@@ -151,6 +151,7 @@ type projectedDiffDocument struct {
 	Summary   CostSummary             `json:"summary"`
 	Resources []projectedDiffResource `json:"resources"`
 	Diff      DiffSummary             `json:"diff"`
+	EmptyPlan bool                    `json:"emptyPlan,omitempty"`
 	Profile   string                  `json:"profile"`
 	Errors    []diffErrorJSON         `json:"errors,omitempty"`
 }
@@ -170,6 +171,7 @@ func renderDiffJSON(w io.Writer, diff *DiffResult) error {
 		Summary:   aggregated.Summary,
 		Resources: make([]projectedDiffResource, 0, len(diff.Entries)),
 		Diff:      diff.Summary,
+		EmptyPlan: diff.EmptyPlan,
 		Profile:   displayedProfile(diff.Profile),
 		Errors:    diffErrorsJSON(diff.Errors),
 	}
