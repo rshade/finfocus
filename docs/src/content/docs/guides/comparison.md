@@ -1,5 +1,6 @@
 ---
 title: Competitive Comparison
+description: Compare FinFocus with Infracost and cloud provider calculators for Pulumi cost estimation, covering Pulumi support, plugins, actual costs and licensing.
 ---
 
 FinFocus is designed specifically for the [Pulumi](https://www.pulumi.com/) ecosystem,

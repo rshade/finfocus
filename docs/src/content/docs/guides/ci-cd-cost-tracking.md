@@ -1,6 +1,6 @@
 ---
 title: CI/CD Cost Tracking
-description: Record a cost history snapshot after every Pulumi deploy
+description: Run finfocus cost history collect after each pulumi up in CI to save a projected-cost snapshot, then view, diff and list cost history across deploys.
 ---
 
 Run `finfocus cost history collect` as a post-deploy step so each successful

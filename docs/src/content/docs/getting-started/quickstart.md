@@ -1,6 +1,6 @@
 ---
 title: 5-Minute Quickstart
-description: Get started with FinFocus in 5 minutes
+description: Install FinFocus with one command, run it in any Pulumi project directory, and see projected cloud costs for your infrastructure in about five minutes.
 ---
 
 Get FinFocus running and see your first cost dashboard in just 5 minutes.

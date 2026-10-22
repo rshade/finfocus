@@ -7,6 +7,19 @@ import { fileURLToPath } from 'node:url';
 import { relativeMdLinks } from './src/plugins/relative-md-links.mjs';
 
 const base = '/finfocus';
+const siteUrl = 'https://rshade.github.io';
+const ogImage = `${siteUrl}${base}/og-image.png`;
+
+const excludedFromSitemap = [
+  /(^|\/)readme\/$/,
+  /^\/installation\/$/,
+  /^\/troubleshooting\/$/,
+  /^\/github-pages-setup\/$/,
+  /^\/plan\/$/,
+  /^\/getting-started-dev\/$/,
+  /^\/table-of-contents\/$/,
+  /^\/testing\//,
+];
 
 // https://astro.build/config
 export default defineConfig({
@@ -35,6 +48,15 @@ export default defineConfig({
         },
       ],
       head: [
+        { tag: 'meta', attrs: { property: 'og:image', content: ogImage } },
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:image:alt',
+            content: 'FinFocus: Estimate Pulumi costs before you deploy',
+          },
+        },
+        { tag: 'meta', attrs: { name: 'twitter:image', content: ogImage } },
         {
           tag: 'link',
           attrs: {
@@ -140,6 +162,11 @@ export default defineConfig({
         },
       ],
     }),
-    sitemap(),
+    sitemap({
+      filter: (page) => {
+        const path = new URL(page).pathname.replace(/^\/finfocus/, '');
+        return !excludedFromSitemap.some((rule) => rule.test(path));
+      },
+    }),
   ],
 });
