@@ -183,7 +183,7 @@ overwhelming the summary.
 
 ```text
 Total Estimated Monthly Cost: $500.00 USD (10 resources analyzed) |
-  3 recommendations with $125.00/mo potential savings
+  3 recommendations, up to $125.00/mo potential savings
 ```
 
 **Edge cases**:
