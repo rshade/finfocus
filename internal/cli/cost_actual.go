@@ -572,6 +572,13 @@ func loadActualResources(
 	}
 
 	// Auto-detect from Pulumi project (neither --pulumi-json nor --pulumi-state provided)
+	source, detectErr := DetectProjectSource(".")
+	if detectErr != nil {
+		return nil, fmt.Errorf("find pulumi project: %w", detectErr)
+	}
+	if source.Kind == ProjectKindTerraform {
+		return nil, errTerraformActual
+	}
 	stackFlag, err := cmd.Flags().GetString("stack")
 	if err != nil {
 		return nil, fmt.Errorf("reading --stack flag: %w", err)
@@ -833,8 +840,16 @@ func MergeHistoricalResources(
 // with ax.ExitValidation. Auto-detected Pulumi project failures are returned
 // unchanged.
 func wrapActualLoadError(ctx context.Context, params costActualParams, err error) error {
-	if params.terraformState != "" || params.statePath != "" || params.planPath != "" {
+	userFile := params.terraformState != "" || params.statePath != "" || params.planPath != ""
+	if errors.Is(err, errTerraformActual) || errors.Is(err, ErrNoProjectMarker) || userFile {
 		return toValidationError(ctx, err)
 	}
 	return err
 }
+
+// The sentence is the contract hint, including its capitalization and period.
+//
+//nolint:staticcheck,revive // contract text is shown to the user unchanged
+var errTerraformActual = errors.New(
+	"This directory is Terraform. Pass --terraform-state with a state file. FinFocus does not run a plan for actual cost.",
+)

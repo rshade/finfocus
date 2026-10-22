@@ -806,6 +806,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 1732-terraform-plan-ingestion: Terraform plan mode parses `terraform show -json` through in-process `pluginsdk.CostParseProvider` (`ParseRequest` / `ParseResponse` plus `ValidateParseRequest` and `ValidateParseResponse`). Not served as `CostParseService`. `ParseResponse` has no operation; the host keeps `map[source_id]operation` beside it. `resource_type` stays the Terraform type and `ResolveResourceTypes` still runs after validation (`specs/1732-terraform-plan-ingestion/`). Terraform 1.16 records data sources on `prior_state`, not `resource_changes`; the committed plan fixture copies those emitted data resources into `resource_changes` with action `read`. `cost projected` plans a Terraform directory or reads `--terraform-plan`. Overview, estimate, recommendations, forecast, cost history, and `--web` also plan a detected Terraform directory. `cost actual` and `cost history collect` do not plan.
 - 1730-pulumi-esc-plugin-credentials: Pulumi ESC `environmentVariables` as the highest-precedence plugin env source, per-plugin allowlist, fallback with categorized warnings (`specs/1730-pulumi-esc-plugin-credentials/`)
 - 1729-recommendation-history: `cost recommendations history` merges plugin lifecycle events, including actor (`specs/1729-recommendation-history/`)
 - 630-usage-profile: `--profile` / `FINFOCUS_PROFILE` / `cost.profile` sent on projected cost and recommendations (`specs/630-usage-profile/`)

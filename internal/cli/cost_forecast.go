@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -56,6 +57,12 @@ func newCostForecastCmd(deps forecastDeps) *cobra.Command {
 		Long: `Project the after-change monthly cost forward by month.
 
 The current price comes from the same plan or state as cost projected.
+A Terraform directory runs OpenTofu plan and show without init.
+--terraform-plan reads saved show -json output; --terraform-state keeps reading
+state without planning. Infrastructure input flags are mutually exclusive.
+--include-workspace overrides cost.terraform.include_workspace for this run's
+Terraform history identity. Pulumi ignores the setting.
+
 Each plugin reports a growth model (none, linear, or exponential). Pass
 --growth-rate to apply that model. The monthly price itself does not change.
 
@@ -73,9 +80,14 @@ uses the same currency. A missing history file does not fail the command.`,
 		String("pulumi-json", "", "Path to Pulumi preview JSON output (optional; auto-detected from Pulumi project if omitted)")
 	cmd.Flags().
 		String("terraform-state", "", "Path to a Terraform state file (terraform.tfstate); mutually exclusive with --pulumi-json")
+	cmd.Flags().
+		String("terraform-plan", "", "Path to tofu show -json output; does not run tofu")
+	cmd.Flags().String("pulumi-state", "", "Path to Pulumi stack export JSON")
+	addIncludeWorkspaceFlag(cmd)
 	cmd.Flags().String("spec-dir", "", "Directory containing pricing spec files")
 	cmd.Flags().String("adapter", "", "Use only the specified adapter plugin")
-	cmd.Flags().StringArray("filter", nil, "Resource filter expressions (e.g., 'type=aws:ec2/instance')")
+	cmd.Flags().
+		StringArray("filter", nil, "Resource filter expressions (e.g., 'type=aws:ec2/instance')")
 	cmd.Flags().IntP("jobs", "j", 0, "Number of parallel workers (0 = auto based on CPU count)")
 	cmd.Flags().
 		Int("months", forecast.DefaultMonths, "Months ahead to project, from 1 to 36, including the current month as the start")
@@ -119,6 +131,9 @@ func runForecast(cmd *cobra.Command, deps forecastDeps) error {
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return err
+	}
+	if len(costs) == 0 && terraformProjectionSelected(cmd) {
+		return projectedUnchanged(ctx, cmd, audit)
 	}
 	projection, historySeries, err := assembleForecast(cmd, deps, costs, growthType, rate, months)
 	if err != nil {
@@ -197,7 +212,10 @@ func forecastOutputFormat(cmd *cobra.Command) (string, error) {
 	case forecastOutputPlain, forecastOutputJSON, forecastOutputNDJSON:
 		return format, nil
 	default:
-		return "", fmt.Errorf("unsupported output format: %s (supported: plain, json, ndjson)", format)
+		return "", fmt.Errorf(
+			"unsupported output format: %s (supported: plain, json, ndjson)",
+			format,
+		)
 	}
 }
 
@@ -210,7 +228,10 @@ func forecastGrowth(cmd *cobra.Command) (string, *float64, error) {
 	switch kind {
 	case "", forecast.GrowthNone, forecast.GrowthLinear, forecast.GrowthExponential:
 	default:
-		return "", nil, fmt.Errorf("invalid growth type %q (supported: none, linear, exponential)", kind)
+		return "", nil, fmt.Errorf(
+			"invalid growth type %q (supported: none, linear, exponential)",
+			kind,
+		)
 	}
 	raw, err := cmd.Flags().GetString("growth-rate")
 	if err != nil {
@@ -267,8 +288,12 @@ func forecastCosts(
 	if err != nil {
 		return nil, err
 	}
+	tfPlan, _ := cmd.Flags().GetString("terraform-plan")
+	pulumiState, _ := cmd.Flags().GetString("pulumi-state")
 	params := costProjectedParams{
-		planPath:       plan,
+		terraformPlan:  tfPlan,
+		pulumiState:    pulumiState,
+		pulumiJSONPath: plan,
 		terraformState: tfState,
 		specDir:        specDir,
 		adapter:        adapter,
@@ -278,33 +303,48 @@ func forecastCosts(
 	if err = validateCostProjectedParams(params); err != nil {
 		return nil, toValidationError(ctx, err)
 	}
-	resources, err := loadProjectedResources(ctx, cmd, params, audit)
+	resources, unchanged, err := loadProjectedResources(ctx, cmd, params, audit)
 	if err != nil {
-		if params.terraformState != "" || params.planPath != "" {
+		if errors.Is(err, ErrNoProjectMarker) || params.terraformState != "" || params.pulumiJSONPath != "" ||
+			params.terraformPlan != "" ||
+			params.pulumiState != "" {
 			return nil, toValidationError(ctx, err)
 		}
 		return nil, err
+	}
+	if unchanged {
+		return nil, nil
 	}
 	resources, err = ApplyFilters(ctx, resources, params.filter)
 	if err != nil {
 		return nil, toValidationError(ctx, fmt.Errorf("applying filters: %w", err))
 	}
-	cfg := config.GetGlobalConfig()
-	if specDir == "" && cfg != nil {
-		specDir = cfg.SpecDir
-	}
+	cfg, specDir := forecastPricingConfig(specDir)
 	clients, cleanup, err := openPlugins(ctx, adapter, audit)
 	if err != nil {
 		return nil, err
 	}
 	defer cleanup()
-	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
+	eng, cacheStore, cacheCleanup := newEngineWithCache(
+		ctx,
+		cmd,
+		clients,
+		spec.NewLoader(specDir),
+		cfg,
+	)
 	defer cacheCleanup()
 	if profileErr := applyUsageProfile(cmd, eng, cfg); profileErr != nil {
 		return nil, toValidationError(ctx, profileErr)
 	}
 	eng = eng.WithJobs(jobs)
-	resources = prepareForecastResources(ctx, cmd, params.terraformState, clients, cacheStore, resources)
+	resources = prepareForecastResources(
+		ctx,
+		cmd,
+		params.terraformState,
+		clients,
+		cacheStore,
+		resources,
+	)
 	diff, err := eng.GetProjectedCostDiff(ctx, resources)
 	if err != nil {
 		return nil, fmt.Errorf("calculating projected costs: %w", err)
@@ -327,7 +367,11 @@ func prepareForecastResources(
 	return resolveResourceTypes(ctx, clients, store, resources)
 }
 
-func forecastResources(costs []engine.CostResult, growthType string, rate *float64) ([]forecast.Resource, []string) {
+func forecastResources(
+	costs []engine.CostResult,
+	growthType string,
+	rate *float64,
+) ([]forecast.Resource, []string) {
 	resources := make([]forecast.Resource, 0, len(costs))
 	var warnings []string
 	applied := rate
@@ -394,7 +438,11 @@ func forecastCostLabel(cost engine.CostResult) string {
 	return "resource"
 }
 
-func forecastHistorySeries(cmd *cobra.Command, deps forecastDeps, currency string) (forecast.Series, string) {
+func forecastHistorySeries(
+	cmd *cobra.Command,
+	deps forecastDeps,
+	currency string,
+) (forecast.Series, string) {
 	snapshots, err := forecastHistorySnapshots(cmd, deps)
 	if err != nil {
 		return forecast.Series{}, "history: " + err.Error()
@@ -432,7 +480,10 @@ func forecastHistorySeries(cmd *cobra.Command, deps forecastDeps, currency strin
 	return forecast.Series{Name: forecast.SeriesHistory, Points: points}, ""
 }
 
-func forecastHistorySnapshots(cmd *cobra.Command, deps forecastDeps) ([]history.CostSnapshot, error) {
+func forecastHistorySnapshots(
+	cmd *cobra.Command,
+	deps forecastDeps,
+) ([]history.CostSnapshot, error) {
 	if deps.skipHistory {
 		return deps.history, deps.historyErr
 	}
@@ -469,7 +520,11 @@ func optionalStack(cmd *cobra.Command) (string, error) {
 	return strings.TrimSpace(stack), nil
 }
 
-func forecastBudget(cmd *cobra.Command, cfg *config.Config, forecastCurrency string) (float64, string) {
+func forecastBudget(
+	cmd *cobra.Command,
+	cfg *config.Config,
+	forecastCurrency string,
+) (float64, string) {
 	noBudget, err := cmd.Flags().GetBool("no-budget")
 	if err != nil || noBudget {
 		return 0, ""
@@ -517,7 +572,10 @@ func writeForecast(
 	}
 }
 
-func forecastSeriesList(projection forecast.Projection, historySeries forecast.Series) []forecast.Series {
+func forecastSeriesList(
+	projection forecast.Projection,
+	historySeries forecast.Series,
+) []forecast.Series {
 	series := make([]forecast.Series, 0, 1+len(projection.ByProvider)+1)
 	if len(historySeries.Points) > 0 {
 		series = append(series, historySeries)
@@ -535,7 +593,11 @@ type forecastJSON struct {
 	Warnings []string          `json:"warnings,omitempty"`
 }
 
-func forecastDocument(projection forecast.Projection, series []forecast.Series, budget float64) forecastJSON {
+func forecastDocument(
+	projection forecast.Projection,
+	series []forecast.Series,
+	budget float64,
+) forecastJSON {
 	doc := forecastJSON{
 		Currency: projection.Currency,
 		Months:   projection.Months,
@@ -642,4 +704,12 @@ func forecastNoColor(cmd *cobra.Command) bool {
 	plain, _ := cmd.Flags().GetBool("plain")
 	noColor, _ := cmd.Flags().GetBool("no-color")
 	return plain || noColor || os.Getenv("NO_COLOR") != ""
+}
+
+func forecastPricingConfig(specDir string) (*config.Config, string) {
+	cfg := config.GetGlobalConfig()
+	if specDir == "" && cfg != nil {
+		specDir = cfg.SpecDir
+	}
+	return cfg, specDir
 }

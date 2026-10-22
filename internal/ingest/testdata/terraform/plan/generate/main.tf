@@ -1,0 +1,133 @@
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = { source = "hashicorp/aws", version = "5.100.0" }
+    random = { source = "hashicorp/random", version = "3.6.3" }
+    null = { source = "hashicorp/null", version = "3.2.3" }
+    helm = { source = "hashicorp/helm", version = "2.17.0" }
+    time = { source = "hashicorp/time", version = "0.12.1" }
+    tls = { source = "hashicorp/tls", version = "4.0.6" }
+    local = { source = "hashicorp/local", version = "2.5.2" }
+    archive = { source = "hashicorp/archive", version = "2.6.0" }
+    external = { source = "hashicorp/external", version = "2.3.4" }
+    http = { source = "hashicorp/http", version = "3.4.5" }
+    cloudflare = { source = "cloudflare/cloudflare", version = "4.52.0" }
+  }
+}
+
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "mock_access_key"
+  secret_key                  = "mock_secret_key"
+  skip_credentials_validation = true
+  skip_requesting_account_id  = true
+  skip_metadata_api_check     = true
+  skip_region_validation      = true
+
+  endpoints {
+    s3  = var.fixture_endpoint
+    iam = var.fixture_endpoint
+    sts = var.fixture_endpoint
+    ec2 = var.fixture_endpoint
+  }
+}
+
+provider "cloudflare" {
+  api_token    = "abcdefghijklmnopqrstuvwxyz0123456789abcd"
+  api_hostname = var.fixture_endpoint
+}
+
+provider "helm" {
+  kubernetes {
+    host     = var.fixture_endpoint
+    insecure = true
+  }
+}
+
+variable "secret_note" {
+  type      = string
+  sensitive = true
+  default   = "after-secret-2"
+}
+
+resource "aws_s3_bucket" "site" {
+  bucket = "finfocus-plan-fixture-site"
+  tags = {
+    Name = "fixture"
+  }
+}
+
+resource "cloudflare_zone" "site" {
+  account_id = "11111111111111111111111111111111"
+  zone       = "fixture.example.com"
+}
+
+resource "helm_release" "app" {
+  name       = "fixture"
+  chart      = "${path.module}/chart"
+  namespace  = "default"
+}
+
+resource "random_pet" "name" { length = 2 }
+resource "time_static" "stamp" {}
+resource "tls_private_key" "key" { algorithm = "RSA" }
+resource "local_file" "plain" {
+  content  = "plain"
+  filename = "${path.module}/plain.txt"
+}
+resource "local_file" "extra" {
+  content  = "created"
+  filename = "${path.module}/extra.txt"
+}
+resource "random_id" "fresh" { byte_length = 2 }
+resource "terraform_data" "fresh_list" {
+  input = ["fixed", random_id.fresh.hex]
+}
+resource "local_sensitive_file" "secret" {
+  content  = var.secret_note
+  filename = "${path.module}/secret.txt"
+}
+resource "archive_file" "zip" {
+  type        = "zip"
+  output_path = "${path.module}/out.zip"
+  source {
+    content  = "hello"
+    filename = "hello.txt"
+  }
+}
+data "external" "echo" {
+  depends_on = [terraform_data.item]
+  program = ["python3", "${path.module}/echo.py"]
+}
+data "http" "local" {
+  depends_on = [terraform_data.item]
+  url = "${var.fixture_endpoint}/hello?v=2"
+}
+
+resource "terraform_data" "item" {
+  input = var.secret_note
+}
+
+resource "terraform_data" "stable" {
+  input = "stay"
+}
+
+resource "terraform_data" "swap" {
+  input            = "swap"
+  triggers_replace = "two"
+}
+
+resource "terraform_data" "holder" {
+  input = ["fixed", terraform_data.item.output]
+}
+module "net" {
+  source = "./mod"
+  note   = "module"
+}
+
+resource "null_resource" "marker" {}
+
+variable "fixture_endpoint" {
+  type = string
+  default = "http://127.0.0.1:18765"
+}

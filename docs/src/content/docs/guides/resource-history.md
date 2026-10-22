@@ -80,6 +80,35 @@ FinFocus uses a layered query strategy:
 
 ---
 
+## Terraform Projected Cost History
+
+Terraform projections record cost snapshots in the existing cost history database.
+This timeline is separate from the Pulumi resource identity observations described
+above. `cost history view`, `list`, `diff`, `export`, and `prune` open the Terraform
+timeline without running a plan.
+
+By default, the identity combines the normalized Git `origin` with the Terraform
+root's path relative to the Git root, and uses the stack name `unscoped`. Without
+Git or `origin`, it uses the cleaned absolute path. The database filename contains
+a hash; the stored display label contains the path, without the raw remote URL.
+
+To keep separate histories for Terraform workspaces:
+
+```bash
+finfocus cost projected --include-workspace
+finfocus cost history list --include-workspace
+```
+
+Use the same setting when recording and reading snapshots. The flag overrides
+`cost.terraform.include_workspace` for one run; `--include-workspace=false`
+overrides a configured `true`. The workspace command runs only when enabled.
+The workspace name `unscoped` is reserved. Pulumi history identities ignore this
+flag.
+
+`cost history collect` reads Pulumi checkpoints. In a Terraform directory it exits
+2 without running a plan because Terraform plans contain no checkpoint list.
+For actual costs, pass `--terraform-state`; FinFocus does not plan for actual costs.
+
 ## Configuration
 
 ```yaml

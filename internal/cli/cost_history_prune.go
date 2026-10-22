@@ -19,6 +19,7 @@ func NewCostHistoryPruneCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "prune",
 		Short: "Delete old projected-cost snapshots for one stack",
+		Long:  historyReadHelp,
 		Example: `  finfocus cost history prune --stack dev --older-than 365d --dry-run
   finfocus cost history prune --stack dev --keep 100 --force`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -32,7 +33,7 @@ func NewCostHistoryPruneCmd() *cobra.Command {
 }
 
 func runPrune(cmd *cobra.Command, dir string) error {
-	stack, err := requiredStack(cmd)
+	target, err := resolveHistoryCommandTarget(cmd, dir)
 	if err != nil {
 		return err
 	}
@@ -40,11 +41,7 @@ func runPrune(cmd *cobra.Command, dir string) error {
 	if err != nil {
 		return err
 	}
-	target, err := resolveHistoryTarget(dir, stack)
-	if err != nil {
-		return err
-	}
-	path := target.Path
+	stack, path := target.Stack, target.Path
 	if _, statErr := os.Stat(path); statErr != nil {
 		if os.IsNotExist(statErr) {
 			return fmt.Errorf("no cost history for stack %q", stack)
@@ -57,6 +54,9 @@ func runPrune(cmd *cobra.Command, dir string) error {
 	}
 	defer func() { _ = db.Close() }()
 
+	if err = db.SetProjectLabel(target.Label); err != nil {
+		return err
+	}
 	plan, err := db.ApplyPrune(policy, true)
 	if err != nil {
 		return err
@@ -172,7 +172,12 @@ func writeCompactLine(w io.Writer, before, after int64) {
 	fmt.Fprintf(w, "Compacted database: %s → %s\n", formatSize(before), formatSize(after))
 }
 
-func autoPruneCostHistory(cmd *cobra.Command, db *history.CostDB, path string, cfg *config.Config) error {
+func autoPruneCostHistory(
+	cmd *cobra.Command,
+	db *history.CostDB,
+	path string,
+	cfg *config.Config,
+) error {
 	policy, ok := retentionPolicy(cfg, time.Now())
 	if !ok {
 		return nil

@@ -27,7 +27,7 @@ pins the flags and field names.
 | `--pulumi-state <file>`, `--pulumi-json <file>` | Use exported files instead of running Pulumi. |
 | `--adapter <name>` | Use one plugin only. |
 
-`overview` has no `--terraform-state` flag. Without `--output`,
+`overview` accepts `--terraform-state` for a saved state and `--terraform-plan` for saved plan JSON. Without `--output`,
 `--format json` or `AGENT_MODE=1` also select JSON.
 `-o` is not a flag.
 

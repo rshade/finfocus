@@ -11,7 +11,6 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/migration"
-	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 )
 
 // isTerminal checks if the given file is a terminal.
@@ -59,13 +58,18 @@ func NewRootCmdWithArgs(
 	}
 
 	cmd := &cobra.Command{
-		Use:     useName,
-		Short:   "FinFocus CLI and plugin host",
-		Long:    "FinFocus: Calculate projected and actual cloud costs via plugins",
+		Use:   useName,
+		Short: "FinFocus CLI and plugin host",
+		Long: `FinFocus: Calculate projected and actual cloud costs via plugins.
+
+With no subcommand, show overview for a detected Pulumi or Terraform project.
+Terraform projections run OpenTofu plan and show without running init.
+Projection commands accept --terraform-plan for saved show -json output and
+--include-workspace for workspace-scoped Terraform history.`,
 		Version: ver,
 		Example: example,
 		// RunE provides context-aware default behaviour: when the working directory is
-		// inside a Pulumi project, delegate to the overview command for an immediate
+		// inside a Pulumi or Terraform project, delegate to the overview command for an immediate
 		// cost dashboard. Outside a Pulumi project, display help as before.
 		// --help is always handled by Cobra before RunE is reached.
 		RunE: rootRunE(&lifecycle, webFlags, &projectDirFlag, ver),
@@ -171,14 +175,14 @@ func rootRunE(
 	}
 }
 
-// runRootDefault delegates to the overview command inside a Pulumi project
+// runRootDefault delegates to the overview command inside a Pulumi or Terraform project
 // (searched from projectDir, or the working directory) and prints help otherwise.
 func runRootDefault(cmd *cobra.Command, args []string, projectDir string) error {
 	searchDir := projectDir
 	if searchDir == "" {
 		searchDir = "."
 	}
-	if _, err := pulumidetect.FindProject(searchDir); err == nil {
+	if _, err := DetectProjectSource(searchDir); err == nil {
 		return runOverviewDelegation(cmd, args)
 	}
 	return cmd.Help()
@@ -198,7 +202,7 @@ func runOverviewDelegation(cmd *cobra.Command, args []string) error {
 	log.Debug().
 		Str("component", "cli").
 		Str("operation", "root_default").
-		Msg("Pulumi project detected; delegating to overview")
+		Msg("Infrastructure project detected; delegating to overview")
 	overviewCmd := NewOverviewCmd()
 	overviewCmd.SetOut(cmd.OutOrStdout())
 	overviewCmd.SetErr(cmd.ErrOrStderr())

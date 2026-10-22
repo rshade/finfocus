@@ -372,7 +372,7 @@ func TestWebNoProjectFailsLikeOverview(t *testing.T) {
 	defer cancel()
 	err := wait()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "find pulumi project")
+	assert.Contains(t, err.Error(), "Pulumi or Terraform project")
 	assert.NotContains(t, out.String(), "?token=", "no server may start when detection fails")
 }
 

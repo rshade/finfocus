@@ -18,7 +18,10 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/history"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
+	"github.com/rshade/finfocus/internal/terraform"
 )
+
+const historyReadHelp = "Read stored cost history without running a plan. Terraform directories resolve the current project identity without --stack; --include-workspace opts into workspace scoping. Pulumi histories use --stack."
 
 const (
 	historyOutputPlain   = "plain"
@@ -31,11 +34,16 @@ const (
 func NewCostHistoryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "history",
-		Short: "Collect and view projected cost history for a Pulumi stack",
-		Long: `Stores a projected-cost snapshot for each successful Pulumi update and charts
-that timeline offline. collect needs the Pulumi CLI and cost plugins. view,
-list, diff, prune, and export read the per-stack database only.`,
+		Short: "Collect and view projected cost history",
+		Long: `Stores and charts projected-cost timelines offline. collect reads successful
+Pulumi updates and needs the Pulumi CLI and cost plugins. Terraform projections
+are recorded automatically under a stable project identity. view, list, diff,
+prune, and export resolve that identity without running a plan. Use
+--include-workspace or cost.terraform.include_workspace to scope Terraform
+history to its workspace. The flag is ignored for Pulumi.`,
 	}
+	cmd.PersistentFlags().
+		Bool("include-workspace", false, "Include the Terraform workspace in the history identity (overrides cost.terraform.include_workspace)")
 	cmd.AddCommand(
 		NewCostHistoryCollectCmd(),
 		NewCostHistoryViewCmd(),
@@ -85,7 +93,11 @@ func historyDir(dir string) string {
 	if dir != "" {
 		return dir
 	}
-	dir, _ = historyDirectory(context.Background(), config.GetGlobalConfig(), config.GetResolvedProjectDir())
+	dir, _ = historyDirectory(
+		context.Background(),
+		config.GetGlobalConfig(),
+		config.GetResolvedProjectDir(),
+	)
 	return dir
 }
 
@@ -95,6 +107,7 @@ type historyTarget struct {
 	Path    string
 	Project string
 	Stack   string
+	Label   string
 }
 
 func historyPath(dir, stack string) (string, error) {
@@ -110,7 +123,81 @@ func historyPath(dir, stack string) (string, error) {
 // in the working directory, which is the project `pulumi stack export` resolves
 // the stack against.
 func resolveHistoryTarget(dir, stack string) (historyTarget, error) {
+	if target, ok, err := terraformHistoryTarget(dir, terraformWorkspaceFromConfig()); ok ||
+		err != nil {
+		return target, err
+	}
 	return resolveHistoryTargetFor(dir, stack, currentProjectName())
+}
+
+func terraformHistoryTarget(dir string, includeWorkspace bool) (historyTarget, bool, error) {
+	return terraformHistoryTargetContext(context.Background(), dir, includeWorkspace)
+}
+
+func terraformHistoryTargetContext(
+	ctx context.Context,
+	dir string,
+	includeWorkspace bool,
+) (historyTarget, bool, error) {
+	search := "."
+	source, detectErr := DetectProjectSource(search)
+	if detectErr != nil || source.Kind != ProjectKindTerraform {
+		// A missing marker is the Pulumi history path, not a failure.
+		return historyTarget{}, false, nil //nolint:nilerr // detectErr only means this directory is not Terraform
+	}
+	identity, err := terraform.ResolveIdentity(ctx, source.Dir, includeWorkspace)
+	if err != nil {
+		return historyTarget{}, true, err
+	}
+	name, err := history.CostFileNameFor(identity.Project, identity.Stack)
+	if err != nil {
+		return historyTarget{}, true, err
+	}
+	base := historyDir(dir)
+	return historyTarget{
+		Path:    filepath.Join(base, name),
+		Project: identity.Project,
+		Stack:   identity.Stack,
+		Label:   identity.Label,
+	}, true, nil
+}
+
+// resolveHistoryCommandTarget keeps the storage directory separate from the
+// project directory and resolves the workspace flag before the config default.
+func resolveHistoryCommandTarget(cmd *cobra.Command, dir string) (historyTarget, error) {
+	includeWorkspace := terraformIncludeWorkspace(cmd)
+	if target, ok, err := terraformHistoryTargetContext(commandContext(cmd), dir, includeWorkspace); ok ||
+		err != nil {
+		return target, err
+	}
+	stack, err := requiredStack(cmd)
+	if err != nil {
+		return historyTarget{}, err
+	}
+	return resolveHistoryTargetFor(dir, stack, currentProjectName())
+}
+
+func openHistoryTargetRead(target historyTarget) (*history.CostDB, error) {
+	if target.Label == "" {
+		return history.OpenCostDBRead(target.Path)
+	}
+	db, err := history.OpenCostDBFor(target.Path, target.Project, target.Stack)
+	if err != nil {
+		return nil, err
+	}
+	if err = db.SetProjectLabel(target.Label); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	return db, nil
+}
+
+func terraformWorkspaceFromConfig() bool {
+	cfg := config.GetGlobalConfig()
+	if cfg == nil {
+		return false
+	}
+	return cfg.Cost.Terraform.IncludeWorkspace
 }
 
 func currentProjectName() string {
@@ -173,7 +260,10 @@ func resolveUnscopedTarget(base string, legacy historyTarget, short string) (his
 		if !ok || entry.IsDir() || stack != short {
 			continue
 		}
-		found = append(found, historyTarget{Path: filepath.Join(base, entry.Name()), Project: project, Stack: stack})
+		found = append(
+			found,
+			historyTarget{Path: filepath.Join(base, entry.Name()), Project: project, Stack: stack},
+		)
 	}
 	switch len(found) {
 	case 0:
@@ -187,7 +277,10 @@ func resolveUnscopedTarget(base string, legacy historyTarget, short string) (his
 		}
 		return historyTarget{}, fmt.Errorf(
 			"stack %q exists in several projects (%s); run from a project directory or pass --stack org/project/%s",
-			short, strings.Join(projects, ", "), short)
+			short,
+			strings.Join(projects, ", "),
+			short,
+		)
 	}
 }
 
@@ -264,7 +357,12 @@ func execCommand(ctx context.Context, name string, args ...string) ([]byte, erro
 	if err != nil {
 		exitErr, ok := errors.AsType[*exec.ExitError](err)
 		if ok {
-			return nil, fmt.Errorf("%s: %w: %s", name, err, strings.TrimSpace(string(exitErr.Stderr)))
+			return nil, fmt.Errorf(
+				"%s: %w: %s",
+				name,
+				err,
+				strings.TrimSpace(string(exitErr.Stderr)),
+			)
 		}
 		return nil, err
 	}

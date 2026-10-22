@@ -16,6 +16,7 @@ func NewCostHistoryDiffCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "diff",
 		Short: "Compare resources between two stored cost snapshots",
+		Long:  historyReadHelp,
 		Example: `  finfocus cost history diff --stack dev --from v35 --to v42
   finfocus cost history diff --stack dev --from 2025-03-15 --output json`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -34,7 +35,7 @@ func runDiff(cmd *cobra.Command, dir string) error {
 	if err != nil {
 		return err
 	}
-	stack, err := requiredStack(cmd)
+	target, err := resolveHistoryCommandTarget(cmd, dir)
 	if err != nil {
 		return err
 	}
@@ -42,11 +43,8 @@ func runDiff(cmd *cobra.Command, dir string) error {
 	if err != nil {
 		return err
 	}
-	path, err := historyPath(dir, stack)
-	if err != nil {
-		return err
-	}
-	db, err := history.OpenCostDBRead(path)
+	stack := target.Stack
+	db, err := openHistoryTargetReadExisting(target)
 	if err != nil {
 		return err
 	}
@@ -170,7 +168,11 @@ func pointJSON(point history.CostDiffPoint) costDiffPointJSON {
 	if !point.Timestamp.IsZero() {
 		stamp = point.Timestamp.UTC().Format(time.RFC3339)
 	}
-	return costDiffPointJSON{Version: point.Version, Timestamp: stamp, TotalMonthly: point.TotalMonthly}
+	return costDiffPointJSON{
+		Version:      point.Version,
+		Timestamp:    stamp,
+		TotalMonthly: point.TotalMonthly,
+	}
 }
 
 func itemsJSON(items []history.CostDiffItem) []costDiffItemJSON {

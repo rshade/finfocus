@@ -270,6 +270,13 @@ cost:
 
 Configure budget limits, alerts, and cost calculation preferences.
 
+#### `cost.terraform.include_workspace`
+
+Boolean, default `false`. When true, Terraform history identity includes the
+workspace name from `terraform workspace show` (or `tofu`). When false,
+FinFocus does not ask for the workspace and uses the stack name `unscoped`.
+The setting does not change a Pulumi history key.
+
 #### `cost.profile`
 
 Default workload hint for projected cost and recommendations. Accepted values

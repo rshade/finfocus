@@ -105,8 +105,8 @@ func TestCostSkillsDocumentLiveFlags(t *testing.T) {
 		assert.Truef(t, lookupSkillFlag(overview, flag), "overview has --%s", flag)
 		assert.Contains(t, drift, "--"+flag)
 	}
-	assert.Nil(t, overview.Flags().Lookup("terraform-state"), "overview has no Terraform input")
-	assert.Contains(t, drift, "`overview` has no `--terraform-state` flag")
+	assert.NotNil(t, overview.Flags().Lookup("terraform-state"), "overview accepts Terraform state")
+	assert.Contains(t, drift, "--terraform-state")
 
 	require.NotNil(t, list.Flags().Lookup("output"))
 	assert.Contains(t, check, "finfocus plugin list --output json")

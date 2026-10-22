@@ -12,6 +12,9 @@
 # Keep in sync with the `go` directive in go.mod.
 go = "1.27.3"
 
+# Terraform-compatible plan generation uses the MPL-2.0 OpenTofu distribution.
+opentofu = "1.13.2"
+
 # The Makefile reads GOLANGCI_LINT_VERSION from this line. The golangci-lint
 # action in .github/workflows/ci.yml pins the same version; change both together.
 golangci-lint = "2.15.0"
@@ -44,6 +47,10 @@ jq = "1.8.2"
 # ---------------------------------------------------------------------- security
 
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.9.0"
+
+# `make license-check` rejects any dependency whose license is not on the
+# allowlist, which keeps BSL code (Terraform 1.6+, Vault, Nomad) out.
+"go:github.com/google/go-licenses/v2" = "2.0.1"
 
 # ------------------------------------------------------------------- spec & editor
 

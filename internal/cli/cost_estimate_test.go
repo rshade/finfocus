@@ -321,8 +321,8 @@ func TestValidateEstimateFlags(t *testing.T) {
 		{
 			name: "valid plan-based mode",
 			params: cli.CostEstimateParams{
-				PlanPath: "plan.json",
-				Modify:   []string{"web-server:instanceType=m5.large"},
+				PulumiJSONPath: "plan.json",
+				Modify:         []string{"web-server:instanceType=m5.large"},
 			},
 			expectError: false,
 		},
@@ -353,9 +353,9 @@ func TestValidateEstimateFlags(t *testing.T) {
 		{
 			name: "mixed modes not allowed",
 			params: cli.CostEstimateParams{
-				Provider:     "aws",
-				ResourceType: "ec2:Instance",
-				PlanPath:     "plan.json",
+				Provider:       "aws",
+				ResourceType:   "ec2:Instance",
+				PulumiJSONPath: "plan.json",
 			},
 			expectError: true,
 			errContains: "cannot mix",

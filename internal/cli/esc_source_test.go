@@ -287,3 +287,20 @@ func escPlanPath(t *testing.T) string {
 	require.NoError(t, err)
 	return abs
 }
+
+//nolint:paralleltest // Changes the process working directory.
+func TestESCStillFindsParentPulumiFromTerraformRoot(t *testing.T) {
+	parent := escProject(t, map[string]string{"dev": "environment:\n  - proj/dev\n"})
+	child := filepath.Join(parent, "terraform")
+	require.NoError(t, os.Mkdir(child, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(child, "main.tf"), []byte("# Terraform marker\n"), 0o600))
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	cmd.Flags().String("stack", "dev", "")
+	source, err := DetectProjectSource(child)
+	require.NoError(t, err)
+	assert.Equal(t, ProjectKindTerraform, source.Kind)
+	stack := loadESCStack(cmd, child)
+	assert.Equal(t, "dev", stack.Stack)
+	assert.Equal(t, []string{"proj/dev"}, stack.Environment.Imports)
+}

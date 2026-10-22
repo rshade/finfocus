@@ -96,7 +96,7 @@ func (r *ResourceDescriptor) Validate() error {
 // validatePropertyKey validates a resource property key.
 // It ensures the key is not empty, does not exceed the maximum allowed length,
 // and contains only letters, digits, underscores (_), hyphens (-), or dots (.).
-// State ingestion metadata may use the pulumi: namespace with a nonempty identifier.
+// Ingestion metadata may use pulumi: or terraform: with a nonempty identifier.
 // Returns an error describing the violation when the key is invalid, or nil when valid.
 func validatePropertyKey(key string) error {
 	if key == "" {
@@ -106,7 +106,13 @@ func validatePropertyKey(key string) error {
 		return fmt.Errorf("property key too long: %d bytes (max %d)", len(key), maxPropertyKeyLen)
 	}
 
-	identifier := strings.TrimPrefix(key, "pulumi:")
+	identifier := key
+	switch {
+	case strings.HasPrefix(key, "pulumi:"):
+		identifier = strings.TrimPrefix(key, "pulumi:")
+	case strings.HasPrefix(key, "terraform:"):
+		identifier = strings.TrimPrefix(key, "terraform:")
+	}
 	if identifier == "" {
 		return errors.New("property key identifier cannot be empty")
 	}

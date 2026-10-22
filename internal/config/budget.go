@@ -310,6 +310,13 @@ func (a AllocationConfig) Validate() error {
 	return nil
 }
 
+// TerraformCostConfig holds Terraform-specific cost settings.
+type TerraformCostConfig struct {
+	// IncludeWorkspace puts the Terraform workspace in the history identity.
+	// Off by default. --include-workspace overrides it for one run.
+	IncludeWorkspace bool `yaml:"include_workspace" json:"include_workspace"`
+}
+
 // CostConfig holds cost-related configuration settings including budgets and caching.
 // It groups all cost management features under a single configuration section.
 type CostConfig struct {
@@ -330,6 +337,10 @@ type CostConfig struct {
 	// PricingSpecFallback prices a projected resource from plugin GetPricingSpec
 	// when GetProjectedCost misses, before local YAML specs. Off by default.
 	PricingSpecFallback bool `yaml:"pricing_spec_fallback" json:"pricing_spec_fallback"`
+
+	// Terraform holds Terraform plan settings. IncludeWorkspace puts the
+	// workspace name in the history identity. It defaults to false.
+	Terraform TerraformCostConfig `yaml:"terraform" json:"terraform"`
 
 	// Profile is the default usage profile for projected cost and recommendations.
 	// An omitted field means no preference. A present empty value is invalid.

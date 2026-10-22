@@ -21,7 +21,9 @@ import (
 	"github.com/rshade/finfocus/internal/cli/pagination"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
 	"github.com/rshade/finfocus/internal/tui"
 )
@@ -46,7 +48,10 @@ const (
 
 // costRecommendationsParams holds the parameters for the recommendations command execution.
 type costRecommendationsParams struct {
-	planPath         string
+	pulumiJSONPath   string
+	terraformPlan    string
+	pulumiState      string
+	terraformState   string
 	adapter          string
 	output           string
 	filter           []string
@@ -65,7 +70,7 @@ type costRecommendationsParams struct {
 // recommendations for resources described in a Pulumi preview JSON.
 //
 // The command is configured with flags:
-//   - --pulumi-json (required): path to Pulumi preview JSON output
+//   - --pulumi-json or --terraform-plan: path to infrastructure plan JSON output
 //   - --adapter: restrict to a specific adapter plugin
 //   - --output: output format (table, json, ndjson; defaults from configuration)
 //   - --filter: filter expressions for recommendations (e.g., 'action=MIGRATE', 'risk<=0.3')
@@ -76,11 +81,20 @@ type costRecommendationsParams struct {
 // The returned *cobra.Command is ready to be added to the CLI command tree.
 func NewCostRecommendationsCmd() *cobra.Command {
 	var params costRecommendationsParams
-
 	cmd := &cobra.Command{
 		Use:   "recommendations",
 		Short: "Get cost optimization recommendations",
 		Long: `Fetch cost optimization recommendations for resources from cloud provider APIs and plugins.
+
+In a Terraform directory, omitting input flags runs tofu plan.
+Use --terraform-plan with saved tofu show -json output to avoid running a binary.
+Pulumi projects still require --pulumi-json. Infrastructure input flags are mutually
+exclusive. --include-workspace overrides the Terraform history identity setting for
+this run and is ignored for Pulumi. FinFocus does not run init or configure credentials.
+Saved plan input errors exit 2; plan execution failures exit 1.
+
+The dismiss and snooze subcommands use local state without planning. Their optional
+--pulumi-json flag enables plugin communication; they reject --terraform-plan.
 
 By default, shows a summary with the top 5 recommendations sorted by savings.
 Use --verbose to see all recommendations with full details.
@@ -127,7 +141,11 @@ Valid action types for filtering:
 	}
 
 	cmd.Flags().
-		StringVar(&params.planPath, "pulumi-json", "", "Path to Pulumi preview JSON output (required)")
+		StringVar(&params.pulumiJSONPath, "pulumi-json", "", "Path to Pulumi preview JSON output")
+	cmd.Flags().StringVar(&params.terraformPlan, "terraform-plan", "", "Path to tofu show -json plan output")
+	cmd.Flags().StringVar(&params.pulumiState, "pulumi-state", "", "Path to Pulumi stack export JSON")
+	cmd.Flags().StringVar(&params.terraformState, "terraform-state", "", "Path to Terraform state JSON")
+	addIncludeWorkspaceFlag(cmd)
 	cmd.Flags().StringVar(&params.adapter, "adapter", "", "Use only the specified adapter plugin")
 
 	cmd.Flags().StringVar(&params.output, "output", "",
@@ -152,9 +170,6 @@ Valid action types for filtering:
 		"Skip the scoring step for this run even when scoring.enabled is set")
 	cmd.Flags().BoolVar(&params.includeDismissed, "include-dismissed", false,
 		"Show dismissed and snoozed recommendations, and ask plugins to include ones they have dismissed")
-
-	_ = cmd.MarkFlagRequired("pulumi-json")
-
 	// Add subcommands for recommendation lifecycle management
 	cmd.AddCommand(
 		newRecommendationsDismissCmd(),
@@ -175,6 +190,9 @@ Valid action types for filtering:
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
+	if err := validateRecommendationsInputs(cmd, params); err != nil {
+		return toValidationError(ctx, err)
+	}
 	params.output = resolveOutputFormatWithConfig(cmd, params.output)
 	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.output))) {
 		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
@@ -185,23 +203,18 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 		return flagErr
 	}
 
-	log.Debug().Ctx(ctx).Str("operation", "cost_recommendations").Str("plan_path", params.planPath).
+	log.Debug().Ctx(ctx).Str("operation", "cost_recommendations").Str("plan_path", params.pulumiJSONPath).
 		Msg("starting recommendations fetch")
 
-	// Setup audit context for logging
-	auditParams := map[string]string{
-		auditKeyPulumiJSON: params.planPath,
-		auditKeyOutput:     params.output,
-	}
-	if len(params.filter) > 0 {
-		auditParams["filter"] = strings.Join(params.filter, ",")
-	}
-	audit := newAuditContext(ctx, "cost recommendations", auditParams)
+	audit := newCostRecommendationsAudit(ctx, params)
 
-	// Load and map resources from Pulumi plan
-	resources, err := loadAndMapResources(ctx, params.planPath, audit)
+	resources, unchanged, err := loadRecommendationsResources(ctx, cmd, params, audit)
 	if err != nil {
 		return err
+	}
+
+	if unchanged {
+		return projectedUnchanged(ctx, cmd, audit)
 	}
 
 	// Open plugin connections
@@ -214,6 +227,7 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	// Create engine with optional cache and router
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
 	defer cacheCleanup()
+	resources = prepareRecommendationResources(ctx, clients, cacheStore, resources)
 	if profileErr := applyUsageProfile(cmd, eng, config.GetGlobalConfig()); profileErr != nil {
 		return toValidationError(ctx, profileErr)
 	}
@@ -267,6 +281,68 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 		Msg("recommendations fetch complete")
 
 	audit.logSuccess(ctx, len(filteredRecommendations), filteredResult.TotalSavings)
+	return nil
+}
+
+// prepareRecommendationResources resolves Terraform types using the same plugin and cache path as projected cost.
+func prepareRecommendationResources(
+	ctx context.Context,
+	clients []*pluginhost.Client,
+	store cache.Cache,
+	resources []engine.ResourceDescriptor,
+) []engine.ResourceDescriptor {
+	return resolveResourceTypes(ctx, clients, store, resources)
+}
+
+// loadRecommendationsResources classifies saved Terraform plan errors as invalid input.
+func loadRecommendationsResources(
+	ctx context.Context,
+	cmd *cobra.Command,
+	params costRecommendationsParams,
+	audit *auditContext,
+) ([]engine.ResourceDescriptor, bool, error) {
+	resources, unchanged, err := loadProjectedResources(ctx, cmd, costProjectedParams{
+		pulumiJSONPath: params.pulumiJSONPath,
+		terraformPlan:  params.terraformPlan,
+		pulumiState:    params.pulumiState,
+		terraformState: params.terraformState,
+	}, audit)
+	if err != nil && params.terraformPlan != "" {
+		return nil, false, toValidationError(ctx, err)
+	}
+	return resources, unchanged, err
+}
+
+// newCostRecommendationsAudit records the selected input and recommendation filters.
+func newCostRecommendationsAudit(ctx context.Context, params costRecommendationsParams) *auditContext {
+	auditParams := map[string]string{
+		auditKeyPulumiJSON: params.pulumiJSONPath,
+		auditKeyOutput:     params.output,
+	}
+	if params.terraformPlan != "" {
+		auditParams["terraform_plan"] = params.terraformPlan
+	}
+	if len(params.filter) > 0 {
+		auditParams["filter"] = strings.Join(params.filter, ",")
+	}
+	return newAuditContext(ctx, "cost recommendations", auditParams)
+}
+
+// validateRecommendationsInputs preserves the Pulumi input requirement while allowing Terraform detection.
+func validateRecommendationsInputs(cmd *cobra.Command, params costRecommendationsParams) error {
+	if err := validateInfrastructureInputs(cmd); err != nil {
+		return err
+	}
+	if params.pulumiJSONPath != "" || params.terraformPlan != "" ||
+		params.pulumiState != "" || params.terraformState != "" {
+		return nil
+	}
+	source, err := DetectProjectSource(".")
+	if err != nil || source.Kind != ProjectKindTerraform {
+		return errors.New(
+			"--pulumi-json is required for Pulumi unless --terraform-plan or a Terraform directory supplies resources",
+		)
+	}
 	return nil
 }
 
@@ -495,8 +571,8 @@ func applyActionTypeFilter(
 	log := logging.FromContext(ctx)
 
 	// Parse filter expression: "action=MIGRATE,RIGHTSIZE"
-	parts := strings.SplitN(filter, "=", 2) //nolint:mnd // key=value format
-	if len(parts) != 2 {                    //nolint:mnd // key=value has 2 parts
+	parts := strings.SplitN(filter, "=", keyValueParts)
+	if len(parts) != keyValueParts {
 		return recommendations, nil // Not an action filter, return unchanged
 	}
 

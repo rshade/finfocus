@@ -15,7 +15,8 @@ import (
 func NewCostHistoryListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
-		Short: "List stored Pulumi stack cost histories",
+		Short: "List stored cost histories for the current project",
+		Long:  historyReadHelp,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runList(cmd, "")
 		},
@@ -29,6 +30,24 @@ func runList(cmd *cobra.Command, dir string) error {
 	}
 	for _, issue := range issues {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: skipped %s: %v\n", issue.Path, issue.Err)
+	}
+	includeWorkspace := terraformIncludeWorkspace(cmd)
+	target, isTerraform, err := terraformHistoryTargetContext(
+		commandContext(cmd),
+		dir,
+		includeWorkspace,
+	)
+	if err != nil {
+		return err
+	}
+	if isTerraform {
+		filtered := stats[:0]
+		for _, item := range stats {
+			if item.Path == target.Path {
+				filtered = append(filtered, item)
+			}
+		}
+		stats = filtered
 	}
 	if machineOutputRequested(cmd) {
 		return writeJSON(cmd, historyListItems(stats))

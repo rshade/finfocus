@@ -179,8 +179,8 @@ func cacheResolvedTypes(
 }
 
 // applyTypeMappings returns a copy of resources with raw TF types replaced by
-// their resolved Pulumi tokens; property mappings are applied by copying the
-// property map and adding the Pulumi-key alias. The raw snake_case key is
+// their resolved Pulumi tokens; property mappings are applied to both current
+// and old properties by copying each map and adding the Pulumi-key alias. The raw snake_case key is
 // checked first, then its camelCase form, because the Terraform mapper already
 // camelCased every key at ingestion.
 func applyTypeMappings(
@@ -201,20 +201,29 @@ func applyTypeMappings(
 		if len(m.PropertyMappings) == 0 {
 			continue
 		}
-		props := make(map[string]any, len(out[i].Properties)+len(m.PropertyMappings))
-		maps.Copy(props, out[i].Properties)
-		for tfKey, pulumiKey := range m.PropertyMappings {
-			if v, exists := props[tfKey]; exists {
-				props[pulumiKey] = v
-				continue
-			}
-			if v, exists := props[ingest.SnakeToCamel(tfKey)]; exists {
-				props[pulumiKey] = v
-			}
+		out[i].Properties = applyPropertyAliases(out[i].Properties, m.PropertyMappings)
+		if out[i].OldProperties != nil {
+			out[i].OldProperties = applyPropertyAliases(out[i].OldProperties, m.PropertyMappings)
 		}
-		out[i].Properties = props
 	}
 	return out
+}
+
+// applyPropertyAliases copies the property map before adding plugin aliases so
+// both sides of a Terraform plan diff use the same resolved pricing keys.
+func applyPropertyAliases(properties map[string]any, aliases map[string]string) map[string]any {
+	props := make(map[string]any, len(properties)+len(aliases))
+	maps.Copy(props, properties)
+	for tfKey, pulumiKey := range aliases {
+		if value, exists := props[tfKey]; exists {
+			props[pulumiKey] = value
+			continue
+		}
+		if value, exists := props[ingest.SnakeToCamel(tfKey)]; exists {
+			props[pulumiKey] = value
+		}
+	}
+	return props
 }
 
 // uniqueTerraformTypes returns the distinct colon-less (raw TF) type strings
