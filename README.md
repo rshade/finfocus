@@ -9,9 +9,26 @@
 [![Release](https://img.shields.io/github/v/release/rshade/finfocus)](https://github.com/rshade/finfocus/releases/latest)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-**Cloud cost analysis for Pulumi infrastructure** - Calculate projected and actual infrastructure costs without modifying your Pulumi programs.
+**See what your Pulumi stack will cost before you deploy.** FinFocus is a Go CLI and GitHub Action that prices
+`pulumi preview` output through a plugin-based architecture, with budget enforcement and historical cost tracking.
+Public AWS pricing needs no billing access and no changes to your Pulumi program.
 
-FinFocus is a CLI tool that analyzes Pulumi infrastructure definitions to provide accurate cost estimates, budget enforcement, and historical cost tracking through a flexible plugin-based architecture.
+## Cost on every pull request
+
+[![FinFocus cost estimate comment on a pull request: monthly cost, budget status, potential savings, optimization opportunities and carbon footprint](docs/images/demo-pr-comment.png)](https://github.com/rshade/finfocus-demo/pull/1)
+
+*A real comment from the [live demo pull request](https://github.com/rshade/finfocus-demo/pull/1), updated on every push.*
+
+Add it to a workflow with [finfocus-action](https://github.com/rshade/finfocus-action):
+
+```yaml
+- run: pulumi preview --json > plan.json
+- uses: rshade/finfocus-action@v2
+  with:
+    pulumi-plan-json: plan.json
+    install-plugins: aws-public
+    fail-on-cost-increase: '100USD'
+```
 
 ## Why FinFocus?
 
