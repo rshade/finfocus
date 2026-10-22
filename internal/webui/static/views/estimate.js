@@ -58,7 +58,8 @@ export function mount(container, { api, stream }) {
   }
   function renderRows(properties, focusKey) {
     body.replaceChildren();
-    for (const row of properties ?? []) {
+    const editable = (properties ?? []).filter(row => !String(row.key).startsWith('terraform:'));
+    for (const row of editable) {
       const input = el('input', { class: 'estimate-input filter-input', type: 'text', 'aria-label': `Current ${row.key}`,
         dataset: { key: row.key, original: row.originalValue } });
       input.value = row.currentValue;
@@ -69,7 +70,7 @@ export function mount(container, { api, stream }) {
         el('td', { role: 'cell', 'data-label': 'Cost delta', text: row.delta })));
       if (focusKey === row.key) input.focus();
     }
-    if (!properties?.length) body.append(el('tr', {}, el('td', { colspan: '4', text: 'No editable properties.' })));
+    if (!editable.length) body.append(el('tr', {}, el('td', { colspan: '4', text: 'No editable properties.' })));
   }
   function render(result, focusKey) {
     const display = result.display;

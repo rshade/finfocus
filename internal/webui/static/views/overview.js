@@ -32,6 +32,22 @@ const COLUMNS = [
   'Warn',
 ];
 
+const PRICE_UNAVAILABLE = 'n/a';
+
+function priceUnavailable(row) {
+  if (pick(row, 'hasError') || pick(row, 'status') === 'deleting') return false;
+  return pick(row, 'projected') === undefined && (pick(row, 'projectedDisplay') ?? '-') === '-';
+}
+
+function addressNodes(text) {
+  const nodes = [];
+  for (const part of text.split(/(?<=[._/\[\]-])/)) {
+    if (nodes.length > 0) nodes.push(document.createElement('wbr'));
+    nodes.push(part);
+  }
+  return nodes;
+}
+
 // pick reads the first present key, tolerating Go's default capitalized
 // serialization for types that carry no JSON tags (e.g. BudgetResult).
 function pick(obj, ...keys) {
@@ -118,8 +134,9 @@ export function mount(container, ctx) {
     type: 'button',
     class: 'preview-button',
     text: 'Run preview',
-    'aria-label': 'Run an on-demand pulumi preview',
+    'aria-describedby': 'preview-reason',
   });
+  const previewReason = el('span', { id: 'preview-reason', class: 'preview-reason' });
 
   const toolbar = el(
     'div',
@@ -127,6 +144,7 @@ export function mount(container, ctx) {
     filterLabel,
     sortButton,
     previewButton,
+    previewReason,
   );
   const stateNote = el('p', { class: 'state-only-footnote' });
   stateNote.hidden = true;
@@ -256,6 +274,13 @@ export function mount(container, ctx) {
     return '';
   }
 
+  function projectedCell(row) {
+    if (!priceUnavailable(row)) return el('td', { class: 'col-num', text: pick(row, 'projectedDisplay') ?? '' });
+    return el('td', { class: 'col-num price-unavailable', title: 'No price is available for this resource' },
+      el('span', { 'aria-hidden': 'true', text: PRICE_UNAVAILABLE }),
+      el('span', { class: 'visually-hidden', text: 'Price unavailable' }));
+  }
+
   function renderRow(row) {
     const urn = pick(row, 'urn') ?? '';
     const childUrns = pick(row, 'childUrns');
@@ -279,9 +304,9 @@ export function mount(container, ctx) {
       el('button', {
         type: 'button',
         class: 'resource-link',
-        text: pick(row, 'resourceDisplay') ?? urn,
+        title: pick(row, 'resourceDisplay') ?? urn,
         onclick: () => openDetail(urn),
-      }),
+      }, ...addressNodes(pick(row, 'resourceDisplay') ?? urn)),
     );
 
     const statusDisplay = pick(row, 'statusDisplay') ?? '';
@@ -295,7 +320,7 @@ export function mount(container, ctx) {
         text: statusDisplay,
       }),
       el('td', { class: 'col-num', text: pick(row, 'actualDisplay') ?? '' }),
-      el('td', { class: 'col-num', text: pick(row, 'projectedDisplay') ?? '' }),
+      projectedCell(row),
       el('td', { class: `col-num ${deltaClass(row)}`.trim(), text: pick(row, 'deltaDisplay') ?? '' }),
       el('td', {
         class: `col-num${pick(row, 'driftWarning') ? ' drift-warning' : ''}`.trim(),
@@ -396,20 +421,24 @@ export function mount(container, ctx) {
     if (data.previewLoaded) state.footnote = '';
     renderRunStatus();
   }
+  function previewReasonText() {
+    if (state.previewStatus === 'running') return '';
+    if (previewAllowed()) return '';
+    const { stateOnly, previewLoaded } = state.runStatus;
+    if (previewLoaded) return 'Preview results are already loaded.';
+    if (!stateOnly) return 'Planned changes are already included, so no preview is needed.';
+    return 'Available once loading finishes.';
+  }
   function renderPreviewButton() {
-    if (state.previewStatus === 'running') {
-      previewButton.disabled = true;
-      previewButton.textContent = `Preview running… ${previewElapsedText()}`;
-      previewButton.setAttribute('aria-label', 'Preview in progress');
-    } else if (!previewAllowed()) {
-      previewButton.disabled = true;
-      previewButton.textContent = 'Run preview';
-      previewButton.setAttribute('aria-label', 'Run an on-demand pulumi preview');
-    } else {
-      previewButton.disabled = false;
-      previewButton.textContent = 'Run preview';
-      previewButton.setAttribute('aria-label', 'Run an on-demand pulumi preview');
-    }
+    const reason = previewReasonText();
+    const running = state.previewStatus === 'running';
+    previewButton.disabled = running || !previewAllowed();
+    previewButton.textContent = running ? `Preview running… ${previewElapsedText()}` : 'Run preview';
+    previewButton.setAttribute('aria-label', running ? 'Preview in progress' : 'Run an on-demand preview');
+    if (reason) previewButton.setAttribute('title', reason);
+    else previewButton.removeAttribute('title');
+    previewReason.textContent = reason;
+    previewReason.hidden = reason === '';
   }
 
   function previewElapsedText() {
@@ -546,11 +575,11 @@ export function mount(container, ctx) {
         closeDetailButton()),
       el('dl', { class: 'detail-list' },
         ...[
-          ['URN', urn],
+          [urn.startsWith('urn:') ? 'URN' : 'Address', urn],
           ['Type', pick(row, 'type')],
           ['Status', pick(row, 'statusDisplay')],
           ['Actual MTD', pick(row, 'actualDisplay')],
-          ['Projected', pick(row, 'projectedDisplay')],
+          ['Projected', priceUnavailable(row) ? 'Price unavailable' : pick(row, 'projectedDisplay')],
           ['Delta', pick(row, 'deltaDisplay')],
           ['Drift', pick(row, 'driftDisplay')],
         ]
