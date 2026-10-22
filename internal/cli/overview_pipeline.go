@@ -494,6 +494,9 @@ func (p *OverviewPipeline) startEngine(
 	}
 
 	p.emitPhase(OverviewPhasePrepareEngine, overviewPhasePrepareEngineName)
+	if overviewUsesTerraform(p.cfg.params) {
+		data.Rows = resolveTerraformOverviewRows(ctx, clients, data.Rows)
+	}
 	eng, cacheCleanup := p.newEngine(ctx, clients)
 	if err := applyUsageProfile(p.cfg.cmd, eng, usageProfileSource(p.cfg.params.cfg)); err != nil {
 		cacheCleanup()
@@ -781,6 +784,19 @@ func (p *OverviewPipeline) RefreshFallbackBudget(ctx context.Context, rows []eng
 // explicit files), lightweight change detection, optional preview, merge, and
 // filters.
 func tuiOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
+	if _, terraformInput, err := overviewTerraformSource(p.cfg.params); err != nil {
+		if errors.Is(err, ErrNoProjectMarker) {
+			err = toValidationError(ctx, err)
+		}
+		return nil, &PhaseError{Phase: OverviewPhaseLoadStackState, Err: err}
+	} else if terraformInput {
+		return plainOverviewLoader(ctx, p)
+	}
+	return pulumiTUIOverviewLoader(ctx, p)
+}
+
+// pulumiTUIOverviewLoader retains Pulumi state export and on-demand preview behavior.
+func pulumiTUIOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
 	params := p.cfg.params
 	log := logging.FromContext(ctx)
 	pw := p.Passphrase()
@@ -1096,4 +1112,36 @@ func (p *OverviewPipeline) waitForPassphraseRetry(ctx context.Context) (*string,
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// resolveTerraformOverviewRows applies plugin-owned type and property mappings
+// to current and projected values before any row reaches pricing or the TUI.
+func resolveTerraformOverviewRows(
+	ctx context.Context, clients []*pluginhost.Client, rows []engine.OverviewRow,
+) []engine.OverviewRow {
+	descriptors := make([]engine.ResourceDescriptor, len(rows))
+	for i, row := range rows {
+		properties := row.ProjectedProperties
+		if properties == nil {
+			properties = row.Properties
+		}
+		provider := row.Provider
+		if provider == "" {
+			provider = engine.ExtractProviderFromResourceType(row.Type)
+		}
+		descriptors[i] = engine.ResourceDescriptor{
+			ID: row.URN, Type: row.Type, Provider: provider,
+			Properties: properties, OldProperties: row.Properties,
+		}
+	}
+	resolved := resolveResourceTypes(ctx, clients, nil, descriptors)
+	out := slices.Clone(rows)
+	for i, resource := range resolved {
+		out[i].Type = resource.Type
+		out[i].Properties = resource.OldProperties
+		if rows[i].ProjectedProperties != nil {
+			out[i].ProjectedProperties = resource.Properties
+		}
+	}
+	return out
 }

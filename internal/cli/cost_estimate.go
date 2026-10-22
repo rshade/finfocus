@@ -18,6 +18,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/spec"
 	"github.com/rshade/finfocus/internal/tui"
@@ -33,8 +34,12 @@ type CostEstimateParams struct {
 	Region       string
 
 	// Plan-based mode flags
-	PlanPath string
-	Modify   []string // resource:key=value format
+	PulumiJSONPath    string
+	TerraformPlan     string
+	PulumiState       string
+	TerraformState    string
+	terraformDetected bool
+	Modify            []string // resource:key=value format
 
 	// Common flags
 	Interactive bool
@@ -51,8 +56,8 @@ type CostEstimateParams struct {
 //   - Estimates cost impact of property changes on a single resource
 //
 // 2. Plan-based mode:
-//   - --pulumi-json (required), --modify (optional, repeatable)
-//   - Estimates cost impact of modifications to resources in an existing Pulumi plan
+//   - --pulumi-json or --terraform-plan, or a detected Terraform directory; --modify is optional
+//   - Estimates cost impact of modifications to resources in an existing infrastructure plan
 //
 // Common flags:
 //   - --output: Output format (table, json, ndjson)
@@ -68,11 +73,21 @@ func NewCostEstimateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "estimate",
 		Short: "Estimate costs for what-if scenarios",
-		Long: `Perform what-if cost analysis on resources without modifying Pulumi code.
+		Long: `Perform what-if cost analysis on resources without modifying infrastructure code.
 
 Supports two modes:
   - Single-resource: Specify provider, type, and property overrides
-  - Plan-based: Load a Pulumi plan and apply modifications
+  - Plan-based: Load a Pulumi or Terraform plan and apply modifications
+
+In a Terraform directory, omitting input flags runs tofu plan.
+Use --terraform-plan with saved tofu show -json output to avoid running a binary.
+Pulumi projects still require --pulumi-json for plan-based estimation.
+The input flags --terraform-plan, --pulumi-json, --pulumi-state, and --terraform-state
+are mutually exclusive. --include-workspace overrides the Terraform history identity
+setting for this run and is ignored for Pulumi.
+
+FinFocus does not run init. Initialize the directory and configure Terraform access
+before planning. Saved plan input errors exit 2; plan execution failures exit 1.
 
 Examples:
   # Single resource estimation
@@ -84,6 +99,10 @@ Examples:
   finfocus cost estimate --pulumi-json plan.json \
     --modify "web-server:instanceType=m5.large"
 
+  # Terraform address selectors use the existing resource ID selector
+  finfocus cost estimate --terraform-plan tfplan.json \
+    --modify "aws_instance.web:instanceType=m5.large"
+
   # Interactive mode
   finfocus cost estimate --interactive`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -93,15 +112,25 @@ Examples:
 
 	// Single-resource mode flags
 	cmd.Flags().StringVar(&params.Provider, "provider", "", "Cloud provider (aws, gcp, azure)")
-	cmd.Flags().StringVar(&params.ResourceType, "resource-type", "", "Resource type (e.g., aws:ec2/instance:Instance)")
-	cmd.Flags().StringArrayVar(&params.Properties, "property", nil, "Property override key=value (repeatable)")
+	cmd.Flags().
+		StringVar(&params.ResourceType, "resource-type", "", "Resource type (e.g., aws:ec2/instance:Instance)")
+	cmd.Flags().
+		StringArrayVar(&params.Properties, "property", nil, "Property override key=value (repeatable)")
 	cmd.Flags().StringVar(&params.Region, "region", "", "Region for cost calculation")
 
 	// Plan-based mode flags
-	cmd.Flags().StringVar(&params.PlanPath, "pulumi-json", "", "Path to Pulumi preview JSON file")
+	cmd.Flags().
+		StringVar(&params.PulumiJSONPath, "pulumi-json", "", "Path to Pulumi preview JSON file")
+	cmd.Flags().
+		StringVar(&params.TerraformPlan, "terraform-plan", "", "Path to tofu show -json plan output")
+	cmd.Flags().
+		StringVar(&params.PulumiState, "pulumi-state", "", "Path to Pulumi stack export JSON")
+	cmd.Flags().
+		StringVar(&params.TerraformState, "terraform-state", "", "Path to Terraform state JSON")
+	addIncludeWorkspaceFlag(cmd)
 	cmd.Flags().StringArrayVar(
 		&params.Modify, "modify", nil,
-		"Resource modification selector:key=value; selector is a name, URN, or type (repeatable)",
+		"Resource modification selector:key=value; selector is a name, ID, or type (repeatable)",
 	)
 
 	// Common flags
@@ -119,21 +148,24 @@ Examples:
 //
 // Rules:
 //   - Single-resource mode requires both --provider and --resource-type
-//   - Plan-based mode requires --pulumi-json
+//   - Plan-based mode requires an input file or a detected Terraform directory
 //   - --property is only valid in single-resource mode
 //   - --modify is only valid in plan-based mode
 //   - Modes are mutually exclusive
 //
 // Returns an error describing the validation failure, or nil if valid.
 func ValidateEstimateFlags(params *CostEstimateParams) error {
-	hasSingleResource := params.Provider != "" || params.ResourceType != "" || len(params.Properties) > 0
-	hasPlanBased := params.PlanPath != "" || len(params.Modify) > 0
+	hasSingleResource := params.Provider != "" || params.ResourceType != "" ||
+		len(params.Properties) > 0
+	hasPlanSource := params.PulumiJSONPath != "" || params.TerraformPlan != "" ||
+		params.PulumiState != "" || params.TerraformState != "" || params.terraformDetected
+	hasPlanBased := hasPlanSource || len(params.Modify) > 0
 
 	// Check for mutually exclusive modes
 	if hasSingleResource && hasPlanBased {
 		return errors.New(
 			"cannot mix single-resource flags (--provider, --resource-type, --property) " +
-				"with plan-based flags (--pulumi-json, --modify)")
+				"with plan-based flags (--pulumi-json, --terraform-plan, --pulumi-state, --terraform-state, --modify)")
 	}
 
 	// Validate single-resource mode requirements
@@ -147,15 +179,17 @@ func ValidateEstimateFlags(params *CostEstimateParams) error {
 	}
 
 	// Validate plan-based mode requirements
-	if hasPlanBased && params.PlanPath == "" {
-		return errors.New("--pulumi-json is required for plan-based estimation")
+	if hasPlanBased && !hasPlanSource {
+		return errors.New(
+			"--pulumi-json is required for plan-based estimation unless Terraform input is available; provide Pulumi or Terraform input",
+		)
 	}
 
 	// If neither mode specified and not interactive, require some input
 	if !hasSingleResource && !hasPlanBased && !params.Interactive {
 		return errors.New(
 			"either single-resource mode (--provider, --resource-type) or " +
-				"plan-based mode (--pulumi-json) is required")
+				"plan-based mode (--pulumi-json) is required; provide Pulumi or Terraform input")
 	}
 
 	return nil
@@ -184,7 +218,11 @@ const (
 func ParsePropertyOverrides(props []string) (map[string]string, error) {
 	// DoS protection: limit number of properties
 	if len(props) > maxPropertyOverrides {
-		return nil, fmt.Errorf("too many property overrides: %d (max %d)", len(props), maxPropertyOverrides)
+		return nil, fmt.Errorf(
+			"too many property overrides: %d (max %d)",
+			len(props),
+			maxPropertyOverrides,
+		)
 	}
 
 	overrides := make(map[string]string, len(props))
@@ -200,7 +238,11 @@ func ParsePropertyOverrides(props []string) (map[string]string, error) {
 		}
 		// DoS protection: limit key length
 		if len(key) > maxPropertyKeyLen {
-			return nil, fmt.Errorf("property key too long: %d bytes (max %d)", len(key), maxPropertyKeyLen)
+			return nil, fmt.Errorf(
+				"property key too long: %d bytes (max %d)",
+				len(key),
+				maxPropertyKeyLen,
+			)
 		}
 		// DoS protection: limit value length
 		if len(value) > maxPropertyValueLen {
@@ -243,7 +285,11 @@ func ParseModifications(mods []string) (map[string]map[string]string, error) {
 		}
 		// DoS protection: limit key length
 		if len(key) > maxPropertyKeyLen {
-			return nil, fmt.Errorf("property key too long: %d bytes (max %d)", len(key), maxPropertyKeyLen)
+			return nil, fmt.Errorf(
+				"property key too long: %d bytes (max %d)",
+				len(key),
+				maxPropertyKeyLen,
+			)
 		}
 		// DoS protection: limit value length
 		if len(value) > maxPropertyValueLen {
@@ -290,7 +336,10 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 
 	params.Output = resolveOutputFormatWithConfig(cmd, params.Output)
 	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.Output))) {
-		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.Output)
+		return fmt.Errorf(
+			"unsupported output format: %s (supported: table, json, ndjson)",
+			params.Output,
+		)
 	}
 	// A TUI would take over the stream an agent or MCP client reads JSON from.
 	if params.Interactive && machineOutputRequested(cmd) {
@@ -299,16 +348,26 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 		)
 	}
 
+	if err := validateInfrastructureInputs(cmd); err != nil {
+		return toValidationError(ctx, err)
+	}
+	if params.Provider == "" && params.ResourceType == "" && len(params.Properties) == 0 &&
+		params.PulumiJSONPath == "" && params.TerraformPlan == "" &&
+		params.PulumiState == "" && params.TerraformState == "" && !params.Interactive {
+		source, detectErr := DetectProjectSource(".")
+		params.terraformDetected = detectErr == nil && source.Kind == ProjectKindTerraform
+	}
+
 	// Validate flags
 	if err := ValidateEstimateFlags(&params); err != nil {
-		return err
+		return toValidationError(ctx, err)
 	}
 
 	log.Debug().Ctx(ctx).
 		Str("operation", "cost_estimate").
 		Str("provider", params.Provider).
 		Str("resource_type", params.ResourceType).
-		Str("plan_path", params.PlanPath).
+		Str("plan_path", params.PulumiJSONPath).
 		Bool("interactive", params.Interactive).
 		Msg("starting cost estimation")
 
@@ -320,7 +379,8 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	switch {
 	case params.Interactive:
 		err = executeInteractiveEstimate(cmd, params, cfg)
-	case params.PlanPath != "":
+	case params.PulumiJSONPath != "" || params.TerraformPlan != "" || params.PulumiState != "" ||
+		params.TerraformState != "" || params.terraformDetected:
 		err = executePlanBasedEstimate(cmd, params, cfg)
 	default:
 		err = executeSingleResourceEstimate(cmd, params, cfg)
@@ -341,7 +401,11 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 
 // executeSingleResourceEstimate parses property overrides, builds a resource descriptor,
 // requests a cost estimate via plugins or spec fallback, and writes output.
-func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams, cfg *config.Config) error {
+func executeSingleResourceEstimate(
+	cmd *cobra.Command,
+	params CostEstimateParams,
+	cfg *config.Config,
+) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
 
@@ -406,9 +470,13 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 	return renderEstimateResult(cmd.OutOrStdout(), params.Output, result)
 }
 
-// executePlanBasedEstimate loads resources from a Pulumi plan, applies modifications,
+// executePlanBasedEstimate loads resources from an infrastructure plan, applies modifications,
 // estimates costs via plugins or spec fallback, and renders combined results.
-func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg *config.Config) error {
+func executePlanBasedEstimate(
+	cmd *cobra.Command,
+	params CostEstimateParams,
+	cfg *config.Config,
+) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
 
@@ -419,16 +487,20 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg
 	}
 
 	log.Debug().Ctx(ctx).
-		Str("plan_path", params.PlanPath).
+		Str("plan_path", params.PulumiJSONPath).
 		Int("modification_count", len(modifications)).
 		Msg("executing plan-based estimation")
 
 	// Load and map resources using common helper
-	resources, err := loadAndMapResources(ctx, params.PlanPath, nil)
+	resources, unchanged, err := loadEstimateResources(ctx, cmd, params)
 	if err != nil {
 		return err
 	}
 
+	if unchanged {
+		cmd.Println("No changes. Projected monthly cost is zero.")
+		return nil
+	}
 	if len(resources) == 0 {
 		cmd.Println("No resources found in plan")
 		return nil
@@ -448,6 +520,9 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg
 		clients = nil
 	}
 
+	sourceResources := resources
+	resources = prepareEstimateResources(ctx, clients, resources)
+
 	// Create engine
 	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
@@ -457,24 +532,18 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg
 
 	// Process each resource with modifications
 	var results []*engine.EstimateResult
-	for _, resource := range resources {
+	for i, resource := range resources {
 		// Check if this resource has modifications
-		resourceMods := findModificationsForResource(resource, modifications)
+		resourceMods := findModificationsForResource(sourceResources[i], modifications)
 
 		// If no modifications for this resource, include with zero delta
 		if len(resourceMods) == 0 && len(modifications) > 0 {
 			continue // Skip resources without modifications when modifications are specified
 		}
 
-		engineResource := &engine.ResourceDescriptor{
-			Provider:   resource.Provider,
-			Type:       resource.Type,
-			ID:         resource.ID,
-			Properties: resource.Properties,
-		}
-
+		engineResource := resource
 		request := &engine.EstimateRequest{
-			Resource:          engineResource,
+			Resource:          &engineResource,
 			PropertyOverrides: resourceMods,
 		}
 
@@ -492,6 +561,33 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg
 
 	// Render results
 	return renderMultipleEstimateResults(cmd.OutOrStdout(), params.Output, results)
+}
+
+// prepareEstimateResources resolves Terraform descriptors after plugin discovery and before what-if pricing.
+func prepareEstimateResources(
+	ctx context.Context,
+	clients []*pluginhost.Client,
+	resources []engine.ResourceDescriptor,
+) []engine.ResourceDescriptor {
+	return resolveResourceTypes(ctx, clients, nil, resources)
+}
+
+// loadEstimateResources shares source resolution and saved-plan input error classification across estimate modes.
+func loadEstimateResources(
+	ctx context.Context,
+	cmd *cobra.Command,
+	params CostEstimateParams,
+) ([]engine.ResourceDescriptor, bool, error) {
+	resources, unchanged, err := loadProjectedResources(ctx, cmd, costProjectedParams{
+		pulumiJSONPath: params.PulumiJSONPath,
+		terraformPlan:  params.TerraformPlan,
+		pulumiState:    params.PulumiState,
+		terraformState: params.TerraformState,
+	}, nil)
+	if err != nil && params.TerraformPlan != "" {
+		return nil, false, toValidationError(ctx, err)
+	}
+	return resources, unchanged, err
 }
 
 // selectorKeys lists the selectors that address a resource, most specific first:
@@ -594,7 +690,10 @@ func unmatchedModifyError(missing []string, resources []engine.ResourceDescripto
 
 func validateEstimateResourceType(provider, resourceType string) error {
 	if !resourcetype.IsFullTypeToken(resourceType) {
-		return fmt.Errorf("resource type %q is not a full type token (package:module:Type)", resourceType)
+		return fmt.Errorf(
+			"resource type %q is not a full type token (package:module:Type)",
+			resourceType,
+		)
 	}
 	got := resourcetype.ExtractProvider(resourceType)
 	want := resourcetype.NormalizeProvider(provider)
@@ -617,7 +716,11 @@ func renderEstimateResult(w io.Writer, format string, result *engine.EstimateRes
 }
 
 // renderMultipleEstimateResults renders multiple estimate results.
-func renderMultipleEstimateResults(w io.Writer, format string, results []*engine.EstimateResult) error {
+func renderMultipleEstimateResults(
+	w io.Writer,
+	format string,
+	results []*engine.EstimateResult,
+) error {
 	switch format {
 	case outputFormatJSON:
 		return renderMultipleEstimateResultsJSON(w, results)
@@ -647,7 +750,7 @@ func renderEstimateResultTable(w io.Writer, result *engine.EstimateResult) error
 	// Cost summary
 	baselineMonthly := 0.0
 	modifiedMonthly := 0.0
-	currency := "USD"
+	currency := defaultCurrency
 
 	if result.Baseline != nil {
 		baselineMonthly = result.Baseline.Monthly
@@ -693,7 +796,10 @@ func renderEstimateResultTable(w io.Writer, result *engine.EstimateResult) error
 
 	// Fallback note
 	if result.UsedFallback {
-		fmt.Fprintln(w, "Note: Cost estimated using fallback strategy (plugin EstimateCost not available)")
+		fmt.Fprintln(
+			w,
+			"Note: Cost estimated using fallback strategy (plugin EstimateCost not available)",
+		)
 	}
 
 	return nil
@@ -821,7 +927,7 @@ func buildResourceFromParams(provider, resourceType, region string) *engine.Reso
 
 // executeInteractiveEstimate launches and runs the interactive TUI for cost estimation.
 // It obtains the command context and I/O from cmd and determines the initial resource from
-// params (selects an eligible resource from params.PlanPath if provided, otherwise builds a
+// params (selects an eligible resource from params.PulumiJSONPath if provided, otherwise builds a
 // resource from params.Provider and params.ResourceType). The function opens adapter
 // plugins (falling back to spec-only mode if plugins fail), constructs an engine with a
 // router, and runs a TUI that calls back into the engine to recalculate estimates as the
@@ -831,7 +937,11 @@ func buildResourceFromParams(provider, resourceType, region string) *engine.Reso
 // It returns an error when required interactive inputs are missing, when loading/parsing a
 // supplied Pulumi plan fails, when running the TUI fails, or when an unexpected TUI model
 // type is returned. Any error produced by rendering the final estimate is also returned.
-func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, cfg *config.Config) error {
+func executeInteractiveEstimate(
+	cmd *cobra.Command,
+	params CostEstimateParams,
+	cfg *config.Config,
+) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
 
@@ -845,9 +955,10 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 	var planResources []engine.ResourceDescriptor
 
 	switch {
-	case params.PlanPath != "":
+	case params.PulumiJSONPath != "" || params.TerraformPlan != "" || params.PulumiState != "" ||
+		params.TerraformState != "" || params.terraformDetected:
 		// Load resources from plan
-		resources, err := loadAndMapResources(ctx, params.PlanPath, nil)
+		resources, _, err := loadEstimateResources(ctx, cmd, params)
 		if err != nil {
 			return err
 		}
@@ -859,7 +970,9 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 	case params.Provider != "" && params.ResourceType != "":
 		resource = buildResourceFromParams(params.Provider, params.ResourceType, params.Region)
 	default:
-		return errors.New("interactive mode requires --provider and --resource-type, or --pulumi-json")
+		return errors.New(
+			"interactive mode requires --provider and --resource-type, or --pulumi-json",
+		)
 	}
 
 	// Create engine
@@ -880,6 +993,7 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 	}
 
 	if planResources != nil {
+		planResources = prepareEstimateResources(ctx, clients, planResources)
 		resource = selectInteractiveEstimateResource(ctx, eng, planResources)
 		if resource == nil {
 			cmd.Println(
@@ -940,7 +1054,11 @@ func newInteractiveEstimateModel(
 	// Get the unchanged baseline through the same RPC path used for edits.
 	initialResult, err := eng.EstimateBaseline(ctx, resource, "")
 	if err != nil {
-		log.Warn().Ctx(ctx).Str("resource_id", resource.ID).Err(err).Msg("failed to get initial estimate")
+		log.Warn().
+			Ctx(ctx).
+			Str("resource_id", resource.ID).
+			Err(err).
+			Msg("failed to get initial estimate")
 	}
 	return tui.NewEstimateModel(ctx, resource, initialResult).
 		WithPricingDiscovery(eng.DiscoverPricingSpec).

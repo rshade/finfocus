@@ -20,6 +20,7 @@ const (
 	costBucketSnapshots          = "snapshots"
 	costBucketAnnotations        = "annotations"
 	metaKeyVersion               = "version"
+	metaKeyProjectLabel          = "project_label"
 	metaKeyStack                 = "stack"
 	metaKeyLastVersion           = "last_version"
 	metaKeyCollectedAt           = "collected_at"
@@ -129,6 +130,24 @@ func initProject(meta *bolt.Bucket, project string) error {
 		return fmt.Errorf("cost history database belongs to project %q, not %q", stored, project)
 	}
 	return nil
+}
+
+// SetProjectLabel stores an optional display label. An empty label is a no-op.
+// The schema version stays 1; readers that do not know the key skip it.
+func (d *CostDB) SetProjectLabel(label string) error {
+	if d == nil || label == "" {
+		return nil
+	}
+	return d.db.Update(func(tx *bolt.Tx) error {
+		meta := tx.Bucket([]byte(costBucketMeta))
+		if meta == nil {
+			return errors.New("cost history buckets are missing")
+		}
+		if err := meta.Put([]byte(metaKeyProjectLabel), []byte(label)); err != nil {
+			return fmt.Errorf("writing project label: %w", err)
+		}
+		return nil
+	})
 }
 
 // Close releases the database. A second call returns the first error.

@@ -25,7 +25,8 @@ type viewDeps struct {
 func NewCostHistoryViewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "view",
-		Short: "Chart stored projected costs for a Pulumi stack",
+		Short: "Chart stored projected costs for the current project",
+		Long:  historyReadHelp,
 		Example: `  finfocus cost history view --stack dev --plain
   finfocus cost history view --stack dev --split-providers
   finfocus cost history view --stack dev --output json`,
@@ -53,21 +54,18 @@ func runView(cmd *cobra.Command, deps viewDeps) error {
 	if err != nil {
 		return err
 	}
-	stack, err := requiredStack(cmd)
+	target, err := resolveHistoryCommandTarget(cmd, deps.dir)
 	if err != nil {
 		return err
 	}
-	path, err := historyPath(deps.dir, stack)
-	if err != nil {
-		return err
-	}
+	stack, path := target.Stack, target.Path
 	if _, statErr := os.Stat(path); statErr != nil {
 		if os.IsNotExist(statErr) {
 			return fmt.Errorf("no cost history for stack '%s'", stack)
 		}
 		return fmt.Errorf("reading cost history: %w", statErr)
 	}
-	db, err := history.OpenCostDBRead(path)
+	db, err := openHistoryTargetRead(target)
 	if err != nil {
 		return err
 	}
@@ -137,11 +135,17 @@ func applyViewCurrency(
 	if err != nil {
 		return nil, nil, "", err
 	}
-	selected, err := history.SelectCurrency(snapshots, history.CurrencyChoice{Currency: currency, Strict: strict})
+	selected, err := history.SelectCurrency(
+		snapshots,
+		history.CurrencyChoice{Currency: currency, Strict: strict},
+	)
 	if err != nil {
 		return nil, nil, "", err
 	}
-	return selected.Snapshots, annotationsForSnapshots(selected.Snapshots, annotations), selected.Warning, nil
+	return selected.Snapshots, annotationsForSnapshots(
+		selected.Snapshots,
+		annotations,
+	), selected.Warning, nil
 }
 
 func annotationsForSnapshots(

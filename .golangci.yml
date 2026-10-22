@@ -200,6 +200,28 @@ linters:
               desc: Use github.com/google/uuid instead, satori's package is not maintained
             - pkg: github.com/gofrs/uuid$
               desc: Use github.com/gofrs/uuid/v5 or later, it was not a go module before v5
+        "bsl":
+          files:
+            - "$all"
+          deny:
+            - pkg: github.com/hashicorp/terraform$
+              desc: BSL-licensed since 1.6; run `tofu show -json` and parse the output instead
+            - pkg: github.com/hashicorp/terraform/
+              desc: BSL-licensed since 1.6; run `tofu show -json` and parse the output instead
+            - pkg: github.com/hashicorp/vault
+              desc: BSL-licensed since 1.15
+            - pkg: github.com/hashicorp/nomad
+              desc: BSL-licensed since 1.6
+            - pkg: github.com/hashicorp/consul$
+              desc: BSL-licensed since 1.17
+            - pkg: github.com/hashicorp/consul/
+              desc: BSL-licensed since 1.17
+            - pkg: github.com/hashicorp/packer$
+              desc: BSL-licensed since 1.10
+            - pkg: github.com/hashicorp/packer/
+              desc: BSL-licensed since 1.10
+            - pkg: github.com/hashicorp/boundary
+              desc: BSL-licensed since 0.13
         "non-test files":
           files:
             - "!$test"

@@ -35,28 +35,33 @@ import (
 // Used to detect whether an output stream is a TTY.
 type fdProvider interface{ Fd() uintptr }
 
+const overviewOperationReplace = "replace"
+
 // overviewParams holds the parameters for the overview command.
 type overviewParams struct {
-	captureState    func([]ingest.StackExportResource)
-	capturePlan     func(context.Context, *ingest.PulumiPlan)
-	pulumiJSON      string
-	pulumiState     string
-	stack           string
-	fromStr         string
-	toStr           string
-	adapter         string
-	output          string
-	filter          []string
-	plain           bool
-	forceColor      bool
-	noColor         bool
-	yes             bool
-	noPagination    bool
-	exitOnThreshold bool
-	exitCode        int
-	budgetScope     string
-	stateOnly       bool
-	cfg             *config.Config
+	captureTerraform func(context.Context, []engine.ResourceDescriptor, []engine.PlanStep)
+	captureState     func([]ingest.StackExportResource)
+	capturePlan      func(context.Context, *ingest.PulumiPlan)
+	pulumiJSON       string
+	pulumiState      string
+	terraformPlan    string
+	terraformState   string
+	stack            string
+	fromStr          string
+	toStr            string
+	adapter          string
+	output           string
+	filter           []string
+	plain            bool
+	forceColor       bool
+	noColor          bool
+	yes              bool
+	noPagination     bool
+	exitOnThreshold  bool
+	exitCode         int
+	budgetScope      string
+	stateOnly        bool
+	cfg              *config.Config
 }
 
 // NewOverviewCmd constructs the "overview" Cobra command that displays a unified stack cost
@@ -80,7 +85,11 @@ auto-detects the project and current stack, then runs 'pulumi stack export' and
 'pulumi preview --json' to gather state and plan data automatically.
 
 Optionally provide --pulumi-state and/or --pulumi-json to use pre-exported files
-instead of running Pulumi CLI commands.`,
+instead of running Pulumi CLI commands.
+
+In a Terraform directory, overview runs a fresh plan on every invocation.
+Use --terraform-plan for saved tofu show -json output, or --terraform-state
+for existing state without running a plan.`,
 		Example: `  # Auto-detect from current Pulumi project (recommended)
   finfocus overview
 
@@ -105,6 +114,11 @@ instead of running Pulumi CLI commands.`,
 
 	cmd.Flags().StringVar(&params.pulumiJSON, "pulumi-json", "", "path to Pulumi preview JSON")
 	cmd.Flags().StringVar(&params.pulumiState, "pulumi-state", "", "path to Pulumi state JSON")
+	cmd.Flags().
+		StringVar(&params.terraformPlan, "terraform-plan", "", "path to tofu show -json output (runs no binary)")
+	cmd.Flags().
+		StringVar(&params.terraformState, "terraform-state", "", "path to Terraform state JSON (does not run a plan)")
+	addIncludeWorkspaceFlag(cmd)
 	cmd.Flags().StringVarP(&params.stack, "stack", "s", "",
 		"Pulumi stack name for auto-detection (ignored with --pulumi-state/--pulumi-json)")
 	cmd.Flags().StringVar(&params.fromStr, "from", "", "start date (YYYY-MM-DD or RFC3339)")
@@ -161,6 +175,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	log := logging.FromContext(ctx)
 	params.output = resolveOutputFormat(cmd, "output", params.output)
 	params = applyOverviewAccessibility(cmd, params)
+	if err := validateInfrastructureInputs(cmd); err != nil {
+		return toValidationError(ctx, err)
+	}
 	if err := checkOverviewInputs(cmd, params.output); err != nil {
 		return err
 	}
@@ -288,6 +305,9 @@ func finalizeOverviewOutput(
 	dateRange engine.DateRange,
 	audit *auditContext,
 ) error {
+	if overviewUsesTerraform(params) && !result.IsStateOnly && !result.HasChanges {
+		return projectedUnchanged(ctx, cmd, audit)
+	}
 	stackCtx := engine.StackContext{
 		StackName:      result.StackName,
 		TimeWindow:     dateRange,
@@ -312,6 +332,9 @@ func finalizeOverviewOutput(
 	// Budget evaluation (non-TTY path only).
 	overrides := applyOverviewBudgetFlags(cmd, params)
 	costResults, totalCost := overviewRowsToBudgetInputs(result.Rows)
+	if overviewUsesTerraform(params) {
+		recordTerraformProjection(ctx, cmd, costResults)
+	}
 	if budgetErr := evaluateBudgetStatusWithoutRender(cmd, costResults, totalCost, overrides); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return toAxExitError(ctx, budgetErr)
@@ -330,6 +353,14 @@ func loadPlainOverviewData(
 	cmd *cobra.Command,
 	params overviewParams,
 ) ([]engine.StateResource, []engine.PlanStep, string, bool, error) {
+	if dir, terraformInput, err := overviewTerraformSource(params); err != nil {
+		if errors.Is(err, ErrNoProjectMarker) {
+			err = toValidationError(ctx, err)
+		}
+		return nil, nil, "", false, err
+	} else if terraformInput {
+		return loadTerraformOverview(ctx, cmd, params, dir)
+	}
 	if params.pulumiState != "" || params.pulumiJSON != "" {
 		// Explicit files provided: load both directly, bypass change detection.
 		// Propagate stateOnly so the caller uses NewRowsFromState when --state-only --pulumi-state is used.
@@ -730,11 +761,11 @@ func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 			Type: s.ResourceType(),
 		}
 		switch s.Op {
-		case "create", "update", "replace", "create-replacement":
+		case "create", "update", overviewOperationReplace, "create-replacement":
 			result[i].ProjectedProperties = projectedPropertiesFromStep(s)
 		}
 		switch s.Op {
-		case "update", "replace", "create-replacement":
+		case "update", overviewOperationReplace, "create-replacement":
 			result[i].PropertyDiffs = diffInputs(s.OldState, s.NewState)
 		}
 		if s.OldState != nil {
@@ -1340,6 +1371,12 @@ func overviewInitAndEnrich(
 	}
 	pipe.OnError = func(_ int, err error) { p.Send(tui.OverviewInitErrorMsg{Err: err}) }
 	pipe.OnPassphraseRequired = func() { p.Send(tui.OverviewPassphraseRequiredMsg{}) }
+	pipe.OnReady = func(result OverviewPipelineResult) {
+		if overviewUsesTerraform(params) {
+			costResults, _ := overviewRowsToBudgetInputs(result.Rows)
+			recordTerraformProjection(enrichCtx, cmd, costResults)
+		}
+	}
 
 	// Run joins its own budget fetch before returning, so the cleanup sent
 	// below never races a budget call still inside gRPC.
@@ -1664,6 +1701,19 @@ func resolveOverviewPassphrase(
 	passphraseChan <-chan string,
 	prompt func(),
 ) (*string, error) {
+	if _, terraformInput, _ := overviewTerraformSource(params); terraformInput {
+		return nil, nil //nolint:nilnil // Terraform does not use Pulumi passphrases.
+	}
+	return resolvePulumiOverviewPassphrase(ctx, params, passphraseChan, prompt)
+}
+
+// resolvePulumiOverviewPassphrase retains the Pulumi-only web unlock flow.
+func resolvePulumiOverviewPassphrase(
+	ctx context.Context,
+	params overviewParams,
+	passphraseChan <-chan string,
+	prompt func(),
+) (*string, error) {
 	log := logging.FromContext(ctx)
 
 	// Skip if passphrase already set in environment (including empty string).
@@ -1880,4 +1930,102 @@ func loadOverviewPlanOnly(
 		stack = extractStackName(params.pulumiJSON)
 	}
 	return nil, convertPlanSteps(plan.Steps), stack, nil
+}
+
+// overviewTerraformSource selects Terraform only for CLI overview inputs. Explicit
+// Pulumi files preserve the existing state-and-preview behavior.
+func overviewTerraformSource(params overviewParams) (string, bool, error) {
+	if params.terraformPlan != "" || params.terraformState != "" {
+		return "", true, nil
+	}
+	if params.pulumiJSON != "" || params.pulumiState != "" {
+		return "", false, nil
+	}
+	source, err := DetectProjectSource(".")
+	if err != nil {
+		return "", false, fmt.Errorf("auto-detecting Pulumi project or Terraform root: %w", err)
+	}
+	return source.Dir, source.Kind == ProjectKindTerraform, nil
+}
+
+// loadTerraformOverview adapts plan descriptors into the overview merge contract.
+// Non-create resources supply their before properties as the current state.
+func loadTerraformOverview(
+	ctx context.Context, cmd *cobra.Command, params overviewParams, dir string,
+) ([]engine.StateResource, []engine.PlanStep, string, bool, error) {
+	var resources []engine.ResourceDescriptor
+	var err error
+	switch {
+	case params.terraformPlan != "":
+		resources, _, err = loadTerraformPlanFile(ctx, cmd, params.terraformPlan)
+	case params.terraformState != "":
+		resources, err = loadAndMapTerraformResources(ctx, params.terraformState, nil)
+	default:
+		resources, err = loadTerraformDirectory(ctx, cmd, dir)
+	}
+	if err != nil {
+		if params.terraformPlan != "" || params.terraformState != "" {
+			err = toValidationError(ctx, err)
+		}
+		return nil, nil, "", false, err
+	}
+	capturedResources := resources
+	if params.terraformState == "" && terraformPlanUnchanged(resources) {
+		resources = nil
+	}
+	state := make([]engine.StateResource, 0, len(resources))
+	steps := make([]engine.PlanStep, 0, len(resources))
+	for _, resource := range resources {
+		if resource.Operation != engine.DiffOperationCreate {
+			properties := resource.OldProperties
+			if properties == nil {
+				properties = resource.Properties
+			}
+			state = append(state, engine.StateResource{
+				URN:        resource.ID,
+				ID:         terraformOverviewCloudID(resource),
+				Type:       resource.Type,
+				Custom:     true,
+				Properties: properties,
+				Provider:   resource.Provider,
+			})
+		}
+		step := engine.PlanStep{
+			URN: resource.ID, Op: resource.Operation, Type: resource.Type, Provider: resource.Provider,
+			ProjectedProperties: resource.Properties,
+		}
+		if resource.Operation == engine.DiffOperationUpdate || resource.Operation == overviewOperationReplace {
+			step.PropertyDiffs = diffInputs(
+				&ingest.PulumiState{Inputs: resource.OldProperties},
+				&ingest.PulumiState{Inputs: resource.Properties},
+			)
+		}
+		steps = append(steps, step)
+	}
+	if params.captureTerraform != nil {
+		params.captureTerraform(ctx, capturedResources, steps)
+	}
+	label := filepath.Base(dir)
+	if params.terraformPlan != "" {
+		label = filepath.Base(params.terraformPlan)
+	} else if params.terraformState != "" {
+		label = filepath.Base(params.terraformState)
+	}
+	return state, steps, label, params.terraformState != "", nil
+}
+
+func overviewUsesTerraform(params overviewParams) bool {
+	_, terraformInput, err := overviewTerraformSource(params)
+	return err == nil && terraformInput
+}
+
+// terraformOverviewCloudID keeps cloud lookup identity separate from the
+// Terraform address used by selectors and plan resource identities.
+func terraformOverviewCloudID(resource engine.ResourceDescriptor) string {
+	for _, properties := range []map[string]any{resource.OldProperties, resource.Properties} {
+		if id, ok := properties[ingest.PropertyTerraformCloudID].(string); ok && id != "" {
+			return id
+		}
+	}
+	return ""
 }

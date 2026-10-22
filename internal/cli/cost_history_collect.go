@@ -43,6 +43,7 @@ func NewCostHistoryCollectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "collect",
 		Short: "Store projected costs for Pulumi stack checkpoints",
+		Long:  "Collect projected costs from Pulumi checkpoints. Terraform directories are unsupported because plans have no checkpoint list; run cost projected to record Terraform projections instead.",
 		Example: `  finfocus cost history collect --stack dev
   finfocus cost history collect --stack dev --versions 20
   finfocus cost history collect --stack dev --from 2025-01-01 --skip-destroy`,
@@ -60,6 +61,9 @@ func NewCostHistoryCollectCmd() *cobra.Command {
 const defaultParallelExports = 4
 
 func runCollect(cmd *cobra.Command, deps collectDeps) error {
+	if source, err := DetectProjectSource("."); err == nil && source.Kind == ProjectKindTerraform {
+		return toValidationError(commandContext(cmd), errTerraformCollect)
+	}
 	flags, err := readCollectFlags(cmd)
 	if err != nil {
 		return err
@@ -114,7 +118,19 @@ func readCollectFlags(cmd *cobra.Command) (collectFlags, error) {
 
 var ErrStackRequired = errors.New("--stack flag required")
 
-func detectStack(ctx context.Context, cmd *cobra.Command, stack string, deps collectDeps) (string, error) {
+// The sentence is the contract hint, including its period.
+//
+//nolint:staticcheck,revive // contract text is shown to the user unchanged
+var errTerraformCollect = errors.New(
+	"cost history collect reads Pulumi checkpoints. This directory is Terraform, and a plan has no checkpoint list.",
+)
+
+func detectStack(
+	ctx context.Context,
+	cmd *cobra.Command,
+	stack string,
+	deps collectDeps,
+) (string, error) {
 	run := deps.run
 	if run == nil {
 		run = execCommand
@@ -133,12 +149,22 @@ func detectStack(ctx context.Context, cmd *cobra.Command, stack string, deps col
 		return "", err
 	}
 	if !stackKnown(stack, names) {
-		return "", fmt.Errorf("stack '%s' not found. Available stacks: %s", stack, joinStacks(names))
+		return "", fmt.Errorf(
+			"stack '%s' not found. Available stacks: %s",
+			stack,
+			joinStacks(names),
+		)
 	}
 	return bin, nil
 }
 
-func collectInto(ctx context.Context, cmd *cobra.Command, bin string, flags collectFlags, deps collectDeps) error {
+func collectInto(
+	ctx context.Context,
+	cmd *cobra.Command,
+	bin string,
+	flags collectFlags,
+	deps collectDeps,
+) error {
 	target, err := resolveHistoryTarget(deps.dir, flags.stack)
 	if err != nil {
 		return err
@@ -181,7 +207,12 @@ func collectInto(ctx context.Context, cmd *cobra.Command, bin string, flags coll
 		return err
 	}
 	for _, skipped := range result.Skipped {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: skipped version %d: %v\n", skipped.Version, skipped.Err)
+		fmt.Fprintf(
+			cmd.ErrOrStderr(),
+			"Warning: skipped version %d: %v\n",
+			skipped.Version,
+			skipped.Err,
+		)
 	}
 	return autoPruneCostHistory(cmd, db, path, deps.cfg)
 }
@@ -265,7 +296,8 @@ func (p pulumiExporter) History(ctx context.Context) ([]byte, error) {
 // flagRejected reports whether a Pulumi error says it does not know a flag.
 func flagRejected(err error) bool {
 	message := strings.ToLower(err.Error())
-	return strings.Contains(message, "unknown flag") || strings.Contains(message, "unknown shorthand flag")
+	return strings.Contains(message, "unknown flag") ||
+		strings.Contains(message, "unknown shorthand flag")
 }
 
 // newHistoryEntries decodes one page and returns the entries whose version was
@@ -294,7 +326,16 @@ func newHistoryEntries(raw []byte, seen map[int]struct{}) ([]json.RawMessage, er
 }
 
 func (p pulumiExporter) Export(ctx context.Context, version int) ([]byte, error) {
-	return p.run(ctx, p.bin, "stack", "export", "--stack", p.stack, "--version", strconv.Itoa(version))
+	return p.run(
+		ctx,
+		p.bin,
+		"stack",
+		"export",
+		"--stack",
+		p.stack,
+		"--version",
+		strconv.Itoa(version),
+	)
 }
 
 func openHistoryPricer(cmd *cobra.Command) (history.Pricer, func(), string, error) {

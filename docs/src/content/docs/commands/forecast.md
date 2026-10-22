@@ -59,7 +59,10 @@ then one `point` line per month, then `warning` lines.
 | Flag | Description | Default |
 | --- | --- | --- |
 | `--pulumi-json` | Pulumi preview JSON. Omitted, the command detects the project | auto |
-| `--terraform-state` | Terraform state file. Mutually exclusive with `--pulumi-json` | |
+| `--terraform-state` | Terraform state file. Mutually exclusive with other input flags | |
+| `--terraform-plan` | Saved `tofu show -json` output; runs no binary | |
+| `--pulumi-state` | Pulumi stack export JSON; mutually exclusive with other input flags | |
+| `--include-workspace` | Scope Terraform history to its workspace for this run; ignored for Pulumi | false |
 | `--stack` | Stack for auto-detect and for reading cost history | current |
 | `--months` | Months ahead (1–36) | 12 |
 | `--growth-type` | `none`, `linear`, or `exponential` for every resource | plugin |
@@ -77,3 +80,7 @@ then one `point` line per month, then `warning` lines.
 | `--spec-dir` | Pricing spec directory | config |
 | `--jobs`, `-j` | Parallel workers. 0 is automatic | 0 |
 | `--profile` | Workload hint passed to projected pricing: `dev`, `prod`, `burst`, or `default`. Inherited from `cost` | no preference |
+
+With no input file, forecast uses the same project detection as `cost projected`.
+A Terraform directory is planned with `terraform` or `tofu`. Use
+`--terraform-plan` to read a saved plan without running a binary.

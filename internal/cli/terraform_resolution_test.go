@@ -360,3 +360,31 @@ func TestWarnNoTypeResolvingPlugin_NoTerraformState(t *testing.T) {
 
 	assert.Empty(t, stderr.String())
 }
+
+func TestApplyTypeMappingsMapsOldAndNewTerraformProperties(t *testing.T) {
+	t.Parallel()
+	for _, key := range []string{"volume_type", "volumeType"} {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			resources := []engine.ResourceDescriptor{{
+				Type: "aws_ebs_volume", ID: "aws_ebs_volume.data", Provider: "aws", Operation: "update",
+				Properties:    map[string]any{key: "gp3"},
+				OldProperties: map[string]any{key: "gp2"},
+			}}
+			mapping := map[string]cachedTypeMapping{"aws_ebs_volume": {
+				PulumiToken:      "aws:ebs/volume:Volume",
+				PropertyMappings: map[string]string{"volume_type": "diskType"},
+			}}
+			resolved := applyTypeMappings(resources, mapping)
+			require.Len(t, resolved, 1)
+			assert.Equal(t, "aws:ebs/volume:Volume", resolved[0].Type)
+			assert.Equal(t, "update", resolved[0].Operation)
+			assert.Equal(t, "gp3", resolved[0].Properties["diskType"])
+			assert.Equal(t, "gp2", resolved[0].OldProperties["diskType"])
+			assert.Equal(t, map[string]any{key: "gp3"}, resources[0].Properties)
+			assert.Equal(t, map[string]any{key: "gp2"}, resources[0].OldProperties)
+			resolved[0].OldProperties[key] = "modified"
+			assert.Equal(t, "gp2", resources[0].OldProperties[key])
+		})
+	}
+}

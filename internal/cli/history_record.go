@@ -3,12 +3,17 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
@@ -17,6 +22,161 @@ import (
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/resourcetype"
 )
+
+// recordTerraformProjection stores a successfully priced projection in the
+// Terraform project's timeline. History failures never fail the cost command.
+func recordTerraformProjection(
+	ctx context.Context,
+	cmd *cobra.Command,
+	results []engine.CostResult,
+) {
+	for _, name := range []string{flagPulumiJSON, flagPulumiState, flagTerraformState} {
+		if cmd.Flag(name) != nil {
+			value, err := cmd.Flags().GetString(name)
+			if err == nil && value != "" {
+				return
+			}
+		}
+	}
+	cfg := config.GetGlobalConfig()
+	if cfg == nil {
+		cfg = config.New()
+	}
+	enabled := cfg.Cost.History.IsEnabled()
+	if value := os.Getenv(config.HistoryEnvEnabled); value != "" {
+		if parsed, err := strconv.ParseBool(value); err == nil {
+			enabled = parsed
+		}
+	}
+	if !enabled {
+		return
+	}
+	source, err := DetectProjectSource(".")
+	if err != nil || source.Kind != ProjectKindTerraform {
+		return
+	}
+	log := logging.FromContext(ctx)
+	if err = writeTerraformProjection(ctx, cmd, cfg, results); err != nil {
+		log.Warn().
+			Ctx(ctx).
+			Err(err).
+			Str("component", "history").
+			Str("operation", "record_projection").
+			Msg("could not record Terraform projection")
+	}
+}
+
+func writeTerraformProjection(
+	ctx context.Context,
+	cmd *cobra.Command,
+	cfg *config.Config,
+	results []engine.CostResult,
+) error {
+	dir := resolveHistoryDir(ctx, cfg, config.GetResolvedProjectDir())
+	if projectHistoryDirectoryRecheckFails(ctx, cfg, config.GetResolvedProjectDir(), dir) {
+		dir = filepath.Join(config.ResolveConfigDir(), "history")
+	}
+	target, err := resolveHistoryCommandTarget(cmd, dir)
+	if err != nil {
+		return err
+	}
+	db, err := history.OpenCostDBFor(target.Path, target.Project, target.Stack)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+	if err = db.SetProjectLabel(target.Label); err != nil {
+		return err
+	}
+	stats, err := db.Stats()
+	if err != nil {
+		return err
+	}
+	snapshots, err := terraformProjectionSnapshots(results, stats.LastVersion)
+	if err != nil {
+		return err
+	}
+	for _, snapshot := range snapshots {
+		annotation := history.CostAnnotation{
+			Version: snapshot.Version,
+			Kind:    "projection",
+			Message: "Terraform projected cost",
+		}
+		if err = db.Put(snapshot, annotation); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func terraformProjectionSnapshots(
+	results []engine.CostResult,
+	lastVersion uint64,
+) ([]history.CostSnapshot, error) {
+	version, err := strconv.Atoi(strconv.FormatUint(lastVersion, 10))
+	if err != nil {
+		return nil, fmt.Errorf("reading projection version: %w", err)
+	}
+	if len(results) >= math.MaxInt-version {
+		return nil, errors.New("projection history version limit reached")
+	}
+	version++
+	snapshots := map[string]*history.CostSnapshot{}
+	currencies := []string{}
+	for _, result := range results {
+		if result.Error != nil {
+			continue
+		}
+		currency := result.Currency
+		if currency == "" {
+			currency = defaultCurrency
+		}
+		snapshot := snapshots[currency]
+		if snapshot == nil {
+			snapshot = &history.CostSnapshot{
+				Timestamp:  time.Now().UTC(),
+				Version:    version,
+				Currency:   currency,
+				ByProvider: map[string]float64{},
+				ByType:     map[string]float64{},
+				Resources:  []history.CostResource{},
+			}
+			version++
+			snapshots[currency] = snapshot
+			currencies = append(currencies, currency)
+		}
+		provider := resourcetype.ExtractProvider(result.ResourceType)
+		snapshot.TotalMonthly += result.Monthly
+		snapshot.ByProvider[provider] += result.Monthly
+		snapshot.ByType[result.ResourceType] += result.Monthly
+		snapshot.ResourceCount++
+		snapshot.Resources = append(
+			snapshot.Resources,
+			history.CostResource{
+				URN:         result.ResourceID,
+				Type:        result.ResourceType,
+				Provider:    provider,
+				MonthlyCost: result.Monthly,
+			},
+		)
+	}
+	if len(results) == 0 {
+		currencies = append(currencies, defaultCurrency)
+		snapshots[defaultCurrency] = &history.CostSnapshot{
+			Timestamp:  time.Now().UTC(),
+			Version:    version,
+			Currency:   defaultCurrency,
+			ByProvider: map[string]float64{},
+			ByType:     map[string]float64{},
+			Resources:  []history.CostResource{},
+		}
+	}
+	ordered := make([]history.CostSnapshot, 0, len(currencies))
+	for _, currency := range currencies {
+		ordered = append(ordered, *snapshots[currency])
+	}
+	return ordered, nil
+}
 
 // convertEngineStateToHistoryState converts engine.StateResource to
 // history.StateResource for recording to the history store.
@@ -39,7 +199,11 @@ func convertEngineStateToHistoryState(resources []engine.StateResource) []histor
 
 // recordHistorySnapshot is a fire-and-forget helper that records state resources
 // to the history store. Errors are logged at WARN level but never returned.
-func recordHistorySnapshot(ctx context.Context, store history.Store, resources []engine.StateResource) {
+func recordHistorySnapshot(
+	ctx context.Context,
+	store history.Store,
+	resources []engine.StateResource,
+) {
 	if store == nil || !store.IsEnabled() {
 		return
 	}
@@ -56,7 +220,11 @@ func recordHistorySnapshot(ctx context.Context, store history.Store, resources [
 // recordHistoryPlanLineage is a fire-and-forget helper that records plan lineage
 // (replace/delete cloud IDs) to the history store. Only steps with non-empty
 // cloud IDs are recorded.
-func recordHistoryPlanLineage(ctx context.Context, store history.Store, planSteps []engine.PlanStep) {
+func recordHistoryPlanLineage(
+	ctx context.Context,
+	store history.Store,
+	planSteps []engine.PlanStep,
+) {
 	if store == nil || !store.IsEnabled() {
 		return
 	}
@@ -142,7 +310,11 @@ func detectHistoryStackContext(ctx context.Context) (history.StackContext, bool)
 // projectDir is the project-tier directory that built cfg; it decides whether
 // cost.history.directory came from an untrusted project overlay.
 // The caller should defer the returned cleanup function.
-func initHistoryFromConfig(ctx context.Context, cfg *config.Config, projectDir string) (history.Store, func()) {
+func initHistoryFromConfig(
+	ctx context.Context,
+	cfg *config.Config,
+	projectDir string,
+) (history.Store, func()) {
 	log := logging.FromContext(ctx)
 	noopCleanup := func() {}
 
@@ -243,7 +415,8 @@ func historyDirectory(ctx context.Context, cfg *config.Config, projectDir string
 	}
 	if cfg != nil && cfg.Cost.History.Directory != "" {
 		dir := cfg.Cost.History.Directory
-		if !historyDirectoryIsProjectTier(cfg, projectDir) || !projectHistoryDirectoryRejected(ctx, projectDir) {
+		if !historyDirectoryIsProjectTier(cfg, projectDir) ||
+			!projectHistoryDirectoryRejected(ctx, projectDir) {
 			return dir, false
 		}
 	}
@@ -272,7 +445,8 @@ func historyDirectoryIsProjectTier(cfg *config.Config, projectDir string) bool {
 // overlay that sets the key always supplies the merged value.
 func projectHistoryDirectoryRejected(ctx context.Context, projectDir string) bool {
 	dir := config.ProjectHistoryDirectory(projectDir)
-	if dir == "" || (projectHistoryDirectorySafe(projectDir, dir) && historyDatabaseFilesSafe(dir)) {
+	if dir == "" ||
+		(projectHistoryDirectorySafe(projectDir, dir) && historyDatabaseFilesSafe(dir)) {
 		return false
 	}
 	logging.FromContext(ctx).Warn().Ctx(ctx).
@@ -287,7 +461,11 @@ func projectHistoryDirectoryRejected(ctx context.Context, projectDir string) boo
 // not exist during validation is caught before Bolt opens a file there. It is a
 // narrowing, not a lock: the directory can still be swapped between this check
 // and the open.
-func projectHistoryDirectoryRecheckFails(ctx context.Context, cfg *config.Config, projectDir, resolved string) bool {
+func projectHistoryDirectoryRecheckFails(
+	ctx context.Context,
+	cfg *config.Config,
+	projectDir, resolved string,
+) bool {
 	if os.Getenv(config.HistoryEnvDir) != "" || cfg == nil || cfg.Cost.History.Directory == "" {
 		return false
 	}

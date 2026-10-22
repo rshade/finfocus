@@ -52,7 +52,7 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 	resource := ResourceDescriptor{
 		Type:       row.Type,
 		ID:         row.URN,
-		Provider:   resourcetype.ExtractProvider(row.Type),
+		Provider:   overviewRowProvider(*row),
 		Properties: row.Properties,
 	}
 	actualResource := actualResourceForRow(*row)
@@ -154,7 +154,7 @@ func actualResourceForRow(row OverviewRow) ResourceDescriptor {
 	return ResourceDescriptor{
 		Type:       row.Type,
 		ID:         row.URN,
-		Provider:   resourcetype.ExtractProvider(row.Type),
+		Provider:   overviewRowProvider(row),
 		Properties: props,
 	}
 }
@@ -597,4 +597,11 @@ sendLoop:
 		Msg("row enrichment complete")
 
 	return rows
+}
+
+func overviewRowProvider(row OverviewRow) string {
+	if row.Provider != "" {
+		return row.Provider
+	}
+	return resourcetype.ExtractProvider(row.Type)
 }

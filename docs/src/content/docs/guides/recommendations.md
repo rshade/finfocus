@@ -17,7 +17,7 @@ to explore details.
 **Prerequisites**:
 
 - [FinFocus CLI installed](../getting-started/installation.md)
-- [Pulumi project configured](../getting-started/quickstart.md)
+- A [Pulumi project](../getting-started/quickstart.md), a Terraform directory, or saved plan JSON
 - Cost plugins installed (e.g., `vantage`, `aws-public`) that support recommendations
 
 **Learning Objectives**:
@@ -42,6 +42,29 @@ Execute the recommendations command against your Pulumi plan:
 ```bash
 finfocus cost recommendations --pulumi-json plan.json
 ```
+
+For a Terraform directory, run the command there without an input flag. FinFocus
+runs `tofu plan` and reads the resulting plan. To reuse a saved
+plan without running either binary:
+
+```bash
+tofu show -json tfplan > tfplan.json
+finfocus cost recommendations --terraform-plan tfplan.json
+```
+
+Pulumi projects still require explicit plan input. `--terraform-plan`,
+`--pulumi-json`, `--pulumi-state`, and `--terraform-state` are mutually exclusive.
+Saved Terraform plan files must use format version 1 and be at most 32 MiB.
+Missing or invalid files exit 2. Planning failures exit 1 and explain whether to
+install Terraform, run init, fix credentials or backend access, or inspect the
+plan error. FinFocus does not run init or authenticate for you.
+
+`--include-workspace` overrides `cost.terraform.include_workspace` for this run;
+it is ignored for Pulumi. A plan with no changes reports zero projected cost.
+
+The `dismiss` and `snooze` subcommands never run a plan, including in Terraform
+directories. Their optional `--pulumi-json` flag enables plugin communication;
+both reject `--terraform-plan`.
 
 ### Step 2: Navigate Interactive UI
 

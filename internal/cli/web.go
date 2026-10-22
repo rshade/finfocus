@@ -43,7 +43,7 @@ var wslBrowserOpenDelay = 1500 * time.Millisecond
 //
 //nolint:gochecknoglobals // Immutable flag policy table.
 var webCompanionFlags = []string{
-	"port", "no-browser", "pulumi-json", "pulumi-state",
+	"port", "no-browser", flagPulumiJSON, flagPulumiState,
 	"stack", "from", "to", "adapter", "filter",
 }
 
@@ -97,14 +97,14 @@ type webFlagValues struct {
 // with ax-go's mounted flags.
 func registerWebFlags(cmd *cobra.Command, flags *webFlagValues) {
 	cmd.Flags().BoolVar(&flags.web, webFlag, false,
-		"serve the finfocus web UI on localhost and open it in a browser (Pulumi projects only)")
+		"serve the finfocus web UI on localhost and open it in a browser (Pulumi or Terraform projects)")
 	cmd.Flags().IntVar(&flags.port, "port", 0,
 		"pin the web UI port (0 = kernel-assigned; only valid with --web)")
 	cmd.Flags().BoolVar(&flags.noBrowser, "no-browser", false,
 		"do not open a browser; print the web UI URL only (only valid with --web)")
 	cmd.Flags().StringVar(&flags.pulumiJSON, "pulumi-json", "",
 		"path to Pulumi preview JSON (only valid with --web)")
-	cmd.Flags().StringVar(&flags.pulumiState, "pulumi-state", "",
+	cmd.Flags().StringVar(&flags.pulumiState, flagPulumiState, "",
 		"path to Pulumi state JSON (only valid with --web)")
 	cmd.Flags().StringVar(&flags.stack, "stack", "",
 		"Pulumi stack name for auto-detection (only valid with --web)")
@@ -168,12 +168,8 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		return toValidationError(ctx, fmt.Errorf("invalid date range: %w", err))
 	}
 
-	// With no source flags, fail the same way `finfocus overview` does —
-	// before any server starts.
-	if params.pulumiState == "" && params.pulumiJSON == "" {
-		if _, _, detectErr := detectPulumiProject(ctx, params.stack); detectErr != nil {
-			return fmt.Errorf("auto-detecting Pulumi project: %w", detectErr)
-		}
+	if err = checkWebProjectSource(ctx, params); err != nil {
+		return err
 	}
 
 	pipeCtx, pipeCancel := context.WithCancel(ctx)
@@ -228,6 +224,25 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		return fmt.Errorf("web server: %w", serveErr)
 	}
 	audit.logSuccess(ctx, pipe.Result().RowsEnriched, 0)
+	return nil
+}
+
+// checkWebProjectSource validates project detection before opening the server.
+// Only Pulumi projects need a stack; Terraform always plans the detected root.
+func checkWebProjectSource(ctx context.Context, params overviewParams) error {
+	if params.pulumiState != "" || params.pulumiJSON != "" {
+		return nil
+	}
+	source, err := DetectProjectSource(".")
+	if err != nil {
+		return toValidationError(ctx, fmt.Errorf("find Pulumi or Terraform project: %w", err))
+	}
+	if source.Kind == ProjectKindTerraform {
+		return nil
+	}
+	if _, _, err = detectPulumiProject(ctx, params.stack); err != nil {
+		return fmt.Errorf("auto-detecting Pulumi project: %w", err)
+	}
 	return nil
 }
 

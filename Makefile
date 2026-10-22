@@ -53,6 +53,10 @@ install-recorder: build-recorder
 	@echo "Verify with: finfocus plugin list"
 
 KUBERNETES_PLUGIN_DIR=plugins/kubernetes
+# segmentio/asm is MIT-0, but go-licenses cannot find its license in the assembly subpackages.
+# The nested plugin modules are this repo and carry no LICENSE file of their own.
+LICENSE_IGNORE=github.com/segmentio/asm github.com/rshade/finfocus
+ALLOWED_LICENSES=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0
 KUBERNETES_VERSION=$(shell jq -r '."plugins/kubernetes" // "0.0.0"' .release-please-manifest.json)
 KUBERNETES_INSTALL_DIR=$(HOME)/.finfocus/plugins/kubernetes/v$(KUBERNETES_VERSION)
 
@@ -193,6 +197,15 @@ test-carbon:
 lint-carbon:
 	cd $(CARBON_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
 
+.PHONY: license-check
+license-check:
+	@for dir in . $(KUBERNETES_PLUGIN_DIR) $(SCORER_PLUGIN_DIR) $(PROMETHEUS_PLUGIN_DIR) $(CARBON_PLUGIN_DIR); do \
+		out=$$(cd $$dir && go-licenses check ./... $(addprefix --ignore ,$(LICENSE_IGNORE)) --allowed_licenses=$(ALLOWED_LICENSES) 2>&1) || { \
+			echo "$$out" | grep -v '^W[0-9]* ' >&2; \
+			echo "$$dir has a dependency outside the license allowlist" >&2; exit 1; }; \
+	done
+	@echo "licenses OK"
+
 .PHONY: check-plugin-boundaries
 check-plugin-boundaries:
 	@for dir in $(KUBERNETES_PLUGIN_DIR) $(SCORER_PLUGIN_DIR) $(PROMETHEUS_PLUGIN_DIR) $(CARBON_PLUGIN_DIR); do \
@@ -274,7 +287,7 @@ test-all:
 	go test -v -timeout 15m ./internal/... ./pkg/... ./test/integration/...
 
 .PHONY: lint
-lint: lint-kubernetes lint-scorer lint-prometheus lint-carbon check-plugin-boundaries
+lint: lint-kubernetes lint-scorer lint-prometheus lint-carbon check-plugin-boundaries license-check
 	@echo "Running golangci-lint (expected version $(GOLANGCI_LINT_VERSION))..."
 	@$(GOLANGCI_LINT) --version | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "golangci-lint $(GOLANGCI_LINT_VERSION) required. Install with"; \

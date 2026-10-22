@@ -472,3 +472,16 @@ func TestRootCmd_DirectOverviewCallUnchanged(t *testing.T) {
 	assert.Contains(t, string(result.Stdout), "unified cost dashboard",
 		"overview help should describe the overview command")
 }
+
+func TestRootDefaultTerraformDelegatesToOverview(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("PATH", t.TempDir())
+	project := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(project, "main.tf"), []byte("# Terraform root\n"), 0o600))
+	t.Chdir(project)
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), nil)
+	assert.Equal(t, 1, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "tofu")
+	assert.NotContains(t, string(result.Stdout), "Available Commands:")
+}

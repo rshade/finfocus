@@ -56,11 +56,13 @@ They are defined on the root command only: no subcommand inherits them, so
 
 `--web` serves the browser-based cost dashboard on localhost (127.0.0.1) and
 prints a session URL of the form `http://127.0.0.1:<port>/?token=<hex>`. Run
-it from a Pulumi project directory: with no source flags it auto-detects the
-project, stack, and state exactly like `finfocus overview`. Pulumi only —
-Terraform state input is not supported, so `--terraform-state` is not
-accepted. `--project-dir` keeps its existing meaning (config resolution) and
-does not change where project detection looks.
+it from a Pulumi or Terraform-compatible project directory. With no source
+flags, Pulumi projects load their stack and state; Terraform projects generate
+a plan using OpenTofu (`tofu`). Both use the same overview and pricing engine.
+Saved `--terraform-state` and `--terraform-plan` inputs are available on the
+`overview` CLI command; see [overview](#overview).
+`--project-dir` keeps its existing meaning (config resolution) and does not
+change where project detection looks.
 
 ### Usage (--web)
 
@@ -193,7 +195,8 @@ finfocus cost projected [options]
 | Flag            | Description                                                       | Default  |
 | --------------- | ----------------------------------------------------------------- | -------- |
 | `--pulumi-json` | Path to Pulumi preview JSON (optional; auto-detected if omitted)  |          |
-| `--terraform-state` | Path to a Terraform state file (mutually exclusive with `--pulumi-json`) |          |
+| `--terraform-plan` | Path to `tofu show -json` output. Does not run a binary. Mutually exclusive with `--pulumi-json` and `--terraform-state` | |
+| `--terraform-state` | Path to a Terraform state file (mutually exclusive with `--pulumi-json` and `--terraform-plan`) |          |
 | `--stack`       | Pulumi stack name for auto-detection (ignored with --pulumi-json) |          |
 | `--filter`      | Filter resources (tag:key=value, type=\*)                         | None     |
 | `--output`      | Output format: table, json, ndjson                                | table    |
@@ -223,6 +226,37 @@ finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2*"
 finfocus cost projected --pulumi-json plan.json --output ndjson
 ```
 
+### Terraform plan
+
+FinFocus invokes only the MPL-2.0 OpenTofu `tofu` executable. The
+`--terraform-plan` and `--terraform-state` names describe compatible input
+formats; FinFocus does not bundle or invoke Terraform core.
+
+In a directory whose nearer marker is a `.tf` or `.tf.json` file, `cost projected`
+runs `tofu plan` and prices
+`tofu show -json`. A Pulumi project in the same directory still wins. A
+Pulumi project only in a parent loses to Terraform files in the working
+directory. A plan with no creates, updates, deletes, or replaces prints
+`No changes. Projected monthly cost is zero.` and exits 0.
+
+`--terraform-plan` reads a saved `show -json` file and does not start a binary.
+A missing file, a `format_version` whose major is not 1, or a file over 32 MiB
+is a user-input error (exit 2).
+
+Operational failures exit 1 and print one hint:
+
+| Situation | Hint |
+| --- | --- |
+| `tofu` is not on `PATH` | Install OpenTofu and run the command again. |
+| The directory is not initialized | Run `tofu init` here. FinFocus does not run init. |
+| Credentials or the backend cannot be read | Fix the access Terraform already uses. FinFocus does not log in. |
+| Any other plan failure | `OpenTofu plan failed.` plus the last 20 stderr lines. |
+
+`cost actual` does not plan. In a Terraform directory with no input file it
+tells you to pass `--terraform-state` and exits 2. `cost history collect` does
+not plan either: checkpoint collection is for a Pulumi project, and it exits 2.
+`--terraform-state` is unchanged.
+
 ### Terraform state
 
 `--terraform-state` parses a Terraform state v4 file (`terraform.tfstate`) and
@@ -248,9 +282,17 @@ Caveats:
 
 ## cost history
 
-Store and read projected-cost snapshots for one Pulumi stack. `collect`
-needs the Pulumi CLI and a cost plugin. `view`, `list`, `diff`, `prune`,
-and `export` read the per-stack database only.
+Store and read projected-cost snapshots for a Pulumi stack or Terraform project.
+`collect` needs the Pulumi CLI and a cost plugin. In Terraform directories it exits
+2 without planning because Terraform plans have no checkpoint list. `view`, `list`,
+`diff`, `prune`, and `export` open the detected project's database without planning.
+
+For Terraform, the default identity hashes the normalized Git origin and relative
+project path, or the absolute path when Git or origin is unavailable. The stack
+name is `unscoped`. Pass `--include-workspace` to include the workspace, overriding
+`cost.terraform.include_workspace` for one run. Use the same setting for projections
+and history queries. This flag is ignored for Pulumi. See the
+[Resource History Guide](../guides/resource-history.md#terraform-projected-cost-history).
 
 ### Usage (cost history collect)
 
@@ -305,14 +347,27 @@ Display cost optimization recommendations from cloud providers.
 ### Usage (cost recommendations)
 
 ```bash
-finfocus cost recommendations --pulumi-json <file> [options]
+finfocus cost recommendations [--pulumi-json <file> | --terraform-plan <file>] [options]
 ```
+
+In a detected Terraform directory, omit input flags to run a plan. Pulumi projects
+still require explicit input. The four infrastructure input flags are mutually
+exclusive. Saved plan files must use format version 1 and be at most 32 MiB;
+invalid or missing files exit 2. Planning failures exit 1 with an actionable hint.
+FinFocus does not run init, log in, or store credentials.
+
+`dismiss` and `snooze` never plan. Their `--pulumi-json` flag stays optional
+for plugin communication, and both reject `--terraform-plan`.
 
 ### Options (cost recommendations)
 
 | Flag                  | Description                                                      | Default  |
 | --------------------- | ---------------------------------------------------------------- | -------- |
-| `--pulumi-json`       | Path to Pulumi preview JSON                                      | Required |
+| `--pulumi-json`       | Path to Pulumi preview JSON; required for Pulumi plan input | |
+| `--terraform-plan`    | Path to saved `tofu show -json` output; runs no binary | |
+| `--pulumi-state`      | Path to a Pulumi stack export JSON file | |
+| `--terraform-state`   | Path to a Terraform state JSON file; runs no plan | |
+| `--include-workspace` | Include the Terraform workspace in history identity for this run; ignored for Pulumi | false |
 | `--filter`            | Filter expression (e.g., `action=RIGHTSIZE,TERMINATE`)           | None     |
 | `--output`            | Output format: table, json, ndjson                               | table    |
 | `--limit`             | Limit number of recommendations                                  | 0 (all)  |
@@ -579,7 +634,7 @@ finfocus cost actual --pulumi-state state.json --estimate-confidence
 
 ## cost estimate
 
-Perform what-if cost analysis on resources without modifying Pulumi code.
+Perform what-if cost analysis on resources without modifying infrastructure code.
 
 ### Usage (cost estimate)
 
@@ -598,8 +653,12 @@ The command supports two mutually exclusive modes:
 
 **Plan-Based Mode:**
 
-- Specify `--pulumi-json` to load resources from a Pulumi plan
-- Use `--modify` to apply modifications to specific resources
+- Specify `--pulumi-json` for a Pulumi plan, or `--terraform-plan` for saved
+  `tofu show -json` output
+- In a Terraform directory, omit input flags to run a plan; Pulumi projects
+  retain the explicit input requirement
+- Use `--modify selector:key=value` to select a resource by ID, logical name,
+  or type. A Terraform address, such as `aws_instance.web`, is its resource ID
 
 ### Options (cost estimate)
 
@@ -609,12 +668,26 @@ The command supports two mutually exclusive modes:
 | `--resource-type` | Full type token (e.g., aws:ec2/instance:Instance) |         |
 | `--property`      | Property override key=value (repeatable) |         |
 | `--pulumi-json`   | Path to Pulumi preview JSON              |         |
+| `--terraform-plan` | Path to saved `tofu show -json` output; runs no binary | |
+| `--pulumi-state` | Path to a Pulumi stack export JSON file | |
+| `--terraform-state` | Path to a Terraform state JSON file; runs no plan | |
+| `--include-workspace` | Include the Terraform workspace in history identity for this run; ignored for Pulumi | false |
 | `--modify`        | Resource modification resource:key=value |         |
 | `--region`        | Region for cost calculation              |         |
 | `--interactive`   | Launch interactive TUI mode              | false   |
 | `--output`        | Output format: table, json, ndjson       | table   |
 | `--adapter`       | Specific plugin adapter to use           |         |
 | `--help`          | Show help                                |         |
+
+The four infrastructure input flags are mutually exclusive. Saved plan input
+must use format version 1 and be at most 32 MiB; invalid or missing files exit 2.
+Planning failures exit 1. Initialize the directory and configure Terraform access
+before planning; FinFocus does not perform those steps.
+
+```bash
+finfocus cost estimate --terraform-plan tfplan.json \
+  --modify 'aws_instance.web:instanceType=m5.large'
+```
 
 ### Examples (cost estimate)
 

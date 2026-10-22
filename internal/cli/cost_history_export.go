@@ -29,6 +29,8 @@ func NewCostHistoryExportCmd() *cobra.Command {
 		Use:   "export",
 		Short: "Export stored cost history as JSON, CSV, or NDJSON",
 		Long: `Reads the per-stack cost history database and writes a time series.
+Terraform directories resolve the current project identity without --stack or
+running a plan. --include-workspace opts into workspace scoping.
 
 --format is the root flag. json writes one document, csv writes a header
 and one row per snapshot, and ndjson writes one snapshot per line.
@@ -61,7 +63,7 @@ func runExport(cmd *cobra.Command, dir string) error {
 	if err != nil {
 		return err
 	}
-	stack, err := requiredStack(cmd)
+	target, err := resolveHistoryCommandTarget(cmd, dir)
 	if err != nil {
 		return err
 	}
@@ -69,7 +71,8 @@ func runExport(cmd *cobra.Command, dir string) error {
 	if err != nil {
 		return err
 	}
-	db, err := openHistoryRead(dir, stack)
+	stack := target.Stack
+	db, err := openHistoryTargetReadExisting(target)
 	if err != nil {
 		return err
 	}
@@ -161,21 +164,25 @@ func exportFormatFromContext(cmd *cobra.Command) (string, bool) {
 var errExportFormat = errors.New("--format is required (json, csv, or ndjson)")
 
 func openHistoryRead(dir, stack string) (*history.CostDB, error) {
-	path, err := historyPath(dir, stack)
+	target, err := resolveHistoryTarget(dir, stack)
 	if err != nil {
 		return nil, err
 	}
-	if _, statErr := os.Stat(path); statErr != nil {
-		if os.IsNotExist(statErr) {
-			return nil, fmt.Errorf("no cost history for stack '%s'", stack)
+	return openHistoryTargetReadExisting(target)
+}
+
+func openHistoryTargetReadExisting(target historyTarget) (*history.CostDB, error) {
+	if _, err := os.Stat(target.Path); err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("no cost history for stack '%s'", target.Stack)
 		}
-		return nil, fmt.Errorf("reading cost history: %w", statErr)
+		return nil, fmt.Errorf("reading cost history: %w", err)
 	}
-	db, err := history.OpenCostDBRead(path)
+	db, err := openHistoryTargetRead(target)
 	if err != nil {
 		return nil, err
 	}
-	if err = diffStackMatches(db, stack); err != nil {
+	if err = diffStackMatches(db, target.Stack); err != nil {
 		_ = db.Close()
 		return nil, err
 	}

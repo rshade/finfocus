@@ -113,12 +113,40 @@ func (d *webData) overviewParams() overviewParams {
 	params := d.params
 	params.captureState = d.captureState
 	params.capturePlan = d.capturePlan
+	params.captureTerraform = d.captureTerraform
 	return params
 }
 
 func (d *webData) captureState(resources []ingest.StackExportResource) {
 	d.raw, d.sourceErr = ingest.MapStateResources(resources)
 	d.sourceCaptured = true
+}
+
+// captureTerraform retains the same validated descriptors used by overview.
+// Actual queries consume before values; estimates overlay the planned values.
+func (d *webData) captureTerraform(
+	ctx context.Context, resources []engine.ResourceDescriptor, steps []engine.PlanStep,
+) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		return
+	}
+	defer unlock()
+	d.planned = cloneWebResources(resources)
+	d.raw = nil
+	for _, resource := range cloneWebResources(resources) {
+		if resource.Operation == engine.DiffOperationCreate {
+			continue
+		}
+		if resource.OldProperties != nil {
+			resource.Properties = deepCopyProperties(resource.OldProperties)
+		}
+		d.raw = append(d.raw, resource)
+	}
+	d.planSteps = append([]engine.PlanStep(nil), steps...)
+	d.sourceCaptured = true
+	d.sourceErr = nil
+	d.planErr = nil
 }
 
 // capturePlan keeps only real initial preview sources, before synthetic expansion.
@@ -375,6 +403,7 @@ func (d *webData) recommendations(ctx context.Context, include bool) (*engine.Re
 	silent := &cobra.Command{}
 	silent.SetOut(io.Discard)
 	silent.SetErr(io.Discard)
+	resources = prepareRecommendationResources(ctx, d.clients, d.cache, resources)
 	result, err := d.fetchRecommendations(ctx, silent, d.eng, resources, include)
 	if err != nil || result == nil {
 		return result, err
@@ -452,5 +481,9 @@ func (d *webData) estimateResources(ctx context.Context) ([]engine.ResourceDescr
 		}
 	}
 
-	return ApplyFilters(ctx, resources, d.params.filter)
+	resources, err = ApplyFilters(ctx, resources, d.params.filter)
+	if err != nil {
+		return nil, err
+	}
+	return prepareEstimateResources(ctx, d.clients, resources), nil
 }

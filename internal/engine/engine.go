@@ -2194,13 +2194,22 @@ func deriveActualCostWindow(
 // rootBlockDevice.0.volumeType). EstimateCost does not use this function.
 func ConvertToProto(properties map[string]any) map[string]string {
 	result := make(map[string]string)
-	for k, v := range properties {
+	tagProps := properties
+	if _, ok := properties["terraform:unknownProperties"]; ok {
+		tagProps = make(map[string]any, len(properties)-1)
+		for key, value := range properties {
+			if key != "terraform:unknownProperties" {
+				tagProps[key] = value
+			}
+		}
+	}
+	for k, v := range tagProps {
 		if isCredentialKey(k) || history.IsPulumiSecret(v) {
 			continue
 		}
 		result[k] = ConvertValueToString(v)
 	}
-	addDottedTags(result, properties)
+	addDottedTags(result, tagProps)
 	return result
 }
 

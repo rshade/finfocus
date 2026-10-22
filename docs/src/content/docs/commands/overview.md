@@ -47,7 +47,9 @@ the command auto-detects your Pulumi project and stack from the current director
 ## Auto-Detection
 
 When no `--pulumi-state` or `--pulumi-json` flags are provided, `finfocus overview`
-locates your Pulumi project automatically:
+locates your Pulumi project automatically. A Terraform directory is projected
+with `finfocus cost projected`, which plans that directory or reads
+`--terraform-plan`. Overview itself still loads a Pulumi project:
 
 1. Walks up from the current directory to find `Pulumi.yaml`.
 2. Runs `pulumi stack export` to fetch the current state JSON.

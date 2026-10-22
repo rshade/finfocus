@@ -313,6 +313,8 @@ const (
 // Each row combines state, plan, actual costs, projected costs, drift, and
 // recommendations for a resource.
 type OverviewRow struct {
+	// Provider preserves the ingestion routing provider; empty derives it from Type.
+	Provider   string         `json:"-"`
 	URN        string         `json:"urn"`
 	Type       string         `json:"type"`
 	ResourceID string         `json:"resourceId,omitempty"`
@@ -484,6 +486,8 @@ type OverviewRowUpdate struct {
 // This is a lightweight projection of ingest.StackExportResource to avoid an
 // import cycle (ingest already imports engine).
 type StateResource struct {
+	// Provider preserves the ingestion routing provider; empty derives it from Type.
+	Provider   string         `json:"-"`
 	URN        string         `json:"urn,omitempty"`
 	Type       string         `json:"type,omitempty"`
 	ID         string         `json:"id,omitempty"`
@@ -512,6 +516,8 @@ type PropertyDiff struct {
 // This is a lightweight projection of ingest.PulumiStep to avoid an
 // import cycle (ingest already imports engine).
 type PlanStep struct {
+	// Provider preserves the ingestion routing provider; empty derives it from Type.
+	Provider      string         `json:"-"`
 	URN           string         `json:"urn,omitempty"`
 	Op            string         `json:"op,omitempty"`
 	Type          string         `json:"type,omitempty"`

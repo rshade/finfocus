@@ -26,7 +26,7 @@ release the skill was last run against.
 **Core principle:** use the drift the CLI computes. Do not query billing APIs,
 and do not turn a missing `costDrift` into "no drift".
 
-Pulumi only. `overview` has no Terraform input as of v0.5.0. For a Terraform
+`overview` accepts Terraform plan and state JSON. For a Terraform
 project, run the `cost-check` skill and say that drift is not available. Edit
 this paragraph when that changes.
 

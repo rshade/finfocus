@@ -51,6 +51,7 @@ func MapOperationToStatus(op string) ResourceStatus {
 // StatusActive. Only call this for custom resources (res.Custom == true).
 func stateResourceToRow(res StateResource) OverviewRow {
 	return OverviewRow{
+		Provider:   res.Provider,
 		URN:        res.URN,
 		Type:       res.Type,
 		ResourceID: res.ID,
@@ -159,9 +160,10 @@ func AppendPlanOnlyRows(rows []OverviewRow, planSteps []PlanStep) []OverviewRow 
 		}
 		seenURNs[step.URN] = struct{}{}
 		row := OverviewRow{
-			URN:    step.URN,
-			Type:   step.Type,
-			Status: StatusCreating,
+			Provider: step.Provider,
+			URN:      step.URN,
+			Type:     step.Type,
+			Status:   StatusCreating,
 		}
 		if props, ok := projectedPropsByURN[step.URN]; ok {
 			row.ProjectedProperties = cloneProperties(props)
