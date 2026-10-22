@@ -13,6 +13,10 @@ pricing specs, and estimates return `Unimplemented`.
 
 It needs a Vantage service token and the token of the cost report to read.
 
+**About Vantage:** [vantage.sh](https://www.vantage.sh/), the
+[Vantage documentation](https://docs.vantage.sh/), and the
+[Vantage API reference](https://docs.vantage.sh/api).
+
 ## Features
 
 - **Actual Costs**: Daily cost rows from Vantage for a resource and date range,
@@ -63,6 +67,9 @@ the id needed to find billed cost.
 The plugin must know the Vantage service for each resource. It infers EC2, S3,
 Lambda, RDS, and DynamoDB from common AWS resource types and ARNs. For any other
 type, set a `service` tag with the exact Vantage service name.
+
+Pair it with a pricing plugin such as [aws-public](aws-public.md) or
+[azure-public](azure-public.md) for projected cost.
 
 ## Limitations
 

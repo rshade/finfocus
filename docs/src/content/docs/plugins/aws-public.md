@@ -11,10 +11,17 @@ The `aws-public` plugin is the default fallback provider for FinFocus. It uses
 public list pricing (MSRP) to estimate costs and requires no AWS credentials,
 making it safe for CI/CD pipelines.
 
+**About AWS pricing:** [Amazon EC2 pricing](https://aws.amazon.com/ec2/pricing/),
+the [AWS Price List bulk API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-the-aws-price-list-bulk-api.html),
+and [AWS Cost Explorer](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-what-is.html)
+for billed spend.
+
 ## Features
 
-- **Projected Costs**: Estimates monthly costs from Pulumi plans using public list pricing.
-- **Actual Costs**: Derives historical costs from Pulumi state with SKU/region-aware pricing.
+- **Projected Costs**: Estimates monthly costs from
+  [Pulumi](https://www.pulumi.com/docs/iac/cli/commands/pulumi_preview/) plans using public list pricing.
+- **Actual Costs**: Derives historical costs from
+  [Pulumi state](https://www.pulumi.com/docs/iac/concepts/state-and-backends/) with SKU/region-aware pricing.
 - **Offline Mode**: Uses an embedded database of pricing information.
 - **No Credentials**: Safe to use in CI/CD without secrets.
 - **Regional Binaries**: Install region-specific binaries for faster lookups via `--metadata`.
@@ -62,6 +69,10 @@ finfocus cost actual --pulumi-state state.json --from 2025-01-01 --to 2025-01-31
 - **List Prices Only**: Does not account for Reserved Instances, Savings Plans, or EDP discounts.
 - **Estimates**: Values are estimates and may differ from the final bill.
 - **Data Freshness**: Pricing data is updated with plugin releases.
+
+For billed spend, add a billing-data plugin such as [Vantage](vantage.md) and see
+[multi-plugin routing](../guides/multi-plugin.md) and the
+[cost calculation guide](../guides/cost-calculation.md).
 
 ## Troubleshooting
 

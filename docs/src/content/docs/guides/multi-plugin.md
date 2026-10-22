@@ -208,7 +208,7 @@ with the reviewer.
 | `scorer`     | Recommendation scoring        | `cost recommendations` (when `scoring.enabled` is true) |
 
 Because routing is per-resource and per-capability, the same pattern extends
-to other plugins: install another plugin, such as Kubecost, and Core routes
+to other plugins: install another plugin, such as [OpenCost or Kubecost](../plugins/opencost.md), and Core routes
 to it without changing how these three behave.
 
 ## See Also

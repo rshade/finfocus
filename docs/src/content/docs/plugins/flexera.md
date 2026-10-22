@@ -10,10 +10,15 @@ nav_order: 13
 The `flexera` plugin reads cloud cost from the Flexera One Cloud Cost
 Optimization Bill Analysis API and serves it to FinFocus. It reports what
 Flexera has billed for a resource, so it is a source for actual cost across AWS,
-Azure, and GCP.
+Azure, and GCP. See also the [Vantage plugin](vantage.md) for another
+billing-data source.
 
 It needs a Flexera One organization, at least one billing center, and either a
 refresh token or a service account.
+
+**About Flexera:** [Flexera One](https://www.flexera.com/products/flexera-one),
+[Cloud Cost Optimization](https://www.flexera.com/products/flexera-one/cloud-cost-optimization),
+and the [Flexera developer documentation](https://developer.flexera.com/docs/).
 
 ## Features
 

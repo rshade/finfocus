@@ -41,7 +41,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ## How It Works
 
-1. You define infrastructure with Pulumi
-2. FinFocus reads your Pulumi definitions
-3. Plugins fetch pricing and cost data
+1. You define infrastructure with [Pulumi](https://www.pulumi.com/)
+2. FinFocus reads your Pulumi definitions, from a [`pulumi preview`](https://www.pulumi.com/docs/iac/cli/commands/pulumi_preview/) plan or the stack [state](https://www.pulumi.com/docs/iac/concepts/state-and-backends/)
+3. [Plugins](/finfocus/plugins/plugin-development/) fetch pricing and cost data, for example from [AWS](/finfocus/plugins/aws-public/), [Azure](/finfocus/plugins/azure-public/), [Vantage](/finfocus/plugins/vantage/), [Flexera](/finfocus/plugins/flexera/), and [OpenCost](/finfocus/plugins/opencost/)
 4. FinFocus calculates and displays results

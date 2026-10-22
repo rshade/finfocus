@@ -5,7 +5,8 @@ description: Give plugins credentials from the ESC environments a Pulumi stack i
 
 ## Overview
 
-FinFocus can pass plugin process environment variables from Pulumi ESC. The
+FinFocus can pass plugin process environment variables from
+[Pulumi ESC](https://www.pulumi.com/docs/esc/). The
 usual setup is the `environment:` imports already on the stack. You can also
 name environments in `config.hujson`. A plugin receives a variable only when
 it advertises that name, or when you list the name for that plugin.

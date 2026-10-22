@@ -50,8 +50,12 @@ When no `--pulumi-state` or `--pulumi-json` flags are provided, `finfocus overvi
 locates your Pulumi project automatically:
 
 1. Walks up from the current directory to find `Pulumi.yaml`.
-2. Runs `pulumi stack export` to fetch the current state JSON.
-3. Runs `pulumi preview --json` to fetch the pending-change plan.
+2. Runs
+   [`pulumi stack export`](https://www.pulumi.com/docs/iac/cli/commands/pulumi_stack_export/)
+   to fetch the current state JSON.
+3. Runs
+   [`pulumi preview --json`](https://www.pulumi.com/docs/iac/cli/commands/pulumi_preview/)
+   to fetch the pending-change plan.
 4. Uses `--stack` to select a non-default stack (e.g., `--stack production`).
 
 Use `--pulumi-state` / `--pulumi-json` to skip these Pulumi CLI calls and provide

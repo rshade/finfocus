@@ -8,10 +8,11 @@ nav_order: 20
 
 ## Overview
 
-The `scorer` plugin rates cost recommendations that other plugins produce. It sends them to the selected Jev
-or Clef backend and returns a risk, false-positive, worth-acting, priority and thin-evidence score for each
-one, plus duplicate groups. Core uses the scores to sort, filter and flag recommendations for review. **A
-score never approves, dismisses or applies anything.**
+The `scorer` plugin rates cost recommendations that other plugins produce. It sends them to the selected
+[Jev](https://typesafe.ai/) (from TypeSafe AI) or
+[Clef](https://blog.cloudflare.com/clef-decision-models/) backend and returns a risk, false-positive,
+worth-acting, priority and thin-evidence score for each one, plus duplicate groups. Core uses the scores to
+sort, filter and flag recommendations for review. **A score never approves, dismisses or applies anything.**
 
 This page walks through a run end to end. The configuration reference is the
 [Recommendation Scoring Guide](../guides/recommendation-scoring.md), and the data-handling details are in the

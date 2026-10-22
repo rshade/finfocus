@@ -5,7 +5,7 @@ description: Break down a Kubernetes cluster's cost by namespace, controller, po
 
 ## Overview
 
-`finfocus cost cluster` allocates the cost of a Kubernetes
+`finfocus cost cluster` allocates the cost of a [Kubernetes](https://kubernetes.io/docs/concepts/overview/)
 cluster's nodes (and, on EKS, its control plane and each Fargate pod) across
 the workloads running on them. With no window, that cost is the monthly run
 rate. With `--from` and `--to`, it is the actual spend over that window.

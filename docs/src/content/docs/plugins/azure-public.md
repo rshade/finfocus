@@ -11,6 +11,11 @@ The `azure-public` plugin estimates Azure costs from the public
 [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices).
 It needs no Azure credentials, so it is safe to run in CI/CD pipelines.
 
+**About Azure pricing:** [Azure pricing](https://azure.microsoft.com/en-us/pricing/)
+and [Microsoft Cost Management](https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/overview-cost-management)
+for billed spend. For billed Azure cost, see the [Flexera](flexera.md) and
+[Vantage](vantage.md) plugins.
+
 ## Features
 
 - **Projected Costs**: Monthly retail quotes for resources in a Pulumi plan.

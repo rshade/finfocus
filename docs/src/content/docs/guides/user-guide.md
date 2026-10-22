@@ -436,7 +436,7 @@ finfocus cost actual --filter "tag:env=dev" --from 2024-01-01
 
 ### Using Vantage Plugin
 
-Vantage provides unified cost data from multiple cloud providers.
+[Vantage](https://www.vantage.sh/) provides unified cost data from multiple cloud providers. See the [Vantage plugin page](../plugins/vantage.md).
 
 **Setup:**
 
