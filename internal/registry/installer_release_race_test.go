@@ -170,6 +170,29 @@ func TestInstall_PrefixedLatestWithoutAssetsFallsBackToEarlierRelease(t *testing
 	assert.Contains(t, joined, "v0.2.0")
 }
 
+func TestInstall_ByURLMatchesRepositoryPrefixedAssets(t *testing.T) {
+	t.Parallel()
+
+	server := newReleaseRaceServer(t, "/repos/rshade/finfocus-plugin-aws-ce", "finfocus-plugin-aws-ce", "aws-ce",
+		"v0.1.0",
+		[]string{"v0.1.0"},
+		map[string]bool{"v0.1.0": true},
+		func(tag string) string { return strings.TrimPrefix(tag, "v") },
+	)
+	installer, pluginDir := newRaceInstaller(t, server.Server)
+
+	result, err := installer.Install(
+		context.Background(),
+		"github.com/rshade/finfocus-plugin-aws-ce@v0.1.0",
+		InstallOptions{NoSave: true, SkipChecksum: true},
+		func(string) {},
+	)
+	require.NoError(t, err)
+
+	assert.True(t, result.FromURL)
+	assert.Equal(t, filepath.Join(pluginDir, "aws-ce", "v0.1.0"), result.Path)
+}
+
 func TestInstall_LatestWithoutAssetsAndNoEarlierAssetsErrors(t *testing.T) {
 	t.Parallel()
 

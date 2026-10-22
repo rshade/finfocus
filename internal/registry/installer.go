@@ -77,6 +77,16 @@ func HintsForEntry(entry *RegistryEntry) *AssetNamingHints {
 	return h
 }
 
+// hintsForRepository builds asset naming hints for a plugin installed by URL.
+// Such a plugin has no catalog entry to supply an asset prefix, and release
+// assets are conventionally prefixed with the repository name.
+func hintsForRepository(repo string) *AssetNamingHints {
+	if repo == "" {
+		return nil
+	}
+	return &AssetNamingHints{AssetPrefix: repo}
+}
+
 // NewInstaller creates an Installer with a default GitHub client that installs
 // plugins into pluginDir. An empty pluginDir resolves to DefaultPluginDir.
 func NewInstaller(pluginDir string) *Installer {
@@ -275,14 +285,14 @@ func (i *Installer) installFromURL(
 	} else {
 		report.msg(fmt.Sprintf("Fetching latest release from %s/%s...", spec.Owner, spec.Repo))
 	}
-	release, err := i.fetchRelease(ctx, spec.Owner, spec.Repo, spec.Version, nil, opts, spec.Name, report)
+	hints := hintsForRepository(spec.Repo)
+	release, err := i.fetchRelease(ctx, spec.Owner, spec.Repo, spec.Version, hints, opts, spec.Name, report)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
 
-	// Install the release (no hints for URL-based installs)
 	repository := fmt.Sprintf("%s/%s", spec.Owner, spec.Repo)
-	result, err := i.installRelease(ctx, spec.Name, release, repository, opts, report, nil)
+	result, err := i.installRelease(ctx, spec.Name, release, repository, opts, report, hints)
 	if err != nil {
 		return nil, err
 	}
@@ -838,8 +848,7 @@ func (i *Installer) resolvePluginSource(
 		return "", "", nil, fmt.Errorf("failed to parse plugin URL %q: %w", installedURL, parseErr)
 	}
 
-	// URL-based plugins have no hints
-	return owner, repo, nil, nil
+	return owner, repo, hintsForRepository(repo), nil
 }
 
 // RemoveOtherVersionsResult contains the result of removing other plugin versions.
