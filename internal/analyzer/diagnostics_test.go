@@ -1125,6 +1125,26 @@ func TestAggregateRecommendations_AchievableSavings(t *testing.T) {
 		}
 	}
 
+	modify := func(
+		resource, recType string, savings float64, current, recommended map[string]string,
+	) engine.Recommendation {
+		r := rec(resource, recType, savings, "USD")
+		r.ActionDetail = &engine.RecommendationActionDetail{Modify: &engine.ModifyActionDetail{
+			CurrentConfig: current, RecommendedConfig: recommended,
+		}}
+		return r
+	}
+	genUpgrade := func(resource string, savings float64) engine.Recommendation {
+		return modify(resource, "MODIFY", savings,
+			map[string]string{"instance_type": "t3.micro"},
+			map[string]string{"instance_type": "t3a.micro"})
+	}
+	graviton := func(resource string, savings float64) engine.Recommendation {
+		return modify(resource, "MODIFY", savings,
+			map[string]string{"instance_type": "t3.micro", "architecture": "x86_64"},
+			map[string]string{"instance_type": "t4g.micro", "architecture": "arm64"})
+	}
+
 	tests := []struct {
 		name         string
 		costs        []engine.CostResult
@@ -1134,6 +1154,67 @@ func TestAggregateRecommendations_AchievableSavings(t *testing.T) {
 		wantMixed    bool
 		wantSummary  string
 	}{
+		{
+			name: "same property alternatives take max",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				genUpgrade("i-1", 0.73), graviton("i-1", 1.46),
+			}}},
+			wantCount: 2, wantSavings: 1.46, wantCurrency: "USD",
+			wantSummary: " | 2 recommendations, up to $1.46/mo potential savings",
+		},
+		{
+			name: "independent properties on one resource and type sum",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				modify("vol-1", "MODIFY", 10,
+					map[string]string{"iops": "3000"}, map[string]string{"iops": "4000"}),
+				modify("vol-1", "MODIFY", 5,
+					map[string]string{"throughput": "125"}, map[string]string{"throughput": "250"}),
+			}}},
+			wantCount: 2, wantSavings: 15, wantCurrency: "USD",
+			wantSummary: " | 2 recommendations, up to $15.00/mo potential savings",
+		},
+		{
+			name: "overlapping property sets merge into one group",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				modify("vol-1", "MODIFY", 4, nil, map[string]string{"iops": "1"}),
+				modify("vol-1", "MODIFY", 6, nil, map[string]string{"throughput": "1"}),
+				modify("vol-1", "MODIFY", 9, nil, map[string]string{"iops": "2", "throughput": "2"}),
+				modify("vol-1", "MODIFY", 3, nil, map[string]string{"size_gb": "1"}),
+			}}},
+			wantCount: 4, wantSavings: 12, wantCurrency: "USD",
+			wantSummary: " | 4 recommendations, up to $12.00/mo potential savings",
+		},
+		{
+			name: "unchanged keys do not count as changed",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				modify("vol-1", "MODIFY", 10,
+					map[string]string{"volume_type": "gp2", "size_gb": "100"},
+					map[string]string{"volume_type": "gp3", "size_gb": "100"}),
+				modify("vol-1", "MODIFY", 5,
+					map[string]string{"size_gb": "100"}, map[string]string{"size_gb": "200"}),
+			}}},
+			wantCount: 2, wantSavings: 15, wantCurrency: "USD",
+			wantSummary: " | 2 recommendations, up to $15.00/mo potential savings",
+		},
+		{
+			name: "detail absent falls back to resource and type",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				rec("i-1", "MODIFY", 3, "USD"),
+				rec("i-1", "MODIFY", 8, "USD"),
+				modify("i-1", "MODIFY", 2, nil, map[string]string{"iops": "1"}),
+			}}},
+			wantCount: 3, wantSavings: 10, wantCurrency: "USD",
+			wantSummary: " | 3 recommendations, up to $10.00/mo potential savings",
+		},
+		{
+			name: "positional fallback never equals a real resource id",
+			costs: []engine.CostResult{
+				{Recommendations: []engine.Recommendation{rec("", "Right-sizing", 5, "USD")}},
+				{Recommendations: []engine.Recommendation{rec("#0", "Right-sizing", 7, "USD")}},
+			},
+			wantCount: 2, wantSavings: 12, wantCurrency: "USD",
+			wantSummary: " | 2 recommendations, up to $12.00/mo potential savings",
+		},
 		{
 			name: "alternatives in one group take max not sum",
 			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
