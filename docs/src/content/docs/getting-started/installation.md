@@ -1,9 +1,10 @@
 ---
-title: Installation Guide
-description: Detailed installation instructions for FinFocus
+title: Quick Install
+description: Install the FinFocus CLI in minutes with the install script, from source, or with Docker.
 ---
 
-Detailed steps to install FinFocus on your system.
+The short version: three ways to install the FinFocus CLI. For every platform, plugin installation and
+troubleshooting, see the full [Installation Guide](../installation.md).
 
 ## Prerequisites
 

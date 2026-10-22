@@ -12,7 +12,6 @@ const ogImage = `${siteUrl}${base}/og-image.png`;
 
 const excludedFromSitemap = [
   /(^|\/)readme\/$/,
-  /^\/installation\/$/,
   /^\/troubleshooting\/$/,
   /^\/github-pages-setup\/$/,
   /^\/plan\/$/,
