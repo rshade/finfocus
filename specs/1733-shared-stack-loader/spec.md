@@ -32,8 +32,12 @@ working as built: they read the stack differently.
   deleted, or whose cloud identity changed, during the billing period, taken
   from the history store. The web Cost view does the same. Those resources are
   absent from today's state and preview but still incurred charges.
-- `overview` has more than one way of loading a stack, and the web dashboard
-  uses the one the terminal screen does not.
+- `overview` has more than one way of loading a stack (plain, terminal screen,
+  and web dashboard), and the web dashboard keeps its own copies of the state
+  and the plan. Its Estimate view already overlays the state on the plan, so it
+  lists unchanged resources that `cost estimate` does not; its Recommendations
+  and Cost views read only the state, so they miss resources that are pending
+  creation.
 - For Terraform and OpenTofu, `cost projected` already treats "nothing is
   changing" as a real outcome and says so. For Pulumi it gives a `$0` total
   with no explanation. Pull request #1897 (patch release) adds a warning and a
@@ -238,6 +242,9 @@ without readable state, and compare against the previous release.
 - A resource deleted earlier in the billing period, or one whose cloud
   identity changed in it, is not in the live inventory. `cost actual` and the
   web Cost view still report its charges.
+- State supplied with no preview (`--pulumi-state` on its own): there is no
+  preview to list resources, so the plan total covers the state resources, as
+  it does today, and they are labeled unchanged and not created.
 - A saved preview that lists unchanged resources, with a readable state that
   also holds them: each resource is counted once in the stack total and as the
   preview lists it in the plan total.
@@ -252,7 +259,9 @@ without readable state, and compare against the previous release.
   `cost estimate`, `cost recommendations`, `overview`, `cost actual`, and
   `finfocus --web` MUST derive their live inventory (the resources that exist
   in the stack now or are pending a change) from one shared loading step, so
-  the set of live resource identities is the same in all of them.
+  the set of live resource identities is the same in all of them. `cost actual`
+  takes the deployed part of it, the resources that are in the stack state: a
+  resource that is only planned has no charges to report.
 - **FR-002**: The loading step MUST combine the recorded stack state with the
   preview, and every resource MUST carry its change kind: unchanged, create,
   update, replace, or delete.
@@ -316,11 +325,12 @@ without readable state, and compare against the previous release.
 
 - **Disposition**: Extends the existing Overview, Estimate, and
   Recommendations views. No new view.
-- **Web data**: The same resource list the command line reports for the stack,
-  with each resource's change kind. The Estimate picker and the Recommendations
-  view gain the unchanged resources they currently lack; the Overview already
-  shows them.
-- **Layout fit**: Unchanged resources fill the existing captioned tables and
+- **Web data**: The same live resource list the command line reports for the
+  stack, with each resource's change kind. The command line changes to match
+  what the web Estimate view already offers; the Recommendations view gains the
+  resources that are pending creation, which it lacks because it reads only
+  the state. The Overview already shows both.
+- **Layout fit**: The added resources fill the existing captioned tables and
   the Estimate resource picker. No new slot, control, or column. The Cost view
   keeps the historical resources it reports today.
 - **Additions**: None. Any "unchanged resources not included" notice reuses the
