@@ -230,25 +230,39 @@ func checkCurrency(current *string, next string) error {
 // pre-computed ComputedDelta values so the summary matches the rendered rows.
 func summarizeOverviewRows(rows []OverviewRow) OverviewTotals {
 	var s OverviewTotals
+	savings := NewSavingsGrouper()
 	for i := range rows {
 		if rows[i].ComputedDelta != nil {
 			s.TotalDelta += *rows[i].ComputedDelta
 		}
-		if err := s.accumulateRow(&rows[i]); err != nil {
+		if err := s.accumulateRow(&rows[i], savings); err != nil {
 			s.MixedCurrencies = true
 			break
 		}
 	}
+	s.TotalSavings = savings.Total()
 	if s.Currency == "" {
 		s.Currency = defaultCurrency
 	}
 	return s
 }
 
+// rowSavingsResource is the resource a row recommendation's savings are grouped
+// under: rec.ResourceID, falling back to the row URN. The row URN is unique to
+// the row, so recommendations of different rows are never alternatives.
+func rowSavingsResource(row *OverviewRow, rec Recommendation) string {
+	if rec.ResourceID != "" {
+		return rec.ResourceID
+	}
+	return row.URN
+}
+
 // accumulateRow adds a single row's costs, savings, and errors to the summary.
+// Savings go into the shared grouper so alternatives are not double counted;
+// the caller sets TotalSavings from it once every row has been added.
 // Live allocation children re-allocate node cost already represented by the
 // cluster's node rows, so their costs are skipped to avoid double counting.
-func (s *OverviewTotals) accumulateRow(row *OverviewRow) error {
+func (s *OverviewTotals) accumulateRow(row *OverviewRow, savings *SavingsGrouper) error {
 	if row.Error != nil {
 		s.Errors = append(s.Errors, *row.Error)
 		return nil
@@ -271,7 +285,7 @@ func (s *OverviewTotals) accumulateRow(row *OverviewRow) error {
 	for _, rec := range row.Recommendations {
 		if rec.Status != RecommendationStatusDismissed &&
 			rec.Status != RecommendationStatusSnoozed {
-			s.TotalSavings += rec.EstimatedSavings
+			savings.Add(rowSavingsResource(row, rec), 0, rec)
 		}
 	}
 	return nil

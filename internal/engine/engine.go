@@ -3653,6 +3653,7 @@ func (e *Engine) getRecommendationsForResources(
 				Msg("cache hit for recommendations")
 			var cachedResult RecommendationsResult
 			if unmarshalErr := json.Unmarshal(cachedEntry.Data, &cachedResult); unmarshalErr == nil {
+				cachedResult.TotalSavings = AchievableSavings(cachedResult.Recommendations)
 				return &cachedResult, nil
 			}
 			log.Warn().
@@ -3666,6 +3667,7 @@ func (e *Engine) getRecommendationsForResources(
 	for _, target := range e.routeRecommendationTargets(ctx, resources) {
 		e.fetchRecommendationsFromTarget(ctx, target, result, excludedIDs, includeDismissed)
 	}
+	result.TotalSavings = AchievableSavings(result.Recommendations)
 
 	// Store result in cache if enabled
 	if e.cache != nil && e.cache.IsEnabled() {
@@ -3872,7 +3874,6 @@ func (e *Engine) fetchRecommendationsSequential(
 		if result.Currency == defaultCurrency && engineRec.Currency != "" {
 			result.Currency = engineRec.Currency
 		}
-		result.TotalSavings += engineRec.EstimatedSavings
 		result.Recommendations = append(result.Recommendations, engineRec)
 	}
 
@@ -3930,7 +3931,6 @@ func (e *Engine) fetchRecommendationsWithBatching(
 				if result.Currency == defaultCurrency && engineRec.Currency != "" {
 					result.Currency = engineRec.Currency
 				}
-				result.TotalSavings += engineRec.EstimatedSavings
 				result.Recommendations = append(result.Recommendations, engineRec)
 			}
 

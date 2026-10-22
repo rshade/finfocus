@@ -60,7 +60,7 @@ type RecommendationsSummary struct {
 	// TotalCount is the total number of recommendations.
 	TotalCount int
 
-	// TotalSavings is the sum of all estimated savings.
+	// TotalSavings is the savings that can all be realized (engine.AchievableSavings).
 	TotalSavings float64
 
 	// Currency is the currency for savings (typically "USD").
@@ -91,7 +91,6 @@ func NewRecommendationsSummary(recs []engine.Recommendation) *RecommendationsSum
 
 	// Calculate aggregates.
 	for _, rec := range recs {
-		summary.TotalSavings += rec.EstimatedSavings
 		summary.CountByAction[rec.Type]++
 		summary.SavingsByAction[rec.Type] += rec.EstimatedSavings
 
@@ -100,6 +99,8 @@ func NewRecommendationsSummary(recs []engine.Recommendation) *RecommendationsSum
 			summary.Currency = rec.Currency
 		}
 	}
+
+	summary.TotalSavings = engine.AchievableSavings(recs)
 
 	// Sort by savings descending and take top 5.
 	sorted := make([]engine.Recommendation, len(recs))

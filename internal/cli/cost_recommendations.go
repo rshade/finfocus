@@ -605,13 +605,9 @@ func applyActionTypeFilter(
 	return filtered, nil
 }
 
-// calculateTotalSavings calculates the total estimated savings from recommendations.
+// calculateTotalSavings returns the savings that can all be realized, not the sum of alternatives.
 func calculateTotalSavings(recommendations []engine.Recommendation) float64 {
-	var total float64
-	for _, rec := range recommendations {
-		total += rec.EstimatedSavings
-	}
-	return total
+	return engine.AchievableSavings(recommendations)
 }
 
 // RenderRecommendationsOutput routes the recommendations results to the appropriate
@@ -711,13 +707,11 @@ const headerSeparatorLen = 40
 // renderRecommendationsSummary renders a summary section showing aggregate statistics.
 // This includes total count, total savings, and breakdown by action type.
 func renderRecommendationsSummary(w io.Writer, recommendations []engine.Recommendation, profile string) {
-	totalSavings := 0.0
 	countByAction := make(map[string]int)
 	savingsByAction := make(map[string]float64)
 	currency := defaultCurrency
 
 	for _, rec := range recommendations {
-		totalSavings += rec.EstimatedSavings
 		countByAction[rec.Type]++
 		savingsByAction[rec.Type] += rec.EstimatedSavings
 		if rec.Currency != "" {
@@ -729,7 +723,7 @@ func renderRecommendationsSummary(w io.Writer, recommendations []engine.Recommen
 	fmt.Fprintln(w, "=======================")
 	fmt.Fprintf(w, "Profile: %s\n", displayedUsageProfile(profile))
 	fmt.Fprintf(w, "Total Recommendations: %d\n", len(recommendations))
-	fmt.Fprintf(w, "Total Potential Savings: %.2f %s\n", totalSavings, currency)
+	fmt.Fprintf(w, "Total Potential Savings: %.2f %s\n", engine.AchievableSavings(recommendations), currency)
 
 	if len(countByAction) > 0 {
 		fmt.Fprintln(w)
