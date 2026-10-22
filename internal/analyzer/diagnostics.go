@@ -273,7 +273,7 @@ type RecommendationAggregate struct {
 // formatRecommendationSummary formats the aggregate recommendation info for stack summary.
 //
 // Format examples:
-//   - Same currency: " | 3 recommendations with $125.00/mo potential savings"
+//   - Same currency: " | 3 recommendations, up to $125.00/mo potential savings"
 //   - Mixed currencies: " | 3 recommendations (mixed currencies)"
 func formatRecommendationSummary(agg RecommendationAggregate) string {
 	if agg.MixedCurrencies {
@@ -281,12 +281,53 @@ func formatRecommendationSummary(agg RecommendationAggregate) string {
 	}
 	symbol := getCurrencySymbol(agg.Currency)
 	return fmt.Sprintf(
-		" | %d recommendations with %s%.2f/mo potential savings",
+		" | %d recommendations, up to %s%.2f/mo potential savings",
 		agg.Count, symbol, agg.TotalSavings,
 	)
 }
 
-// AggregateRecommendations calculates total recommendation count and savings.
+// recommendationGroupKey identifies a set of recommendations treated as
+// alternatives for one another.
+type recommendationGroupKey struct {
+	resource string
+	recType  string
+}
+
+func trackGroupMax(
+	groupMax map[recommendationGroupKey]float64,
+	index int,
+	cost engine.CostResult,
+	rec engine.Recommendation,
+) {
+	resource := rec.ResourceID
+	if resource == "" {
+		resource = cost.ResourceID
+	}
+	if resource == "" {
+		resource = fmt.Sprintf("#%d", index)
+	}
+	key := recommendationGroupKey{resource: resource, recType: rec.Type}
+	if current, seen := groupMax[key]; !seen || rec.EstimatedSavings > current {
+		groupMax[key] = rec.EstimatedSavings
+	}
+}
+
+// AggregateRecommendations calculates the recommendation count and the
+// achievable savings.
+//
+// Recommendations for one resource are often alternatives for the same
+// property (for example a generation upgrade and a Graviton change for the
+// same instance), so their savings are not additive. Recommendations are
+// grouped by resource and Type, the maximum EstimatedSavings of each group is
+// taken, and the group maxima are summed into TotalSavings. Count is the
+// number of recommendations, not groups. This matches the achievable figure
+// reported by finfocus-action.
+//
+// The grouping is a heuristic: engine.Recommendation has no modification-type
+// field, so two different changes that share a Type on one resource are
+// treated as alternatives and only the larger counts, while alternatives that
+// carry different Types are summed. The resource is rec.ResourceID, falling
+// back to the CostResult ResourceID, then to the CostResult position.
 //
 // If recommendations have mixed currencies, MixedCurrencies is set to true
 // and TotalSavings should not be displayed as a numeric value.
@@ -297,11 +338,13 @@ func formatRecommendationSummary(agg RecommendationAggregate) string {
 func AggregateRecommendations(costs []engine.CostResult) RecommendationAggregate {
 	var result RecommendationAggregate
 	currencySet := make(map[string]bool)
+	groupMax := make(map[recommendationGroupKey]float64)
 
-	for _, cost := range costs {
+	for i, cost := range costs {
 		for _, rec := range cost.Recommendations {
 			result.Count++
-			result.TotalSavings += rec.EstimatedSavings
+
+			trackGroupMax(groupMax, i, cost, rec)
 
 			// Validate currency/savings consistency per contract:
 			// If savings > 0 but currency is empty, treat as mixed currencies
@@ -315,6 +358,10 @@ func AggregateRecommendations(costs []engine.CostResult) RecommendationAggregate
 				currencySet[rec.Currency] = true
 			}
 		}
+	}
+
+	for _, savings := range groupMax {
+		result.TotalSavings += savings
 	}
 
 	// Skip currency detection if already marked as mixed

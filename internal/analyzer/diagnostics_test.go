@@ -1115,6 +1115,100 @@ func TestAggregateRecommendations_NilCosts(t *testing.T) {
 	assert.False(t, agg.MixedCurrencies)
 }
 
+func TestAggregateRecommendations_AchievableSavings(t *testing.T) {
+	t.Parallel()
+
+	rec := func(resource, recType string, savings float64, currency string) engine.Recommendation {
+		return engine.Recommendation{
+			ResourceID: resource, Type: recType, Description: "d",
+			EstimatedSavings: savings, Currency: currency,
+		}
+	}
+
+	tests := []struct {
+		name         string
+		costs        []engine.CostResult
+		wantCount    int
+		wantSavings  float64
+		wantCurrency string
+		wantMixed    bool
+		wantSummary  string
+	}{
+		{
+			name: "alternatives in one group take max not sum",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				rec("i-1", "Right-sizing", 0.73, "USD"),
+				rec("i-1", "Right-sizing", 1.46, "USD"),
+			}}},
+			wantCount: 2, wantSavings: 1.46, wantCurrency: "USD",
+			wantSummary: " | 2 recommendations, up to $1.46/mo potential savings",
+		},
+		{
+			name: "different types on one resource are both counted",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				rec("i-1", "Right-sizing", 10, "USD"),
+				rec("i-1", "Terminate", 5, "USD"),
+			}}},
+			wantCount: 2, wantSavings: 15, wantCurrency: "USD",
+			wantSummary: " | 2 recommendations, up to $15.00/mo potential savings",
+		},
+		{
+			name: "same type on different resources are separate groups",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				rec("i-1", "Right-sizing", 10, "USD"),
+				rec("i-2", "Right-sizing", 4, "USD"),
+				rec("i-2", "Right-sizing", 3, "USD"),
+			}}},
+			wantCount: 3, wantSavings: 14, wantCurrency: "USD",
+			wantSummary: " | 3 recommendations, up to $14.00/mo potential savings",
+		},
+		{
+			name: "resource falls back to cost result id then position",
+			costs: []engine.CostResult{
+				{ResourceID: "a", Recommendations: []engine.Recommendation{
+					rec("", "Right-sizing", 2, "USD"), rec("", "Right-sizing", 5, "USD"),
+				}},
+				{Recommendations: []engine.Recommendation{rec("", "Right-sizing", 7, "USD")}},
+				{Recommendations: []engine.Recommendation{rec("", "Right-sizing", 11, "USD")}},
+			},
+			wantCount: 4, wantSavings: 23, wantCurrency: "USD",
+			wantSummary: " | 4 recommendations, up to $23.00/mo potential savings",
+		},
+		{
+			name: "mixed currencies report no numeric total",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				rec("i-1", "Right-sizing", 10, "USD"),
+				rec("i-2", "Right-sizing", 8, "EUR"),
+			}}},
+			wantCount: 2, wantSavings: 18, wantMixed: true,
+			wantSummary: " | 2 recommendations (mixed currencies)",
+		},
+		{
+			name: "zero savings",
+			costs: []engine.CostResult{{Recommendations: []engine.Recommendation{
+				rec("i-1", "Review", 0, ""),
+				rec("i-1", "Review", 0, ""),
+			}}},
+			wantCount: 2, wantSavings: 0, wantCurrency: "USD",
+			wantSummary: " | 2 recommendations, up to $0.00/mo potential savings",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			agg := AggregateRecommendations(tt.costs)
+
+			assert.Equal(t, tt.wantCount, agg.Count)
+			assert.InDelta(t, tt.wantSavings, agg.TotalSavings, 1e-9)
+			assert.Equal(t, tt.wantCurrency, agg.Currency)
+			assert.Equal(t, tt.wantMixed, agg.MixedCurrencies)
+			assert.Equal(t, tt.wantSummary, formatRecommendationSummary(agg))
+		})
+	}
+}
+
 // Phase 5 (US3) - Carbon Equivalency Tests for Analyzer Diagnostics
 
 func TestFormatCostMessage_WithCarbonEquivalencies(t *testing.T) {

@@ -1357,7 +1357,7 @@ func TestServer_AnalyzeStack_SummaryWithRecommendations(t *testing.T) {
 	require.Len(t, resp.GetDiagnostics(), 1)
 
 	summary := resp.GetDiagnostics()[0]
-	assert.Contains(t, summary.GetMessage(), "1 recommendations with $20.00/mo potential savings")
+	assert.Contains(t, summary.GetMessage(), "1 recommendations, up to $20.00/mo potential savings")
 }
 
 // TestAnalyzeStack_CostAccumulation verifies that costs accumulated during Analyze()

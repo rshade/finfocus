@@ -299,7 +299,7 @@ func TestAnalyzer_RecommendationDisplay(t *testing.T) {
 // Expected output format when recommendations are present:
 //
 //	"Total Estimated Monthly Cost: $X.XX USD (N resources analyzed) |
-//	  X recommendations with $XX.XX/mo potential savings"
+//	  X recommendations, up to $XX.XX/mo potential savings"
 func TestAnalyzer_StackSummaryWithRecommendations(t *testing.T) {
 	tc := NewTestContext(t, "e2e-analyzer-stack-recommendations")
 	ctx := context.Background()
@@ -316,7 +316,7 @@ func TestAnalyzer_StackSummaryWithRecommendations(t *testing.T) {
 
 	// Verify recommendation summary is present
 	stackRecommendationDiagnostics := []AnalyzerDiagnostic{
-		{Pattern: "recommendations with", Required: false},
+		{Pattern: "recommendations, up to", Required: false},
 		{Pattern: "potential savings", Required: false}, // Might not be present if savings are 0
 	}
 	validateDiagnostics(t, output, stackRecommendationDiagnostics)
