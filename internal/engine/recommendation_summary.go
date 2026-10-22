@@ -10,6 +10,8 @@ type RecommendationSummary struct {
 }
 
 // BuildRecommendationSummary preserves the CLI summary counts, savings and currency.
+// TotalSavings is the achievable total (AchievableSavings), not the sum of
+// SavingsByAction, which counts every recommendation of a type.
 func BuildRecommendationSummary(recommendations []Recommendation) RecommendationSummary {
 	summary := RecommendationSummary{
 		TotalCount:        len(recommendations),
@@ -20,10 +22,10 @@ func BuildRecommendationSummary(recommendations []Recommendation) Recommendation
 	for _, rec := range recommendations {
 		summary.CountByActionType[rec.Type]++
 		summary.SavingsByAction[rec.Type] += rec.EstimatedSavings
-		summary.TotalSavings += rec.EstimatedSavings
 		if rec.Currency != "" {
 			summary.Currency = rec.Currency
 		}
 	}
+	summary.TotalSavings = AchievableSavings(recommendations)
 	return summary
 }

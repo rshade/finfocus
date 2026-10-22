@@ -21,6 +21,27 @@ func TestRecommendationsViewNamesProfile(t *testing.T) {
 	assert.Contains(t, plain.View().Content, "Profile: default")
 }
 
+func TestNewRecommendationsSummary_TotalIsAchievable(t *testing.T) {
+	t.Parallel()
+
+	modify := func(savings float64, recommended map[string]string) engine.Recommendation {
+		return engine.Recommendation{
+			ResourceID: "demo-instance", Type: "MODIFY", Currency: "USD", EstimatedSavings: savings,
+			ActionDetail: &engine.RecommendationActionDetail{Modify: &engine.ModifyActionDetail{
+				CurrentConfig:     map[string]string{"instance_type": "t3.micro"},
+				RecommendedConfig: recommended,
+			}},
+		}
+	}
+	summary := NewRecommendationsSummary([]engine.Recommendation{
+		modify(0.73, map[string]string{"instance_type": "t3a.micro"}),
+		modify(1.46, map[string]string{"instance_type": "t4g.micro"}),
+	})
+
+	assert.InDelta(t, 1.46, summary.TotalSavings, 1e-9)
+	assert.InDelta(t, 2.19, summary.SavingsByAction["MODIFY"], 1e-9)
+}
+
 func TestNewRecommendationsSummary(t *testing.T) {
 	t.Parallel()
 

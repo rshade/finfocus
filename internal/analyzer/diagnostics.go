@@ -286,116 +286,14 @@ func formatRecommendationSummary(agg RecommendationAggregate) string {
 	)
 }
 
-// recommendationGroupKey identifies the recommendations of one resource and
-// Type. position is -1 when resource is a real identifier and the CostResult
-// index when no identifier exists, so a positional fallback never equals a real
-// resource ID.
-type recommendationGroupKey struct {
-	resource string
-	position int
-	recType  string
-}
-
-// savingsGroup is a set of recommendations that change overlapping properties
-// and are therefore alternatives; max is the largest EstimatedSavings among them.
-type savingsGroup struct {
-	properties map[string]bool
-	max        float64
-}
-
-// recommendationBucket holds the alternative groups of one resource and Type.
-// Recommendations without property detail share the single undetailed group.
-type recommendationBucket struct {
-	groups     []*savingsGroup
-	undetailed float64
-}
-
-func groupKeyFor(index int, cost engine.CostResult, rec engine.Recommendation) recommendationGroupKey {
-	switch {
-	case rec.ResourceID != "":
-		return recommendationGroupKey{resource: rec.ResourceID, position: -1, recType: rec.Type}
-	case cost.ResourceID != "":
-		return recommendationGroupKey{resource: cost.ResourceID, position: -1, recType: rec.Type}
-	default:
-		return recommendationGroupKey{position: index, recType: rec.Type}
+// savingsResource is the resource a recommendation's savings are grouped under:
+// rec.ResourceID, falling back to the CostResult ResourceID, or empty when
+// neither exists and the CostResult position applies.
+func savingsResource(cost engine.CostResult, rec engine.Recommendation) string {
+	if rec.ResourceID != "" {
+		return rec.ResourceID
 	}
-}
-
-// changedProperties returns the config keys a modify recommendation changes: keys
-// whose value differs between the current and recommended config, including keys
-// present only in the recommended config. When the current config is empty, all
-// recommended keys count. It returns nil when no keys can be determined.
-func changedProperties(rec engine.Recommendation) map[string]bool {
-	if rec.ActionDetail == nil || rec.ActionDetail.Modify == nil {
-		return nil
-	}
-	modify := rec.ActionDetail.Modify
-	changed := make(map[string]bool)
-	for key, recommended := range modify.RecommendedConfig {
-		current, present := modify.CurrentConfig[key]
-		if len(modify.CurrentConfig) == 0 || !present || current != recommended {
-			changed[key] = true
-		}
-	}
-	if len(changed) == 0 {
-		return nil
-	}
-	return changed
-}
-
-func intersects(a, b map[string]bool) bool {
-	for key := range a {
-		if b[key] {
-			return true
-		}
-	}
-	return false
-}
-
-// add places savings into the group chain, merging every group whose properties
-// overlap the given ones.
-func (b *recommendationBucket) add(properties map[string]bool, savings float64) {
-	if properties == nil {
-		b.undetailed = max(b.undetailed, savings)
-		return
-	}
-	merged := &savingsGroup{properties: properties, max: savings}
-	kept := make([]*savingsGroup, 0, len(b.groups)+1)
-	for _, group := range b.groups {
-		if !intersects(group.properties, properties) {
-			kept = append(kept, group)
-			continue
-		}
-		for key := range group.properties {
-			merged.properties[key] = true
-		}
-		merged.max = max(merged.max, group.max)
-	}
-	kept = append(kept, merged)
-	b.groups = kept
-}
-
-func (b *recommendationBucket) total() float64 {
-	total := b.undetailed
-	for _, group := range b.groups {
-		total += group.max
-	}
-	return total
-}
-
-func trackGroupMax(
-	buckets map[recommendationGroupKey]*recommendationBucket,
-	index int,
-	cost engine.CostResult,
-	rec engine.Recommendation,
-) {
-	key := groupKeyFor(index, cost, rec)
-	bucket := buckets[key]
-	if bucket == nil {
-		bucket = &recommendationBucket{}
-		buckets[key] = bucket
-	}
-	bucket.add(changedProperties(rec), rec.EstimatedSavings)
+	return cost.ResourceID
 }
 
 // AggregateRecommendations calculates the recommendation count and the
@@ -424,13 +322,13 @@ func trackGroupMax(
 func AggregateRecommendations(costs []engine.CostResult) RecommendationAggregate {
 	var result RecommendationAggregate
 	currencySet := make(map[string]bool)
-	buckets := make(map[recommendationGroupKey]*recommendationBucket)
+	grouper := engine.NewSavingsGrouper()
 
 	for i, cost := range costs {
 		for _, rec := range cost.Recommendations {
 			result.Count++
 
-			trackGroupMax(buckets, i, cost, rec)
+			grouper.Add(savingsResource(cost, rec), i, rec)
 
 			// Validate currency/savings consistency per contract:
 			// If savings > 0 but currency is empty, treat as mixed currencies
@@ -446,9 +344,7 @@ func AggregateRecommendations(costs []engine.CostResult) RecommendationAggregate
 		}
 	}
 
-	for _, bucket := range buckets {
-		result.TotalSavings += bucket.total()
-	}
+	result.TotalSavings = grouper.Total()
 
 	// Skip currency detection if already marked as mixed
 	if result.MixedCurrencies {
