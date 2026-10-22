@@ -510,6 +510,17 @@ func TestRenderProjectedDiff(t *testing.T) {
 		assert.Contains(t, text, "delete baseline note")
 	})
 
+	t.Run("json marks an empty plan only when flagged", func(t *testing.T) {
+		t.Parallel()
+		render := func(empty bool) string {
+			var buf bytes.Buffer
+			require.NoError(t, RenderProjectedDiff(&buf, OutputJSON, &DiffResult{EmptyPlan: empty}, false))
+			return buf.String()
+		}
+		assert.Contains(t, render(true), `"emptyPlan": true`)
+		assert.NotContains(t, render(false), "emptyPlan")
+	})
+
 	t.Run("json keeps after total and zero before", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer

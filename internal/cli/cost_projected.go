@@ -208,6 +208,41 @@ func pricingSpecFallbackForCmd(cmd *cobra.Command, flagValue bool, cfg *config.C
 	return pricingSpecFallbackEnabled(cmd.Flags().Changed("pricing-spec-fallback"), flagValue, cfg)
 }
 
+const emptyPlanWarning = "Warning: the plan has no resources to price, so the $0 total is not an estimate. " +
+	"A default `pulumi preview --json` omits unchanged resources; make the plan with `--show-sames` " +
+	"or run `finfocus overview` to see the whole stack."
+
+// warnIfPlanEmpty reports whether the plan holds nothing to price (no resources,
+// or only Pulumi bookkeeping types such as the root stack) and says so on stderr,
+// so a $0 total is not read as an estimate. It looks at the loaded plan, before
+// any --filter or pricing, so neither a filter nor a missing plugin triggers it.
+func warnIfPlanEmpty(cmd *cobra.Command, resources []engine.ResourceDescriptor) bool {
+	for i := range resources {
+		if !engine.IsPulumiInternalType(resources[i].Type) {
+			return false
+		}
+	}
+	fmt.Fprintln(cmd.ErrOrStderr(), emptyPlanWarning)
+	return true
+}
+
+// applyProjectedFilters applies --filter, recording an invalid expression in the
+// log and audit trail and returning it as a validation error.
+func applyProjectedFilters(
+	ctx context.Context,
+	params costProjectedParams,
+	audit *auditContext,
+	resources []engine.ResourceDescriptor,
+) ([]engine.ResourceDescriptor, error) {
+	filtered, err := ApplyFilters(ctx, resources, params.filter)
+	if err != nil {
+		logging.FromContext(ctx).Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
+		audit.logFailure(ctx, err)
+		return nil, toValidationError(ctx, fmt.Errorf("applying filters: %w", err))
+	}
+	return filtered, nil
+}
+
 func projectedUnchanged(ctx context.Context, cmd *cobra.Command, audit *auditContext) error {
 	cmd.Println("No changes. Projected monthly cost is zero.")
 	recordTerraformProjection(ctx, cmd, nil)
@@ -255,11 +290,10 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		return projectedUnchanged(ctx, cmd, audit)
 	}
 
-	resources, err = ApplyFilters(ctx, resources, params.filter)
+	emptyPlan := warnIfPlanEmpty(cmd, resources)
+	resources, err = applyProjectedFilters(ctx, params, audit, resources)
 	if err != nil {
-		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
-		audit.logFailure(ctx, err)
-		return toValidationError(ctx, fmt.Errorf("applying filters: %w", err))
+		return err
 	}
 
 	cfg, specDir := config.GetGlobalConfig(), params.specDir
@@ -300,6 +334,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 
 	mergeProjectedDiffRecommendations(ctx, eng, resources, diff)
+	diff.EmptyPlan = emptyPlan
 
 	if renderErr := renderProjectedDiff(cmd, params.output, diff, params.showBreakdown); renderErr != nil {
 		return renderErr

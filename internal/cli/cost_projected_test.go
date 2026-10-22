@@ -344,14 +344,15 @@ func TestCostProjectedCmd_Success(t *testing.T) {
 	cmd := cli.NewCostProjectedCmd()
 	cmd.SetArgs([]string{"--pulumi-json", planPath, "--output", "json"})
 
-	var out bytes.Buffer
+	var out, errOut bytes.Buffer
 	cmd.SetOut(&out)
-	cmd.SetErr(&out)
+	cmd.SetErr(&errOut)
 
 	err := cmd.Execute()
 
 	// Should succeed (without plugins/specs, returns empty results)
 	require.NoError(t, err)
+	assert.Contains(t, errOut.String(), "no resources to price", "a plan with no steps is an empty plan")
 
 	// Verify JSON output (AggregatedResults format)
 	var results engine.AggregatedResults
