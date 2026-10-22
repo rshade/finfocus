@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2](https://github.com/rshade/finfocus/compare/v0.5.1...v0.5.2) (2026-10-22)
+
+
+### Added
+
+* **cli:** price OpenTofu and Terraform projects from a plan ([#1891](https://github.com/rshade/finfocus/issues/1891)) ([0cab5b0](https://github.com/rshade/finfocus/commit/0cab5b0f1497a97a1ee2e65ceaa05e1c35feded6))
+* **webui:** polish Terraform and OpenTofu overview presentation ([#1892](https://github.com/rshade/finfocus/issues/1892)) ([2afe89f](https://github.com/rshade/finfocus/commit/2afe89f31833a5b4f34f812f5ac950ad9b7195ab))
+
+
+### Fixed
+
+* **analyzer:** report achievable savings in the stack summary ([#1885](https://github.com/rshade/finfocus/issues/1885)) ([34eae8f](https://github.com/rshade/finfocus/commit/34eae8f77fe41693a1534d58db6eb1efad8ba4a7))
+* **cli:** flag an empty plan in cost projected instead of a silent $0 ([#1897](https://github.com/rshade/finfocus/issues/1897)) ([c39f70b](https://github.com/rshade/finfocus/commit/c39f70be07e1f65508aecb30ec9eb68f2f71111f)), closes [#1878](https://github.com/rshade/finfocus/issues/1878)
+* **engine:** total achievable savings instead of summing alternatives ([#1894](https://github.com/rshade/finfocus/issues/1894)) ([cedaa23](https://github.com/rshade/finfocus/commit/cedaa23eac6718bc9aeed7811759f76a4b4eba35)), closes [#1890](https://github.com/rshade/finfocus/issues/1890)
+* **registry:** match repository-prefixed assets on plugin install by URL ([#1893](https://github.com/rshade/finfocus/issues/1893)) ([77676fc](https://github.com/rshade/finfocus/commit/77676fc4bb4ffc47f37703dd0cc0f03b3d931fbb)), closes [#1877](https://github.com/rshade/finfocus/issues/1877)
+
+
+### Documentation
+
+* fix homepage title, descriptions, social image and sitemap ([#1889](https://github.com/rshade/finfocus/issues/1889)) ([6141520](https://github.com/rshade/finfocus/commit/61415203e1b5e1ef07e8c677b102bf0a1f81e015))
+* link each plugin and vendor page to its official product ([#1886](https://github.com/rshade/finfocus/issues/1886)) ([47d70ae](https://github.com/rshade/finfocus/commit/47d70aeee694561708447b38db659f46cc47d21d))
+* **readme:** lead with the pull request comment and a 4-line workflow ([#1896](https://github.com/rshade/finfocus/issues/1896)) ([5ac7ed9](https://github.com/rshade/finfocus/commit/5ac7ed957829c544ce74f727416eb2c85cc84e6d))
+
 ## [0.5.1](https://github.com/rshade/finfocus/compare/v0.5.0...v0.5.1) (2026-10-21)
 
 
