@@ -231,6 +231,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   top-level `type`: call `PulumiStep.ResourceType()`, never read `step.Type`
   (the overview showed no costs for preview-only resources until it did).
   Test fixtures must carry the type only under `newState`, as Pulumi emits it.
+- A default `pulumi preview --json` omits unchanged resources but still
+  reports their count in `changeSummary.same`; `--show-sames` lists them.
+  `overview` reads the stack state and merges the preview over it, so it lists
+  unchanged resources. `cost projected`, `forecast`, `estimate`, and
+  `recommendations` price only what the preview lists, and an unchanged stack
+  sets `finfocus.emptyPlan` with a stderr warning. The shared loading step that
+  removes this divergence is specified in `specs/1733-shared-stack-loader/`.
 - `parent` is the stack, not a pricing reference. Cross-resource refs follow
   `propertyDependencies` only and become `ref.<property>.{urn,type,region,sku}`
   tags (`specs/618-cross-resource-refs/`). The unknown sentinel
