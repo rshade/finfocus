@@ -748,7 +748,7 @@ finfocus plugin validate
 | Plugin | Status | Description |
 |--------|--------|-------------|
 | `aws-public` | Available | AWS public pricing data |
-| `aws-ce` | Available | AWS Cost Explorer actual cost by account, service, and EC2 instance |
+| `aws-ce` | Available | AWS Cost Explorer actual costs, forecasts, budgets, and recommendations |
 | `azure-public` | In Development | Azure public pricing data |
 | `opencost` | Available | Kubernetes allocation cost from OpenCost or Kubecost |
 | `carbon` | Build from source | Offline EC2 operational carbon estimates alongside monetary pricing. See the [carbon plugin guide](docs/src/content/docs/plugins/carbon.md). |

@@ -25,13 +25,15 @@ via `--metadata="region=<region>"` and a multi-region router binary (default).
 |-------|-------|
 | Repository | `rshade/finfocus-plugin-aws-ce` |
 | Providers | `aws` |
-| Capabilities | `cost_retrieval` |
+| Capabilities | `cost_retrieval`, `cost_projection`, `recommendations`, `budgets` |
 | Security | official |
 | Asset prefix | `finfocus-plugin-aws-ce` |
 
-Reads billed AWS cost from Cost Explorer by account, service, or EC2 instance.
-It needs AWS credentials with Cost Explorer read access and reports actual cost
-only. `finfocus setup` does not install it; run `finfocus plugin install aws-ce`.
+Reads billed AWS cost from Cost Explorer by account, service, or resource, plus
+AWS Budgets and AWS recommendations. Projected cost is a forecast for
+`aws:account` and `aws:service` only; route single-resource projections to
+`aws-public`. It needs AWS credentials, and each Cost Explorer request costs
+$0.01. `finfocus setup` does not install it; run `finfocus plugin install aws-ce`.
 
 ### azure-public
 
