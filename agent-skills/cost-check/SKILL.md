@@ -91,11 +91,13 @@ names, exit codes, and the optional `cost forecast` call are in
 
 1. Exit code `0`, or a budget exit with a JSON document on stdout. Any other
    exit: stop with the `error_code` and `message`.
-2. `finfocus.resources` is non-empty. An empty list is not a $0 estimate. The
-   CLI exits `0` with no resources when the plan holds nothing to price, which
-   is what `pulumi preview --json` produces for an unchanged stack. Stop with
-   `empty-plan`, and ask for a plan made with `pulumi preview --json
-   --show-sames`, or point to `finfocus overview`. Never write a report.
+2. Check `finfocus.emptyPlan`. When true, stop with `empty-plan`: the plan
+   holds nothing to price. Do not treat its `$0` plan total as an estimate or
+   write a plan-cost report. `finfocus.stack` can still hold a deployed stack
+   total; mention that separately with its `complete` status. For a plan that
+   includes unchanged resources, ask for `pulumi preview --json --show-sames`,
+   or point to `finfocus overview`. Do not infer `empty-plan` from the length
+   of `finfocus.resources` alone.
 3. A resource with an `error` object is **unpriced**. List it. Never add it
    as `0`. Also read `finfocus.errors[]`: when the old side of an update or
    replacement fails to price, the failure appears only there, and the diff

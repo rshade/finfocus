@@ -13,6 +13,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/spec"
+	"github.com/rshade/finfocus/internal/stackload"
 )
 
 // getBudgetScopeFilter returns the budget-scope flag value or empty string if not set.
@@ -217,12 +218,19 @@ const emptyPlanWarning = "Warning: the plan has no resources to price, so the $0
 // so a $0 total is not read as an estimate. It looks at the loaded plan, before
 // any --filter or pricing, so neither a filter nor a missing plugin triggers it.
 func warnIfPlanEmpty(cmd *cobra.Command, resources []engine.ResourceDescriptor) bool {
-	for i := range resources {
-		if !engine.IsPulumiInternalType(resources[i].Type) {
+	if !planHasNothingToPrice(resources) {
+		return false
+	}
+	fmt.Fprintln(cmd.ErrOrStderr(), emptyPlanWarning)
+	return true
+}
+
+func planHasNothingToPrice(resources []engine.ResourceDescriptor) bool {
+	for _, r := range resources {
+		if r.Origin == engine.OriginPlan && !engine.IsPulumiInternalType(r.Type) {
 			return false
 		}
 	}
-	fmt.Fprintln(cmd.ErrOrStderr(), emptyPlanWarning)
 	return true
 }
 
@@ -282,7 +290,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 
 	audit := newCostProjectedAudit(ctx, params)
 
-	resources, unchanged, err := loadProjectedResources(ctx, cmd, params, audit)
+	resources, unchanged, snapshot, err := loadProjectedInventory(ctx, cmd, params, audit)
 	if err != nil {
 		return projectedLoadError(ctx, params, audit, err)
 	}
@@ -290,16 +298,13 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		return projectedUnchanged(ctx, cmd, audit)
 	}
 
-	emptyPlan := warnIfPlanEmpty(cmd, resources)
+	emptyPlan := warnForProjectedPlan(cmd, resources, snapshot)
 	resources, err = applyProjectedFilters(ctx, params, audit, resources)
 	if err != nil {
 		return err
 	}
 
-	cfg, specDir := config.GetGlobalConfig(), params.specDir
-	if specDir == "" {
-		specDir = cfg.SpecDir
-	}
+	cfg, specDir := projectedPricingConfig(params.specDir)
 
 	clients, cleanup, err := openPlugins(ctx, params.adapter, audit)
 	if err != nil {
@@ -335,6 +340,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 
 	mergeProjectedDiffRecommendations(ctx, eng, resources, diff)
 	diff.EmptyPlan = emptyPlan
+	setProjectedStackSummary(diff, snapshot)
 
 	if renderErr := renderProjectedDiff(cmd, params.output, diff, params.showBreakdown); renderErr != nil {
 		return renderErr
@@ -386,40 +392,56 @@ func loadProjectedResources(
 	params costProjectedParams,
 	audit *auditContext,
 ) ([]engine.ResourceDescriptor, bool, error) {
+	returnProjected, unchanged, _, err := loadProjectedInventory(ctx, cmd, params, audit)
+	return returnProjected, unchanged, err
+}
+
+func loadProjectedInventory(
+	ctx context.Context,
+	cmd *cobra.Command,
+	params costProjectedParams,
+	audit *auditContext,
+) ([]engine.ResourceDescriptor, bool, *stackload.Snapshot, error) {
 	switch {
 	case params.terraformState != "":
 		resources, err := loadAndMapTerraformResources(ctx, params.terraformState, audit)
-		return resources, false, err
-	case params.pulumiState != "":
-		resources, err := loadResourcesFromState(ctx, params.pulumiState, audit)
-		return resources, false, err
+		return resources, false, nil, err
 	case params.terraformPlan != "":
-		return loadTerraformPlanFile(ctx, cmd, params.terraformPlan)
-	case params.pulumiJSONPath != "":
-		resources, err := loadAndMapResources(ctx, params.pulumiJSONPath, audit)
-		return resources, false, err
+		resources, unchanged, err := loadTerraformPlanFile(ctx, cmd, params.terraformPlan)
+		return resources, unchanged, nil, err
+	case params.pulumiState != "" || params.pulumiJSONPath != "":
+		resources, snapshot, err := loadPulumiProjected(ctx, cmd, params)
+		return resources, false, snapshot, err
 	default:
-		stackFlag := stackFlagValue(cmd)
-		return loadDetectedProjected(ctx, cmd, stackFlag)
+		source, err := DetectProjectSource(".")
+		if err != nil {
+			return nil, false, nil, err
+		}
+		if source.Kind == ProjectKindPulumi {
+			resources, snapshot, loadErr := loadPulumiProjected(ctx, cmd, params)
+			return resources, false, snapshot, loadErr
+		}
+		resources, err := loadTerraformDirectory(ctx, cmd, source.Dir)
+		return resources, terraformPlanUnchanged(resources), nil, err
 	}
 }
 
-func loadDetectedProjected(
-	ctx context.Context,
+func warnForProjectedPlan(
 	cmd *cobra.Command,
-	stack string,
-) ([]engine.ResourceDescriptor, bool, error) {
-	source, err := DetectProjectSource(".")
-	if err != nil {
-		return nil, false, err
+	resources []engine.ResourceDescriptor,
+	snapshot *stackload.Snapshot,
+) bool {
+	empty := planHasNothingToPrice(resources)
+	if empty && (snapshot == nil || !snapshot.StateStatus.Loaded) {
+		warnIfPlanEmpty(cmd, resources)
 	}
-	if source.Kind == ProjectKindPulumi {
-		resources, loadErr := resolveResourcesFromPulumi(ctx, stack, modePulumiPreview)
-		return resources, false, loadErr
+	return empty
+}
+
+func projectedPricingConfig(specDir string) (*config.Config, string) {
+	cfg := config.GetGlobalConfig()
+	if specDir == "" {
+		specDir = cfg.SpecDir
 	}
-	resources, err := loadTerraformDirectory(ctx, cmd, source.Dir)
-	if err != nil {
-		return nil, false, err
-	}
-	return resources, terraformPlanUnchanged(resources), nil
+	return cfg, specDir
 }

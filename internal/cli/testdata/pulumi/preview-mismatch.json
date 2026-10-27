@@ -1,0 +1,103 @@
+{
+  "steps": [
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::test-stack::pulumi:pulumi:Stack::test-stack-dev",
+      "newState": {
+        "urn": "urn:pulumi:dev::test-stack::pulumi:pulumi:Stack::test-stack-dev",
+        "type": "pulumi:pulumi:Stack"
+      },
+      "oldState": {
+        "urn": "urn:pulumi:dev::test-stack::pulumi:pulumi:Stack::test-stack-dev",
+        "type": "pulumi:pulumi:Stack"
+      }
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:dev::test-stack::aws:ec2/instance:Instance::missing",
+      "newState": {
+        "urn": "urn:pulumi:dev::test-stack::aws:ec2/instance:Instance::missing",
+        "type": "aws:ec2/instance:Instance",
+        "id": "i-0123456789abcdef0",
+        "provider": "urn:pulumi:dev::test-stack::pulumi:providers:aws::default_us-east-1",
+        "inputs": {
+          "ami": "ami-0123456789abcdef0",
+          "instanceType": "t3.large",
+          "tags": {
+            "Name": "web-server",
+            "Environment": "dev"
+          }
+        },
+        "outputs": {
+          "arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0",
+          "instanceType": "t3.medium",
+          "publicIp": "54.123.45.67",
+          "privateIp": "10.0.1.100"
+        }
+      },
+      "oldState": {
+        "urn": "urn:pulumi:dev::test-stack::aws:ec2/instance:Instance::missing",
+        "type": "aws:ec2/instance:Instance",
+        "id": "i-0123456789abcdef0",
+        "provider": "urn:pulumi:dev::test-stack::pulumi:providers:aws::default_us-east-1",
+        "inputs": {
+          "ami": "ami-0123456789abcdef0",
+          "instanceType": "t3.medium",
+          "tags": {
+            "Name": "web-server",
+            "Environment": "dev"
+          }
+        },
+        "outputs": {
+          "arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0",
+          "instanceType": "t3.medium",
+          "publicIp": "54.123.45.67",
+          "privateIp": "10.0.1.100"
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::test-stack::aws:rds/instance:Instance::database",
+      "newState": {
+        "urn": "urn:pulumi:dev::test-stack::aws:rds/instance:Instance::database",
+        "type": "aws:rds/instance:Instance",
+        "id": "db-instance-primary",
+        "provider": "urn:pulumi:dev::test-stack::pulumi:providers:aws::default_us-east-1",
+        "inputs": {
+          "instanceClass": "db.t3.medium",
+          "engine": "postgres",
+          "engineVersion": "14.5",
+          "allocatedStorage": 100
+        },
+        "outputs": {
+          "arn": "arn:aws:rds:us-east-1:123456789012:db:db-instance-primary",
+          "endpoint": "db-instance-primary.abc123.us-east-1.rds.amazonaws.com:5432",
+          "instanceClass": "db.t3.medium"
+        }
+      },
+      "oldState": {
+        "urn": "urn:pulumi:dev::test-stack::aws:rds/instance:Instance::database",
+        "type": "aws:rds/instance:Instance",
+        "id": "db-instance-primary",
+        "provider": "urn:pulumi:dev::test-stack::pulumi:providers:aws::default_us-east-1",
+        "inputs": {
+          "instanceClass": "db.t3.medium",
+          "engine": "postgres",
+          "engineVersion": "14.5",
+          "allocatedStorage": 100
+        },
+        "outputs": {
+          "arn": "arn:aws:rds:us-east-1:123456789012:db:db-instance-primary",
+          "endpoint": "db-instance-primary.abc123.us-east-1.rds.amazonaws.com:5432",
+          "instanceClass": "db.t3.medium"
+        }
+      }
+    }
+  ],
+  "changeSummary": {
+    "same": 3,
+    "update": 1,
+    "create": 1
+  }
+}

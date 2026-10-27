@@ -181,15 +181,51 @@ finfocus overview --from 2026-01-01 --to 2026-01-31 --plain --yes
 
 ## cost projected
 
-Calculate estimated costs from Pulumi plan. When `--pulumi-json` is omitted,
-FinFocus auto-detects the Pulumi project and runs `pulumi preview --json`.
+Calculate estimated costs from a Pulumi plan. When `--pulumi-json` is omitted,
+FinFocus auto-detects the Pulumi project and loads its state and preview together.
+A saved preview can also use the state from a detected project or an explicit
+`--pulumi-state` file.
 
-A default `pulumi preview --json` omits unchanged resources, so a plan can hold nothing
-to price. In that case `cost projected` prints a warning on stderr and, with
-`--output json`, sets `finfocus.emptyPlan` to `true`; the `$0` total is not an estimate.
-Make the plan with `pulumi preview --json --show-sames` to price the whole stack, or run
-`finfocus overview`, which reads the stack state. A result emptied by `--filter` is not
-flagged.
+The **plan total** prices resources listed in the preview. It remains the value
+used for budgets, exit codes, `finfocus.summary.totalMonthly`, and
+`finfocus.diff.totalAfter`. The **stack total** adds unchanged resources from
+state that the preview omits, counting each resource once. Table output lists
+these in an `UNCHANGED RESOURCES (not in the plan total)` section and prints a
+separate `Stack total:` line.
+
+A default `pulumi preview --json` omits unchanged resources. When it contains
+no priceable resources, JSON sets `finfocus.emptyPlan` to `true`, even when
+readable state supplies a stack total. With complete state, table output prints
+`No changes. Projected monthly cost is zero.` followed by the stack total.
+Without complete state, stderr warns that the plan's `$0` is not an estimate.
+A result emptied by `--filter` is not flagged.
+
+### Pulumi JSON fields
+
+The `finfocus.stack` object appears for Pulumi sources. Terraform and OpenTofu
+output does not include it. Existing `finfocus.resources[]` entries and summary
+breakdowns continue to describe the plan total.
+
+| JSON path | Meaning |
+| --- | --- |
+| `finfocus.summary.totalMonthly`, `finfocus.diff.totalAfter` | Plan total; budget evaluation uses this value. |
+| `finfocus.emptyPlan` | True when the plan contains no priceable resources. |
+| `finfocus.stack.totalMonthly`, `finfocus.stack.currency` | Stack total and currency. |
+| `finfocus.stack.resources` | Number of resources covered by the stack total. |
+| `finfocus.stack.complete` | Whether stack state was read successfully. |
+| `finfocus.stack.incompleteReason` | When incomplete: `not_requested`, `backend_unreachable`, `passphrase_required`, or `read_failed`. Omitted when complete. |
+| `finfocus.stack.omittedUnchanged` | Number of unchanged resources omitted by the preview's change summary. Omitted when zero. |
+| `finfocus.stack.unchanged[]` | State-added resources, with `resourceType`, `resourceId`, `monthly`, and `currency`; an unpriced resource can carry `error`. Omitted when empty. |
+
+When state is unavailable, the stack total equals the plan total,
+`stack.complete` is false, and `stack.unchanged` is omitted. Notices on stderr
+report safe reason categories without backend details. For a saved preview
+without state, a notice reports any known omitted count; use
+`pulumi preview --json --show-sames` or `finfocus overview` to see those resources.
+A preview that disagrees with state produces a warning and takes precedence.
+
+NDJSON keeps one line per plan resource and adds no stack lines. Stack notices
+remain on stderr.
 
 ### Usage (cost projected)
 
@@ -202,9 +238,10 @@ finfocus cost projected [options]
 | Flag            | Description                                                       | Default  |
 | --------------- | ----------------------------------------------------------------- | -------- |
 | `--pulumi-json` | Path to Pulumi preview JSON (optional; auto-detected if omitted)  |          |
+| `--pulumi-state` | Path to Pulumi state JSON; combines with `--pulumi-json` or loads deployed resources alone | |
 | `--terraform-plan` | Path to `tofu show -json` output. Does not run a binary. Mutually exclusive with `--pulumi-json` and `--terraform-state` | |
 | `--terraform-state` | Path to a Terraform state file (mutually exclusive with `--pulumi-json` and `--terraform-plan`) |          |
-| `--stack`       | Pulumi stack name for auto-detection (ignored with --pulumi-json) |          |
+| `--stack`       | Pulumi stack name for detected project state and preview |          |
 | `--filter`      | Filter resources (tag:key=value, type=\*)                         | None     |
 | `--output`      | Output format: table, json, ndjson                                | table    |
 | `--utilization` | Assumed resource utilization (0.0-1.0)                            | 1.0      |
@@ -357,8 +394,10 @@ Display cost optimization recommendations from cloud providers.
 finfocus cost recommendations [--pulumi-json <file> | --terraform-plan <file>] [options]
 ```
 
-In a detected Terraform directory, omit input flags to run a plan. Pulumi projects
-still require explicit input. The four infrastructure input flags are mutually
+In a detected Terraform directory, omit input flags to run a plan. In a Pulumi
+project, omit input flags to load the live inventory from state and preview,
+including unchanged deployed resources and preview-only creates. Use `--stack`
+to select a Pulumi stack. The four infrastructure input flags are mutually
 exclusive. Saved plan files must use format version 1 and be at most 32 MiB;
 invalid or missing files exit 2. Planning failures exit 1 with an actionable hint.
 FinFocus does not run init, log in, or store credentials.
@@ -370,7 +409,7 @@ for plugin communication, and both reject `--terraform-plan`.
 
 | Flag                  | Description                                                      | Default  |
 | --------------------- | ---------------------------------------------------------------- | -------- |
-| `--pulumi-json`       | Path to Pulumi preview JSON; required for Pulumi plan input | |
+| `--pulumi-json`       | Path to Pulumi preview JSON; optional in a detected Pulumi project | |
 | `--terraform-plan`    | Path to saved `tofu show -json` output; runs no binary | |
 | `--pulumi-state`      | Path to a Pulumi stack export JSON file | |
 | `--terraform-state`   | Path to a Terraform state JSON file; runs no plan | |
@@ -662,8 +701,10 @@ The command supports two mutually exclusive modes:
 
 - Specify `--pulumi-json` for a Pulumi plan, or `--terraform-plan` for saved
   `tofu show -json` output
-- In a Terraform directory, omit input flags to run a plan; Pulumi projects
-  retain the explicit input requirement
+- In a Terraform directory, omit input flags to run a plan
+- In a Pulumi project, omit input flags to load the live inventory from state
+  and preview; use `--stack` to select a stack. Unchanged deployed resources
+  and preview-only creates are available to `--modify` selectors
 - Use `--modify selector:key=value` to select a resource by ID, logical name,
   or type. A Terraform address, such as `aws_instance.web`, is its resource ID
 
@@ -699,6 +740,9 @@ finfocus cost estimate --terraform-plan tfplan.json \
 ### Examples (cost estimate)
 
 ```bash
+# Auto-detect a Pulumi project and select a live resource
+finfocus cost estimate --stack dev --modify 'web-server:instanceType=m5.large'
+
 # Single resource estimation - estimate cost of changing instance type
 finfocus cost estimate --provider aws \
   --resource-type aws:ec2/instance:Instance \

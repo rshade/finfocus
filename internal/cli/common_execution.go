@@ -352,88 +352,9 @@ func detectPulumiProject(ctx context.Context, stack string) (string, string, err
 	return projectDir, stack, nil
 }
 
-// pulumiMode represents the Pulumi CLI operation to execute.
-type pulumiMode string
-
-const (
-	modePulumiPreview pulumiMode = "preview"
-	modePulumiExport  pulumiMode = "export"
-)
-
-// resolveResourcesFromPulumi orchestrates auto-detection of a Pulumi project and
-// execution of the appropriate Pulumi CLI command to produce resource descriptors.
-//
-// If `stack` is empty the current Pulumi stack for the detected project directory is used.
-// `mode` must be either modePulumiPreview or modePulumiExport.
-// The function returns an error if the Pulumi binary or project cannot be found, if the stack cannot be resolved,
-// if the Pulumi command fails, if parsing the Pulumi output fails, or if an unsupported mode is provided.
-//
-// Returns:
-//   - a slice of engine.ResourceDescriptor representing the mapped resources from the Pulumi output.
-//   - an error if any step (binary/project discovery, stack resolution, command execution, parsing, or unsupported mode) fails.
-func resolveResourcesFromPulumi(
-	ctx context.Context,
-	stack string,
-	mode pulumiMode,
-) ([]engine.ResourceDescriptor, error) {
-	log := logging.FromContext(ctx)
-
-	projectDir, resolvedStack, err := detectPulumiProject(ctx, stack)
-	if err != nil {
-		return nil, err
-	}
-
-	switch mode {
-	case modePulumiPreview:
-		log.Info().Ctx(ctx).Str("component", "pulumi").
-			Msg("Running pulumi preview --json (this may take a moment)...")
-
-		data, previewErr := pulumidetect.Preview(ctx, pulumidetect.PreviewOptions{
-			ProjectDir: projectDir,
-			Stack:      resolvedStack,
-		})
-		if previewErr != nil {
-			return nil, fmt.Errorf("running pulumi preview: %w", previewErr)
-		}
-
-		plan, parseErr := ingest.ParsePulumiPlanWithContext(ctx, data)
-		if parseErr != nil {
-			return nil, fmt.Errorf("parsing Pulumi preview output: %w", parseErr)
-		}
-
-		resources, mapErr := ingest.MapResources(plan.GetResourcesWithContext(ctx))
-		if mapErr != nil {
-			return nil, fmt.Errorf("mapping preview resources: %w", mapErr)
-		}
-		return resources, nil
-
-	case modePulumiExport:
-		log.Info().Ctx(ctx).Str("component", "pulumi").
-			Msg("Running pulumi stack export...")
-
-		data, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
-			ProjectDir: projectDir,
-			Stack:      resolvedStack,
-		})
-		if exportErr != nil {
-			return nil, fmt.Errorf("running pulumi stack export: %w", exportErr)
-		}
-
-		state, parseErr := ingest.ParseStackExportWithContext(ctx, data)
-		if parseErr != nil {
-			return nil, fmt.Errorf("parsing Pulumi stack export output: %w", parseErr)
-		}
-
-		customResources := state.GetCustomResourcesWithContext(ctx)
-		resources, mapErr := ingest.MapStateResources(customResources)
-		if mapErr != nil {
-			return nil, fmt.Errorf("mapping state resources: %w", mapErr)
-		}
-		return resources, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported Pulumi mode: %s", mode)
-	}
+// resolveResourcesFromPulumi reads the deployed view through the shared loader.
+func resolveResourcesFromPulumi(ctx context.Context, stack string) ([]engine.ResourceDescriptor, error) {
+	return loadDeployedPulumi(ctx, stack)
 }
 
 // newEngineWithCache creates an Engine, wires the router and an optional cache.Cache.

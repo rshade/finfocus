@@ -183,7 +183,7 @@ func TestConvertStateResources_CreatedAtPreserved(t *testing.T) {
 		},
 	}
 
-	result := convertStateResources(resources)
+	result := testOverviewStateResources(t, resources)
 	require.Len(t, result, 1)
 	require.NotNil(t, result[0].CreatedAt)
 	assert.Equal(t, createdAt, *result[0].CreatedAt)
@@ -202,7 +202,7 @@ func TestConvertStateResources_NilCreatedAtOK(t *testing.T) {
 		},
 	}
 
-	result := convertStateResources(resources)
+	result := testOverviewStateResources(t, resources)
 	require.Len(t, result, 1)
 	assert.Nil(t, result[0].CreatedAt)
 }

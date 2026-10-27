@@ -93,6 +93,7 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
 | `internal/pluginhost/` | gRPC plugin launch, connect, cleanup |
 | `internal/registry/` | Discovery in `<home>/plugins/<name>/<version>/`, install |
 | `internal/ingest/` | Pulumi plan and state parsing |
+| `internal/stackload/` | Shared Pulumi state and preview snapshots, inventory, and safe input status |
 | `internal/proto/` | Adapter: descriptors, pre-flight validation |
 | `internal/router/` | Plugin routing with priority and fallback |
 | `internal/analyzer/` | Pulumi Analyzer gRPC server |
@@ -157,7 +158,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   fork inherits the write fd and the exec fails with `text file busy`
   (golang/go#22315).
 - Mark them `//nolint:paralleltest // <reason>` above `func` (or on the
-  `t.Run`/`for` line for some subtests).
+  `t.Run`/`for` line for some subtests) only when the state is reached
+  through a helper. `paralleltest` already skips a test that calls
+  `t.Setenv` or `t.Chdir` itself, and `nolintlint` then fails the marker as
+  unused; give that test a plain comment instead.
 - Do not share a mutable fixture across subtests; production code mutates
   protos in place. In a parent with parallel subtests use `t.Cleanup`, never
   `defer`.
@@ -177,8 +181,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   creds from an ESC environment attached with `pulumi config env add`; it
   rewrites the tracked `Pulumi.dev.yaml`; never commit that change, since the
   demo's CI has its own credentials). `pulumi preview` needs
-  no spend; web Cost and Recommendations read *deployed* state only, so they
-  show 0 until a `pulumi up`. Always `pulumi destroy` afterwards. Never
+  no spend; web Cost reads deployed state plus history, while Estimate and
+  Recommendations include preview-only creates through the shared inventory. Always `pulumi destroy` afterwards. Never
   `pkill -f <name>` or `pgrep -f <name>` from a shell whose own command line
   contains the name: it matches and kills the shell. Anchor the pattern.
 - The aws-public router starts a per-region child
@@ -233,11 +237,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   Test fixtures must carry the type only under `newState`, as Pulumi emits it.
 - A default `pulumi preview --json` omits unchanged resources but still
   reports their count in `changeSummary.same`; `--show-sames` lists them.
-  `overview` reads the stack state and merges the preview over it, so it lists
-  unchanged resources. `cost projected`, `forecast`, `estimate`, and
-  `recommendations` price only what the preview lists, and an unchanged stack
-  sets `finfocus.emptyPlan` with a stderr warning. The shared loading step that
-  removes this divergence is specified in `specs/1733-shared-stack-loader/`.
+  `internal/stackload` merges state and preview for `overview`, `cost projected`,
+  `estimate`, `recommendations`, and web callbacks. Estimate and recommendations
+  cover the live inventory, including unchanged state and preview-only creates.
+  Projected budgets and `summary.totalMonthly` retain the plan total;
+  `finfocus.stack` reports the separate stack total and safe completeness status.
+  `finfocus.emptyPlan` depends only on priceable plan resources, even with state.
+  Forecast retains the plan-origin total; actual costs use deployed inventory
+  plus existing history enrichment (`specs/1733-shared-stack-loader/`).
 - `parent` is the stack, not a pricing reference. Cross-resource refs follow
   `propertyDependencies` only and become `ref.<property>.{urn,type,region,sku}`
   tags (`specs/618-cross-resource-refs/`). The unknown sentinel
@@ -385,13 +392,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `wslBrowserOpenDelay` (1.5s) before opening the browser. The Windows-side
   localhost relay refuses a freshly bound port for about a second, so an
   immediate open fails until the user reloads. `--no-browser` skips the wait.
-- On-demand overview preview passes `capturePlan` into `resolveOverviewPlan`
-  (the hook is a normal parameter, not a variadic). The web Estimate page
-  reads that captured plan. Web Overview appends plan-only creates through
-  `engine.AppendPlanOnlyRows` (the same step `MergeResourcesForOverview` uses) and
-  prices only those new rows with `EnrichOverviewRows`; it does not only patch
-  rows that already exist. `capturePlan` takes the same query
-  gate as the readers.
+- The web session holds one `*stackload.Snapshot` (`webData.snapshot`).
+  `setPipelineSource` publishes it under the query gate after the pipeline
+  loads and again after an on-demand preview, which replaces the pipeline's
+  snapshot through `Snapshot.WithPlan`. Estimate and Recommendations read
+  `Descriptors()`; Cost reads `ActualDescriptors()`. Web Overview appends
+  plan-only creates through `engine.AppendPlanOnlyRows` (the same step
+  `MergeResourcesForOverview` uses) and prices only those new rows with
+  `EnrichOverviewRows`; it does not only patch rows that already exist.
 - `cost estimate --modify` splits on the last colon before `=`, so a Pulumi
   URN selector keeps its colons. A selector matches the resource ID, the
   logical name (the last `::` segment), or the type, and every matching
@@ -812,6 +820,8 @@ Specs 613-623 hold the details. Invariants:
   through an `os.Root`. Every failure is a warning. Tests never run npx.
 
 ## Recent Changes
+
+- 1733-shared-stack-loader: Shared Pulumi state and preview snapshots align CLI and web live inventory. Projected output adds a separate stack total and safe state-availability categories while preserving plan totals, budgets, exit codes, and forecast totals (`specs/1733-shared-stack-loader/`).
 
 - 1732-terraform-plan-ingestion: Terraform plan mode parses `terraform show -json` through in-process `pluginsdk.CostParseProvider` (`ParseRequest` / `ParseResponse` plus `ValidateParseRequest` and `ValidateParseResponse`). Not served as `CostParseService`. `ParseResponse` has no operation; the host keeps `map[source_id]operation` beside it. `resource_type` stays the Terraform type and `ResolveResourceTypes` still runs after validation (`specs/1732-terraform-plan-ingestion/`). Terraform 1.16 records data sources on `prior_state`, not `resource_changes`; the committed plan fixture copies those emitted data resources into `resource_changes` with action `read`. `cost projected` plans a Terraform directory or reads `--terraform-plan`. Overview, estimate, recommendations, forecast, cost history, and `--web` also plan a detected Terraform directory. `cost actual` and `cost history collect` do not plan.
 - 1730-pulumi-esc-plugin-credentials: Pulumi ESC `environmentVariables` as the highest-precedence plugin env source, per-plugin allowlist, fallback with categorized warnings (`specs/1730-pulumi-esc-plugin-credentials/`)

@@ -34,12 +34,12 @@ type CostEstimateParams struct {
 	Region       string
 
 	// Plan-based mode flags
-	PulumiJSONPath    string
-	TerraformPlan     string
-	PulumiState       string
-	TerraformState    string
-	terraformDetected bool
-	Modify            []string // resource:key=value format
+	PulumiJSONPath  string
+	TerraformPlan   string
+	PulumiState     string
+	TerraformState  string
+	projectDetected bool
+	Modify          []string // resource:key=value format
 
 	// Common flags
 	Interactive bool
@@ -56,7 +56,7 @@ type CostEstimateParams struct {
 //   - Estimates cost impact of property changes on a single resource
 //
 // 2. Plan-based mode:
-//   - --pulumi-json or --terraform-plan, or a detected Terraform directory; --modify is optional
+//   - An input file or a detected Pulumi or Terraform project; --modify is optional
 //   - Estimates cost impact of modifications to resources in an existing infrastructure plan
 //
 // Common flags:
@@ -81,7 +81,8 @@ Supports two modes:
 
 In a Terraform directory, omitting input flags runs tofu plan.
 Use --terraform-plan with saved tofu show -json output to avoid running a binary.
-Pulumi projects still require --pulumi-json for plan-based estimation.
+In a Pulumi project, omitting input flags loads the live state and preview inventory.
+Use --stack to select a Pulumi stack.
 The input flags --terraform-plan, --pulumi-json, --pulumi-state, and --terraform-state
 are mutually exclusive. --include-workspace overrides the Terraform history identity
 setting for this run and is ignored for Pulumi.
@@ -148,7 +149,7 @@ Examples:
 //
 // Rules:
 //   - Single-resource mode requires both --provider and --resource-type
-//   - Plan-based mode requires an input file or a detected Terraform directory
+//   - Plan-based mode requires an input file or a detected Pulumi or Terraform project
 //   - --property is only valid in single-resource mode
 //   - --modify is only valid in plan-based mode
 //   - Modes are mutually exclusive
@@ -158,7 +159,7 @@ func ValidateEstimateFlags(params *CostEstimateParams) error {
 	hasSingleResource := params.Provider != "" || params.ResourceType != "" ||
 		len(params.Properties) > 0
 	hasPlanSource := params.PulumiJSONPath != "" || params.TerraformPlan != "" ||
-		params.PulumiState != "" || params.TerraformState != "" || params.terraformDetected
+		params.PulumiState != "" || params.TerraformState != "" || params.projectDetected
 	hasPlanBased := hasPlanSource || len(params.Modify) > 0
 
 	// Check for mutually exclusive modes
@@ -181,7 +182,7 @@ func ValidateEstimateFlags(params *CostEstimateParams) error {
 	// Validate plan-based mode requirements
 	if hasPlanBased && !hasPlanSource {
 		return errors.New(
-			"--pulumi-json is required for plan-based estimation unless Terraform input is available; provide Pulumi or Terraform input",
+			"--pulumi-json is required for plan-based estimation unless a Pulumi or Terraform project or input is available",
 		)
 	}
 
@@ -355,7 +356,8 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 		params.PulumiJSONPath == "" && params.TerraformPlan == "" &&
 		params.PulumiState == "" && params.TerraformState == "" && !params.Interactive {
 		source, detectErr := DetectProjectSource(".")
-		params.terraformDetected = detectErr == nil && source.Kind == ProjectKindTerraform
+		params.projectDetected = detectErr == nil &&
+			(source.Kind == ProjectKindPulumi || source.Kind == ProjectKindTerraform)
 	}
 
 	// Validate flags
@@ -380,7 +382,7 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	case params.Interactive:
 		err = executeInteractiveEstimate(cmd, params, cfg)
 	case params.PulumiJSONPath != "" || params.TerraformPlan != "" || params.PulumiState != "" ||
-		params.TerraformState != "" || params.terraformDetected:
+		params.TerraformState != "" || params.projectDetected:
 		err = executePlanBasedEstimate(cmd, params, cfg)
 	default:
 		err = executeSingleResourceEstimate(cmd, params, cfg)
@@ -956,7 +958,7 @@ func executeInteractiveEstimate(
 
 	switch {
 	case params.PulumiJSONPath != "" || params.TerraformPlan != "" || params.PulumiState != "" ||
-		params.TerraformState != "" || params.terraformDetected:
+		params.TerraformState != "" || params.projectDetected:
 		// Load resources from plan
 		resources, _, err := loadEstimateResources(ctx, cmd, params)
 		if err != nil {

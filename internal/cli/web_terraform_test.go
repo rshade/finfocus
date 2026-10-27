@@ -142,11 +142,18 @@ func TestWebTerraformCapturesSourceMetadata(t *testing.T) {
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 	data := newWebData(cmd, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
-	params := data.overviewParams()
+	params := data.params
 	params.terraformPlan = "../ingest/testdata/terraform/plan/show.json"
-	_, _, _, _, err := loadPlainOverviewData(context.Background(), cmd, params)
+	snapshot, resources, _, err := loadPlainOverviewSnapshot(context.Background(), cmd, params, nil)
 	require.NoError(t, err)
-	resources, err := data.estimateResources(context.Background())
+	require.NoError(
+		t,
+		data.setPipelineSource(
+			context.Background(),
+			OverviewPipelineResult{Snapshot: snapshot, TerraformResources: resources},
+		),
+	)
+	resources, err = data.estimateResources(context.Background())
 	require.NoError(t, err)
 	require.NotEmpty(t, resources)
 	byID := resourcesByID(resources)

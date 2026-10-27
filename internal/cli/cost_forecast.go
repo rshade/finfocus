@@ -349,6 +349,7 @@ func forecastCosts(
 	if err != nil {
 		return nil, fmt.Errorf("calculating projected costs: %w", err)
 	}
+	// The shared inventory includes state resources; forecasts retain plan membership.
 	return diff.AfterCosts(), nil
 }
 

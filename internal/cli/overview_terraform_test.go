@@ -57,7 +57,7 @@ esac
 		cmd.SetOut(&output)
 		cmd.SetErr(&bytes.Buffer{})
 		cmd.SetIn(strings.NewReader("n\n"))
-		_, steps, _, stateOnly, loadErr := loadPlainOverviewData(context.Background(), cmd, overviewParams{})
+		_, steps, _, stateOnly, loadErr := testLoadPlainOverviewData(context.Background(), cmd, overviewParams{})
 		require.NoError(t, loadErr)
 		assert.False(t, stateOnly)
 		assert.NotEmpty(t, steps)
@@ -264,7 +264,7 @@ func TestOverviewTerraformPreservesCustomProvider(t *testing.T) {
 	recorder := &overviewProviderRecorder{CostSourceClient: client.API, providers: make(chan string, 4)}
 	client.API = recorder
 	cmd := NewOverviewCmd()
-	state, steps, _, _, err := loadPlainOverviewData(
+	state, steps, _, _, err := testLoadPlainOverviewData(
 		context.Background(),
 		cmd,
 		overviewParams{terraformPlan: "../ingest/testdata/terraform/plan/show.json"},
@@ -310,7 +310,7 @@ func TestOverviewTerraformStateKeepsCloudIDAndAddress(t *testing.T) {
 		}
 	}
 	require.NotEmpty(t, expectedID)
-	state, steps, _, _, err := loadPlainOverviewData(context.Background(), cmd, overviewParams{terraformPlan: plan})
+	state, steps, _, _, err := testLoadPlainOverviewData(context.Background(), cmd, overviewParams{terraformPlan: plan})
 	require.NoError(t, err)
 	rows, err := engine.MergeResourcesForOverview(context.Background(), state, steps)
 	require.NoError(t, err)

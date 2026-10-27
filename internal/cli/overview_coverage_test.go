@@ -273,7 +273,7 @@ func TestBuildOverviewRowsAndPlanHelpers(t *testing.T) {
 		URN: "urn:pulumi:prod::app::aws:s3/bucket:Bucket::logs", Type: "aws:s3/bucket:Bucket",
 		Custom: true,
 	}}
-	rows, steps, hasChanges, count, err := buildOverviewRows(ctx, true, state, overviewParams{}, "", "", nil)
+	rows, steps, hasChanges, count, err := testBuildOverviewRows(ctx, true, state, overviewParams{}, "", "", nil)
 	require.NoError(t, err)
 	assert.Nil(t, steps)
 	assert.False(t, hasChanges)
@@ -281,19 +281,25 @@ func TestBuildOverviewRowsAndPlanHelpers(t *testing.T) {
 	require.Len(t, rows, 1)
 
 	missing := overviewParams{pulumiJSON: filepath.Join(t.TempDir(), "missing.json")}
-	_, _, _, _, err = buildOverviewRows(ctx, false, state, missing, t.TempDir(), "dev", nil)
+	_, _, _, _, err = testBuildOverviewRows(ctx, false, state, missing, t.TempDir(), "dev", nil)
 	require.Error(t, err)
 
 	planPath := overviewFixture(t, "plan-no-changes.json")
 	params := overviewParams{pulumiJSON: planPath}
-	loaded, err := loadPlanForOverview(ctx, params, t.TempDir(), "dev", nil)
+	loaded, err := testLoadOverviewPlan(ctx, params, t.TempDir(), "dev", nil)
 	require.NoError(t, err)
 	assert.Empty(t, loaded)
 
-	_, err = resolveOverviewPlan(ctx, filepath.Join(t.TempDir(), "bad.json"), t.TempDir(), "dev", nil, nil)
+	_, err = testLoadOverviewPlan(
+		ctx,
+		overviewParams{pulumiJSON: filepath.Join(t.TempDir(), "bad.json")},
+		t.TempDir(),
+		"dev",
+		nil,
+	)
 	require.ErrorContains(t, err, "loading Pulumi plan")
 
-	cmd := buildPreviewCmd(ctx, missing, t.TempDir(), "dev", nil)
+	cmd := testOverviewPreviewCmd(ctx, missing, t.TempDir(), "dev", nil)
 	msg := cmd()
 	ready, ok := msg.(tui.OverviewChangesReadyMsg)
 	require.True(t, ok)
@@ -305,7 +311,7 @@ func TestBuildPreviewCmd_FailedPreview(t *testing.T) {
 
 	ctx := context.Background()
 	params := overviewParams{pulumiJSON: filepath.Join(t.TempDir(), "missing.json"), cfg: &config.Config{}}
-	msg := runBackgroundPreview(ctx, params, t.TempDir(), "dev", nil)
+	msg := testRunOverviewPreview(ctx, params, t.TempDir(), "dev", nil)
 	assert.False(t, msg.HasChanges)
 	assert.Empty(t, msg.StatusByURN)
 }
@@ -318,7 +324,7 @@ func TestLoadPlainOverviewData_FileAndStateOnly(t *testing.T) {
 	statePath := overviewFixture(t, "state-no-changes.json")
 	planPath := overviewFixture(t, "plan-no-changes.json")
 
-	state, steps, stack, stateOnly, err := loadPlainOverviewData(ctx, cmd, overviewParams{
+	state, steps, stack, stateOnly, err := testLoadPlainOverviewData(ctx, cmd, overviewParams{
 		pulumiState: statePath, pulumiJSON: planPath,
 	})
 	require.NoError(t, err)
@@ -327,7 +333,7 @@ func TestLoadPlainOverviewData_FileAndStateOnly(t *testing.T) {
 	assert.NotEmpty(t, state)
 	assert.Empty(t, steps)
 
-	state, steps, _, stateOnly, err = loadPlainOverviewData(ctx, cmd, overviewParams{
+	state, steps, _, stateOnly, err = testLoadPlainOverviewData(ctx, cmd, overviewParams{
 		pulumiState: statePath, stateOnly: true,
 	})
 	require.NoError(t, err)
@@ -335,7 +341,7 @@ func TestLoadPlainOverviewData_FileAndStateOnly(t *testing.T) {
 	assert.Nil(t, steps)
 	assert.NotEmpty(t, state)
 
-	_, _, _, _, err = loadPlainOverviewData(ctx, cmd, overviewParams{
+	_, _, _, _, err = testLoadPlainOverviewData(ctx, cmd, overviewParams{
 		pulumiState: filepath.Join(t.TempDir(), "missing.json"), stateOnly: true,
 	})
 	require.ErrorContains(t, err, "loading Pulumi state")
@@ -458,25 +464,25 @@ func TestExportAndPreview_MockedPulumi(t *testing.T) {
 	t.Cleanup(pulumidetect.SetRunnerForTest(scriptedPulumi{export: export, preview: preview}))
 
 	ctx := context.Background()
-	resources, manifest, projectDir, stack, err := exportStateFromProject(ctx, "dev", nil)
+	resources, manifest, projectDir, stack, err := testLoadOverviewState(ctx, overviewParams{stack: "dev"}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, project, projectDir)
 	assert.Equal(t, "dev", stack)
 	assert.NotEmpty(t, manifest)
 	assert.NotEmpty(t, resources)
 
-	state, steps, name, err := loadOverviewFromAutoDetect(ctx, overviewParams{stack: "dev"})
+	state, steps, name, err := testResolveOverviewData(ctx, overviewParams{stack: "dev"})
 	require.NoError(t, err)
 	assert.Equal(t, "dev", name)
 	assert.NotEmpty(t, state)
 	assert.Empty(t, steps)
 
-	parsed, err := resolveOverviewPlan(ctx, "", project, "dev", nil, nil)
+	parsed, err := testLoadOverviewPlan(ctx, overviewParams{}, project, "dev", nil)
 	require.NoError(t, err)
 	assert.Empty(t, parsed)
 
 	pw := "secret"
-	withPass, err := resolveOverviewPlan(ctx, "", project, "dev", &pw, nil)
+	withPass, err := testLoadOverviewPlan(ctx, overviewParams{}, project, "dev", &pw)
 	require.NoError(t, err)
 	assert.Empty(t, withPass)
 }
@@ -484,7 +490,7 @@ func TestExportAndPreview_MockedPulumi(t *testing.T) {
 func TestExportStateFromProject_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	installFakePulumi(t)
-	_, _, _, _, err := exportStateFromProject(context.Background(), "dev", nil)
+	_, _, _, _, err := testLoadOverviewState(context.Background(), overviewParams{stack: "dev"}, nil)
 	require.ErrorContains(t, err, "auto-detecting Pulumi project")
 }
 
@@ -551,7 +557,7 @@ func TestSendBudgetResultToTUI_ConfigFallback(t *testing.T) {
 func TestRunBackgroundPreview_PlanFile(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	t.Setenv(config.HistoryEnvEnabled, "false")
-	msg := runBackgroundPreview(context.Background(), overviewParams{
+	msg := testRunOverviewPreview(context.Background(), overviewParams{
 		pulumiJSON: overviewFixture(t, "plan-no-changes.json"),
 		cfg:        &config.Config{},
 	}, t.TempDir(), "dev", nil)
@@ -681,7 +687,7 @@ func TestReadStackSettingsFile_EmptyAndMissing(t *testing.T) {
 func TestProjectedPropertiesFromStep_LegacyInputs(t *testing.T) {
 	t.Parallel()
 
-	got := projectedPropertiesFromStep(ingest.PulumiStep{
+	got := testOverviewProjectedProperties(ingest.PulumiStep{
 		Inputs:   map[string]any{"instanceType": "t3.micro"},
 		NewState: &ingest.PulumiState{},
 	})

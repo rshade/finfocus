@@ -129,7 +129,7 @@ func TestLoadOverviewFromAutoDetect_RunsExportAndPreviewConcurrently(t *testing.
 	g.rendezvous = true
 	setupParallelOverviewProject(t, g)
 
-	state, steps, stack, err := loadOverviewFromAutoDetect(t.Context(), overviewParams{stack: "dev"})
+	state, steps, stack, err := testResolveOverviewData(t.Context(), overviewParams{stack: "dev"})
 
 	require.NoError(t, err)
 	assert.Equal(t, "dev", stack)
@@ -144,7 +144,7 @@ func TestLoadOverviewFromAutoDetect_PlanFileSkipsPreview(t *testing.T) {
 	g.started.Done()
 	setupParallelOverviewProject(t, g)
 
-	state, _, _, err := loadOverviewFromAutoDetect(t.Context(), overviewParams{
+	state, _, _, err := testResolveOverviewData(t.Context(), overviewParams{
 		stack:      "dev",
 		pulumiJSON: overviewFixture(t, "plan-no-changes.json"),
 	})
@@ -155,50 +155,30 @@ func TestLoadOverviewFromAutoDetect_PlanFileSkipsPreview(t *testing.T) {
 
 //nolint:paralleltest // changes the working directory and swaps the pulumi runner
 func TestLoadOverviewFromAutoDetect_Errors(t *testing.T) {
-	tests := []struct {
-		name         string
-		exportFails  bool
-		previewFails bool
-		wantErr      string
-		wantCanceled func(*gatedPulumi) bool
-	}{
-		{
-			name:        "export failure cancels preview",
-			exportFails: true,
-			wantErr:     "running pulumi stack export",
-			wantCanceled: func(g *gatedPulumi) bool {
-				return g.previewCanceled.Load()
-			},
-		},
-		{
-			name:         "preview failure cancels export",
-			previewFails: true,
-			wantErr:      "running pulumi preview",
-			wantCanceled: func(g *gatedPulumi) bool {
-				return g.exportCanceled.Load()
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			export, preview := parallelOverviewFixtures(t)
-			g := newGatedPulumi(export, preview)
-			g.exportFails = tt.exportFails
-			g.previewFails = tt.previewFails
-			g.rendezvous = true
-			g.blockUntilCancel = true
-			setupParallelOverviewProject(t, g)
-
-			state, steps, stack, err := loadOverviewFromAutoDetect(t.Context(), overviewParams{stack: "dev"})
-
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.wantErr)
-			assert.True(t, tt.wantCanceled(g), "the surviving command should see a canceled context")
-			assert.Nil(t, state)
-			assert.Nil(t, steps)
-			assert.Empty(t, stack)
-		})
-	}
+	t.Run("export failure retains preview inventory", func(t *testing.T) {
+		export, preview := parallelOverviewFixtures(t)
+		g := newGatedPulumi(export, preview)
+		g.exportFails = true
+		g.rendezvous = true
+		setupParallelOverviewProject(t, g)
+		snapshot, err := loadOverviewSnapshot(t.Context(), overviewParams{stack: "dev"}, nil, false)
+		require.NoError(t, err)
+		require.NotNil(t, snapshot)
+		assert.False(t, snapshot.StateStatus.Loaded)
+		assert.True(t, snapshot.PlanStatus.Loaded)
+		assert.False(t, g.previewCanceled.Load())
+	})
+	t.Run("preview failure cancels export", func(t *testing.T) {
+		export, preview := parallelOverviewFixtures(t)
+		g := newGatedPulumi(export, preview)
+		g.previewFails = true
+		g.rendezvous = true
+		g.blockUntilCancel = true
+		setupParallelOverviewProject(t, g)
+		_, _, _, err := testResolveOverviewData(t.Context(), overviewParams{stack: "dev"})
+		require.ErrorContains(t, err, "loading Pulumi plan")
+		assert.True(t, g.exportCanceled.Load())
+	})
 }
 
 //nolint:paralleltest // changes the working directory and swaps the pulumi runner
@@ -215,7 +195,7 @@ func TestLoadOverviewFromAutoDetect_ParentCancellationStopsBoth(t *testing.T) {
 		cancel()
 	}()
 
-	_, _, _, err := loadOverviewFromAutoDetect(ctx, overviewParams{stack: "dev"})
+	_, _, _, err := testResolveOverviewData(ctx, overviewParams{stack: "dev"})
 
 	require.ErrorIs(t, err, context.Canceled)
 	assert.True(t, g.exportCanceled.Load())

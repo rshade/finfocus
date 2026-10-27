@@ -315,7 +315,7 @@ func TestWebAutoDetectParity(t *testing.T) {
 
 	// Reference: what finfocus overview loads from this directory.
 	ctx := context.Background()
-	wantState, wantSteps, wantStack, err := loadOverviewFromAutoDetect(ctx, overviewParams{})
+	wantState, wantSteps, wantStack, err := testResolveOverviewData(ctx, overviewParams{})
 	require.NoError(t, err)
 	wantRows, err := engine.MergeResourcesForOverview(ctx, wantState, wantSteps)
 	require.NoError(t, err)

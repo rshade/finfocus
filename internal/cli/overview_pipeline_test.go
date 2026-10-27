@@ -986,7 +986,7 @@ func TestExplicitPlanWithoutProjectLoadsPlainAndWeb(t *testing.T) {
 	installFakePulumi(t)
 	path := overviewFixture(t, "plan-mixed-changes.json")
 	params := overviewParams{pulumiJSON: path, cfg: &config.Config{}}
-	_, steps, _, err := resolveOverviewData(context.Background(), params)
+	_, steps, _, err := testResolveOverviewData(context.Background(), params)
 	require.NoError(t, err)
 	require.NotEmpty(t, steps)
 	p := newOverviewPipeline(

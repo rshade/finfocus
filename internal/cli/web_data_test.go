@@ -29,6 +29,7 @@ import (
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
+	"github.com/rshade/finfocus/internal/stackload"
 )
 
 func TestWebActualTagParserParity(t *testing.T) {
@@ -141,7 +142,7 @@ func TestWebSeparateScorerSharedSDKPipeline(t *testing.T) {
 		return scorer, "", func() { require.NoError(t, conn.Close()) }
 	}
 	_, cleanup := data.newEngine(ctx, data.cmd, nil)
-	data.captureState(nil)
+	publishWebTestState(t, data, nil)
 	data.fetchRecommendations = func(context.Context, *cobra.Command, *engine.Engine,
 		[]engine.ResourceDescriptor, bool,
 	) (*engine.RecommendationsResult, error) {
@@ -178,7 +179,7 @@ func TestWebRecommendationsFailureCleanupAndRecovery(t *testing.T) {
 			ctx := context.Background()
 			data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}},
 				engine.DateRange{}, newAuditContext(ctx, "test", nil))
-			data.captureState(nil)
+			publishWebTestState(t, data, nil)
 			result := &engine.RecommendationsResult{Recommendations: []engine.Recommendation{{ID: "r1"}}}
 			data.fetchRecommendations = func(context.Context, *cobra.Command, *engine.Engine,
 				[]engine.ResourceDescriptor, bool,
@@ -248,6 +249,9 @@ func TestWebActualSourcesUseRawSharedLoader(t *testing.T) {
 		audit,
 	)
 	require.NoError(t, err)
+	snapshot, err := loadOverviewSnapshot(ctx, data.params, nil, false)
+	require.NoError(t, err)
+	require.NoError(t, data.setPipelineSource(ctx, OverviewPipelineResult{Snapshot: snapshot}))
 	got, err := data.loadResources(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
@@ -279,7 +283,7 @@ func TestWebActualSharedEnginePipelineParity(t *testing.T) {
 	audit := newAuditContext(ctx, "test", nil)
 	data := newWebData(cmd, overviewParams{cfg: &config.Config{}}, dates, audit)
 	data.eng = eng
-	data.captureState(
+	publishWebTestState(t, data,
 		[]ingest.StackExportResource{
 			{
 				URN:    "i-1",
@@ -304,7 +308,7 @@ func TestWebActualSharedEnginePipelineParity(t *testing.T) {
 	}
 }
 
-func TestWebCapturedSourceIsIndependentAndEmptyIsValid(t *testing.T) {
+func TestWebSnapshotSourceIsIndependentAndEmptyIsValid(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	data := newWebData(
@@ -327,7 +331,7 @@ func TestWebCapturedSourceIsIndependentAndEmptyIsValid(t *testing.T) {
 			PropertyDependencies: map[string][]string{"vpc": {"urn:vpc"}},
 		},
 	}
-	data.captureState(source)
+	publishWebTestState(t, data, source)
 	want, err := ingest.MapStateResources(source)
 	require.NoError(t, err)
 	got, err := data.loadResources(ctx)
@@ -337,8 +341,10 @@ func TestWebCapturedSourceIsIndependentAndEmptyIsValid(t *testing.T) {
 	require.True(t, ok)
 	nested["value"] = "edited"
 	got[0].Refs["vpc"][0] = "edited"
-	assert.Equal(t, want, data.raw)
-	data.captureState(nil)
+	again, err := data.loadResources(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, want, again)
+	publishWebTestState(t, data, nil)
 	_, err = data.loadResources(ctx)
 	require.NoError(t, err)
 }
@@ -378,7 +384,7 @@ func TestWebRecommendationsSharedFetchParity(t *testing.T) {
 		newAuditContext(ctx, "test", nil),
 	)
 	data.eng = eng
-	data.captureState(
+	publishWebTestState(t, data,
 		[]ingest.StackExportResource{
 			{URN: "i-1", Type: "aws:ec2/instance:Instance", Inputs: map[string]any{"instanceType": "t3.small"}},
 		},
@@ -404,9 +410,7 @@ func TestWebDataEngineAndSessionWiring(t *testing.T) {
 		Cost:    config.CostConfig{History: config.HistoryConfig{Directory: t.TempDir()}},
 	}
 	data := newWebData(cmd, overviewParams{cfg: cfg}, engine.DateRange{}, newAuditContext(ctx, "test", nil))
-	params := data.overviewParams()
-	require.NotNil(t, params.captureState)
-	params.captureState(nil)
+	publishWebTestState(t, data, nil)
 	eng, cleanup := data.newEngine(ctx, cmd, nil)
 	defer cleanup()
 	require.Same(t, eng, data.eng)
@@ -467,13 +471,13 @@ func TestWebDomainPipelinesRejectInvalidFilters(t *testing.T) {
 		newAuditContext(ctx, "test", nil),
 	)
 	data.eng = engine.New(nil, nil)
-	data.captureState([]ingest.StackExportResource{{URN: "r", Type: "aws:ec2/instance:Instance"}})
+	publishWebTestState(t, data, []ingest.StackExportResource{{URN: "r", Type: "aws:ec2/instance:Instance"}})
 	_, err := data.actualCosts(ctx, "", nil)
 	require.Error(t, err)
 	_, err = data.recommendations(ctx, false)
 	require.Error(t, err)
 	data.params.filter = nil
-	data.captureState([]ingest.StackExportResource{{URN: "invalid", Type: ""}})
+	data.snapshot = nil
 	_, err = data.actualCosts(ctx, "", nil)
 	require.Error(t, err)
 }
@@ -512,6 +516,9 @@ func TestWebEstimateSourceUsesCLIPlanMapping(t *testing.T) {
 		engine.DateRange{},
 		newAuditContext(ctx, "test", nil),
 	)
+	snapshot, err := stackload.LoadPlan(ctx, stackload.Source{PlanPath: plan})
+	require.NoError(t, err)
+	require.NoError(t, data.setPipelineSource(ctx, OverviewPipelineResult{Snapshot: snapshot}))
 	resources, err := data.estimateResources(ctx)
 	require.NoError(t, err)
 	expected, err := loadAndMapResources(ctx, plan, nil)
@@ -525,7 +532,7 @@ func TestWebEstimateSourceUsesCLIPlanMapping(t *testing.T) {
 	<-data.gate
 }
 
-func TestWebEstimateSourceLoadFailure(t *testing.T) {
+func TestWebEstimateRejectsUnpublishedSource(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	data := newWebData(
@@ -535,7 +542,7 @@ func TestWebEstimateSourceLoadFailure(t *testing.T) {
 		newAuditContext(ctx, "test", nil),
 	)
 	resources, err := data.estimateResources(ctx)
-	require.ErrorContains(t, err, "loading Pulumi plan")
+	require.ErrorContains(t, err, "stack source unavailable")
 	assert.Nil(t, resources)
 	assert.Empty(t, data.gate, "source failure releases the shared query gate")
 }
@@ -558,7 +565,7 @@ func TestWebInitialPreviewEstimateMembership(t *testing.T) {
 					},
 				)
 			}
-			data.captureState(source)
+			publishWebTestState(t, data, source)
 			planFile := filepath.Join(t.TempDir(), "plan.json")
 			plan := &ingest.PulumiPlan{
 				Steps: []ingest.PulumiStep{
@@ -585,26 +592,30 @@ func TestWebInitialPreviewEstimateMembership(t *testing.T) {
 			encoded, err := json.Marshal(plan)
 			require.NoError(t, err)
 			require.NoError(t, os.WriteFile(planFile, encoded, 0600))
-			params := data.overviewParams()
+			params := data.params
 			params.pulumiJSON = planFile
-			_, err = loadPlanForOverview(ctx, params, "", "", nil)
+			preview, err := stackload.LoadPlan(ctx, stackload.Source{PlanPath: params.pulumiJSON})
 			require.NoError(t, err)
+			require.NoError(
+				t,
+				data.setPipelineSource(ctx, OverviewPipelineResult{Snapshot: data.snapshot.WithPlan(preview.Plan)}),
+			)
 			estimates, err := data.estimateResources(ctx)
 			require.NoError(t, err)
 			expected, err := ingest.MapResources(plan.GetResources())
 			require.NoError(t, err)
 			if existing {
 				require.Len(t, estimates, 2)
-				assert.Equal(t, "existing", estimates[0].ID)
+				assert.Equal(t, "existing", estimates[1].ID)
 			} else {
 				require.Len(t, estimates, 1)
 			}
-			assert.Equal(t, expected[0], estimates[len(estimates)-1])
-			estimates[len(estimates)-1].Properties["instanceType"] = "mutated"
-			estimates[len(estimates)-1].Refs["vpcId"][0] = "mutated"
+			assert.Equal(t, expected[0], estimates[0])
+			estimates[0].Properties["instanceType"] = "mutated"
+			estimates[0].Refs["vpcId"][0] = "mutated"
 			again, err := data.estimateResources(ctx)
 			require.NoError(t, err)
-			assert.Equal(t, expected[0], again[len(again)-1])
+			assert.Equal(t, expected[0], again[0])
 			deployed, err := data.loadResources(ctx)
 			require.NoError(t, err)
 			assert.Len(t, deployed, len(source))
@@ -616,9 +627,7 @@ func TestWebInitialPreviewSourceErrorsAndOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	data := newWebData(&cobra.Command{}, overviewParams{}, engine.DateRange{}, nil)
-	data.captureState(nil)
-	data.capturePlan(ctx, &ingest.PulumiPlan{})
-	data.planErr = errors.New("mapping failed")
+	// A request before source publication fails and releases the query gate.
 	_, err := data.estimateResources(ctx)
 	require.Error(t, err)
 	assert.Empty(t, data.gate)
@@ -634,7 +643,7 @@ func TestWebInitialPreviewReplacesExistingEstimateMetadata(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	data := newWebData(&cobra.Command{}, overviewParams{}, engine.DateRange{}, nil)
-	data.captureState(
+	publishWebTestState(t, data,
 		[]ingest.StackExportResource{
 			{
 				URN:                  "existing",
@@ -659,7 +668,7 @@ func TestWebInitialPreviewReplacesExistingEstimateMetadata(t *testing.T) {
 			},
 		},
 	}
-	data.capturePlan(ctx, plan)
+	publishWebTestPlan(ctx, t, data, plan)
 	mapped, err := ingest.MapResources(plan.GetResources())
 	require.NoError(t, err)
 	estimates, err := data.estimateResources(ctx)
@@ -671,5 +680,5 @@ func TestWebInitialPreviewReplacesExistingEstimateMetadata(t *testing.T) {
 	assert.Equal(t, []string{"planned-network"}, estimates[0].Refs["network"])
 	unchanged, err := data.loadResources(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, deployed, unchanged, "actual/recommendation source keeps deployed provider, region and refs")
+	assert.Equal(t, deployed, unchanged, "actual-cost source keeps deployed provider, region and refs")
 }

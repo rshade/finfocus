@@ -1,0 +1,67 @@
+{
+  "finfocus": {
+    "diff": {
+      "creates": 1,
+      "currency": "USD",
+      "deletes": 0,
+      "totalAfter": 0,
+      "totalBefore": 0,
+      "totalDelta": 0,
+      "unchanged": 0,
+      "updates": 0
+    },
+    "profile": "default",
+    "resources": [
+      {
+        "adapter": "none",
+        "beforeMonthly": 0,
+        "breakdown": null,
+        "currency": "USD",
+        "deltaMonthly": 0,
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws:ec2/instance:Instance"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "operation": "create",
+        "resourceId": "urn:pulumi:dev::test-stack::aws:ec2/instance:Instance::new",
+        "resourceType": "aws:ec2/instance:Instance",
+        "startDate": "<normalized>"
+      }
+    ],
+    "summary": {
+      "byAdapter": {
+        "none": 0
+      },
+      "byService": {
+        "ec2": 0
+      },
+      "currency": "USD",
+      "resources": [
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws:ec2/instance:Instance"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "urn:pulumi:dev::test-stack::aws:ec2/instance:Instance::new",
+          "resourceType": "aws:ec2/instance:Instance",
+          "startDate": "<normalized>"
+        }
+      ],
+      "totalHourly": 0,
+      "totalMonthly": 0
+    }
+  }
+}

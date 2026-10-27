@@ -36,7 +36,7 @@ func TestConvertPlanSteps_UpdateExtractsDiffs(t *testing.T) {
 		},
 	}
 
-	result := convertPlanSteps(steps)
+	result := testOverviewPlanSteps(steps)
 	require.Len(t, result, 1)
 	require.Len(t, result[0].PropertyDiffs, 1)
 	assert.Equal(t, "instanceType", result[0].PropertyDiffs[0].Key)
@@ -65,7 +65,7 @@ func TestConvertPlanSteps_ReplaceExtractsDiffs(t *testing.T) {
 		},
 	}
 
-	result := convertPlanSteps(steps)
+	result := testOverviewPlanSteps(steps)
 	require.Len(t, result, 1)
 	require.Len(t, result[0].PropertyDiffs, 1)
 	assert.Equal(t, "ami", result[0].PropertyDiffs[0].Key)
@@ -92,7 +92,7 @@ func TestConvertPlanSteps_CreateReplacementExtractsDiffs(t *testing.T) {
 		},
 	}
 
-	result := convertPlanSteps(steps)
+	result := testOverviewPlanSteps(steps)
 	require.Len(t, result, 1)
 	require.Len(t, result[0].PropertyDiffs, 1)
 	assert.Equal(t, "subnetId", result[0].PropertyDiffs[0].Key)
@@ -114,7 +114,7 @@ func TestConvertPlanSteps_CreateNoDiffs(t *testing.T) {
 		},
 	}
 
-	result := convertPlanSteps(steps)
+	result := testOverviewPlanSteps(steps)
 	require.Len(t, result, 1)
 	assert.Empty(t, result[0].PropertyDiffs)
 	require.NotNil(t, result[0].ProjectedProperties)
@@ -137,7 +137,7 @@ func TestConvertPlanSteps_DeleteNoDiffs(t *testing.T) {
 		},
 	}
 
-	result := convertPlanSteps(steps)
+	result := testOverviewPlanSteps(steps)
 	require.Len(t, result, 1)
 	assert.Empty(t, result[0].PropertyDiffs)
 }
@@ -153,7 +153,7 @@ func TestConvertPlanSteps_SameNoDiffs(t *testing.T) {
 		},
 	}
 
-	result := convertPlanSteps(steps)
+	result := testOverviewPlanSteps(steps)
 	require.Len(t, result, 1)
 	assert.Empty(t, result[0].PropertyDiffs)
 }
@@ -330,7 +330,7 @@ func TestConvertPlanSteps_ProjectedProperties_DeepMergeOldAndNewInputs(t *testin
 		},
 	}
 
-	result := convertPlanSteps(steps)
+	result := testOverviewPlanSteps(steps)
 	require.Len(t, result, 1)
 	props := result[0].ProjectedProperties
 	require.NotNil(t, props)
@@ -395,7 +395,7 @@ func TestConvertPlanSteps_TypeFromNestedStateOrURN(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := convertPlanSteps([]ingest.PulumiStep{tt.step})
+			result := testOverviewPlanSteps([]ingest.PulumiStep{tt.step})
 			require.Len(t, result, 1)
 			assert.Equal(t, "aws:ec2/instance:Instance", result[0].Type)
 		})

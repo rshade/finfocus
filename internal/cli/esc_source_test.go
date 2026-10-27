@@ -88,6 +88,11 @@ func TestESCStackFlagBeatsWorkspace(t *testing.T) {
 	assert.Equal(t, []string{"proj/dev"}, got.Options().Stack.Environment.Imports)
 
 	config.ResetGlobalConfigForTest()
+	// Projected costs now read deployed state alongside a saved preview.
+	// Keep configuration-only commands above guarded against subprocess calls.
+	t.Cleanup(pulumidetect.SetRunnerForTest(scriptedPulumi{
+		export: []byte(`{"version":3,"deployment":{"resources":[]}}`),
+	}))
 	flagged := executeESC(t, "cost", "projected", "--pulumi-json", plan, "--stack", "prod", "--output", "json")
 	require.Equal(t, 0, flagged.exit, "stderr: %s", flagged.stderr)
 	flaggedSource := findESCSource(flagged.cmd)
