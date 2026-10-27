@@ -102,7 +102,7 @@ snooze, or undismiss a recommendation. Results are paged at 250 rows.
 | --- | --- |
 | Resource | Chooses the resource. Resources that the initial preview creates are included, also on a first deployment. |
 | Pricing mode | **Automatic provider**, or a mode from a plugin's pricing spec. Choosing a mode recalculates through that plugin. |
-| Current value | Edit a property value and press `Enter` to recalculate. |
+| Current value | Edit a property value, then press `Enter` or leave the field to recalculate. Leaving a field you did not change does not recalculate. |
 
 If the baseline price fails, the property rows and pricing modes still appear,
 the comparison stays empty, and the error is shown inline. Editing a value or
@@ -157,7 +157,7 @@ same engine code path as the CLI flags.
 | --- | --- |
 | `Tab` / `Shift+Tab` | Move between controls |
 | `Enter` / `Space` | Activate the focused button |
-| `Enter` in an estimate value | Recalculate |
+| `Enter` in an estimate value, or `Tab` out of an edited one | Recalculate |
 | `Escape` | Close the open detail panel or dialog; in the overview filter box, clear the filter |
 
 Closing a detail view returns focus to the control that opened it. Light and

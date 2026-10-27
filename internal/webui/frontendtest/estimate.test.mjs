@@ -5,6 +5,9 @@ import vm from 'node:vm';
 
 class Node {
   constructor(tag, doc) { this.tagName=tag; this.doc=doc; this.children=[]; this.listeners=new Map(); this.attrs={}; this.dataset={}; this.hidden=false; this.value=''; }
+  // Browsers strip CR and LF from a text input's value (HTML value sanitization).
+  get value() { return this.rawValue; }
+  set value(v) { this.rawValue=this.tagName==='input'&&(this.attrs.type??'text')==='text'?String(v).replace(/[\r\n]/g,''):v; }
   append(...children) { for (const child of children) { if (typeof child !== 'string') child.parent=this; this.children.push(child); } }
   replaceChildren(...children) { for(const child of this.children)if(typeof child!=='string')child.parent=null; this.children=[]; this.append(...children); }
   set textContent(text) { this.text=String(text); this.children=[]; }
@@ -47,6 +50,32 @@ test('estimate Enter preserves exact overrides and renders only server display s
  const t=await loaded();assert.match(t.container.textContent,/server-formatted tier/);const input=t.container.querySelectorAll('.estimate-input').find(n=>n.dataset.key==='size');input.value=' 3 ';input.dispatch('keydown',{key:'Enter'});
  const call=t.calls.at(-1);assert.equal(call.path,'/api/estimate/recalculate');assert.deepEqual(JSON.parse(JSON.stringify(call.body.overrides)),{size:' 3 ',label:'base'});
  call.resolve({display:{...baseline().display,baseline:'precise BASE',modified:'precise MODIFIED',change:'server delta ↑',properties:[{key:'size',originalValue:'2',currentValue:' 3 ',delta:'server property delta'}]}});await flush();assert.match(t.container.textContent,/precise BASE/);assert.match(t.container.textContent,/server delta ↑/);assert.match(t.container.textContent,/server property delta/);assert.equal(t.document.activeElement.dataset.key,'size');t.mounted.unmount();
+});
+test('estimate sends only the edited property when another value has newlines a text input drops',async()=>{
+ const t=await setup('estimate');t.calls[0].resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ const script='#!/bin/bash\n\nyum update -y\n';
+ t.calls[1].resolve({...baseline(),display:{...baseline().display,properties:[{key:'instanceType',originalValue:'t3.micro',currentValue:'t3.micro',delta:'$0.00 →'},{key:'userData',originalValue:script,currentValue:script,delta:'$0.00 →'}]}});await flush();
+ const input=t.container.querySelectorAll('.estimate-input').find(n=>n.dataset.key==='instanceType');input.value='t3.large';input.dispatch('keydown',{key:'Enter'});
+ assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.overrides)),{instanceType:'t3.large'});t.mounted.unmount();
+});
+test('estimate leaving an edited value recalculates once, and leaving an unchanged value does not',async()=>{
+ const t=await loaded();const count=t.calls.length;const size=t.container.querySelectorAll('.estimate-input').find(n=>n.dataset.key==='size');
+ size.dispatch('blur');assert.equal(t.calls.length,count);
+ size.value='3';size.dispatch('blur');assert.equal(t.calls.length,count+1);
+ assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.overrides)),{size:'3',label:'base'});
+ size.dispatch('blur');assert.equal(t.calls.length,count+1);
+ size.value='4';size.dispatch('keydown',{key:'Enter'});size.dispatch('blur');assert.equal(t.calls.length,count+2);t.mounted.unmount();
+});
+test('estimate result keeps focus and unsent typing in the field the person moved to',async()=>{
+ const t=await loaded();const inputs=t.container.querySelectorAll('.estimate-input');
+ const size=inputs.find(n=>n.dataset.key==='size'),label=inputs.find(n=>n.dataset.key==='label');
+ size.value='3';size.dispatch('blur');label.focus();label.value='typing';
+ t.calls.at(-1).resolve({display:{...baseline().display,properties:[{key:'size',originalValue:'2',currentValue:'3',delta:'server size delta'},{key:'label',originalValue:'old',currentValue:'base',delta:'$0.00 →'}]}});await flush();
+ const after=t.container.querySelectorAll('.estimate-input');
+ assert.equal(after.find(n=>n.dataset.key==='label').value,'typing');assert.equal(after.find(n=>n.dataset.key==='size').value,'3');
+ assert.equal(t.document.activeElement.dataset.key,'label');assert.match(t.container.textContent,/server size delta/);
+ const count=t.calls.length;after.find(n=>n.dataset.key==='label').dispatch('blur');assert.equal(t.calls.length,count+1);
+ assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.overrides)),{size:'3',label:'typing'});t.mounted.unmount();
 });
 test('estimate mode selects server identifier and stale recalculations cannot win',async()=>{
  const t=await loaded();const mode=t.container.querySelector('#estimate-mode');mode.value='opaque-mode';mode.dispatch('change');assert.equal(t.calls.at(-1).body.pricingMode,'opaque-mode');
