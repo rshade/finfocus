@@ -32,8 +32,9 @@ via `--metadata="region=<region>"` and a multi-region router binary (default).
 Reads billed AWS cost from Cost Explorer by account, service, or resource, plus
 AWS Budgets and AWS recommendations. Projected cost is a forecast for
 `aws:account` and `aws:service` only; route single-resource projections to
-`aws-public`. It needs AWS credentials, and each Cost Explorer request costs
-$0.01. `finfocus setup` does not install it; run `finfocus plugin install aws-ce`.
+`aws-public`. It needs AWS credentials, and each paginated Cost Explorer
+request costs $0.01. `finfocus setup` does not install it; run
+`finfocus plugin install aws-ce`.
 
 ### azure-public
 
@@ -167,6 +168,7 @@ Capabilities validated for embedded registry entries
 | `cost_projection` | Projected cost estimation from resource specs |
 | `cost_retrieval` | Historical cost data from cloud APIs |
 | `pricing_specs` | Pricing specification/breakdown data |
+| `budgets` | Budget tracking and alerts |
 | `recommendations` | Cost optimization suggestions |
 | `recommendation_scoring` | Scores and groups recommendations from other plugins |
 | `projected` | Alias for projected cost support |
@@ -178,7 +180,6 @@ used in the embedded registry):
 | Capability | Description |
 |------------|-------------|
 | `dry_run` | Field mapping inspection |
-| `budgets` | Budget tracking and alerts |
 | `batch_cost` | Multi-resource cost queries |
 | `estimate_cost` | Quick cost estimation |
 

@@ -1,6 +1,7 @@
 ---
 title: AWS Cost Explorer Plugin
 description: Report billed AWS cost, account and service forecasts, AWS Budgets, and AWS recommendations from Cost Explorer.
+layout: docs
 parent: Plugins
 nav_order: 15
 ---
@@ -74,10 +75,14 @@ Grant only the IAM actions for the features you use:
 | `FINFOCUS_AWS_CE_SPOT_COMPARISON` | `true` answers EC2 instance projections with a Spot quote | `false` |
 | `FINFOCUS_AWS_ACCOUNT_ID` | Account for Budgets; empty uses STS `GetCallerIdentity` | Empty |
 
-Each Cost Explorer request costs $0.01. Commands that show recommendations,
-including `cost projected`, ask `aws-ce` for them, so they make billed requests
-too. Set `FINFOCUS_AWS_CE_MAX_REQUESTS_PER_MINUTE` to bound spend, or leave
-`Recommendations` out of the `aws-ce` routing features below.
+AWS charges $0.01 for each paginated Cost Explorer API request, and one
+FinFocus command can make several: a query with no cache hit needs at least two
+commitment-discovery requests and one cost request, and a long result adds a
+request per page. Commands that show recommendations, including
+`cost projected`, ask `aws-ce` for them, so they make billed requests too.
+`FINFOCUS_AWS_CE_MAX_REQUESTS_PER_MINUTE` counts every page the plugin requests,
+so it bounds spend. You can also leave `Recommendations` out of the `aws-ce`
+routing features below.
 
 See the [plugin README](https://github.com/rshade/finfocus-plugin-aws-ce) for the
 full settings list and per-request credential keys.
