@@ -15,7 +15,7 @@ export function mount(container, { api, stream }) {
   const pricing = el('div', { 'aria-label': 'Pricing details' });
   const body = el('tbody');
   const table = el('table', { class: 'overview-table estimate-table', role: 'table' },
-    el('caption', { text: 'Edit a current property value and press Enter to recalculate.' }),
+    el('caption', { text: 'Edit a current property value, then press Enter or leave the field to recalculate.' }),
     el('thead', {}, el('tr', {}, ...['Property', 'Original', 'Current', 'Cost delta'].map(text => el('th', { scope: 'col', text })))), body);
   container.append(heading, el('div', { class: 'toolbar estimate-toolbar' },
     el('label', { class: 'filter-label', for: 'estimate-resource' }, 'Resource', resource),
@@ -57,18 +57,35 @@ export function mount(container, { api, stream }) {
     }
   }
   function renderRows(properties, focusKey) {
+    // A result can land while the person types in another field, so that field keeps its unsent text and focus.
+    const typing = new Map();
+    let active;
+    for (const input of body.querySelectorAll('.estimate-input')) {
+      if (input.value !== input.dataset.submitted) typing.set(input.dataset.key, input.value);
+      if (input === document.activeElement) active = { key: input.dataset.key, start: input.selectionStart, end: input.selectionEnd };
+    }
+    const focus = active?.key ?? focusKey;
     body.replaceChildren();
     const editable = (properties ?? []).filter(row => !String(row.key).startsWith('terraform:'));
     for (const row of editable) {
       const input = el('input', { class: 'estimate-input filter-input', type: 'text', 'aria-label': `Current ${row.key}`,
-        dataset: { key: row.key, original: row.originalValue } });
+        dataset: { key: row.key } });
+      // A text input drops newlines, so an unedited multi-line value must compare equal to the original.
+      input.value = row.originalValue;
+      input.dataset.original = input.value;
       input.value = row.currentValue;
+      input.dataset.submitted = input.value;
+      if (typing.has(row.key)) input.value = typing.get(row.key);
       input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); recalculate(row.key); } });
+      input.addEventListener('blur', () => { if (input.isConnected && input.value !== input.dataset.submitted) recalculate(); });
       body.append(el('tr', { role: 'row' }, el('th', { scope: 'row', role: 'rowheader', text: row.key }),
         el('td', { role: 'cell', 'data-label': 'Original', text: row.originalValue }),
         el('td', { role: 'cell', 'data-label': 'Current' }, input),
         el('td', { role: 'cell', 'data-label': 'Cost delta', text: row.delta })));
-      if (focusKey === row.key) input.focus();
+      if (focus === row.key) {
+        input.focus();
+        if (active?.key === row.key && active.start != null) input.setSelectionRange(active.start, active.end);
+      }
     }
     if (!editable.length) body.append(el('tr', {}, el('td', { colspan: '4', text: 'No editable properties.' })));
   }
@@ -88,6 +105,7 @@ export function mount(container, { api, stream }) {
   async function recalculate(focusKey) {
     if (!resource.value) return;
     const changes = overrides();
+    for (const input of body.querySelectorAll('.estimate-input')) input.dataset.submitted = input.value;
     const { current, signal } = begin('Calculating estimate…');
     calculationPending = true;
     try {
