@@ -12,8 +12,10 @@ the tests, and the web contract rely on.
   `internal/pluginhost`.
 - No history writes, no dismissal reads, no plugin calls, no ESC handling.
   Callers keep those (research R13).
-- Subprocess output is parsed here; raw subprocess error text never leaves the
-  package. Errors that cross the boundary carry a `Status.Reason` category.
+- Subprocess output is parsed here. Raw state-export error text never leaves
+  the package: a state failure crosses the boundary as a `Status.Reason`
+  category. A failed preview is fatal and keeps Pulumi's error (`Unwrap`), as
+  in v0.5.2, for the terminal only; the web shows a fixed message.
 - The passphrase is passed to the subprocess environment only.
 
 ## Functions
@@ -26,6 +28,7 @@ the tests, and the web contract rely on.
 | `(*Snapshot).WithPlan(plan *ingest.PulumiPlan) *Snapshot` | A new snapshot with the plan attached, for the on-demand preview. The receiver is not modified. |
 | `(*Snapshot).Descriptors() []engine.ResourceDescriptor` | Plan descriptors, then unchanged state resources. See the data model. |
 | `(*Snapshot).DeployedDescriptors() []engine.ResourceDescriptor` | State descriptors exactly as `ingest.MapStateResources` maps them. |
+| `(*Snapshot).ActualDescriptors() []engine.ResourceDescriptor` | The actual-cost inventory: `DeployedDescriptors()` when state was read, otherwise `Descriptors()`, which keeps the v0.5.2 inventory of a saved preview. |
 | `(*Snapshot).Rows(ctx context.Context) ([]engine.OverviewRow, error)` | `engine.MergeResourcesForOverview` over `State` and `Steps`; state-only rows when no plan was loaded. |
 | `(*Snapshot).PendingChanges(ctx context.Context) (bool, int)` | `engine.DetectPendingChanges` over `Steps`. |
 
@@ -36,7 +39,8 @@ All returned slices are copies; callers may modify them.
 | Situation | Result |
 | --- | --- |
 | Neither state nor plan can be loaded | An error naming the input, as the command returns today. |
-| State fails, plan loaded | `nil` error; `StateStatus{Loaded: false, Reason: <category>}`. |
+| State export fails, plan loaded | `nil` error; `StateStatus{Loaded: false, Reason: <category>}`. |
+| Explicit `--pulumi-state` file cannot be read, plan requested | An error naming the file; the preview is cancelled. |
 | Plan fails, state loaded | The plan error, as today. The caller decides whether state-only is acceptable (the terminal screen does; `cost projected` does not). |
 | Passphrase missing for an encrypted stack | `Reason: passphrase_required`; the existing message that names the passphrase is produced by the caller. |
 

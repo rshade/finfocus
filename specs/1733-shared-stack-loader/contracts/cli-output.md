@@ -43,6 +43,7 @@ Terraform and OpenTofu sources.
 | `stack.incompleteReason` | One of `not_requested` (a saved preview with no state), `backend_unreachable`, `passphrase_required`, `read_failed`; omitted when complete. |
 | `stack.omittedUnchanged` | Unchanged resources the preview left out, from its change summary; omitted when zero. |
 | `stack.unchanged[]` | State-added unchanged resources with their monthly cost; omitted when empty. Items may carry the same `error` object `resources[]` items carry. |
+| `errors[]` | Pricing failures of plan-origin resources only, as in v0.5.2. A state-origin failure is reported on its `stack.unchanged[]` item. |
 
 When `stack.complete` is false, `stack.totalMonthly` equals the plan total and
 `stack.unchanged` is omitted.
@@ -90,11 +91,11 @@ No notice contains a URL, backend name, token, or raw error text.
 
 | Command | Change |
 | --- | --- |
-| `cost estimate` | The resource picker and `--resource` lookup cover the live inventory. |
+| `cost estimate` | The resource picker and `--resource` lookup cover the live inventory. With no input flag in a Pulumi project, it loads that project's live inventory, as it already did for a Terraform directory. |
 | `cost recommendations` | Recommendations are fetched for the live inventory. Counts and savings totals can grow, which is intended. |
 | `cost forecast` | Inventory from the snapshot; total over plan-origin resources, unchanged from v0.5.2 (research R14). |
 | `overview` | Same rows as today, loaded through the shared step. |
-| `cost actual`, `cost history collect` | `DeployedDescriptors()` plus the existing history enrichment. Figures unchanged. |
+| `cost actual`, `cost history collect` | `DeployedDescriptors()` plus the existing history enrichment. Figures unchanged. `cost actual --pulumi-json` uses `ActualDescriptors()`: the deployed resources when the surrounding project's state can be read, otherwise the plan's resources, as in v0.5.2. |
 
 ## Exit codes
 

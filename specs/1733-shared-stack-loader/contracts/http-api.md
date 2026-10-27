@@ -21,7 +21,7 @@ already totals the whole stack.
 | `GET /api/overview/query`, `POST /api/overview/preview`, `/api/overview/*` | `SessionOptions.Preview` and the overview pipeline | `stackload.Load` then `(*stackload.Snapshot).Rows`, through `autoDetectOverviewLoader`, `plainOverviewLoader`, and `tuiOverviewLoader` | Unchanged: state merged with preview. |
 | `GET /api/estimate/resources`, `/api/estimate/baseline`, `POST /api/estimate/recalculate` | `SessionOptions.EstimateResources` | `(*webData).estimateResources`, which calls `(*stackload.Snapshot).Descriptors` | Live inventory. The Estimate view already overlays state on plan; it now does so through the shared step. |
 | `POST /api/recommendations/query`, `GET /api/recommendations/item` | `SessionOptions.Recommendations` | `(*webData).recommendations`, which calls `(*stackload.Snapshot).Descriptors` | Live inventory. Gains resources that are pending creation. |
-| `POST /api/cost/actual/query`, `GET /api/cost/actual/resource` | `SessionOptions.ActualCosts` | `(*webData).actualCosts`, which calls `(*stackload.Snapshot).DeployedDescriptors` and `enrichWithHistoricalResources` | Unchanged: deployed resources plus billing-period history. |
+| `POST /api/cost/actual/query`, `GET /api/cost/actual/resource` | `SessionOptions.ActualCosts` | `(*webData).actualCosts`, which calls `(*stackload.Snapshot).ActualDescriptors` and `enrichWithHistoricalResources` | Unchanged: deployed resources plus billing-period history; a saved preview with no state keeps its plan inventory. |
 
 `webData.captureState`, `capturePlan`, and `captureTerraform` collapse into one
 store of the snapshot. `loadResources` and `estimateResources` stop merging

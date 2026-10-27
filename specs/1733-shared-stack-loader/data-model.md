@@ -93,6 +93,9 @@ preview at all is `same` for every resource (today it is priced as `create`).
 `Snapshot.DeployedDescriptors()`: every custom state resource through
 `ingest.MapStateResource`, unchanged from today, no `Operation`.
 
+`Snapshot.ActualDescriptors()`: `DeployedDescriptors()` when `StateStatus.Loaded`,
+otherwise `Descriptors()`.
+
 `Snapshot.Rows(ctx)`: `engine.MergeResourcesForOverview(ctx, State, Steps)`,
 unchanged.
 
@@ -111,7 +114,9 @@ they are computed over `Origin = plan` entries.
 | `OmittedUnchanged` (**new**) | Copied from the snapshot when state was unavailable. |
 
 `DiffResult` gains `StackUnchanged []DiffEntry` (**new**): the `Origin = state`
-entries, kept out of `Entries`. `EmptyPlan` already exists (v0.5.2).
+entries, kept out of `Entries`, and `StackErrors []ErrorDetail` (**new**): the
+pricing failures of those entries, kept out of `Errors`, which stays plan-only
+as in v0.5.2. `EmptyPlan` already exists (v0.5.2).
 
 Invariants:
 

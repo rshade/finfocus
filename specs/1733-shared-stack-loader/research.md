@@ -112,6 +112,9 @@ Consequences found while reading:
   `ingest.MapStateResources` produces them today (no `Operation`). `cost
   actual`, the web Cost view, and `cost history collect` keep their history
   enrichment (`enrichWithHistoricalResources`, `recordDescriptorHistory`).
+  A saved preview and the web Cost view use `ActualDescriptors()`: the deployed
+  subset when state was read, otherwise the plan, which is what v0.5.2 priced,
+  so a plan file with no state keeps its figures and CLI and web agree.
 - **Rationale**: A resource that exists only in the plan has no cloud ID and no
   charges, and a plugin query for it is noise. The Codex review found that the
   billing-period enrichment adds deleted resources that are in neither state
@@ -255,5 +258,7 @@ Consequences found while reading:
 1. **Forecast total.** R14 keeps it unchanged. Including unchanged resources
    would make the forecast describe the whole stack. Recommendation: keep it
    unchanged now and decide with the owner after the stack total has shipped.
+   Tracked in #1903.
 2. **Terraform JSON.** `projectedUnchanged` prints a sentence into JSON output.
    Recommendation: a separate issue, since FR-011 leaves Terraform alone.
+   Tracked in #1904.

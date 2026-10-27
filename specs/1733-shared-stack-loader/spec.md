@@ -2,7 +2,7 @@
 
 **Feature Branch**: `1733-shared-stack-loader`
 **Created**: 2026-10-22
-**Status**: Draft
+**Status**: Implemented
 **Input**: User description: "One shared stack loader for every command that
 reads a Pulumi stack, so the same stack gives the same answer in cost
 projected, forecast, estimate, recommendations, overview, actual and the web
@@ -277,12 +277,17 @@ without readable state, and compare against the previous release.
 - **FR-006**: JSON and NDJSON output MUST remain machine-readable in the
   no-changes case, and the `finfocus.emptyPlan` flag from the patch release
   MUST keep its meaning: the plan held nothing to price.
-- **FR-007**: When only a saved preview file is available, the commands MUST
-  work on the resources it lists and MUST report how many unchanged resources
-  the file omitted, using the count the file reports.
-- **FR-008**: When the stack state cannot be read, the commands MUST return the
-  preview result, MUST say that unchanged resources are missing and why, and
-  MUST expose that as a field in JSON output.
+- **FR-007**: When only a saved preview file is available, the projected
+  family (`cost projected`, `cost forecast`, `cost estimate`,
+  `cost recommendations`) MUST work on the resources it lists and MUST report
+  how many unchanged resources the file omitted, using the count the file
+  reports.
+- **FR-008**: When the stack state cannot be read, the projected family MUST
+  return the preview result and MUST say that unchanged resources are missing
+  and why; `cost projected` MUST also expose that as a field in JSON output.
+  `overview` keeps its existing state-only marking. A state file the person
+  names with `--pulumi-state` that cannot be read is an input error, not an
+  unreadable stack.
 - **FR-009**: Credentials and Pulumi secret values MUST NOT reach a plugin,
   a log, or an error, as today; reading the state MUST NOT widen what is sent.
 - **FR-010**: `cost projected` MUST report two totals side by side:
@@ -335,10 +340,14 @@ without readable state, and compare against the previous release.
   keeps the historical resources it reports today.
 - **Additions**: None. Any "unchanged resources not included" notice reuses the
   status line already used for the state-only run.
-- **Render evidence**: Not yet captured. Planning must render the Overview,
-  Estimate, and Recommendations views against a populated stack
-  (`initial-30` `dev`) with Playwright and compare them with the terminal
-  before the design is final.
+- **Render evidence**: Captured 2026-10-26 on `initial-30` `dev` with
+  Playwright, before (`main` at #1907) and after, from a saved preview of that
+  stack read inside the project (its live preview fails in the stack program;
+  see `validation.md`). Overview: 61 rows before and after, the same set.
+  Estimate picker: 2 resources before, 62 after, equal to the `cost estimate`
+  list. Recommendations: 0 resources before, 6 after, equal to
+  `cost recommendations`. The Cost view renders unchanged. No new control or
+  slot was needed.
 - **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
   accessibility). No engine, API, redaction, or data-shape work.
 

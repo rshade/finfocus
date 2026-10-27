@@ -41,7 +41,9 @@ touches the root module only.
 65-resource stack (SC-005). Measured baseline on `initial-30` `dev`: preview
 11.5 to 13.6 s, stack export about 0.8 s, both in parallel 10.2 s.
 **Constraints**: No credential or Pulumi secret reaches a plugin, a log, or an
-error; error text from the backend never leaves `stackload` (a category does).
+error; error text from a state export never leaves `stackload` (a category
+does). A failed preview is fatal and keeps Pulumi's message in the terminal,
+as in v0.5.2; the browser still gets a fixed message.
 Plan total, budgets, and exit codes identical to v0.5.2 for every input.
 **Scale/Scope**: Stacks of a few hundred resources. About ten commands and
 three loader entry points change; no new command, flag, or endpoint.
@@ -70,7 +72,7 @@ three loader entry points change; no new command, flag, or endpoint.
   external data, not local persistence.
 - [x] **Web Parity**: The spec carries a Web UI Fit section, and
   `contracts/http-api.md` names the Go methods behind each affected endpoint
-  (`stackload.Load`, `(*Snapshot).Descriptors`, `(*Snapshot).DeployedDescriptors`,
+  (`stackload.Load`, `(*Snapshot).Descriptors`, `(*Snapshot).ActualDescriptors`,
   `(*Snapshot).Rows`, `(*webData).estimateResources`,
   `(*webData).recommendations`, `(*webData).actualCosts`). The Playwright render
   check is a task, not yet done (below).
@@ -112,9 +114,11 @@ specs/1733-shared-stack-loader/
 internal/
 ├── stackload/                    # new
 │   ├── source.go                 # Source, Status, categories
+│   ├── status.go                 # Error, safe failure categories
+│   ├── convert.go                # state and plan steps to engine types
 │   ├── load.go                   # Load, LoadState, LoadPlan (concurrent export + preview)
 │   ├── snapshot.go               # Snapshot, WithPlan, Rows, PendingChanges
-│   ├── descriptors.go            # Descriptors, DeployedDescriptors
+│   ├── descriptors.go            # Descriptors, DeployedDescriptors, ActualDescriptors
 │   ├── mismatch.go               # preview/state disagreement, omitted-unchanged count
 │   └── *_test.go
 ├── ingest/
@@ -126,11 +130,12 @@ internal/
 │   └── diff_render.go            # stack key in JSON, unchanged section in table
 ├── cli/
 │   ├── common_execution.go       # resolveResourcesFromPulumi -> stackload
+│   ├── stack_source.go           # Source from flags, stderr notices, stack summary
 │   ├── cost_projected.go         # loadProjectedResources, notices, emptyPlan by origin
 │   ├── cost_forecast.go          # inventory from snapshot, plan-origin total
 │   ├── cost_estimate.go          # live inventory
 │   ├── cost_recommendations.go   # live inventory
-│   ├── cost_actual.go            # DeployedDescriptors
+│   ├── cost_actual.go            # DeployedDescriptors; ActualDescriptors for a saved preview
 │   ├── overview.go               # drop duplicate export/preview helpers
 │   ├── overview_pipeline.go      # three loaders call stackload
 │   ├── web_data.go               # one snapshot store; drop capture hooks
@@ -176,8 +181,10 @@ tasks come from `/speckit.tasks`.
    and `captureTerraform` collapse; `estimateResources`, `recommendations`, and
    `actualCosts` read from it. The web Playwright render check runs here.
 5. **Actual.** `cost actual` and `cost history collect` use
-   `DeployedDescriptors()`; history enrichment is untouched; the SC-009 test
-   pins the deleted-resource case.
+   `DeployedDescriptors()`; a saved preview and the web Cost view use
+   `ActualDescriptors()` (deployed when state was read, otherwise the plan, as
+   in v0.5.2); history enrichment is untouched; the SC-009 test pins the
+   deleted-resource case.
 6. **Close-out.** Docs, `CLAUDE.md` architecture table, the `web-ui` follow-up
    issue, the quickstart run on `initial-30` `dev`, and the timing measurement.
 
