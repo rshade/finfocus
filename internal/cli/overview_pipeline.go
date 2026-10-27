@@ -79,6 +79,7 @@ type OverviewPipelineData struct {
 	HasChanges         bool
 	ChangeCount        int
 	DetectErrMsg       string
+	SourceWarning      string
 }
 
 // OverviewPipelineResult is the final pipeline state delivered via
@@ -166,6 +167,9 @@ type OverviewPipeline struct {
 	// OnStateOnly fires after OnDataReady when the run is state-only; it
 	// carries the short change-detection error message ("" when none).
 	OnStateOnly func(detectErrMsg string)
+	// OnSourceWarning reports an incomplete preview-only inventory before rows
+	// are displayed. When unset, the warning is written to the command's stderr.
+	OnSourceWarning func(message string)
 	// OnRow fires per enriched row with the dismissal delta and the
 	// pre-computed cost delta applied.
 	OnRow func(index int, row engine.OverviewRow)
@@ -519,6 +523,13 @@ func (p *OverviewPipeline) startEngine(
 	p.cleanup = func() { cacheCleanup(); pluginCleanup() }
 	p.mu.Unlock()
 
+	if data.SourceWarning != "" {
+		if p.OnSourceWarning != nil {
+			p.OnSourceWarning(data.SourceWarning)
+		} else if p.cfg.cmd != nil {
+			fmt.Fprintln(p.cfg.cmd.ErrOrStderr(), "Warning: "+data.SourceWarning)
+		}
+	}
 	if p.OnDataReady != nil {
 		p.OnDataReady(slices.Clone(data.Rows), len(data.Rows), data.StackName)
 	}
@@ -963,7 +974,20 @@ func plainOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPip
 		IsStateOnly:        isStateOnly,
 		HasChanges:         hasChanges,
 		ChangeCount:        changeCount,
+		SourceWarning:      overviewStateNotice(snapshot),
 	}, nil
+}
+
+// overviewStateNotice uses only safe availability categories, never backend errors.
+func overviewStateNotice(snapshot *stackload.Snapshot) string {
+	if snapshot == nil || snapshot.StateStatus.Loaded || !snapshot.PlanStatus.Loaded {
+		return ""
+	}
+	return fmt.Sprintf(
+		"Stack state unavailable (%s); showing preview resources only; "+
+			"unchanged resources may be missing (%d omitted by preview).",
+		snapshot.StateStatus.Reason, snapshot.OmittedUnchanged,
+	)
 }
 
 // autoDetectOverviewLoader keeps project launches state-first and delegates

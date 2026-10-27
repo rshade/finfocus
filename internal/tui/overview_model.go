@@ -97,9 +97,10 @@ type OverviewPassphraseRequiredMsg struct{}
 // OverviewDataReadyMsg signals that initial data loading is complete and the
 // model should transition from ViewStateInitializing to ViewStateLoading.
 type OverviewDataReadyMsg struct {
-	Rows       []engine.OverviewRow
-	TotalCount int
-	StackName  string
+	Rows          []engine.OverviewRow
+	TotalCount    int
+	StackName     string
+	SourceWarning string
 }
 
 // OverviewInitErrorMsg signals that initial data loading failed.
@@ -162,6 +163,7 @@ type OverviewModel struct {
 	previewCmd       tea.Cmd       // command that starts background preview (injected at construction)
 	previewElapsed   time.Duration // elapsed time since preview started
 	detectErrMsg     string        // short description of change-detection failure (empty = none)
+	sourceWarning    string        // safe notice for an incomplete preview-only inventory
 
 	// Budget health fields (populated by BudgetDataReadyMsg from background goroutine).
 	budgetResult *engine.BudgetResult // Budget data from plugins (nil until loaded)
@@ -410,6 +412,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rows = slices.Clone(m.allRows)
 		m.totalCount = dataMsg.TotalCount
 		m.stackName = dataMsg.StackName
+		m.sourceWarning = dataMsg.SourceWarning
 		m.state = ViewStateLoading
 		m.table = m.buildOverviewTable()
 		return m, nil

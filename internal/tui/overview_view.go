@@ -150,6 +150,10 @@ func (m OverviewModel) renderListView() string {
 		sections = append(sections, footnote)
 	}
 
+	if m.sourceWarning != "" {
+		sections = append(sections, SubtleStyle.Render("Warning: "+m.sourceWarning))
+	}
+
 	// Cluster expansion footnotes (live data preferred, assumed context).
 	for _, note := range m.expansionNotes {
 		sections = append(sections, SubtleStyle.Render("† "+note))

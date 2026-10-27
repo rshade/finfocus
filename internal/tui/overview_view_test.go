@@ -13,6 +13,23 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 )
 
+func TestOverviewViewPreviewOnlySourceWarning(t *testing.T) {
+	t.Parallel()
+	const warning = "Stack state unavailable (backend_unreachable); 4 unchanged resources omitted."
+	model, _ := NewOverviewModel(t.Context(), nil, 0, nil, nil)
+	updated, cmd := model.Update(OverviewDataReadyMsg{
+		Rows: []engine.OverviewRow{
+			{URN: "urn::new", Type: "aws:s3/bucket:Bucket", Status: engine.StatusCreating},
+		},
+		TotalCount:    1,
+		SourceWarning: warning,
+	})
+	require.Nil(t, cmd)
+	updated, _ = updated.Update(OverviewAllResourcesLoadedMsg{})
+	assert.Contains(t, updated.View().Content, warning)
+	assert.Contains(t, updated.View().Content, "creating")
+}
+
 // TestOverviewView_InitializingRender verifies the initializing view output.
 func TestOverviewView_InitializingRender(t *testing.T) {
 	t.Parallel()

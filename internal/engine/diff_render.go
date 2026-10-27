@@ -209,13 +209,14 @@ type projectedDiffResource struct {
 }
 
 type projectedStackDocument struct {
-	TotalMonthly     float64      `json:"totalMonthly"`
-	Currency         string       `json:"currency"`
-	Resources        int          `json:"resources"`
-	Complete         bool         `json:"complete"`
-	IncompleteReason string       `json:"incompleteReason,omitempty"`
-	OmittedUnchanged int          `json:"omittedUnchanged,omitempty"`
-	Unchanged        []CostResult `json:"unchanged,omitempty"`
+	TotalMonthly     float64         `json:"totalMonthly"`
+	Currency         string          `json:"currency"`
+	Resources        int             `json:"resources"`
+	Complete         bool            `json:"complete"`
+	IncompleteReason string          `json:"incompleteReason,omitempty"`
+	OmittedUnchanged int             `json:"omittedUnchanged,omitempty"`
+	Unchanged        []CostResult    `json:"unchanged,omitempty"`
+	Errors           []diffErrorJSON `json:"errors,omitempty"`
 }
 
 type projectedDiffDocument struct {
@@ -253,6 +254,7 @@ func renderDiffJSON(w io.Writer, diff *DiffResult) error {
 			Resources: diff.Summary.StackResources, Complete: diff.Summary.StackComplete,
 			IncompleteReason: diff.Summary.StackIncompleteReason,
 			OmittedUnchanged: diff.Summary.OmittedUnchanged,
+			Errors:           diffErrorsJSON(diff.StackErrors),
 		}
 		if diff.Summary.StackComplete {
 			doc.Stack.IncompleteReason = ""

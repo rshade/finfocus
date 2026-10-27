@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -42,6 +43,73 @@ func publishWebTestPlan(ctx context.Context, t *testing.T, data *webData, plan *
 		return
 	}
 	require.NoError(t, err)
+}
+
+// Replacement preview steps describe one planned resource, regardless of whether
+// Pulumi creates or deletes the old instance first.
+func TestWebSnapshotLiveInventoryCollapsesReplacementSteps(t *testing.T) {
+	t.Parallel()
+	const (
+		replaced     = "urn:pulumi:dev::test::aws:ec2/instance:Instance::replaced"
+		unchanged    = "urn:pulumi:dev::test::aws:ec2/instance:Instance::unchanged"
+		deleted      = "urn:pulumi:dev::test::aws:ec2/instance:Instance::deleted"
+		resourceType = "aws:ec2/instance:Instance"
+	)
+	orders := [][]string{
+		{"create-replacement", "replace", "delete-replaced"},
+		{"create-replacement", "delete-replaced", "replace"},
+		{"replace", "create-replacement", "delete-replaced"},
+		{"replace", "delete-replaced", "create-replacement"},
+		{"delete-replaced", "create-replacement", "replace"},
+		{"delete-replaced", "replace", "create-replacement"},
+	}
+	for _, order := range orders {
+		t.Run(strings.Join(order, "/"), func(t *testing.T) {
+			t.Parallel()
+			data := newWebData(&cobra.Command{}, overviewParams{cfg: config.New()}, engine.DateRange{}, nil)
+			publishWebTestState(t, data, []ingest.StackExportResource{
+				{URN: replaced, Type: resourceType, Inputs: map[string]any{"instanceType": "t3.small"}},
+				{URN: unchanged, Type: resourceType, Inputs: map[string]any{"instanceType": "t3.micro"}},
+				{URN: deleted, Type: resourceType, Inputs: map[string]any{"instanceType": "t3.nano"}},
+			})
+			plan := &ingest.PulumiPlan{}
+			for _, op := range order {
+				step := ingest.PulumiStep{Op: op, URN: replaced, Type: resourceType,
+					OldState: &ingest.PulumiState{Inputs: map[string]any{"instanceType": "t3.small"}},
+				}
+				if op == "create-replacement" {
+					step.NewState = &ingest.PulumiState{Inputs: map[string]any{"instanceType": "m5.large"}}
+				}
+				plan.Steps = append(plan.Steps, step)
+			}
+			plan.Steps = append(plan.Steps, ingest.PulumiStep{Op: "delete", URN: deleted, Type: resourceType})
+			publishWebTestPlan(context.Background(), t, data, plan)
+
+			resources, err := data.estimateResources(context.Background())
+			require.NoError(t, err)
+			require.Len(t, resources, 2)
+			byID := resourcesByID(resources)
+			require.Contains(t, byID, replaced)
+			require.Contains(t, byID, unchanged)
+			assert.Equal(t, "m5.large", byID[replaced].Properties["instanceType"])
+			assert.Equal(t, "t3.micro", byID[unchanged].Properties["instanceType"])
+			assert.NotContains(t, byID, deleted)
+
+			// Returned property maps belong to the query, not the shared source.
+			byID[replaced].Properties["instanceType"] = "mutated"
+			byID[unchanged].Properties["instanceType"] = "mutated"
+			next, err := data.liveResources()
+			require.NoError(t, err)
+			assert.Equal(t, "m5.large", resourcesByID(next)[replaced].Properties["instanceType"])
+			assert.Equal(t, "t3.micro", resourcesByID(next)[unchanged].Properties["instanceType"])
+			assert.Len(t, data.snapshot.Descriptors(), 5, "projected pricing keeps all preview steps")
+			actual, err := data.loadResources(context.Background())
+			require.NoError(t, err)
+			require.Len(t, actual, 3)
+			assert.Equal(t, "t3.small", resourcesByID(actual)[replaced].Properties["instanceType"])
+			assert.Contains(t, resourcesByID(actual), deleted)
+		})
+	}
 }
 
 type snapshotHistoryClient struct {

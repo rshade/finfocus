@@ -281,6 +281,28 @@ test('a previous asynchronous mount cannot write into a newer route', async () =
   t.mounted.unmount();
 });
 
+test('preview-only source warning survives ready, remount, and reconnect', async () => {
+  const t = await setup();
+  const warning = 'Stack state unavailable (backend_unreachable); 4 unchanged resources omitted.';
+  t.stream.emit('run_status', { stateOnly: false, sourceWarning: warning });
+  t.stream.emit('ready', { totals: {} });
+  await flush();
+  assert.equal(t.container.querySelector('.source-warning').textContent, warning);
+  assert.equal(t.container.querySelector('.source-warning').hidden, false);
+  assert.equal(t.container.querySelector('.preview-button').disabled, true);
+  t.mounted.unmount();
+  const restored = t.document.createElement('div'); t.document.append(restored);
+  const remounted = (await importOverview(t)).mount(restored, {
+    stream: t.stream, api: { post: async () => page([]), get: async () => null },
+  });
+  await flush();
+  assert.equal(restored.querySelector('.source-warning').textContent, warning);
+  t.stream.emit('snapshot', { phases: [], rows: [], ready: true, stateOnly: false, sourceWarning: warning });
+  await flush();
+  assert.equal(restored.querySelector('.source-warning').hidden, false);
+  remounted.unmount();
+});
+
 test('snapshot displays a pending passphrase prompt and progress on initial mount', async () => {
   const t = await setup(); t.mounted.unmount();
   t.stream.emit('snapshot', { phases: [{ phase: 1, name: 'Load stack', status: 'active' }], rows: [], ready: false,

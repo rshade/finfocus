@@ -227,6 +227,7 @@ export class OverviewStream {
       // A later preview clears state-only. Remounts read this snapshot, not the live view.
       Object.assign(snapshot, mergeRunStatus(snapshot, data));
       if (typeof data.footnote === 'string') snapshot.footnote = data.footnote;
+      if (typeof data.sourceWarning === 'string') snapshot.sourceWarning = data.sourceWarning;
       if (data.previewLoaded) snapshot.footnote = '';
     } else if (event === 'error') {
       snapshot.errors = [...(snapshot.errors ?? []).filter((error) => error.phase !== data.phase), data];
