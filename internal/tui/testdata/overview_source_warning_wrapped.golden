@@ -1,0 +1,34 @@
+ Resource      Type              Status        Actual        Projected     Delta         Drift%    Recs       Warn      
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+ web-server    aws:ec2/instanc…  ✓ active      -             $150.00       -             -         -          -         
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+Sort: Cost | Press 's' to cycle, '/' to filter, 'q' to quit                                                             
+[w] web dashboard · finfocus --web                                                                                      
+Warning: preview-only resources could not be fully inventoried because the pending preview was incomplete, so totals may
+omit resources that are still being created                                                                             

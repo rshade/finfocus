@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,8 @@ func TestOverviewViewPreviewOnlySourceWarning(t *testing.T) {
 	t.Parallel()
 	const warning = "Stack state unavailable (backend_unreachable); 4 unchanged resources omitted."
 	model, _ := NewOverviewModel(t.Context(), nil, 0, nil, nil)
-	updated, cmd := model.Update(OverviewDataReadyMsg{
+	sized, _ := model.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+	updated, cmd := sized.Update(OverviewDataReadyMsg{
 		Rows: []engine.OverviewRow{
 			{URN: "urn::new", Type: "aws:s3/bucket:Bucket", Status: engine.StatusCreating},
 		},

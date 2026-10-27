@@ -924,7 +924,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		rows[i] = m.overviewTableRow(entry, resourceWidth)
 	}
 
-	availableHeight := max(m.height-summaryHeight-1, minHeight)
+	availableHeight := max(m.height-summaryHeight-1-m.sourceWarningRows(), minHeight)
 
 	t := table.New(
 		table.WithColumns(columns),
