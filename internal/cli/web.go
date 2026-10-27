@@ -332,6 +332,7 @@ func bindWebPipeline(
 		session.SetData(pipe.Engine(), rows, dateRange, stack)
 	}
 	pipe.OnStateOnly = func(detectErrMsg string) { session.SetStateOnly(detectErrMsg != "") }
+	pipe.OnSourceWarning = session.SetSourceWarning
 	pipe.OnRow = session.Row
 	pipe.OnProgress = session.Progress
 	pipe.OnBudget = session.Budget

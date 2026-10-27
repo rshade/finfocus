@@ -150,12 +150,34 @@ func (m OverviewModel) renderListView() string {
 		sections = append(sections, footnote)
 	}
 
+	if m.sourceWarning != "" {
+		sections = append(sections, m.renderSourceWarning())
+	}
+
 	// Cluster expansion footnotes (live data preferred, assumed context).
 	for _, note := range m.expansionNotes {
 		sections = append(sections, SubtleStyle.Render("† "+note))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+}
+
+// renderSourceWarning renders the incomplete-inventory notice wrapped to the
+// terminal width, so a long safe notice never overflows or gets clipped.
+func (m OverviewModel) renderSourceWarning() string {
+	style := SubtleStyle
+	if m.width > 0 {
+		style = style.Width(m.width)
+	}
+	return style.Render("Warning: " + m.sourceWarning)
+}
+
+// sourceWarningRows returns how many terminal rows the wrapped warning uses.
+func (m OverviewModel) sourceWarningRows() int {
+	if m.sourceWarning == "" {
+		return 0
+	}
+	return lipgloss.Height(m.renderSourceWarning())
 }
 
 const (

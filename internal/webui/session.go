@@ -82,6 +82,7 @@ type Session struct {
 	presentedRecs []engine.Recommendation
 	presentedSet  bool
 	runStatus     RunStatus
+	sourceWarning string
 }
 
 // RunStatus is the state-only status of an overview run. StateOnly is set by
@@ -99,7 +100,8 @@ type RunStatus struct {
 type RunStatusEvent struct {
 	RunStatus
 
-	Footnote string `json:"footnote"`
+	Footnote      string `json:"footnote"`
+	SourceWarning string `json:"sourceWarning,omitempty"`
 }
 
 // Marked reports whether projected costs are still at current state.
@@ -167,6 +169,7 @@ type OverviewSnapshot struct {
 	Preview            PreviewEvent               `json:"preview"`
 	Errors             []ErrorEvent               `json:"errors"`
 	Footnote           string                     `json:"footnote,omitempty"`
+	SourceWarning      string                     `json:"sourceWarning,omitempty"`
 }
 
 // OverviewTotalsPayload adds canonical display strings to engine totals.
@@ -462,6 +465,7 @@ func (s *Session) snapshotLocked() OverviewSnapshot {
 		Errors:             failures,
 		RunStatus:          s.runStatus,
 		Footnote:           s.stateOnlyFootnoteLocked(),
+		SourceWarning:      s.sourceWarning,
 	}
 }
 
@@ -479,7 +483,17 @@ func (s *Session) SetStateOnly(detectFailed bool) {
 }
 
 func (s *Session) runStatusLocked() RunStatusEvent {
-	return RunStatusEvent{RunStatus: s.runStatus, Footnote: s.stateOnlyFootnoteLocked()}
+	return RunStatusEvent{
+		RunStatus: s.runStatus, Footnote: s.stateOnlyFootnoteLocked(), SourceWarning: s.sourceWarning,
+	}
+}
+
+// SetSourceWarning preserves a safe inventory notice through readiness and reconnects.
+func (s *Session) SetSourceWarning(message string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sourceWarning = message
+	s.publishLocked("run_status", s.runStatusLocked())
 }
 
 func (s *Session) stateOnlyFootnoteLocked() string {

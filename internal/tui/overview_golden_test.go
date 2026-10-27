@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/rshade/finfocus/internal/engine"
 )
 
@@ -258,4 +261,37 @@ func TestGolden_DetailView_WithError(t *testing.T) {
 	model := newGoldenModel(t, rows)
 	output := model.renderDetailViewForDay(goldenDayOfMonth)
 	testGolden(t, "detail_with_error", output)
+}
+
+// TestGolden_ListView_SourceWarningWraps verifies a long source warning wraps
+// to the terminal width and shrinks the table by the rows it occupies.
+func TestGolden_ListView_SourceWarningWraps(t *testing.T) {
+	t.Parallel()
+
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-server",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusActive,
+			ProjectedCost: &engine.ProjectedCostData{
+				MonthlyCost: 150.00,
+				Currency:    "USD",
+			},
+		},
+	}
+	const warning = "preview-only resources could not be fully inventoried because the " +
+		"pending preview was incomplete, so totals may omit resources that are still being created"
+
+	base := newListModel(t, rows)
+	base.height = 40
+	base.rebuildTable()
+
+	model := newListModel(t, rows)
+	model.height = 40
+	model.sourceWarning = warning
+	model.rebuildTable()
+
+	require.Greater(t, model.sourceWarningRows(), 1, "warning must wrap")
+	assert.Equal(t, base.table.Height()-model.sourceWarningRows(), model.table.Height())
+	testGolden(t, "overview_source_warning_wrapped", model.renderListView())
 }

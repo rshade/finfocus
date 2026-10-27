@@ -6,11 +6,60 @@ package engine
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestProjectedStackJSONErrors(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name         string
+		includeStack bool
+		complete     bool
+	}{
+		{name: "complete inventory with pricing failure", includeStack: true, complete: true},
+		{name: "incomplete inventory with failure", includeStack: true},
+		{name: "legacy output excludes stack failures"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			diff := &DiffResult{
+				IncludeStack: tt.includeStack,
+				Summary:      DiffSummary{StackComplete: tt.complete},
+				Errors: []ErrorDetail{{
+					ResourceType: "aws:ec2:Instance", ResourceID: "plan-down",
+					PluginName: "aws", Error: errors.New("plan pricing failed"),
+				}},
+				StackErrors: []ErrorDetail{{
+					ResourceType: "aws:s3:Bucket", ResourceID: "state-down",
+					PluginName: "aws", Error: errors.New("state pricing failed"),
+				}},
+			}
+			var out bytes.Buffer
+			require.NoError(t, RenderProjectedDiff(&out, OutputJSON, diff, false))
+			var doc map[string]map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(out.Bytes(), &doc))
+			assert.JSONEq(t, `[{"resourceType":"aws:ec2:Instance","resourceId":"plan-down",`+
+				`"pluginName":"aws","message":"plan pricing failed"}]`, string(doc["finfocus"]["errors"]))
+			if !tt.includeStack {
+				assert.NotContains(t, doc["finfocus"], "stack")
+				assert.NotContains(t, out.String(), "state-down")
+				return
+			}
+			var stack struct {
+				Complete bool            `json:"complete"`
+				Errors   json.RawMessage `json:"errors"`
+			}
+			require.NoError(t, json.Unmarshal(doc["finfocus"]["stack"], &stack))
+			assert.Equal(t, tt.complete, stack.Complete)
+			assert.JSONEq(t, `[{"resourceType":"aws:s3:Bucket","resourceId":"state-down",`+
+				`"pluginName":"aws","message":"state pricing failed"}]`, string(stack.Errors))
+		})
+	}
+}
 
 func TestProjectedStackOutput(t *testing.T) {
 	t.Parallel()

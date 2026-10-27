@@ -13,6 +13,14 @@ in the live inventory, and the preview takes precedence for resources present
 in both. `cost projected` keeps its plan total and reports the full inventory
 separately as the stack total. The terminal and web views use the same snapshot.
 
+When a saved preview is supplied with `--pulumi-json` and the project's state
+cannot be read, overview continues with preview resources only. A warning
+identifies the state-availability reason and the number of unchanged resources
+omitted by the preview. Plain output writes the warning to stderr; the terminal
+dashboard and web overview keep it visible alongside the results. Totals in this
+fallback cover only the preview resources. Supply a readable `--pulumi-state`
+export with the preview to include deployed resources.
+
 ## Usage
 
 ```bash

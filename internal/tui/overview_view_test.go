@@ -6,12 +6,31 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine"
 )
+
+func TestOverviewViewPreviewOnlySourceWarning(t *testing.T) {
+	t.Parallel()
+	const warning = "Stack state unavailable (backend_unreachable); 4 unchanged resources omitted."
+	model, _ := NewOverviewModel(t.Context(), nil, 0, nil, nil)
+	sized, _ := model.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+	updated, cmd := sized.Update(OverviewDataReadyMsg{
+		Rows: []engine.OverviewRow{
+			{URN: "urn::new", Type: "aws:s3/bucket:Bucket", Status: engine.StatusCreating},
+		},
+		TotalCount:    1,
+		SourceWarning: warning,
+	})
+	require.Nil(t, cmd)
+	updated, _ = updated.Update(OverviewAllResourcesLoadedMsg{})
+	assert.Contains(t, updated.View().Content, warning)
+	assert.Contains(t, updated.View().Content, "creating")
+}
 
 // TestOverviewView_InitializingRender verifies the initializing view output.
 func TestOverviewView_InitializingRender(t *testing.T) {

@@ -91,6 +91,7 @@ export function mount(container, ctx) {
     previewElapsedMs: null,
     runStatus: { stateOnly: false, previewLoaded: false, detectFailed: false },
     footnote: '',
+    sourceWarning: '',
   };
 
   // --- Static DOM skeleton -------------------------------------------------
@@ -150,6 +151,8 @@ export function mount(container, ctx) {
   stateNote.hidden = true;
   const detectHint = el('p', { class: 'state-only-hint' });
   detectHint.hidden = true;
+  const sourceWarning = el('p', { class: 'source-warning', role: 'status' });
+  sourceWarning.hidden = true;
 
   const tbody = el('tbody');
   const headerRow = el('tr');
@@ -193,6 +196,7 @@ export function mount(container, ctx) {
       toolbar,
       stateNote,
       detectHint,
+      sourceWarning,
       totalsBar,
       tableWrap,
       pager,
@@ -403,6 +407,8 @@ export function mount(container, ctx) {
     return state.runStatus.stateOnly && !state.runStatus.previewLoaded && state.ready && !state.loading && state.previewStatus !== 'running';
   }
   function renderRunStatus() {
+    sourceWarning.hidden = !state.sourceWarning;
+    sourceWarning.textContent = state.sourceWarning;
     const marked = state.runStatus.stateOnly && !state.runStatus.previewLoaded;
     const projected = headerRow.children[4];
     if (projected) projected.textContent = marked ? 'Projected*' : 'Projected';
@@ -418,6 +424,7 @@ export function mount(container, ctx) {
     if (!data || typeof data !== 'object') return;
     state.runStatus = mergeRunStatus(state.runStatus, data);
     state.footnote = typeof data.footnote === 'string' ? data.footnote : state.footnote;
+    state.sourceWarning = typeof data.sourceWarning === 'string' ? data.sourceWarning : state.sourceWarning;
     if (data.previewLoaded) state.footnote = '';
     renderRunStatus();
   }

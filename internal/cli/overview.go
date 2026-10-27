@@ -1036,8 +1036,12 @@ func overviewInitAndEnrich(
 		p.Send(tui.OverviewPhaseMsg{Index: phase - 1, Phase: name})
 	}
 	publishCleanup := newCleanupPublisher(pipe, cleanupChan)
+	var sourceWarning string
+	pipe.OnSourceWarning = func(message string) { sourceWarning = message }
 	pipe.OnDataReady = func(rows []engine.OverviewRow, totalCount int, stackName string) {
-		p.Send(tui.OverviewDataReadyMsg{Rows: rows, TotalCount: totalCount, StackName: stackName})
+		p.Send(tui.OverviewDataReadyMsg{
+			Rows: rows, TotalCount: totalCount, StackName: stackName, SourceWarning: sourceWarning,
+		})
 		publishCleanup()
 	}
 	pipe.OnStateOnly = func(detectErrMsg string) {

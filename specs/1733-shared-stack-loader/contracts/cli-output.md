@@ -42,8 +42,9 @@ Terraform and OpenTofu sources.
 | `stack.complete` | False when the state could not be read. |
 | `stack.incompleteReason` | One of `not_requested` (a saved preview with no state, or a saved preview of a different stack or project than the surrounding one), `backend_unreachable`, `passphrase_required`, `read_failed`; omitted when complete. |
 | `stack.omittedUnchanged` | Unchanged resources the preview left out, from its change summary; omitted when zero. |
-| `stack.unchanged[]` | State-added unchanged resources with their monthly cost; omitted when empty. Items may carry the same `error` object `resources[]` items carry. |
-| `errors[]` | Pricing failures of plan-origin resources only, as in v0.5.2. A state-origin failure is reported on its `stack.unchanged[]` item. |
+| `stack.unchanged[]` | State-added unchanged resources with their monthly cost; omitted when empty. |
+| `stack.errors[]` | Pricing failures of state-origin resources, with `resourceType`, `resourceId`, optional `pluginName`, and `message`; omitted when empty. `stack.complete` describes inventory availability, so pricing failures can occur even when it is true. |
+| `errors[]` | Pricing failures of plan-origin resources only, as in v0.5.2. State-origin failures are reported separately in `stack.errors[]`. |
 
 When `stack.complete` is false, `stack.totalMonthly` equals the plan total and
 `stack.unchanged` is omitted.
