@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3](https://github.com/rshade/finfocus/compare/v0.5.2...v0.5.3) (2026-10-27)
+
+
+### Added
+
+* **cli:** load Pulumi state and preview through one shared stack loader ([#1909](https://github.com/rshade/finfocus/issues/1909)) ([f851fe4](https://github.com/rshade/finfocus/commit/f851fe4e092da0f80959459a0f3fa9d75878a281))
+* **registry:** add aws-ce plugin ([#1906](https://github.com/rshade/finfocus/issues/1906)) ([816a8f8](https://github.com/rshade/finfocus/commit/816a8f8ca4123cc1388ede1bbbd99173d61206b8))
+
+
+### Fixed
+
+* **cli:** surface incomplete stack data and deduplicate web replacements ([#1911](https://github.com/rshade/finfocus/issues/1911)) ([a37be77](https://github.com/rshade/finfocus/commit/a37be7735cb8086c378f109732dabe40679a04e8))
+* **webui:** recalculate an estimate when an edited value loses focus ([#1907](https://github.com/rshade/finfocus/issues/1907)) ([507d44a](https://github.com/rshade/finfocus/commit/507d44a786ce34520b1a479e3d87301d5dbde663))
+
+
+### Documentation
+
+* **specs:** add analyzer language plugin spec for Pulumi 3.270+ ([#1900](https://github.com/rshade/finfocus/issues/1900)) ([0efe9bb](https://github.com/rshade/finfocus/commit/0efe9bb4d1c9a465ab9a5d036a7f021b4bce6aca)), closes [#1895](https://github.com/rshade/finfocus/issues/1895)
+* tell the two installation pages apart ([#1898](https://github.com/rshade/finfocus/issues/1898)) ([da406d0](https://github.com/rshade/finfocus/commit/da406d0113ddb8ec1250909bd29add1429d6e3ec))
+
 ## [0.5.2](https://github.com/rshade/finfocus/compare/v0.5.1...v0.5.2) (2026-10-22)
 
 
