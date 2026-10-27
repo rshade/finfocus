@@ -62,3 +62,6 @@ jq = "1.8.2"
 # Editor/agent-only pin: no make target invokes gopls, but a coding agent
 # working in this checkout gets the same language server the maintainers do.
 "go:golang.org/x/tools/gopls" = "0.24.0"
+
+# Local secret scanning; no make target invokes it.
+trufflehog = "3.99.4"
