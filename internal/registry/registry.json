@@ -33,6 +33,22 @@
         "version_prefix": false
       }
     },
+    "aws-ce": {
+      "name": "aws-ce",
+      "description": "AWS Cost Explorer actual costs, account and service forecasts, AWS Budgets, and recommendations",
+      "repository": "rshade/finfocus-plugin-aws-ce",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus-plugin-aws-ce",
+      "supported_providers": ["aws"],
+      "capabilities": ["cost_retrieval", "cost_projection", "recommendations", "budgets"],
+      "security_level": "official",
+      "min_spec_version": "0.7.8",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-aws-ce",
+        "version_prefix": false
+      }
+    },
     "azure-public": {
       "name": "azure-public",
       "description": "Azure public retail pricing data",

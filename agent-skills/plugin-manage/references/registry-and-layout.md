@@ -52,6 +52,7 @@ GitHub repository. Fields: `name`, `description`, `repository`,
 | Name | Repository | Providers |
 | --- | --- | --- |
 | `aws-public` | `rshade/finfocus-plugin-aws-public` | aws |
+| `aws-ce` | `rshade/finfocus-plugin-aws-ce` | aws |
 | `azure-public` | `rshade/finfocus-plugin-azure-public` | azure |
 | `opencost` | `rshade/finfocus-plugin-opencost` | kubernetes |
 | `flexera` | `rshade/finfocus-plugin-flexera` | aws, azure, gcp |

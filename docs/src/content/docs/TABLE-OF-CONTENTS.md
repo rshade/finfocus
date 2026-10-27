@@ -52,6 +52,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Prerequisites](getting-started/prerequisites.md)          | System requirements       | Everyone       |
 | [Examples](https://github.com/rshade/finfocus/tree/main/examples)                      | Practical usage examples  | End Users      |
 | [AWS Public Setup](plugins/aws-public.md)                  | AWS public pricing plugin | End Users      |
+| [AWS Cost Explorer Setup](plugins/aws-ce.md)               | AWS billed cost, forecasts, and budgets | End Users  |
 | [Azure Public Setup](plugins/azure-public.md)              | Azure retail pricing plugin | End Users    |
 | [OpenCost Setup](plugins/opencost.md)                      | Kubernetes allocation plugin | End Users   |
 | [Vantage Setup](plugins/vantage.md)                        | Vantage actual cost plugin | End Users     |
@@ -122,6 +123,12 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | Page                                           | Purpose                        |
 | ---------------------------------------------- | ------------------------------ |
 | [Azure Public Plugin](plugins/azure-public.md) | Setup and configuration        |
+
+#### AWS Cost Explorer (AVAILABLE)
+
+| Page                                           | Purpose                        |
+| ---------------------------------------------- | ------------------------------ |
+| [AWS Cost Explorer Plugin](plugins/aws-ce.md)  | Setup, permissions, and limits |
 
 #### OpenCost (AVAILABLE)
 
