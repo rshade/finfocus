@@ -956,9 +956,9 @@ func TestCostActualCmd_GroupByDaily(t *testing.T) {
 
 	err := cmd.Execute()
 
-	// Without plugins, daily grouping fails with empty results
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "empty results")
+	// Without plugins there are no daily periods: an empty list, not an error.
+	require.NoError(t, err)
+	assert.JSONEq(t, "[]", out.String())
 }
 
 // TestCostActualCmd_TableOutput tests table format output.

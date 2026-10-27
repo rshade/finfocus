@@ -495,6 +495,34 @@ route and no payload key, so the hook is the existing callbacks.
   for a component resource is not reported as a mismatch (found in the T065
   run). Test: `TestLoadComponentStepIsNotMismatch`
 
+### PR #1909 review fixes (2026-10-27)
+
+- [X] T074 Price a saved preview of a different stack or project on its own
+  (`not_requested`) instead of merging the surrounding project's state, by
+  comparing URN stack and project in `stackload.Load`. An explicit state and
+  preview pair is merged as given. Tests:
+  `TestLoadProjectStateOfAnotherStackIsNotMerged`, the `other stack preview`
+  case in `TestProjectedStackTotalsAndAvailability`
+- [X] T075 Reprice plan resources whose references resolve differently against
+  the full inventory, for the stack total only, so it does not depend on
+  `--show-sames`; plan requests and cache keys stay as before. Test:
+  `TestProjectedStackTotalUsesFullInventoryReferences`
+- [X] T076 Accept `cost projected --pulumi-json` with `--pulumi-state`, as the
+  docs state, so an unreadable explicit state file is an input error (exit 2).
+  Test: `TestProjectedExplicitStateAndPreviewPair`
+- [X] T077 Explain an unchanged plan with a complete stack total on stderr for
+  NDJSON (`engine.NoChangesStackSummary`). Test:
+  `TestProjectedUnchangedStackFormats`
+- [X] T078 Return the caller's cancellation from `stackload.Load` instead of
+  degrading to the preview. Test: `TestLoadCallerCancellationAfterSavedPreview`
+- [X] T079 Render an empty daily or monthly `cost actual` result as empty, not
+  an internal error, matching the web Cost view (nothing deployed yet); give
+  the web E2E Cost-view tests a deployed state. Tests:
+  `TestRenderActualCostOutputEmptyTimeGrouping`, `make test-e2e-web`
+- [X] T080 Skip state-origin resources in `cost forecast` pricing; use
+  `--stack` for the initial terminal overview preview. Test:
+  `TestOverviewPipeline_TUIInitialPreviewHonorsStackFlag`
+
 ---
 
 ## Dependencies & Execution Order

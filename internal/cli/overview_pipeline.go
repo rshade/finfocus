@@ -530,11 +530,11 @@ func (p *OverviewPipeline) startEngine(
 
 // previewStack names the stack a live preview targets. An explicit --stack wins
 // over the display name derived from a state file's name.
-func (p *OverviewPipeline) previewStack(result OverviewPipelineResult) string {
+func (p *OverviewPipeline) previewStack(displayName string) string {
 	if p.cfg.params.stack != "" {
 		return p.cfg.params.stack
 	}
-	return result.StackName
+	return displayName
 }
 
 // RunPreview runs the on-demand pulumi preview for a state-only session (the
@@ -898,7 +898,10 @@ func loadTUIOverviewPreview(
 	pw *string,
 ) (*stackload.Snapshot, error) {
 	preview, err := stackload.LoadPlan(ctx, stackload.Source{
-		PlanPath: p.cfg.params.pulumiJSON, ProjectDir: base.ProjectDir, Stack: base.StackName, Passphrase: pw,
+		PlanPath:   p.cfg.params.pulumiJSON,
+		ProjectDir: base.ProjectDir,
+		Stack:      p.previewStack(base.StackName),
+		Passphrase: pw,
 	})
 	if err == nil {
 		return base.WithPlan(preview.Plan), nil
@@ -1073,7 +1076,7 @@ func (p *OverviewPipeline) previewAttempt(
 		stackload.Source{
 			PlanPath:   p.cfg.params.pulumiJSON,
 			ProjectDir: projectDir,
-			Stack:      p.previewStack(result),
+			Stack:      p.previewStack(result.StackName),
 			Passphrase: pw,
 		},
 	)

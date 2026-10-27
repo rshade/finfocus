@@ -170,9 +170,11 @@ func validateCostProjectedParams(params costProjectedParams) error {
 		return fmt.Errorf("--jobs must be non-negative, got %d", params.jobs)
 	}
 
+	// A Pulumi preview and state file combine, as they do for overview.
+	pulumiOnly := params.terraformPlan == "" && params.terraformState == ""
 	if err := validateInputPaths(
 		params.terraformPlan, params.pulumiJSONPath, params.pulumiState, params.terraformState,
-	); err != nil {
+	); err != nil && !pulumiOnly {
 		return err
 	}
 

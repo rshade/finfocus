@@ -81,12 +81,18 @@ func TestStateTimestampAndStackIdentity(t *testing.T) {
 	require.NoError(t, err)
 	*rows[0].CreatedAt = time.Time{}
 	assert.Equal(t, now, *s.State[0].CreatedAt)
-	for _, raw := range []string{`{"deployment":{"manifest":{"time":"today"},"resources":[{"type":"pulumi:pulumi:Stack","urn":"urn:pulumi:dev::project::pulumi:pulumi:Stack::project-dev"}]}}`, `{"deployment":{"resources":[{"type":"pulumi:pulumi:Stack","urn":"invalid"}]}}`} {
-		loaded, loadErr := LoadState(context.Background(), Source{StatePath: inputFile(t, "state.json", raw)})
+	for _, tc := range []struct{ raw, manifestTime, stackName string }{
+		{
+			raw:          `{"deployment":{"manifest":{"time":"today"},"resources":[{"type":"pulumi:pulumi:Stack","urn":"urn:pulumi:dev::project::pulumi:pulumi:Stack::project-dev"}]}}`,
+			manifestTime: "today",
+			stackName:    "dev",
+		},
+		{raw: `{"deployment":{"resources":[{"type":"pulumi:pulumi:Stack","urn":"invalid"}]}}`},
+	} {
+		loaded, loadErr := LoadState(context.Background(), Source{StatePath: inputFile(t, "state.json", tc.raw)})
 		require.NoError(t, loadErr)
-		if loaded.ManifestTime != "" {
-			assert.Equal(t, "dev", loaded.StackName)
-		}
+		assert.Equal(t, tc.manifestTime, loaded.ManifestTime)
+		assert.Equal(t, tc.stackName, loaded.StackName)
 	}
 	_, err = LoadState(context.Background(), Source{})
 	require.Error(t, err)

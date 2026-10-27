@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"maps"
+	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -46,10 +48,16 @@ func (e *Engine) GetProjectedCostDiff(
 	if err != nil {
 		return nil, err
 	}
+	// A failed stack repricing keeps the plan price; the plan already reports
+	// that resource's errors.
+	stackCosts, _, err := e.priceAligned(ctx, plan.stackAfter)
+	if err != nil {
+		return nil, err
+	}
 	result := assembleDiff(resources, plan, beforeCosts, afterCosts, append(afterErrs, beforeErrs...))
 	result.Profile = config.UsageProfileLabel(e.usageProfile)
 	e.attachPricingExplanations(ctx, resources, plan, result)
-	splitDiffOrigins(resources, result)
+	splitDiffOrigins(resources, result, costsByResource(plan.stackAfterAt, stackCosts, len(resources)))
 	return result, nil
 }
 
@@ -78,9 +86,12 @@ func uniqueStateInventory(resources []ResourceDescriptor) []ResourceDescriptor {
 // splitDiffOrigins runs after pricing explanations, while their resource and
 // entry indexes still describe the full inventory. Only plan entries feed the
 // historical summary and AfterCosts; the stack also includes unchanged state.
-func splitDiffOrigins(resources []ResourceDescriptor, result *DiffResult) {
+// stackAfter, indexed like resources, replaces a plan entry's after cost in the
+// stack total when references resolve differently against the full inventory.
+func splitDiffOrigins(resources []ResourceDescriptor, result *DiffResult, stackAfter []*CostResult) {
 	stackCurrency := summaryCurrency(result.Entries)
 	entries := make([]DiffEntry, 0, len(result.Entries))
+	stackAdjustment := 0.0
 	resourceIndex := 0
 	for _, entry := range result.Entries {
 		// Internal Pulumi types may have no entry. Match the next retained
@@ -91,12 +102,16 @@ func splitDiffOrigins(resources []ResourceDescriptor, result *DiffResult) {
 				resources[resourceIndex].Type != entry.ResourceType) {
 			resourceIndex++
 		}
-		origin := resources[resourceIndex].Origin
+		index := resourceIndex
+		origin := resources[index].Origin
 		resourceIndex++
 		if origin == OriginState {
 			result.Summary.StackComplete = true
 			result.StackUnchanged = append(result.StackUnchanged, entry)
 			continue
+		}
+		if index < len(stackAfter) && stackAfter[index] != nil {
+			stackAdjustment += monthlyOf(stackAfter[index]) - monthlyOf(entry.After)
 		}
 		entries = append(entries, entry)
 	}
@@ -109,7 +124,7 @@ func splitDiffOrigins(resources []ResourceDescriptor, result *DiffResult) {
 	}
 	result.Summary.TotalDelta = result.Summary.TotalAfter - result.Summary.TotalBefore
 	result.Summary.Currency = summaryCurrency(entries)
-	result.Summary.StackTotal = result.Summary.TotalAfter
+	result.Summary.StackTotal = result.Summary.TotalAfter + stackAdjustment
 	result.Summary.StackResources = len(entries) + len(result.StackUnchanged)
 	for _, entry := range result.StackUnchanged {
 		result.Summary.StackTotal += monthlyOf(entry.After)
@@ -144,11 +159,15 @@ type diffPricingPlan struct {
 	after    []ResourceDescriptor
 	afterAt  []int
 	ops      []string
+	// stackAfter reprices plan resources whose references resolve differently
+	// against the full inventory; only the stack total uses those prices.
+	stackAfter   []ResourceDescriptor
+	stackAfterAt []int
 }
 
 func planDiffPricing(ctx context.Context, resources []ResourceDescriptor) diffPricingPlan {
 	plan := diffPricingPlan{ops: make([]string, len(resources))}
-	refTags := resolveOriginDiffRefTags(ctx, resources)
+	refTags, stackTags := resolveOriginDiffRefTags(ctx, resources)
 	for i, resource := range resources {
 		op := normalizeDiffOperation(resource.Operation)
 		plan.ops[i] = op
@@ -156,14 +175,16 @@ func planDiffPricing(ctx context.Context, resources []ResourceDescriptor) diffPr
 		case DiffOperationDelete:
 			plan.before = append(plan.before, descriptorForDiff(resource, deleteBaseline(resource), refTags[i]))
 			plan.beforeAt = append(plan.beforeAt, i)
+			continue
 		case DiffOperationUpdate:
 			plan.before = append(plan.before, descriptorForDiff(resource, resource.OldProperties, refTags[i]))
 			plan.beforeAt = append(plan.beforeAt, i)
-			plan.after = append(plan.after, descriptorForDiff(resource, resource.Properties, refTags[i]))
-			plan.afterAt = append(plan.afterAt, i)
-		default:
-			plan.after = append(plan.after, descriptorForDiff(resource, resource.Properties, refTags[i]))
-			plan.afterAt = append(plan.afterAt, i)
+		}
+		plan.after = append(plan.after, descriptorForDiff(resource, resource.Properties, refTags[i]))
+		plan.afterAt = append(plan.afterAt, i)
+		if stackTags != nil && !reflect.DeepEqual(refTags[i], stackTags[i]) {
+			plan.stackAfter = append(plan.stackAfter, descriptorForDiff(resource, resource.Properties, stackTags[i]))
+			plan.stackAfterAt = append(plan.stackAfterAt, i)
 		}
 	}
 	return plan
@@ -189,7 +210,11 @@ func descriptorForDiff(resource ResourceDescriptor, props, refTags map[string]an
 // resolveOriginDiffRefTags preserves the original preview's reference scope for
 // plan pricing. Appended state targets must not change plan requests or cache
 // keys; state-origin resources can resolve against the entire live inventory.
-func resolveOriginDiffRefTags(ctx context.Context, resources []ResourceDescriptor) []map[string]any {
+// stackTags, nil without state, resolves every resource against the full
+// inventory, so the stack total matches a preview that lists unchanged ones.
+func resolveOriginDiffRefTags(
+	ctx context.Context, resources []ResourceDescriptor,
+) ([]map[string]any, []map[string]any) {
 	planResources := make([]ResourceDescriptor, 0, len(resources))
 	planIndexes := make([]int, 0, len(resources))
 	for i, resource := range resources {
@@ -198,15 +223,16 @@ func resolveOriginDiffRefTags(ctx context.Context, resources []ResourceDescripto
 			planIndexes = append(planIndexes, i)
 		}
 	}
-	tags := resolveDiffRefTags(ctx, resources)
+	stackTags := resolveDiffRefTags(ctx, resources)
 	if len(planResources) == len(resources) {
-		return tags
+		return stackTags, nil
 	}
+	tags := slices.Clone(stackTags)
 	planTags := resolveDiffRefTags(ctx, planResources)
 	for i, index := range planIndexes {
 		tags[index] = planTags[i]
 	}
-	return tags
+	return tags, stackTags
 }
 
 // resolveDiffRefTags resolves cross-resource references once over the whole

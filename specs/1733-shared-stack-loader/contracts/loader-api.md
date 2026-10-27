@@ -43,6 +43,8 @@ All returned slices are copies; callers may modify them.
 | Explicit `--pulumi-state` file cannot be read, plan requested | An error naming the file; the preview is cancelled. |
 | Plan fails, state loaded | The plan error, as today. The caller decides whether state-only is acceptable (the terminal screen does; `cost projected` does not). |
 | Passphrase missing for an encrypted stack | `Reason: passphrase_required`; the existing message that names the passphrase is produced by the caller. |
+| Project state names a different stack or project than a saved preview's URNs | `nil` error; the preview alone with `Reason: not_requested`, as outside a project. An explicit state and preview file pair is merged as given. |
+| Caller context canceled while either input loads | The context error, never a state category. |
 
 ## Engine additions
 

@@ -55,26 +55,40 @@ func (r unavailableStateRunner) Run(
 	return r.scriptedPulumi.Run(ctx, dir, name, env, args...)
 }
 
+// previewOfStack copies a dev-stack preview fixture with its URNs moved to stack.
+func previewOfStack(t *testing.T, preview, stack string) string {
+	t.Helper()
+	data, err := os.ReadFile(preview)
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), stack+"-preview.json")
+	moved := strings.ReplaceAll(string(data), "urn:pulumi:dev::", "urn:pulumi:"+stack+"::")
+	require.NoError(t, os.WriteFile(path, []byte(moved), 0o600))
+	return path
+}
+
 // Root commands and runner fixtures mutate process environment.
 func TestProjectedStackTotalsAndAvailability(t *testing.T) {
 	for _, tc := range []struct {
-		name, plan                    string
+		name, plan, stack             string
 		project, failed               bool
 		resources, unchanged, omitted int
 		complete                      bool
 		reason                        string
 	}{
-		{"default plus state", "default", true, false, 5, 4, 0, true, ""},
-		{"show sames plus state", "show-sames", true, false, 5, 0, 0, true, ""},
-		{"saved default", "default", false, false, 1, 0, 4, false, "not_requested"},
-		{"saved show sames", "show-sames", false, false, 5, 0, 0, false, "not_requested"},
-		{"unreachable state", "default", true, true, 1, 0, 4, false, "backend_unreachable"},
+		{"default plus state", "default", "dev", true, false, 5, 4, 0, true, ""},
+		{"show sames plus state", "show-sames", "dev", true, false, 5, 0, 0, true, ""},
+		{"saved default", "default", "dev", false, false, 1, 0, 4, false, "not_requested"},
+		{"saved show sames", "show-sames", "dev", false, false, 5, 0, 0, false, "not_requested"},
+		{"unreachable state", "default", "dev", true, true, 1, 0, 4, false, "backend_unreachable"},
+		// A preview of another stack is projected alone, as outside a project.
+		{"other stack preview", "default", "prod", true, false, 1, 0, 4, false, "not_requested"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			state, err := os.ReadFile("testdata/pulumi/stack-export-dev.json")
 			require.NoError(t, err)
 			preview, err := filepath.Abs("testdata/pulumi/preview-" + tc.plan + ".json")
 			require.NoError(t, err)
+			preview = previewOfStack(t, preview, tc.stack)
 			t.Setenv("FINFOCUS_HOME", t.TempDir())
 			t.Setenv("FINFOCUS_CACHE_DIR", t.TempDir())
 			t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -135,4 +149,36 @@ func TestProjectedStackTotalsAndAvailability(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Root commands mutate process environment.
+func TestProjectedExplicitStateAndPreviewPair(t *testing.T) {
+	preview, err := filepath.Abs("testdata/pulumi/preview-default.json")
+	require.NoError(t, err)
+	state, err := filepath.Abs("testdata/pulumi/stack-export-dev.json")
+	require.NoError(t, err)
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv("FINFOCUS_CACHE_DIR", t.TempDir())
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Cleanup(config.ResetGlobalConfigForTest)
+	t.Chdir(t.TempDir())
+	run := func(statePath string) axtest.Result {
+		return axtest.Run(context.Background(), t, NewRootCmd("test"), []string{
+			"cost", "projected", "--pulumi-json", preview, "--pulumi-state", statePath, "--output", "json",
+		})
+	}
+
+	result := run(state)
+	require.Equal(t, 0, result.ExitCode, "%s", result.Stderr)
+	var doc stackOutput
+	require.NoError(t, json.Unmarshal(result.Stdout, &doc), "%s", result.Stdout)
+	assert.True(t, doc.Finfocus.Stack.Complete)
+	assert.Equal(t, 5, doc.Finfocus.Stack.Resources)
+	assert.Len(t, doc.Finfocus.Stack.Unchanged, 4)
+
+	missing := run(filepath.Join(t.TempDir(), "missing.json"))
+	assert.Equal(t, 2, missing.ExitCode, "an explicit state file that cannot be read is input error")
+	assert.Contains(t, string(missing.Stderr)+string(missing.Stdout), "no such file")
 }

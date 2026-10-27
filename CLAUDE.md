@@ -245,6 +245,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `finfocus.emptyPlan` depends only on priceable plan resources, even with state.
   Forecast retains the plan-origin total; actual costs use deployed inventory
   plus existing history enrichment (`specs/1733-shared-stack-loader/`).
+  A saved preview whose URNs name another stack or project than the
+  surrounding project's state is not merged (`not_requested`). Plan resources
+  keep plan-scoped `ref.*` tags (and cache keys); only the stack total reprices
+  one whose refs resolve differently against the full inventory. Test fixtures
+  must pair a preview and state from the same stack and project, or the loader
+  now drops the state.
 - `parent` is the stack, not a pricing reference. Cross-resource refs follow
   `propertyDependencies` only and become `ref.<property>.{urn,type,region,sku}`
   tags (`specs/618-cross-resource-refs/`). The unknown sentinel

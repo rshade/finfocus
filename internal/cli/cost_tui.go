@@ -25,7 +25,14 @@ func renderProjectedDiff(
 		return fmt.Errorf("unsupported output format: %s", fmtType)
 	}
 	breakdown := showBreakdown && fmtType == engine.OutputTable
-	return engine.RenderProjectedDiff(cmd.OutOrStdout(), fmtType, diff, breakdown)
+	if err := engine.RenderProjectedDiff(cmd.OutOrStdout(), fmtType, diff, breakdown); err != nil {
+		return err
+	}
+	// NDJSON carries no stack line, so an unchanged plan is explained on stderr.
+	if summary, ok := engine.NoChangesStackSummary(diff); ok && fmtType == engine.OutputNDJSON {
+		fmt.Fprint(cmd.ErrOrStderr(), summary)
+	}
+	return nil
 }
 
 // mergeProjectedDiffRecommendations attaches recommendations to the after cost

@@ -258,3 +258,86 @@ func TestLoadComponentStepIsNotMismatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"urn:gone"}, s.Mismatches, "a component in state is not missing from it")
 }
+
+//nolint:paralleltest // Replaces the process-wide Pulumi runner.
+func TestLoadProjectStateOfAnotherStackIsNotMerged(t *testing.T) {
+	const state = `{"version":3,"deployment":{"resources":[` +
+		`{"urn":"urn:pulumi:dev::app::aws:s3/bucket:Bucket::kept","type":"aws:s3/bucket:Bucket","custom":true}]}}`
+	t.Cleanup(
+		pulumi.SetRunnerForTest(
+			runnerFunc(func(context.Context, string, string, []string, ...string) ([]byte, []byte, error) {
+				return []byte(state), nil, nil
+			}),
+		),
+	)
+	for _, tc := range []struct {
+		name, planURN string
+		merged        bool
+	}{
+		{name: "same stack", planURN: "urn:pulumi:dev::app::aws:s3/bucket:Bucket::new", merged: true},
+		{name: "other stack", planURN: "urn:pulumi:prod::app::aws:s3/bucket:Bucket::new"},
+		{name: "other project", planURN: "urn:pulumi:dev::other::aws:s3/bucket:Bucket::new"},
+		{name: "no stack in urn", planURN: "urn:c", merged: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := `{"steps":[{"urn":"` + tc.planURN + `","type":"aws:s3/bucket:Bucket","op":"create"}]}`
+			s, err := Load(
+				context.Background(),
+				Source{ProjectDir: "project", PlanPath: inputFile(t, "plan.json", plan)},
+			)
+			require.NoError(t, err)
+			assert.Equal(t, tc.merged, s.StateStatus.Loaded)
+			if tc.merged {
+				assert.Len(t, s.Descriptors(), 2)
+				return
+			}
+			assert.Equal(t, ReasonNotRequested, s.StateStatus.Reason)
+			assert.Len(t, s.Descriptors(), 1, "a preview of another stack is projected alone")
+			assert.Empty(t, s.Mismatches)
+		})
+	}
+	explicit, err := Load(context.Background(), Source{
+		StatePath: inputFile(t, "state.json", state),
+		PlanPath: inputFile(
+			t,
+			"plan.json",
+			`{"steps":[{"urn":"urn:pulumi:prod::app::aws:s3/bucket:Bucket::new","type":"aws:s3/bucket:Bucket","op":"create"}]}`,
+		),
+	})
+	require.NoError(t, err)
+	assert.True(t, explicit.StateStatus.Loaded, "an explicit state and preview pair is the caller's choice")
+}
+
+//nolint:paralleltest // Replaces the process-wide Pulumi runner.
+func TestLoadCallerCancellationAfterSavedPreview(t *testing.T) {
+	started := make(chan struct{})
+	t.Cleanup(
+		pulumi.SetRunnerForTest(
+			runnerFunc(func(ctx context.Context, _, _ string, _ []string, _ ...string) ([]byte, []byte, error) {
+				close(started)
+				<-ctx.Done()
+				return nil, nil, ctx.Err()
+			}),
+		),
+	)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	plan := inputFile(t, "plan.json", planJSON)
+	result := make(chan error, 1)
+	go func() {
+		_, err := Load(ctx, Source{ProjectDir: "project", PlanPath: plan})
+		result <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		require.FailNow(t, "state export did not start")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		require.ErrorIs(t, err, context.Canceled, "cancellation is not unavailable state")
+	case <-time.After(time.Second):
+		require.FailNow(t, "load did not stop after cancellation")
+	}
+}

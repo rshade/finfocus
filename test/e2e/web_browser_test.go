@@ -370,7 +370,8 @@ func webPage(t *testing.T, browser playwright.Browser, s *webProcess, scheme *pl
 func TestWebUIBrowser(t *testing.T) {
 	f := newWebFixture(t)
 	browser := webBrowser(t)
-	s := f.start(t, filepath.Join(f.root, "testdata/simple-plan.json"), false)
+	plan := filepath.Join(f.root, "testdata/simple-plan.json")
+	s := f.start(t, plan, false, "WEB_STATE="+deployedState(t, plan))
 	page := webPage(t, browser, s, playwright.ColorSchemeLight)
 	webWait(
 		t,
@@ -704,6 +705,36 @@ func TestWebUIPerformance(t *testing.T) {
 	}
 }
 
+// deployedState writes the plan's resources as a deployed stack state. Actual
+// costs cover only deployed resources, so a test that reads the Cost view
+// needs its resources in the stack state, not only in the preview.
+func deployedState(t *testing.T, planPath string) string {
+	t.Helper()
+	data, err := os.ReadFile(planPath)
+	require.NoError(t, err)
+	var plan struct {
+		Steps []struct {
+			URN    string         `json:"urn"`
+			Type   string         `json:"type"`
+			Inputs map[string]any `json:"inputs"`
+		} `json:"steps"`
+	}
+	require.NoError(t, json.Unmarshal(data, &plan))
+	resources := make([]map[string]any, 0, len(plan.Steps))
+	for _, step := range plan.Steps {
+		name := step.URN[strings.LastIndex(step.URN, "::")+2:]
+		resources = append(resources, map[string]any{
+			"urn": step.URN, "type": step.Type, "custom": true, "id": name,
+			"inputs": step.Inputs, "outputs": step.Inputs,
+		})
+	}
+	state, err := json.Marshal(map[string]any{"version": 3, "deployment": map[string]any{"resources": resources}})
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "deployed-state.json")
+	require.NoError(t, os.WriteFile(path, state, 0o600))
+	return path
+}
+
 func (f webFixture) cli(t *testing.T, s *webProcess, args ...string) []byte {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -755,7 +786,7 @@ func TestWebUIThreeFixtureParityAndCluster(t *testing.T) {
 			require.NoError(t, err)
 			path := filepath.Join(t.TempDir(), "plan.json")
 			require.NoError(t, os.WriteFile(path, plan, 0o600))
-			s := f.start(t, path, false)
+			s := f.start(t, path, false, "WEB_STATE="+filepath.Join(f.root, "testdata/overview", name))
 			p := webPage(t, browser, s, playwright.ColorSchemeLight)
 			webWait(
 				t,
@@ -962,12 +993,8 @@ func TestWebUIProgressiveLoading(t *testing.T) {
 func TestWebUISharedPresentation(t *testing.T) {
 	f := newWebFixture(t)
 	browser := webBrowser(t)
-	s := f.start(
-		t,
-		filepath.Join(f.root, "testdata/simple-plan.json"),
-		false,
-		"WEB_RICH_PRESENTATION=true",
-	)
+	plan := filepath.Join(f.root, "testdata/simple-plan.json")
+	s := f.start(t, plan, false, "WEB_RICH_PRESENTATION=true", "WEB_STATE="+deployedState(t, plan))
 	page := webPage(t, browser, s, playwright.ColorSchemeLight)
 	webWait(
 		t,

@@ -44,17 +44,22 @@ func displayedProfile(profile string) string {
 	return profile
 }
 
+// NoChangesStackSummary is the explanation for a plan with nothing to price
+// when a complete stack total exists. ok is false in every other case.
+func NoChangesStackSummary(diff *DiffResult) (string, bool) {
+	if diff == nil || !diff.IncludeStack || !diff.EmptyPlan || !diff.Summary.StackComplete {
+		return "", false
+	}
+	return fmt.Sprintf(
+		"No changes. Projected monthly cost is zero.\nStack total: %s across %d unchanged resources.\n",
+		formatDiffMonthly(diff.Summary.StackTotal, diff.Summary.StackCurrency),
+		diff.Summary.StackResources,
+	), true
+}
+
 func renderDiffTable(w io.Writer, diff *DiffResult, showBreakdown bool) error {
-	if diff.IncludeStack && diff.EmptyPlan && diff.Summary.StackComplete {
-		if _, err := fmt.Fprintf(
-			w,
-			"No changes. Projected monthly cost is zero.\nStack total: %s across %d unchanged resources.\n",
-			formatDiffMonthly(
-				diff.Summary.StackTotal,
-				diff.Summary.StackCurrency,
-			),
-			diff.Summary.StackResources,
-		); err != nil {
+	if summary, ok := NoChangesStackSummary(diff); ok {
+		if _, err := io.WriteString(w, summary); err != nil {
 			return err
 		}
 		return writeDiffErrors(w, displayedDiffErrors(diff))

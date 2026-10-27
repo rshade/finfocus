@@ -40,7 +40,7 @@ Terraform and OpenTofu sources.
 | `stack.totalMonthly`, `stack.currency` | The stack total. |
 | `stack.resources` | How many resources the stack total covers. |
 | `stack.complete` | False when the state could not be read. |
-| `stack.incompleteReason` | One of `not_requested` (a saved preview with no state), `backend_unreachable`, `passphrase_required`, `read_failed`; omitted when complete. |
+| `stack.incompleteReason` | One of `not_requested` (a saved preview with no state, or a saved preview of a different stack or project than the surrounding one), `backend_unreachable`, `passphrase_required`, `read_failed`; omitted when complete. |
 | `stack.omittedUnchanged` | Unchanged resources the preview left out, from its change summary; omitted when zero. |
 | `stack.unchanged[]` | State-added unchanged resources with their monthly cost; omitted when empty. Items may carry the same `error` object `resources[]` items carry. |
 | `errors[]` | Pricing failures of plan-origin resources only, as in v0.5.2. A state-origin failure is reported on its `stack.unchanged[]` item. |
@@ -81,6 +81,7 @@ Written to stderr in every output format. Text is fixed so tests can pin it.
 | Condition | Text |
 | --- | --- |
 | Plan holds nothing to price and no complete stack total is available | The v0.5.2 warning: ``Warning: the plan has no resources to price, so the $0 total is not an estimate. A default `pulumi preview --json` omits unchanged resources; make the plan with `--show-sames` or run `finfocus overview` to see the whole stack.`` |
+| No changes in the plan, complete stack total, `--output ndjson` (table output prints it on stdout) | ``No changes. Projected monthly cost is zero.`` then ``Stack total: $X/mo across N unchanged resources.`` |
 | Saved preview with no state (`not_requested`) | ``Note: the preview omits N unchanged resources, so they are not priced. Make the preview with `--show-sames` or run `finfocus overview`.`` Printed only when `N` is above zero. |
 | State unavailable (`backend_unreachable`, `passphrase_required`, `read_failed`) | `Warning: stack state unavailable (<reason>): N unchanged resources are not included in the stack total.` `N` is `omittedUnchanged`; the clause is dropped when it is zero. |
 | Preview and state disagree | `Warning: the preview does not match the stack state for N resources; they are priced as the preview lists them.` |

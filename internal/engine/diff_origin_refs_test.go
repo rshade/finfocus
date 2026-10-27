@@ -9,8 +9,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 func TestProjectedPlanReferencesIgnoreAppendedState(t *testing.T) {
@@ -45,8 +47,19 @@ func TestProjectedPlanReferencesIgnoreAppendedState(t *testing.T) {
 			}
 			baselineProps, baselineAttrs := run([]ResourceDescriptor{pool})
 			liveProps, liveAttrs := run([]ResourceDescriptor{pool, target})
-			assert.Equal(t, baselineProps, liveProps, "state inventory must not change plugin-bound plan properties")
-			assert.Equal(t, baselineAttrs, liveAttrs, "state inventory must not change plugin-bound plan attributes")
+			require.GreaterOrEqual(t, len(liveProps), len(baselineProps))
+			planRequests := len(baselineProps)
+			assert.Equal(t, baselineProps, liveProps[:planRequests],
+				"state inventory must not change plugin-bound plan properties")
+			assert.Equal(t, baselineAttrs, liveAttrs[:planRequests],
+				"state inventory must not change plugin-bound plan attributes")
+			stackRequests := liveProps[planRequests:]
+			if op == DiffOperationDelete {
+				assert.Empty(t, stackRequests, "a delete has no after cost in the stack total")
+				return
+			}
+			require.Len(t, stackRequests, 1, "only the stack total reprices with the full inventory")
+			assert.Equal(t, "westeurope", stackRequests[0]["ref.kubernetesClusterId.region"])
 		})
 	}
 }
@@ -62,4 +75,53 @@ func TestProjectedStateReferencesUsePlanTargets(t *testing.T) {
 	).GetProjectedCostDiff(context.Background(), []ResourceDescriptor{referencedCluster(DiffOperationSame), pool})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"westeurope"}, client.regionsFor(pool.ID))
+}
+
+// regionPricedPlugin prices a node pool by the region its cluster reference
+// resolves to, so a dropped reference changes the price.
+type regionPricedPlugin struct{ mockCostSourceClient }
+
+func (*regionPricedPlugin) GetProjectedCost(
+	_ context.Context, in *proto.GetProjectedCostRequest, _ ...grpc.CallOption,
+) (*proto.GetProjectedCostResponse, error) {
+	results := make([]*proto.CostResult, 0, len(in.Resources))
+	for _, resource := range in.Resources {
+		monthly := 1.0
+		if resource.Properties["vmSize"] != "" {
+			monthly = 4
+			if resource.Properties["ref.kubernetesClusterId.region"] == "westeurope" {
+				monthly = 10
+			}
+		}
+		results = append(results, &proto.CostResult{Currency: "USD", MonthlyCost: monthly})
+	}
+	return &proto.GetProjectedCostResponse{Results: results}, nil
+}
+
+func TestProjectedStackTotalUsesFullInventoryReferences(t *testing.T) {
+	t.Parallel()
+	diff := func(clusterOrigin DescriptorOrigin) *DiffResult {
+		pool := referencedNodePool(DiffOperationCreate, "Standard_D4s_v3", "")
+		pool.Origin = OriginPlan
+		cluster := referencedCluster(DiffOperationSame)
+		cluster.Origin = clusterOrigin
+		result, err := New(
+			[]*pluginhost.Client{{Name: "azure", API: &regionPricedPlugin{}}},
+			nil,
+		).GetProjectedCostDiff(context.Background(), []ResourceDescriptor{pool, cluster})
+		require.NoError(t, err)
+		return result
+	}
+	defaultPreview := diff(OriginState)
+	showSames := diff(OriginPlan)
+	assert.InDelta(
+		t,
+		4,
+		defaultPreview.Summary.TotalAfter,
+		1e-9,
+		"the plan total keeps the preview's own reference scope",
+	)
+	assert.InDelta(t, 11, showSames.Summary.TotalAfter, 1e-9)
+	assert.InDelta(t, showSames.Summary.StackTotal, defaultPreview.Summary.StackTotal, 1e-9,
+		"the stack total must not depend on whether the preview lists unchanged resources")
 }

@@ -15,6 +15,8 @@ import (
 
 // Load reads state and preview concurrently. A failed stack export degrades to
 // the preview alone; an explicit state file that cannot be read is an error.
+// Project state from a different stack or project than the preview is not
+// merged; the preview is then used alone with ReasonNotRequested.
 func Load(ctx context.Context, src Source) (*Snapshot, error) {
 	if src.SkipPreview || src.StatePath != "" && src.PlanPath == "" {
 		return LoadState(ctx, src)
@@ -37,10 +39,18 @@ func Load(ctx context.Context, src Source) (*Snapshot, error) {
 	if err := group.Wait(); err != nil {
 		return nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		// A canceled export is the caller's cancellation, not unreachable state.
+		return nil, err
+	}
 	if stateErr != nil {
 		if loadErr, ok := errors.AsType[*Error](stateErr); ok {
 			plan.StateStatus = Status{Reason: loadErr.Reason}
 		}
+		return plan, nil
+	}
+	if src.StatePath == "" && !sameStack(state, plan) {
+		// A preview of another stack is projected on its own, as outside a project.
 		return plan, nil
 	}
 	return state.WithPlan(plan.Plan), nil

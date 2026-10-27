@@ -21,7 +21,7 @@ func TestProjectedUnchangedStackFormats(t *testing.T) {
 		t.Run(format, func(t *testing.T) {
 			state, err := os.ReadFile("testdata/pulumi/stack-export-dev.json")
 			require.NoError(t, err)
-			plan, err := filepath.Abs("testdata/pulumi/unchanged-stack-preview.json")
+			plan, err := filepath.Abs("testdata/pulumi/unchanged-preview-dev.json")
 			require.NoError(t, err)
 			t.Setenv("FINFOCUS_HOME", t.TempDir())
 			t.Setenv("FINFOCUS_CACHE_DIR", t.TempDir())
@@ -66,6 +66,11 @@ func TestProjectedUnchangedStackFormats(t *testing.T) {
 				assert.Equal(t, 5, doc.Finfocus.Stack.Resources)
 			case "ndjson":
 				assert.Empty(t, result.Stdout, "state-only rows must not add NDJSON lines")
+				assert.Contains(t, string(result.Stderr), "No changes. Projected monthly cost is zero.")
+				assert.Contains(t, string(result.Stderr), "across 5 unchanged resources.")
+			}
+			if format != "ndjson" {
+				assert.NotContains(t, string(result.Stderr), "No changes.", "stdout already explains it")
 			}
 			assert.NotContains(t, string(result.Stderr), "$0 total is not an estimate")
 		})

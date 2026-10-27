@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,4 +94,22 @@ func TestActualSavedPreviewUsesSharedInventory(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, ids(outside), liveMembershipURNs()[0],
 		"without state, a saved preview keeps its v0.5.2 inventory")
+}
+
+func TestRenderActualCostOutputEmptyTimeGrouping(t *testing.T) {
+	t.Parallel()
+	for _, group := range []string{"daily", "monthly"} {
+		for format, want := range map[engine.OutputFormat]string{
+			engine.OutputJSON:   "[]\n",
+			engine.OutputNDJSON: "",
+			engine.OutputTable:  "No cost data available for cross-provider aggregation\n",
+		} {
+			t.Run(group+"/"+string(format), func(t *testing.T) {
+				t.Parallel()
+				var out strings.Builder
+				require.NoError(t, renderActualCostOutput(&out, format, nil, group, false))
+				assert.Equal(t, want, out.String(), "nothing deployed is an empty result, not an error")
+			})
+		}
+	}
 }

@@ -390,9 +390,14 @@ func renderActualCostOutput(
 	// Check if we need cross-provider aggregation
 	groupByType := engine.GroupBy(actualGroupBy)
 	if groupByType.IsTimeBasedGrouping() {
-		aggregations, err := engine.CreateCrossProviderAggregation(results, groupByType)
-		if err != nil {
-			return fmt.Errorf("creating cross-provider aggregation: %w", err)
+		// Nothing deployed (a first deploy) has no periods, as the web Cost view shows.
+		aggregations := []engine.CrossProviderAggregation{}
+		if len(results) > 0 {
+			var err error
+			aggregations, err = engine.CreateCrossProviderAggregation(results, groupByType)
+			if err != nil {
+				return fmt.Errorf("creating cross-provider aggregation: %w", err)
+			}
 		}
 		return engine.RenderCrossProviderAggregation(
 			writer,

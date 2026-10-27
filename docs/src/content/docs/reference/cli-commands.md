@@ -223,9 +223,12 @@ report safe reason categories without backend details. For a saved preview
 without state, a notice reports any known omitted count; use
 `pulumi preview --json --show-sames` or `finfocus overview` to see those resources.
 A preview that disagrees with state produces a warning and takes precedence.
+A saved preview of a different stack or project than the surrounding project is
+priced on its own, as it would be outside a project, with `not_requested`.
 
 NDJSON keeps one line per plan resource and adds no stack lines. Stack notices
-remain on stderr.
+remain on stderr. When the plan has nothing to price and the stack total is
+complete, stderr also carries the same "No changes" summary the table prints.
 
 ### Usage (cost projected)
 
