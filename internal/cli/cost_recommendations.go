@@ -88,7 +88,8 @@ func NewCostRecommendationsCmd() *cobra.Command {
 
 In a Terraform directory, omitting input flags runs tofu plan.
 Use --terraform-plan with saved tofu show -json output to avoid running a binary.
-Pulumi projects still require --pulumi-json. Infrastructure input flags are mutually
+In a Pulumi project, omitting input flags loads the live state and preview inventory.
+Use --stack to select a Pulumi stack. Infrastructure input flags are mutually
 exclusive. --include-workspace overrides the Terraform history identity setting for
 this run and is ignored for Pulumi. FinFocus does not run init or configure credentials.
 Saved plan input errors exit 2; plan execution failures exit 1.
@@ -328,7 +329,7 @@ func newCostRecommendationsAudit(ctx context.Context, params costRecommendations
 	return newAuditContext(ctx, "cost recommendations", auditParams)
 }
 
-// validateRecommendationsInputs preserves the Pulumi input requirement while allowing Terraform detection.
+// validateRecommendationsInputs requires an input file unless a Pulumi or Terraform project is detected.
 func validateRecommendationsInputs(cmd *cobra.Command, params costRecommendationsParams) error {
 	if err := validateInfrastructureInputs(cmd); err != nil {
 		return err
@@ -338,9 +339,9 @@ func validateRecommendationsInputs(cmd *cobra.Command, params costRecommendation
 		return nil
 	}
 	source, err := DetectProjectSource(".")
-	if err != nil || source.Kind != ProjectKindTerraform {
+	if err != nil || (source.Kind != ProjectKindPulumi && source.Kind != ProjectKindTerraform) {
 		return errors.New(
-			"--pulumi-json is required for Pulumi unless --terraform-plan or a Terraform directory supplies resources",
+			"--pulumi-json is required for plan input outside a Pulumi or Terraform project",
 		)
 	}
 	return nil

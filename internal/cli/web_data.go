@@ -14,32 +14,30 @@ import (
 	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/history"
-	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/stackload"
 )
 
 // webData owns the shared CLI domain pipelines. Its immutable source snapshot is
 // captured before engine publication; the gate bounds concurrent plugin queries.
 type webData struct {
-	cmd            *cobra.Command
-	params         overviewParams
-	dates          engine.DateRange
-	audit          *auditContext
-	eng            *engine.Engine
-	history        history.Store
-	cache          cache.Cache
-	clients        []*pluginhost.Client
-	raw            []engine.ResourceDescriptor
-	planned        []engine.ResourceDescriptor
-	planSteps      []engine.PlanStep
-	planErr        error
-	sourceErr      error
-	sourceCaptured bool
-	gate           chan struct{}
-	trends         map[string]string
-	totalTrend     string
-	resolveScorer  func(context.Context, string, config.ResolvedScoring,
+	cmd               *cobra.Command
+	params            overviewParams
+	dates             engine.DateRange
+	audit             *auditContext
+	eng               *engine.Engine
+	history           history.Store
+	cache             cache.Cache
+	clients           []*pluginhost.Client
+	snapshot          *stackload.Snapshot
+	terraformDeployed []engine.ResourceDescriptor
+	terraformPlanned  []engine.ResourceDescriptor
+	terraformSource   bool
+	gate              chan struct{}
+	trends            map[string]string
+	totalTrend        string
+	resolveScorer     func(context.Context, string, config.ResolvedScoring,
 		[]*pluginhost.Client, *auditContext) (*pluginhost.Client, string, func())
 	fetchRecommendations func(context.Context, *cobra.Command, *engine.Engine,
 		[]engine.ResourceDescriptor, bool) (*engine.RecommendationsResult, error)
@@ -109,63 +107,38 @@ func (d *webData) freshESC(ctx context.Context) context.Context {
 	return esc.WithSource(ctx, next)
 }
 
-func (d *webData) overviewParams() overviewParams {
-	params := d.params
-	params.captureState = d.captureState
-	params.capturePlan = d.capturePlan
-	params.captureTerraform = d.captureTerraform
-	return params
+// bindPipelineSource publishes source data before query callbacks become available.
+func (d *webData) bindPipelineSource(ctx context.Context, pipe *OverviewPipeline) {
+	onDataReady := pipe.OnDataReady
+	pipe.OnDataReady = func(rows []engine.OverviewRow, total int, stack string) {
+		if err := d.setPipelineSource(ctx, pipe.Result()); err != nil {
+			return
+		}
+		onDataReady(rows, total, stack)
+	}
 }
 
-func (d *webData) captureState(resources []ingest.StackExportResource) {
-	d.raw, d.sourceErr = ingest.MapStateResources(resources)
-	d.sourceCaptured = true
-}
-
-// captureTerraform retains the same validated descriptors used by overview.
-// Actual queries consume before values; estimates overlay the planned values.
-func (d *webData) captureTerraform(
-	ctx context.Context, resources []engine.ResourceDescriptor, steps []engine.PlanStep,
-) {
+// setPipelineSource publishes the pipeline's source under the query gate.
+func (d *webData) setPipelineSource(ctx context.Context, result OverviewPipelineResult) error {
 	unlock, err := d.lock(ctx)
 	if err != nil {
-		return
+		return err
 	}
 	defer unlock()
-	d.planned = cloneWebResources(resources)
-	d.raw = nil
-	for _, resource := range cloneWebResources(resources) {
+	d.snapshot = result.Snapshot
+	d.terraformSource = result.TerraformResources != nil
+	d.terraformPlanned = cloneWebResources(result.TerraformResources)
+	d.terraformDeployed = nil
+	for _, resource := range cloneWebResources(result.TerraformResources) {
 		if resource.Operation == engine.DiffOperationCreate {
 			continue
 		}
 		if resource.OldProperties != nil {
 			resource.Properties = deepCopyProperties(resource.OldProperties)
 		}
-		d.raw = append(d.raw, resource)
+		d.terraformDeployed = append(d.terraformDeployed, resource)
 	}
-	d.planSteps = append([]engine.PlanStep(nil), steps...)
-	d.sourceCaptured = true
-	d.sourceErr = nil
-	d.planErr = nil
-}
-
-// capturePlan keeps only real initial preview sources, before synthetic expansion.
-// The query gate is the same one estimate readers hold.
-func (d *webData) capturePlan(ctx context.Context, plan *ingest.PulumiPlan) {
-	unlock, err := d.lock(ctx)
-	if err != nil {
-		logging.FromContext(ctx).Warn().
-			Str("component", "web").
-			Str("operation", "capture_plan").
-			Err(err).
-			Msg("preview plan capture skipped; query gate unavailable")
-		return
-	}
-	defer unlock()
-	resources := plan.GetResources()
-	d.planned, d.planErr = ingest.MapResources(resources)
-	d.planned = cloneWebResources(d.planned)
-	d.planSteps = convertPlanSteps(plan.Steps)
+	return nil
 }
 
 var errPreviewPricing = errors.New("preview rows could not be priced")
@@ -183,7 +156,11 @@ func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewR
 	}
 	defer unlock()
 
-	merged := engine.AppendPlanOnlyRows(rows, d.planSteps)
+	var steps []engine.PlanStep
+	if d.snapshot != nil {
+		steps = d.snapshot.Steps
+	}
+	merged := engine.AppendPlanOnlyRows(rows, steps)
 	added, err := validateAndApplyOverviewFilters(merged[len(rows):], d.params.filter)
 	if err != nil {
 		return nil, err
@@ -330,22 +307,24 @@ func cloneWebResources(resources []engine.ResourceDescriptor) []engine.ResourceD
 	return out
 }
 
-func (d *webData) loadResources(ctx context.Context) ([]engine.ResourceDescriptor, error) {
-	if d.params.pulumiJSON != "" || d.params.pulumiState != "" {
-		return loadActualResources(
-			ctx,
-			d.cmd,
-			costActualParams{planPath: d.params.pulumiJSON, statePath: d.params.pulumiState},
-			d.audit,
-		)
+func (d *webData) loadResources(_ context.Context) ([]engine.ResourceDescriptor, error) {
+	if d.terraformSource {
+		return cloneWebResources(d.terraformDeployed), nil
 	}
-	if d.sourceErr != nil {
-		return nil, d.sourceErr
-	}
-	if !d.sourceCaptured {
+	if d.snapshot == nil {
 		return nil, errors.New("stack source unavailable")
 	}
-	return cloneWebResources(d.raw), nil
+	return d.snapshot.ActualDescriptors(), nil
+}
+
+func (d *webData) liveResources() ([]engine.ResourceDescriptor, error) {
+	if d.terraformSource {
+		return cloneWebResources(d.terraformPlanned), nil
+	}
+	if d.snapshot == nil {
+		return nil, errors.New("stack source unavailable")
+	}
+	return d.snapshot.Descriptors(), nil
 }
 
 func (d *webData) actualCosts(
@@ -390,7 +369,7 @@ func (d *webData) recommendations(ctx context.Context, include bool) (*engine.Re
 		return nil, err
 	}
 	defer unlock()
-	resources, err := d.loadResources(ctx)
+	resources, err := d.liveResources()
 	if err != nil {
 		return nil, err
 	}
@@ -461,24 +440,9 @@ func (d *webData) estimateResources(ctx context.Context) ([]engine.ResourceDescr
 		return nil, err
 	}
 	defer unlock()
-	resources, err := d.loadResources(ctx)
+	resources, err := d.liveResources()
 	if err != nil {
 		return nil, err
-	}
-	if d.planErr != nil {
-		return nil, d.planErr
-	}
-	indices := make(map[string]int, len(resources))
-	for i, resource := range resources {
-		indices[resource.ID] = i
-	}
-	for _, resource := range cloneWebResources(d.planned) {
-		if index, exists := indices[resource.ID]; exists {
-			resources[index] = resource
-		} else {
-			indices[resource.ID] = len(resources)
-			resources = append(resources, resource)
-		}
 	}
 
 	resources, err = ApplyFilters(ctx, resources, d.params.filter)

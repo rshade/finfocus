@@ -17,7 +17,8 @@ const (
 
 // PulumiPlan represents the top-level structure of a Pulumi preview JSON output.
 type PulumiPlan struct {
-	Steps []PulumiStep `json:"steps"`
+	Steps         []PulumiStep   `json:"steps"`
+	ChangeSummary map[string]int `json:"changeSummary,omitempty"`
 }
 
 // PulumiStep represents a single resource operation step in a Pulumi plan.

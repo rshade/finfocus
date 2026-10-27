@@ -42,9 +42,9 @@ func TestOverviewPlain_NoWebHint(t *testing.T) {
 	}
 	require.False(t, overviewInteractive(out, params))
 
-	state, _, stackName, stateOnly, err := loadPlainOverviewData(ctx, cmd, params)
+	state, _, stackName, stateOnly, err := testLoadPlainOverviewData(ctx, cmd, params)
 	require.NoError(t, err)
-	rows, _, _, _, err := buildOverviewRows(ctx, stateOnly, state, params, "", stackName, nil)
+	rows, _, _, _, err := testBuildOverviewRows(ctx, stateOnly, state, params, "", stackName, nil)
 	require.NoError(t, err)
 	result := engine.ComputeOverviewResult(rows, 15)
 	require.NoError(t, renderOverviewOutput(cmd, params.output, result, engine.StackContext{StackName: stackName}, nil))
@@ -131,9 +131,9 @@ func TestOverviewPlain_ReadsNoInput(t *testing.T) {
 	}
 	require.False(t, overviewInteractive(out, params))
 
-	state, steps, stackName, stateOnly, err := loadPlainOverviewData(ctx, cmd, params)
+	state, steps, stackName, stateOnly, err := testLoadPlainOverviewData(ctx, cmd, params)
 	require.NoError(t, err)
-	rows, _, hasChanges, changeCount, err := buildOverviewRows(ctx, stateOnly, state, params, "", stackName, nil)
+	rows, _, hasChanges, changeCount, err := testBuildOverviewRows(ctx, stateOnly, state, params, "", stackName, nil)
 	require.NoError(t, err)
 	_, err = confirmPlainOverview(cmd, params, len(rows), hasChanges, changeCount, 0, stateOnly)
 	require.NoError(t, err)

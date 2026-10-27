@@ -986,7 +986,7 @@ func TestExplicitPlanWithoutProjectLoadsPlainAndWeb(t *testing.T) {
 	installFakePulumi(t)
 	path := overviewFixture(t, "plan-mixed-changes.json")
 	params := overviewParams{pulumiJSON: path, cfg: &config.Config{}}
-	_, steps, _, err := resolveOverviewData(context.Background(), params)
+	_, steps, _, err := testResolveOverviewData(context.Background(), params)
 	require.NoError(t, err)
 	require.NotEmpty(t, steps)
 	p := newOverviewPipeline(
@@ -1245,6 +1245,29 @@ func TestOverviewPipeline_ExplicitStatePreviewHonorsStackFlag(t *testing.T) {
 
 	_, err = pipe.RunPreviewWithError(context.Background())
 	require.NoError(t, err)
+	assert.Equal(t, []string{"--stack", "dev"}, previewArgs[len(previewArgs)-2:])
+}
+
+func TestOverviewPipeline_TUIInitialPreviewHonorsStackFlag(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Chdir(t.TempDir())
+	preview, err := os.ReadFile(overviewFixture(t, "plan-no-changes.json"))
+	require.NoError(t, err)
+	var previewArgs []string
+	t.Cleanup(pulumidetect.SetRunnerForTest(recordingPulumi{preview: preview, args: &previewArgs}))
+
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{
+			pulumiState: overviewFixture(t, "state-no-changes.json"), stack: "dev", yes: true, cfg: &config.Config{},
+		},
+		loader:      tuiOverviewLoader,
+		openPlugins: fakeOpenPlugins,
+		newEngine:   fakeNewEngine,
+		enrichRows:  passThroughEnrichment,
+	})
+	require.NoError(t, pipe.Run(context.Background()))
+	require.NotEmpty(t, previewArgs, "--yes runs the initial preview")
 	assert.Equal(t, []string{"--stack", "dev"}, previewArgs[len(previewArgs)-2:])
 }
 

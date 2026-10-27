@@ -177,7 +177,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	passphrases := make(chan string)
 	data := newWebData(cmd, params, dateRange, audit)
 	pipe := newOverviewPipeline(overviewPipelineConfig{
-		cmd: cmd, params: data.overviewParams(), dateRange: dateRange, audit: audit, loader: autoDetectOverviewLoader,
+		cmd: cmd, params: data.params, dateRange: dateRange, audit: audit, loader: autoDetectOverviewLoader,
 		passphrases: passphrases, wantBudget: true, budgetLive: true, budgetFallback: true, dismissalRows: true,
 		retryPassphrase: true, transientPassphrase: true, newEngine: data.newEngine,
 	})
@@ -188,6 +188,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	session := webui.NewSession(pipeCtx, options)
 	defer session.Close()
 	bindWebPipeline(ctx, pipe, session, params, dateRange)
+	data.bindPipelineSource(pipeCtx, pipe)
 	webPipelineHook(pipe)
 	srv, err := listenAndPrintWeb(ctx, cmd, flags, session, audit)
 	if err != nil {
@@ -430,6 +431,9 @@ func webSessionOptions(
 			rows, previewErr := previewWebRows(previewCtx, pipe, pipeDone)
 			if previewErr != nil {
 				return nil, previewErr
+			}
+			if sourceErr := data.setPipelineSource(previewCtx, pipe.Result()); sourceErr != nil {
+				return nil, sourceErr
 			}
 			merged, appendErr := data.appendPreviewRows(previewCtx, rows)
 			if appendErr != nil {

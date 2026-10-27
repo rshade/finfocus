@@ -29,21 +29,42 @@ type DiffEntry struct {
 
 // DiffSummary is the plan-level before, after, and delta totals.
 type DiffSummary struct {
-	TotalBefore float64 `json:"totalBefore"`
-	TotalAfter  float64 `json:"totalAfter"`
-	TotalDelta  float64 `json:"totalDelta"`
-	Currency    string  `json:"currency,omitempty"`
-	Creates     int     `json:"creates"`
-	Updates     int     `json:"updates"`
-	Deletes     int     `json:"deletes"`
-	Unchanged   int     `json:"unchanged"`
+	// StackTotal includes the plan and unchanged state inventory, each resource once.
+	StackTotal float64 `json:"-"`
+	// StackCurrency is the common currency of plan and state entries, or empty
+	// when their currencies differ. Currency remains the plan-only currency.
+	StackCurrency string `json:"-"`
+	// StackResources counts the entries included in StackTotal.
+	StackResources int `json:"-"`
+	// StackComplete reports whether stack state was available. Callers supply
+	// the authoritative load status when no state-origin entries were appended.
+	StackComplete bool `json:"-"`
+	// StackIncompleteReason is a sanitized state availability category.
+	StackIncompleteReason string `json:"-"`
+	// OmittedUnchanged counts unchanged resources omitted by an incomplete preview.
+	OmittedUnchanged int     `json:"-"`
+	TotalBefore      float64 `json:"totalBefore"`
+	TotalAfter       float64 `json:"totalAfter"`
+	TotalDelta       float64 `json:"totalDelta"`
+	Currency         string  `json:"currency,omitempty"`
+	Creates          int     `json:"creates"`
+	Updates          int     `json:"updates"`
+	Deletes          int     `json:"deletes"`
+	Unchanged        int     `json:"unchanged"`
 }
 
 // DiffResult is the projected cost diff for a set of resources.
 type DiffResult struct {
-	Entries []DiffEntry
-	Summary DiffSummary
-	Errors  []ErrorDetail
+	// IncludeStack enables the Pulumi stack metadata object in projected output.
+	IncludeStack bool
+	// StackUnchanged holds state-origin entries excluded from plan totals.
+	StackUnchanged []DiffEntry
+	Entries        []DiffEntry
+	Summary        DiffSummary
+	Errors         []ErrorDetail
+	// StackErrors holds pricing failures of state-origin resources. Errors keeps
+	// plan resources only, as in v0.5.2; the stack output reports these.
+	StackErrors []ErrorDetail
 	// Profile is the resolved usage profile for this diff. "default" is no preference.
 	Profile string
 	// EmptyPlan is set by the caller when the plan held nothing to price, so a

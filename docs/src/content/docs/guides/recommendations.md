@@ -52,7 +52,8 @@ tofu show -json tfplan > tfplan.json
 finfocus cost recommendations --terraform-plan tfplan.json
 ```
 
-Pulumi projects still require explicit plan input. `--terraform-plan`,
+In a Pulumi project, omitting input flags loads the live inventory from state
+and preview; use `--stack` to select a stack. `--terraform-plan`,
 `--pulumi-json`, `--pulumi-state`, and `--terraform-state` are mutually exclusive.
 Saved Terraform plan files must use format version 1 and be at most 32 MiB.
 Missing or invalid files exit 2. Planning failures exit 1 and explain whether to

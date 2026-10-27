@@ -19,7 +19,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/term"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -28,6 +27,7 @@ import (
 	"github.com/rshade/finfocus/internal/logging"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/resourcetype"
+	"github.com/rshade/finfocus/internal/stackload"
 	"github.com/rshade/finfocus/internal/tui"
 )
 
@@ -39,29 +39,26 @@ const overviewOperationReplace = "replace"
 
 // overviewParams holds the parameters for the overview command.
 type overviewParams struct {
-	captureTerraform func(context.Context, []engine.ResourceDescriptor, []engine.PlanStep)
-	captureState     func([]ingest.StackExportResource)
-	capturePlan      func(context.Context, *ingest.PulumiPlan)
-	pulumiJSON       string
-	pulumiState      string
-	terraformPlan    string
-	terraformState   string
-	stack            string
-	fromStr          string
-	toStr            string
-	adapter          string
-	output           string
-	filter           []string
-	plain            bool
-	forceColor       bool
-	noColor          bool
-	yes              bool
-	noPagination     bool
-	exitOnThreshold  bool
-	exitCode         int
-	budgetScope      string
-	stateOnly        bool
-	cfg              *config.Config
+	pulumiJSON      string
+	pulumiState     string
+	terraformPlan   string
+	terraformState  string
+	stack           string
+	fromStr         string
+	toStr           string
+	adapter         string
+	output          string
+	filter          []string
+	plain           bool
+	forceColor      bool
+	noColor         bool
+	yes             bool
+	noPagination    bool
+	exitOnThreshold bool
+	exitCode        int
+	budgetScope     string
+	stateOnly       bool
+	cfg             *config.Config
 }
 
 // NewOverviewCmd constructs the "overview" Cobra command that displays a unified stack cost
@@ -277,22 +274,6 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	return nil
 }
 
-// resolveOverviewData loads Pulumi state and plan data, either from explicit file
-// paths or by auto-detecting the Pulumi project and running CLI commands.
-func resolveOverviewData(
-	ctx context.Context, params overviewParams,
-) ([]engine.StateResource, []engine.PlanStep, string, error) {
-	if params.pulumiState != "" {
-		return loadOverviewFromFiles(ctx, params)
-	}
-	if params.pulumiJSON != "" {
-		if _, err := pulumidetect.FindProject("."); err != nil {
-			return loadOverviewPlanOnly(ctx, params)
-		}
-	}
-	return loadOverviewFromAutoDetect(ctx, params)
-}
-
 // finalizeOverviewOutput builds the stack context from the pipeline result,
 // renders the overview in the requested output format, and evaluates budget
 // thresholds. The budget result (fetched by the pipeline for JSON output) may
@@ -343,51 +324,47 @@ func finalizeOverviewOutput(
 	return nil
 }
 
-// loadPlainOverviewData loads state and plan data for the non-interactive (plain text) mode.
-// For explicit file paths it delegates to resolveOverviewData directly (no change detection).
-// For auto-detect mode it uses state-first loading: it runs change detection and calls
-// promptForPreview to decide whether to run pulumi preview. isStateOnly is true when
-// preview was skipped; the caller should then build rows via engine.NewRowsFromState.
-func loadPlainOverviewData(
+// loadPlainOverviewSnapshot resolves input sources and keeps the terminal
+// confirmation outside the shared parser and reconciliation layer.
+func loadPlainOverviewSnapshot(
 	ctx context.Context,
 	cmd *cobra.Command,
 	params overviewParams,
-) ([]engine.StateResource, []engine.PlanStep, string, bool, error) {
+	passphrase *string,
+) (*stackload.Snapshot, []engine.ResourceDescriptor, bool, error) {
 	if dir, terraformInput, err := overviewTerraformSource(params); err != nil {
 		if errors.Is(err, ErrNoProjectMarker) {
 			err = toValidationError(ctx, err)
 		}
-		return nil, nil, "", false, err
+		return nil, nil, false, err
 	} else if terraformInput {
-		return loadTerraformOverview(ctx, cmd, params, dir)
+		state, steps, stack, stateOnly, resources, loadErr := loadTerraformOverviewSource(ctx, cmd, params, dir)
+		if loadErr != nil {
+			return nil, nil, false, loadErr
+		}
+		snapshot := &stackload.Snapshot{
+			State: state, Steps: steps, StackName: stack,
+			StateStatus: stackload.Status{Loaded: true},
+			PlanStatus:  stackload.Status{Loaded: !stateOnly},
+		}
+		return snapshot, resources, stateOnly, nil
 	}
 	if params.pulumiState != "" || params.pulumiJSON != "" {
-		// Explicit files provided: load both directly, bypass change detection.
-		// Propagate stateOnly so the caller uses NewRowsFromState when --state-only --pulumi-state is used.
-		sr, ps, sn, err := resolveOverviewData(ctx, params)
-		return sr, ps, sn, params.stateOnly, err
+		stateOnly := params.stateOnly || (params.pulumiState != "" && params.pulumiJSON == "")
+		snapshot, err := loadOverviewSnapshot(ctx, params, passphrase, stateOnly)
+		return snapshot, nil, stateOnly, err
 	}
-
+	snapshot, err := loadOverviewSnapshot(ctx, params, passphrase, true)
+	if err != nil {
+		return nil, nil, false, err
+	}
 	if params.stateOnly {
-		stateResources, _, _, stackName, stateErr := loadStateForOverview(ctx, params, nil)
-		if stateErr != nil {
-			return nil, nil, "", false, stateErr
-		}
-		return stateResources, nil, stackName, true, nil
+		return snapshot, nil, true, nil
 	}
-
-	// Auto-detect mode: state-first loading with optional change detection and prompt.
-	// In plain (non-TUI) mode the passphrase is not prompted; PULUMI_CONFIG_PASSPHRASE
-	// is expected to already be set in the caller's environment.
-	stateResources, manifestTime, projectDir, stackName, stateErr := loadStateForOverview(ctx, params, nil)
-	if stateErr != nil {
-		return nil, nil, "", false, stateErr
-	}
-
-	signal, detectErr := pulumidetect.DetectChanges(ctx, manifestTime, projectDir)
+	signal, detectErr := pulumidetect.DetectChanges(ctx, snapshot.ManifestTime, snapshot.ProjectDir)
 	if detectErr != nil {
-		log := logging.FromContext(ctx)
-		log.Warn().
+		logging.FromContext(ctx).
+			Warn().
 			Ctx(ctx).
 			Str("component", "cli").
 			Str("operation", "overview_plain_init").
@@ -395,206 +372,28 @@ func loadPlainOverviewData(
 			Msg("change detection failed; assuming changes likely")
 		signal = pulumidetect.ChangeSignal{HasLikelyChanges: true}
 	}
-
-	// Determine whether to run preview.
-	// --yes: skip prompt, always run preview.
-	// TTY without --yes: show prompt so user can choose.
-	// Non-TTY without --yes: state-only (no prompt, no preview).
-	skipPrompt := params.yes
 	isTTY := false
 	if f, ok := cmd.OutOrStdout().(fdProvider); ok {
 		isTTY = term.IsTerminal(int(f.Fd()))
 	}
-
-	var shouldRunPreview bool
+	var shouldRun bool
 	if params.yes || isTTY {
-		var promptErr error
-		shouldRunPreview, promptErr = promptForPreview(ctx, cmd.OutOrStdout(), cmd.InOrStdin(), signal, skipPrompt)
-		if promptErr != nil {
-			return nil, nil, stackName, false, promptErr
-		}
-	}
-	// Non-TTY without --yes: shouldRunPreview remains false → state-only.
-
-	if shouldRunPreview {
-		planSteps, planErr := loadPlanForOverview(ctx, params, projectDir, stackName, nil)
-		if planErr != nil {
-			return nil, nil, stackName, false, planErr
-		}
-		return stateResources, planSteps, stackName, false, nil
-	}
-	return stateResources, nil, stackName, true, nil
-}
-
-// loadOverviewFromFiles loads state/plan from explicit file paths.
-func loadOverviewFromFiles(
-	ctx context.Context, params overviewParams,
-) ([]engine.StateResource, []engine.PlanStep, string, error) {
-	log := logging.FromContext(ctx)
-
-	log.Debug().Ctx(ctx).Str("state_path", params.pulumiState).Msg("loading Pulumi state")
-	state, err := ingest.LoadStackExportWithContext(ctx, params.pulumiState)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("loading Pulumi state: %w", err)
-	}
-	stateResources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
-	stackName := extractStackName(params.pulumiState)
-
-	var planSteps []engine.PlanStep
-	if params.pulumiJSON != "" {
-		plan, planErr := ingest.LoadPulumiPlanWithContext(ctx, params.pulumiJSON)
-		if planErr != nil {
-			return nil, nil, "", fmt.Errorf("loading Pulumi plan: %w", planErr)
-		}
-		planSteps = convertPlanSteps(plan.Steps)
-	}
-
-	return stateResources, planSteps, stackName, nil
-}
-
-// exportStateFromProject auto-detects the Pulumi project, runs `pulumi stack export`,
-// parses the result, and returns the state resources plus metadata.
-// passphrase is injected into the subprocess environment only (never [os.Setenv]).
-// It is shared by loadOverviewFromAutoDetect and loadStateForOverview.
-func exportStateFromProject(
-	ctx context.Context, stack string, passphrase *string, capture ...func([]ingest.StackExportResource),
-) ([]engine.StateResource, string, string, string, error) {
-	projectDir, resolvedStack, err := detectPulumiProject(ctx, stack)
-	if err != nil {
-		return nil, "", "", "", fmt.Errorf("auto-detecting Pulumi project: %w", err)
-	}
-
-	resources, manifestTime, err := exportStateForStack(ctx, projectDir, resolvedStack, passphrase, capture...)
-	if err != nil {
-		return nil, "", "", "", err
-	}
-	return resources, manifestTime, projectDir, resolvedStack, nil
-}
-
-// exportStateForStack runs `pulumi stack export` for an already-resolved project and stack
-// and returns the custom state resources plus the manifest time.
-func exportStateForStack(
-	ctx context.Context, projectDir, stack string, passphrase *string,
-	capture ...func([]ingest.StackExportResource),
-) ([]engine.StateResource, string, error) {
-	pt := logging.StartPhase(ctx, "pulumi", "overview", "stack_export")
-	defer pt.Done(ctx)
-
-	exportData, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
-		ProjectDir: projectDir,
-		Stack:      stack,
-		Passphrase: passphrase,
-	})
-	if exportErr != nil {
-		return nil, "", fmt.Errorf("running pulumi stack export: %w", exportErr)
-	}
-	state, parseErr := ingest.ParseStackExportWithContext(ctx, exportData)
-	if parseErr != nil {
-		return nil, "", fmt.Errorf("parsing pulumi stack export: %w", parseErr)
-	}
-	custom := state.GetCustomResourcesWithContext(ctx)
-	for _, observer := range capture {
-		if observer != nil {
-			observer(custom)
-		}
-	}
-	resources := convertStateResources(custom)
-	return resources, state.Deployment.Manifest.Time, nil
-}
-
-// loadOverviewFromAutoDetect discovers the Pulumi project/stack and runs
-// `pulumi stack export` and `pulumi preview --json` concurrently to gather data.
-// The first failure cancels the other command.
-// In the plain (non-TUI) mode no passphrase is prompted; PULUMI_CONFIG_PASSPHRASE
-// is expected to be set in the caller's environment already.
-func loadOverviewFromAutoDetect(
-	ctx context.Context, params overviewParams,
-) ([]engine.StateResource, []engine.PlanStep, string, error) {
-	stateResources, planSteps, _, resolvedStack, err := loadOverviewProjectData(ctx, params, nil)
-	return stateResources, planSteps, resolvedStack, err
-}
-
-// loadOverviewProjectData preserves the project identity for later previews
-// while sharing auto-detection and passphrase handling with the plain CLI.
-// Stack export and preview run concurrently; the first failure cancels the other.
-func loadOverviewProjectData(
-	ctx context.Context, params overviewParams, passphrase *string,
-) ([]engine.StateResource, []engine.PlanStep, string, string, error) {
-	if params.pulumiJSON != "" {
-		if _, err := pulumidetect.FindProject("."); err != nil {
-			state, steps, stack, loadErr := loadOverviewPlanOnly(ctx, params)
-			return state, steps, "", stack, loadErr
-		}
-	}
-	projectDir, resolvedStack, err := detectPulumiProject(ctx, params.stack)
-	if err != nil {
-		return nil, nil, "", "", fmt.Errorf("auto-detecting Pulumi project: %w", err)
-	}
-
-	var (
-		stateResources []engine.StateResource
-		planSteps      []engine.PlanStep
-	)
-
-	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var exportErr error
-		stateResources, _, exportErr = exportStateForStack(gctx, projectDir, resolvedStack, passphrase)
-		return exportErr
-	})
-	g.Go(func() error {
-		pt := logging.StartPhase(gctx, "pulumi", "overview", "preview")
-		defer pt.Done(gctx)
-		var planErr error
-		planSteps, planErr = resolveOverviewPlan(
-			gctx, params.pulumiJSON, projectDir, resolvedStack, passphrase, params.capturePlan,
-		)
-		return planErr
-	})
-	if waitErr := g.Wait(); waitErr != nil {
-		return nil, nil, "", "", waitErr
-	}
-
-	return stateResources, planSteps, projectDir, resolvedStack, nil
-}
-
-// resolveOverviewPlan loads plan steps from a file or runs pulumi preview.
-// passphrase is injected into the subprocess environment only (never [os.Setenv]).
-func resolveOverviewPlan(
-	ctx context.Context, pulumiJSON, projectDir, stack string, passphrase *string,
-	capture func(context.Context, *ingest.PulumiPlan),
-) ([]engine.PlanStep, error) {
-	log := logging.FromContext(ctx)
-
-	if pulumiJSON != "" {
-		plan, err := ingest.LoadPulumiPlanWithContext(ctx, pulumiJSON)
+		shouldRun, err = promptForPreview(ctx, cmd.OutOrStdout(), cmd.InOrStdin(), signal, params.yes)
 		if err != nil {
-			return nil, fmt.Errorf("loading Pulumi plan: %w", err)
+			return nil, nil, false, err
 		}
-		if capture != nil {
-			capture(ctx, plan)
-		}
-		return convertPlanSteps(plan.Steps), nil
 	}
-
-	log.Info().Ctx(ctx).Str("component", "pulumi").Str("operation", "preview").
-		Msg("Running pulumi preview --json (this may take a moment)...")
-	previewData, err := pulumidetect.Preview(ctx, pulumidetect.PreviewOptions{
-		ProjectDir: projectDir,
-		Stack:      stack,
-		Passphrase: passphrase,
-	})
+	if !shouldRun {
+		return snapshot, nil, true, nil
+	}
+	preview, err := stackload.LoadPlan(
+		ctx,
+		stackload.Source{ProjectDir: snapshot.ProjectDir, Stack: snapshot.StackName, Passphrase: passphrase},
+	)
 	if err != nil {
-		return nil, fmt.Errorf("running pulumi preview: %w", err)
+		return nil, nil, false, err
 	}
-	plan, err := ingest.ParsePulumiPlanWithContext(ctx, previewData)
-	if err != nil {
-		return nil, fmt.Errorf("parsing pulumi preview: %w", err)
-	}
-	if capture != nil {
-		capture(ctx, plan)
-	}
-	return convertPlanSteps(plan.Steps), nil
+	return snapshot.WithPlan(preview.Plan), nil, false, nil
 }
 
 // printOverviewSummaryLine prints the pre-flight summary and, on a terminal
@@ -727,57 +526,6 @@ func resolveOverviewDateRange(fromStr, toStr string, now time.Time) (engine.Date
 	return engine.DateRange{Start: from, End: to}, nil
 }
 
-// convertStateResources converts ingest.StackExportResource to engine.StateResource.
-func convertStateResources(resources []ingest.StackExportResource) []engine.StateResource {
-	result := make([]engine.StateResource, len(resources))
-	for i, r := range resources {
-		var createdAt *time.Time
-		if r.Created != nil {
-			t := *r.Created // copy value to avoid aliasing the ingest layer's pointer
-			createdAt = &t
-		}
-		result[i] = engine.StateResource{
-			URN:        r.URN,
-			Type:       r.Type,
-			ID:         r.ID,
-			Custom:     r.Custom,
-			Properties: ingest.MergeProperties(r.Outputs, r.Inputs),
-			CreatedAt:  createdAt,
-			External:   r.External,
-		}
-	}
-	return result
-}
-
-// convertPlanSteps converts ingest.PulumiStep to engine.PlanStep.
-// For update/replace operations, it also extracts property diffs
-// by comparing OldState.Inputs to NewState.Inputs.
-func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
-	result := make([]engine.PlanStep, len(steps))
-	for i, s := range steps {
-		result[i] = engine.PlanStep{
-			URN:  s.URN,
-			Op:   s.Op,
-			Type: s.ResourceType(),
-		}
-		switch s.Op {
-		case "create", "update", overviewOperationReplace, "create-replacement":
-			result[i].ProjectedProperties = projectedPropertiesFromStep(s)
-		}
-		switch s.Op {
-		case "update", overviewOperationReplace, "create-replacement":
-			result[i].PropertyDiffs = diffInputs(s.OldState, s.NewState)
-		}
-		if s.OldState != nil {
-			result[i].OldCloudID = s.OldState.ID
-		}
-		if s.NewState != nil {
-			result[i].NewCloudID = s.NewState.ID
-		}
-	}
-	return result
-}
-
 // diffInputs compares OldState.Inputs and NewState.Inputs from a Pulumi step
 // and returns a sorted slice of PropertyDiff for keys whose values differ.
 func diffInputs(oldState, newState *ingest.PulumiState) []engine.PropertyDiff {
@@ -825,64 +573,6 @@ func diffInputs(oldState, newState *ingest.PulumiState) []engine.PropertyDiff {
 		return diffs[i].Key < diffs[j].Key
 	})
 	return diffs
-}
-
-// projectedPropertiesFromStep builds pricing properties for projected-cost calls
-// by deep-merging old state with new inputs:
-//
-//	deepMerge(oldStateMerged, newState.inputs)
-//
-// This preserves unchanged state-derived fields while applying intended preview
-// changes, avoiding mispricing from "new inputs only" payloads.
-func projectedPropertiesFromStep(step ingest.PulumiStep) map[string]any {
-	var oldMerged map[string]any
-	if step.OldState != nil {
-		oldMerged = ingest.MergeProperties(step.OldState.Outputs, step.OldState.Inputs)
-	}
-
-	var newInputs map[string]any
-	switch {
-	case step.NewState != nil && len(step.NewState.Inputs) > 0:
-		newInputs = step.NewState.Inputs
-	case len(step.Inputs) > 0:
-		newInputs = step.Inputs
-	}
-
-	merged := deepMergeProperties(oldMerged, newInputs)
-	if len(merged) == 0 {
-		return nil
-	}
-	return merged
-}
-
-// deepMergeProperties recursively merges two maps and returns a fresh map.
-// Nested map[string]interface{} values are merged; all other override values
-// replace the base value.
-func deepMergeProperties(base, override map[string]any) map[string]any {
-	if len(base) == 0 && len(override) == 0 {
-		return nil
-	}
-	out := deepCopyProperties(base)
-	if out == nil {
-		out = make(map[string]any, len(override))
-	}
-	for k, v := range override {
-		existing, exists := out[k]
-		out[k] = deepMergeValue(exists, existing, v)
-	}
-	return out
-}
-
-func deepMergeValue(exists bool, baseValue, overrideValue any) any {
-	if !exists {
-		return deepCopyAny(overrideValue)
-	}
-	baseMap, baseIsMap := baseValue.(map[string]any)
-	overrideMap, overrideIsMap := overrideValue.(map[string]any)
-	if baseIsMap && overrideIsMap {
-		return deepMergeProperties(baseMap, overrideMap)
-	}
-	return deepCopyAny(overrideValue)
 }
 
 func deepCopyProperties(in map[string]any) map[string]any {
@@ -1462,45 +1152,6 @@ func runLateOverviewCleanup(enrichDone <-chan struct{}, cleanupChan <-chan func(
 	}
 }
 
-// buildOverviewRows merges state resources with optional plan steps to produce
-// the initial OverviewRow slice. Returns rows, planSteps, hasChanges, changeCount, and any error.
-// planSteps is non-nil only when a preview was run (isStateOnly=false).
-func buildOverviewRows(
-	ctx context.Context,
-	isStateOnly bool,
-	stateResources []engine.StateResource,
-	params overviewParams,
-	projectDir, stackName string,
-	pw *string,
-) ([]engine.OverviewRow, []engine.PlanStep, bool, int, error) {
-	if isStateOnly {
-		return engine.NewRowsFromState(ctx, stateResources), nil, false, 0, nil
-	}
-	planSteps, planErr := loadPlanForOverview(ctx, params, projectDir, stackName, pw)
-	if planErr != nil {
-		return nil, nil, false, 0, planErr
-	}
-	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
-	rows, mergeErr := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
-	if mergeErr != nil {
-		return nil, nil, false, 0, fmt.Errorf("merging resources: %w", mergeErr)
-	}
-	return rows, planSteps, hasChanges, changeCount, nil
-}
-
-// buildPreviewCmd creates a Bubble Tea command that runs pulumi preview in the
-// background, used in state-only mode for on-demand preview loading.
-func buildPreviewCmd(
-	ctx context.Context,
-	params overviewParams,
-	projectDir, stackName string,
-	pw *string,
-) tea.Cmd {
-	return func() tea.Msg {
-		return runBackgroundPreview(ctx, params, projectDir, stackName, pw)
-	}
-}
-
 // launchBudgetFetch starts a goroutine to fetch budgets from plugins.
 // The result channel carries one value and is then closed. The done channel
 // is closed when that goroutine has left GetBudgets, so callers can join it
@@ -1550,104 +1201,6 @@ func sendBudgetResultToTUI(
 		p.Send(tui.BudgetDataReadyMsg{Result: result, Error: err})
 	}
 	_, _ = pipe.deliverBudget(ctx, nil, budgetChan, rows)
-}
-
-// loadStateForOverview loads Pulumi state only (without preview/plan).
-// passphrase is injected into subprocess env only (never [os.Setenv]).
-// Returns stateResources, manifestTime, projectDir, stackName, and any error.
-func loadStateForOverview(
-	ctx context.Context, params overviewParams, passphrase *string,
-) ([]engine.StateResource, string, string, string, error) {
-	if params.pulumiState != "" {
-		// Use explicit file path — no manifest time or project dir available.
-		log := logging.FromContext(ctx)
-		log.Debug().Ctx(ctx).Str("state_path", params.pulumiState).Msg("loading Pulumi state from file")
-		state, err := ingest.LoadStackExportWithContext(ctx, params.pulumiState)
-		if err != nil {
-			return nil, "", "", "", fmt.Errorf("loading Pulumi state: %w", err)
-		}
-		resources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
-		stackName := extractStackName(params.pulumiState)
-		// No manifest time available from file path — treat as unknown.
-		return resources, "", filepath.Dir(params.pulumiState), stackName, nil
-	}
-
-	// Auto-detect project and run pulumi stack export.
-	return exportStateFromProject(ctx, params.stack, passphrase, params.captureState)
-}
-
-// loadPlanForOverview loads plan steps from a file or runs pulumi preview.
-// passphrase is injected into subprocess env only (never [os.Setenv]).
-// This is the preview-path helper used by overviewInitAndEnrich.
-func loadPlanForOverview(
-	ctx context.Context, params overviewParams, projectDir, stack string, passphrase *string,
-) ([]engine.PlanStep, error) {
-	return resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, stack, passphrase, params.capturePlan)
-}
-
-// runBackgroundPreview runs pulumi preview in the background and returns an
-// OverviewChangesReadyMsg with the resulting status map. It is used as a
-// tea.Cmd payload for the on-demand 'p' key handler.
-// passphrase is injected into subprocess env only (never [os.Setenv]).
-// If preview fails, it returns an empty OverviewChangesReadyMsg so the TUI
-// remains usable in state-only mode.
-func runBackgroundPreview(
-	ctx context.Context,
-	params overviewParams,
-	projectDir, stack string,
-	passphrase *string,
-) tui.OverviewChangesReadyMsg {
-	msg, err := runBackgroundPreviewWithError(ctx, params, projectDir, stack, passphrase)
-	if err != nil {
-		logging.FromContext(ctx).
-			Warn().
-			Ctx(ctx).
-			Str("component", "cli").
-			Str("operation", "phased_loading").
-			Msg("background preview failed; remaining in state-only mode")
-	}
-	return msg
-}
-
-func runBackgroundPreviewWithError(
-	ctx context.Context,
-	params overviewParams,
-	projectDir, stack string,
-	passphrase *string,
-) (tui.OverviewChangesReadyMsg, error) {
-	l := logging.FromContext(ctx)
-	previewStart := time.Now()
-
-	planSteps, err := resolveOverviewPlan(
-		ctx, params.pulumiJSON, projectDir, stack, passphrase, params.capturePlan,
-	)
-	if err != nil {
-		return tui.OverviewChangesReadyMsg{}, err
-	}
-
-	l.Info().
-		Ctx(ctx).
-		Str("component", "cli").
-		Str("operation", "phased_loading").
-		Dur("dur", time.Since(previewStart)).
-		Msg("background preview completed")
-
-	// Record plan lineage to history store (fire-and-forget).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
-	recordHistoryPlanLineage(ctx, historyStore, planSteps)
-	historyCleanup()
-
-	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
-	statusByURN := engine.BuildStatusByURN(planSteps)
-	propertyDiffsByURN := engine.BuildPropertyDiffsByURN(planSteps)
-	projectedPropsByURN := engine.BuildProjectedPropertiesByURN(planSteps)
-	return tui.OverviewChangesReadyMsg{
-		StatusByURN:         statusByURN,
-		PropertyDiffsByURN:  propertyDiffsByURN,
-		ProjectedPropsByURN: projectedPropsByURN,
-		HasChanges:          hasChanges,
-		ChangeCount:         changeCount,
-	}, nil
 }
 
 // shortErrMsg returns a short (≤60 char) representation of err suitable for
@@ -1915,23 +1468,6 @@ func runOverviewPipeline(ctx context.Context, pipe *OverviewPipeline) error {
 	return pipe.Run(ctx)
 }
 
-// loadOverviewPlanOnly accepts an explicit preview without requiring Pulumi
-// installation or a project. Project launches still merge exported state.
-func loadOverviewPlanOnly(
-	ctx context.Context,
-	params overviewParams,
-) ([]engine.StateResource, []engine.PlanStep, string, error) {
-	plan, err := ingest.LoadPulumiPlanWithContext(ctx, params.pulumiJSON)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("loading Pulumi plan: %w", err)
-	}
-	stack := params.stack
-	if stack == "" {
-		stack = extractStackName(params.pulumiJSON)
-	}
-	return nil, convertPlanSteps(plan.Steps), stack, nil
-}
-
 // overviewTerraformSource selects Terraform only for CLI overview inputs. Explicit
 // Pulumi files preserve the existing state-and-preview behavior.
 func overviewTerraformSource(params overviewParams) (string, bool, error) {
@@ -1948,11 +1484,11 @@ func overviewTerraformSource(params overviewParams) (string, bool, error) {
 	return source.Dir, source.Kind == ProjectKindTerraform, nil
 }
 
-// loadTerraformOverview adapts plan descriptors into the overview merge contract.
+// loadTerraformOverviewSource adapts plan descriptors into the overview merge contract.
 // Non-create resources supply their before properties as the current state.
-func loadTerraformOverview(
+func loadTerraformOverviewSource(
 	ctx context.Context, cmd *cobra.Command, params overviewParams, dir string,
-) ([]engine.StateResource, []engine.PlanStep, string, bool, error) {
+) ([]engine.StateResource, []engine.PlanStep, string, bool, []engine.ResourceDescriptor, error) {
 	var resources []engine.ResourceDescriptor
 	var err error
 	switch {
@@ -1967,9 +1503,9 @@ func loadTerraformOverview(
 		if params.terraformPlan != "" || params.terraformState != "" {
 			err = toValidationError(ctx, err)
 		}
-		return nil, nil, "", false, err
+		return nil, nil, "", false, nil, err
 	}
-	capturedResources := resources
+	originalResources := resources
 	if params.terraformState == "" && terraformPlanUnchanged(resources) {
 		resources = nil
 	}
@@ -2002,16 +1538,13 @@ func loadTerraformOverview(
 		}
 		steps = append(steps, step)
 	}
-	if params.captureTerraform != nil {
-		params.captureTerraform(ctx, capturedResources, steps)
-	}
 	label := filepath.Base(dir)
 	if params.terraformPlan != "" {
 		label = filepath.Base(params.terraformPlan)
 	} else if params.terraformState != "" {
 		label = filepath.Base(params.terraformState)
 	}
-	return state, steps, label, params.terraformState != "", nil
+	return state, steps, label, params.terraformState != "", originalResources, nil
 }
 
 func overviewUsesTerraform(params overviewParams) bool {
@@ -2028,4 +1561,51 @@ func terraformOverviewCloudID(resource engine.ResourceDescriptor) string {
 		}
 	}
 	return ""
+}
+
+// loadOverviewSnapshot keeps project discovery at the CLI boundary; parsing and
+// reconciliation belong to the shared loader.
+func loadOverviewSnapshot(
+	ctx context.Context,
+	params overviewParams,
+	passphrase *string,
+	stateOnly bool,
+) (*stackload.Snapshot, error) {
+	source := stackload.Source{
+		StatePath:   params.pulumiState,
+		PlanPath:    params.pulumiJSON,
+		Stack:       params.stack,
+		Passphrase:  passphrase,
+		SkipPreview: stateOnly,
+	}
+	if source.StatePath == "" && source.PlanPath != "" {
+		// A saved preview remains usable even when optional project state cannot
+		// be read. Export selects the current stack when --stack is omitted;
+		// the shared loader classifies any failure without exposing backend text.
+		source.ProjectDir, _ = pulumidetect.FindProject(".")
+	}
+	if source.StatePath == "" && source.PlanPath == "" {
+		dir, stack, err := detectPulumiProject(ctx, source.Stack)
+		if err != nil {
+			return nil, fmt.Errorf("auto-detecting Pulumi project: %w", err)
+		}
+		source.ProjectDir, source.Stack = dir, stack
+	}
+	var snapshot *stackload.Snapshot
+	var err error
+	if stateOnly {
+		snapshot, err = stackload.LoadState(ctx, source)
+	} else {
+		snapshot, err = stackload.Load(ctx, source)
+	}
+	if err != nil {
+		return nil, err
+	}
+	// Explicit export files retain the overview's existing display name. The
+	// stack flag is still used for subprocess calls and on-demand preview.
+	if source.StatePath != "" {
+		snapshot.StackName = extractStackName(source.StatePath)
+		snapshot.ManifestTime = ""
+	}
+	return snapshot, nil
 }

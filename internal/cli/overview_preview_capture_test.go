@@ -19,24 +19,33 @@ import (
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
+	"github.com/rshade/finfocus/internal/stackload"
 )
 
-func TestRunBackgroundPreviewCapturesPlan(t *testing.T) {
+func TestBackgroundPreviewPublishesSnapshot(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-
-	var got int
-	params := overviewParams{
-		cfg:        &config.Config{},
-		pulumiJSON: "../../test/fixtures/estimate/preview-urn.json",
-		capturePlan: func(_ context.Context, plan *ingest.PulumiPlan) {
-			got = len(plan.GetResources())
-		},
-	}
-	msg, err := runBackgroundPreviewWithError(context.Background(), params, "", "", nil)
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	params := overviewParams{cfg: &config.Config{}, pulumiJSON: "../../test/fixtures/estimate/preview-urn.json"}
+	pipe := newOverviewPipeline(overviewPipelineConfig{params: params})
+	base := &stackload.Snapshot{StackName: "dev", StateStatus: stackload.Status{Loaded: true}}
+	pipe.result.Snapshot = base
+	data := newWebData(&cobra.Command{}, params, engine.DateRange{}, nil)
+	require.NoError(t, data.setPipelineSource(context.Background(), pipe.Result()))
+	before, err := data.estimateResources(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, 1, got)
+	assert.Empty(t, before)
+	msg, _, err := pipe.previewAttempt(context.Background(), pipe.Result(), false)
+	require.NoError(t, err)
 	assert.Contains(t, msg.StatusByURN, "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance")
+	assert.Nil(t, base.Plan)
+	require.NotNil(t, pipe.Result().Snapshot.Plan)
+	assert.NotSame(t, base, pipe.Result().Snapshot)
+	require.NoError(t, data.setPipelineSource(context.Background(), pipe.Result()))
+	after, err := data.estimateResources(context.Background())
+	require.NoError(t, err)
+	require.Len(t, after, 1)
+	assert.Equal(t, "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance", after[0].ID)
 }
 
 func TestAppendPreviewRowsAddsPlanOnlyCreate(t *testing.T) {
@@ -47,7 +56,7 @@ func TestAppendPreviewRowsAddsPlanOnlyCreate(t *testing.T) {
 	)
 	require.NoError(t, err)
 	data := &webData{gate: make(chan struct{}, 1)}
-	data.capturePlan(context.Background(), plan)
+	publishWebTestPlan(context.Background(), t, data, plan)
 
 	existing := "urn:pulumi:dev::proj::aws:s3/bucket:Bucket::logs"
 	rows, err := data.appendPreviewRows(context.Background(), []engine.OverviewRow{{
@@ -69,7 +78,7 @@ func TestAppendPreviewRowsKeepsExistingURN(t *testing.T) {
 	)
 	require.NoError(t, err)
 	data := &webData{gate: make(chan struct{}, 1)}
-	data.capturePlan(context.Background(), plan)
+	publishWebTestPlan(context.Background(), t, data, plan)
 	urn := "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance"
 	rows, err := data.appendPreviewRows(context.Background(), []engine.OverviewRow{{
 		URN: urn, Type: "aws:ec2/instance:Instance", Status: engine.StatusUpdating,
@@ -123,7 +132,7 @@ func TestAppendPreviewRowsAppendsOnlyPlanCreates(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			data := &webData{gate: make(chan struct{}, 1)}
-			data.capturePlan(context.Background(), plan)
+			publishWebTestPlan(context.Background(), t, data, plan)
 			rows, err := data.appendPreviewRows(context.Background(), tt.existing)
 			require.NoError(t, err)
 			got := make([]string, 0, len(rows))
@@ -164,8 +173,8 @@ func TestAppendPreviewRowsPricesPlanOnlyCreatesWithZeroDeployedResources(t *test
 	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: &previewPricingClient{}}}, nil).
 		WithDismissalStore(isolatedDismissalStore(t))
 	data.loadDismissals = nil
-	data.captureState(nil)
-	data.capturePlan(context.Background(), plan)
+	publishWebTestState(t, data, nil)
+	publishWebTestPlan(context.Background(), t, data, plan)
 
 	rows, err := data.appendPreviewRows(context.Background(), nil)
 	require.NoError(t, err)
@@ -178,33 +187,29 @@ func TestAppendPreviewRowsPricesPlanOnlyCreatesWithZeroDeployedResources(t *test
 
 	rows[0].Properties["instanceType"] = "changed"
 	assert.Equal(t, "t3.micro", inputs["instanceType"])
-	assert.Equal(t, "t3.micro", data.planned[0].Properties["instanceType"])
+	assert.Equal(t, "t3.micro", data.snapshot.Descriptors()[0].Properties["instanceType"])
 }
 
-func TestCapturePlanHonorsCancellationWhileGateHeld(t *testing.T) {
+func TestPublishSnapshotHonorsCancellationWhileGateHeld(t *testing.T) {
 	t.Parallel()
 
 	data := &webData{gate: make(chan struct{}, 1)}
 	data.gate <- struct{}{}
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		defer close(done)
-		data.capturePlan(ctx, &ingest.PulumiPlan{Steps: []ingest.PulumiStep{
-			{URN: "a", Type: "aws:s3/bucket:Bucket", Op: "create"},
-		}})
+		plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{{URN: "a", Type: "aws:s3/bucket:Bucket", Op: "create"}}}
+		snapshot := (&stackload.Snapshot{}).WithPlan(plan)
+		done <- data.setPipelineSource(ctx, OverviewPipelineResult{Snapshot: snapshot})
 	}()
 	cancel()
-	require.Eventually(t, func() bool {
-		select {
-		case <-done:
-			return true
-		default:
-			return false
-		}
-	}, 5*time.Second, time.Millisecond)
-	assert.Empty(t, data.planned)
-	assert.Empty(t, data.planSteps)
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "snapshot publication did not cancel")
+	}
+	assert.Nil(t, data.snapshot)
 	assert.Len(t, data.gate, 1)
 }
 
@@ -245,8 +250,8 @@ func TestAppendPreviewRowsHoldsQueryGateWhilePricing(t *testing.T) {
 	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: client}}, nil).
 		WithDismissalStore(isolatedDismissalStore(t))
 	data.loadDismissals = nil
-	data.captureState(nil)
-	data.capturePlan(context.Background(), plan)
+	publishWebTestState(t, data, nil)
+	publishWebTestPlan(context.Background(), t, data, plan)
 
 	done := make(chan error, 1)
 	go func() {
@@ -285,7 +290,7 @@ func TestAppendPreviewRowsAppliesLaunchFilters(t *testing.T) {
 		cfg: &config.Config{}, filter: []string{"provider=aws"},
 	}, engine.DateRange{}, nil)
 	data.loadDismissals = nil
-	data.capturePlan(context.Background(), plan)
+	publishWebTestPlan(context.Background(), t, data, plan)
 
 	rows, err := data.appendPreviewRows(context.Background(), nil)
 	require.NoError(t, err)
@@ -319,7 +324,7 @@ func TestAppendPreviewRowsAppliesDismissalDelta(t *testing.T) {
 			},
 		}
 	}
-	data.capturePlan(context.Background(), plan)
+	publishWebTestPlan(context.Background(), t, data, plan)
 
 	rows, err := data.appendPreviewRows(context.Background(), nil)
 	require.NoError(t, err)
@@ -366,8 +371,8 @@ func TestAppendPreviewRowsReportsPricingFailure(t *testing.T) {
 	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: &partialPricingClient{}}}, nil).
 		WithDismissalStore(isolatedDismissalStore(t))
 	data.loadDismissals = nil
-	data.captureState(nil)
-	data.capturePlan(context.Background(), plan)
+	publishWebTestState(t, data, nil)
+	publishWebTestPlan(context.Background(), t, data, plan)
 
 	rows, err := data.appendPreviewRows(context.Background(), nil)
 	require.ErrorIs(t, err, errPreviewPricing)

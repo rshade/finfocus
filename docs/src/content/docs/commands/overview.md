@@ -6,6 +6,13 @@ description: Unified cost dashboard combining state, plan, actual costs, project
 Display a unified cost dashboard combining Pulumi state and plan data with actual
 costs, projected costs, drift analysis, and recommendations.
 
+For Pulumi projects, overview, `cost projected`, `cost estimate`, and
+`cost recommendations` share one loading step that combines deployed state
+with the preview. Unchanged deployed resources and preview-only creates appear
+in the live inventory, and the preview takes precedence for resources present
+in both. `cost projected` keeps its plan total and reports the full inventory
+separately as the stack total. The terminal and web views use the same snapshot.
+
 ## Usage
 
 ```bash

@@ -143,7 +143,10 @@ func assertESCFallback(t *testing.T, tc escFallbackCase) {
 func TestESCNoEnvironmentMakesNoRequests(t *testing.T) {
 	t.Cleanup(pulumidetect.SetRunnerForTest(escCLIRunner{t: t}))
 	api := esctest.New("tok", map[string]*esctest.Environment{
-		"acme/billing/prod": {ETag: "e1", Variables: map[string]esctest.Variable{"TOKEN": {Value: escFixtureSecret}}},
+		"acme/billing/prod": {
+			ETag:      "e1",
+			Variables: map[string]esctest.Variable{"TOKEN": {Value: escFixtureSecret}},
+		},
 	})
 	t.Cleanup(api.Close)
 	home := t.TempDir()
@@ -166,7 +169,10 @@ func TestESCNoEnvironmentMakesNoRequests(t *testing.T) {
 func TestESCNoPluginMakesNoRequests(t *testing.T) {
 	t.Cleanup(pulumidetect.SetRunnerForTest(escCLIRunner{t: t}))
 	api := esctest.New("tok", map[string]*esctest.Environment{
-		"acme/billing/prod": {ETag: "e1", Variables: map[string]esctest.Variable{"TOKEN": {Value: escFixtureSecret}}},
+		"acme/billing/prod": {
+			ETag:      "e1",
+			Variables: map[string]esctest.Variable{"TOKEN": {Value: escFixtureSecret}},
+		},
 	})
 	t.Cleanup(api.Close)
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
@@ -190,7 +196,15 @@ func TestEmptyESCDeliveryMatchesNoSource(t *testing.T) {
 	ctx := esc.WithSource(context.Background(), esc.NewSource(esc.Options{
 		Budget: 1, Getenv: func(string) string { return "" },
 	}))
-	with := pluginhost.ResolveDeliveredEnv(ctx, "recorder", parent, nil, nil, settings, esc.Delivery{})
+	with := pluginhost.ResolveDeliveredEnv(
+		ctx,
+		"recorder",
+		parent,
+		nil,
+		nil,
+		settings,
+		esc.Delivery{},
+	)
 	without := pluginhost.ResolveDeliveredEnv(
 		context.Background(),
 		"recorder",
@@ -218,8 +232,18 @@ func runProjectedIn(t *testing.T, dir, plan string) axtest.Result {
 func escWriteProject(t *testing.T, stackYAML string) string {
 	t.Helper()
 	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte("name: demo\nruntime: yaml\n"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.dev.yaml"), []byte(stackYAML), 0o600))
+	require.NoError(
+		t,
+		os.WriteFile(
+			filepath.Join(dir, "Pulumi.yaml"),
+			[]byte("name: demo\nruntime: yaml\n"),
+			0o600,
+		),
+	)
+	require.NoError(
+		t,
+		os.WriteFile(filepath.Join(dir, "Pulumi.dev.yaml"), []byte(stackYAML), 0o600),
+	)
 	return dir
 }
 
@@ -234,7 +258,15 @@ type escCLIRunner struct {
 	t *testing.T
 }
 
-func (r escCLIRunner) Run(context.Context, string, string, []string, ...string) ([]byte, []byte, error) {
+func (r escCLIRunner) Run(
+	_ context.Context,
+	_, _ string,
+	_ []string,
+	args ...string,
+) ([]byte, []byte, error) {
+	if strings.Contains(strings.Join(args, " "), "stack export") {
+		return []byte(`{"version":3,"deployment":{"resources":[]}}`), nil, nil
+	}
 	r.t.Fatal("pulumi CLI was invoked")
 	return nil, nil, nil
 }
@@ -251,7 +283,12 @@ func installRecorderPlugin(t *testing.T, home string) {
 		name += ".exe"
 	}
 	build := exec.CommandContext(
-		context.Background(), "go", "build", "-o", filepath.Join(dir, name), "./plugins/recorder/cmd",
+		context.Background(),
+		"go",
+		"build",
+		"-o",
+		filepath.Join(dir, name),
+		"./plugins/recorder/cmd",
 	)
 	build.Dir = root
 	output, err := build.CombinedOutput()

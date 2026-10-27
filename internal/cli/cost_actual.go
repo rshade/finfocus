@@ -15,9 +15,9 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
-	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/resourcetype"
+	"github.com/rshade/finfocus/internal/stackload"
 )
 
 const (
@@ -390,9 +390,14 @@ func renderActualCostOutput(
 	// Check if we need cross-provider aggregation
 	groupByType := engine.GroupBy(actualGroupBy)
 	if groupByType.IsTimeBasedGrouping() {
-		aggregations, err := engine.CreateCrossProviderAggregation(results, groupByType)
-		if err != nil {
-			return fmt.Errorf("creating cross-provider aggregation: %w", err)
+		// Nothing deployed (a first deploy) has no periods, as the web Cost view shows.
+		aggregations := []engine.CrossProviderAggregation{}
+		if len(results) > 0 {
+			var err error
+			aggregations, err = engine.CreateCrossProviderAggregation(results, groupByType)
+			if err != nil {
+				return fmt.Errorf("creating cross-provider aggregation: %w", err)
+			}
 		}
 		return engine.RenderCrossProviderAggregation(
 			writer,
@@ -464,36 +469,12 @@ func loadResourcesFromState(
 	statePath string,
 	audit *auditContext,
 ) ([]engine.ResourceDescriptor, error) {
-	log := logging.FromContext(ctx)
-
-	log.Debug().Ctx(ctx).Str("component", "cli").Str("state_path", statePath).
-		Msg("loading resources from Pulumi state")
-
-	state, err := ingest.LoadStackExportWithContext(ctx, statePath)
+	snapshot, err := stackload.LoadState(ctx, stackload.Source{StatePath: statePath})
 	if err != nil {
-		log.Error().Ctx(ctx).Err(err).Str("state_path", statePath).
-			Msg("failed to load state file")
 		audit.logFailure(ctx, err)
 		return nil, fmt.Errorf("loading Pulumi state: %w", err)
 	}
-
-	customResources := state.GetCustomResourcesWithContext(ctx)
-	if len(customResources) == 0 {
-		log.Warn().Ctx(ctx).Msg("no custom resources found in state")
-		return []engine.ResourceDescriptor{}, nil
-	}
-
-	resources, mapErr := ingest.MapStateResources(customResources)
-	if mapErr != nil {
-		log.Error().Ctx(ctx).Err(mapErr).Msg("failed to map state resources")
-		audit.logFailure(ctx, mapErr)
-		return nil, fmt.Errorf("mapping state resources: %w", mapErr)
-	}
-
-	log.Debug().Ctx(ctx).Int("resource_count", len(resources)).
-		Msg("loaded resources from state")
-
-	return resources, nil
+	return snapshot.DeployedDescriptors(), nil
 }
 
 // buildActualAuditParams constructs a map of audit parameters from the provided costActualParams.
@@ -521,10 +502,11 @@ func buildActualAuditParams(params costActualParams) map[string]string {
 
 // loadActualResources loads resource descriptors for the actual-cost command.
 // It chooses the source based on params:
-// - If params.terraformState is set, it loads and maps resources from the given Terraform state file.
-// - If params.statePath is set, it loads resources from the given Pulumi state file.
-// - If params.planPath is set, it loads and maps resources from the given Pulumi plan JSON.
-// - Otherwise it auto-detects resources from the current Pulumi project, using the value of the command's --stack flag.
+//   - If params.terraformState is set, it loads and maps resources from the given Terraform state file.
+//   - If params.statePath is set, it loads resources from the given Pulumi state file.
+//   - If params.planPath is set, it loads the plan through the shared stack loader: the deployed
+//     resources when the surrounding project's state can be read, otherwise the plan's resources.
+//   - Otherwise it auto-detects resources from the current Pulumi project, using the value of the command's --stack flag.
 //
 // Parameters:
 //   - ctx: request context used for logging and cancellation.
@@ -552,23 +534,17 @@ func loadActualResources(
 	}
 
 	if params.planPath != "" {
-		// Load from Pulumi plan
-		plan, err := ingest.LoadPulumiPlanWithContext(ctx, params.planPath)
-		if err != nil {
-			log.Error().Ctx(ctx).Err(err).Str("plan_path", params.planPath).
-				Msg("failed to load Pulumi plan")
-			audit.logFailure(ctx, err)
-			return nil, fmt.Errorf("loading Pulumi plan: %w", err)
+		src, err := buildStackSource(ctx, cmd, params.planPath, "")
+		if err == nil {
+			var snapshot *stackload.Snapshot
+			if snapshot, err = stackload.Load(ctx, src); err == nil {
+				return snapshot.ActualDescriptors(), nil
+			}
 		}
-
-		resources, err := ingest.MapResources(plan.GetResourcesWithContext(ctx))
-		if err != nil {
-			log.Error().Ctx(ctx).Err(err).Msg("failed to map resources")
-			audit.logFailure(ctx, err)
-			return nil, fmt.Errorf("mapping resources: %w", err)
-		}
-
-		return resources, nil
+		log.Error().Ctx(ctx).Err(err).Str("plan_path", params.planPath).
+			Msg("failed to load Pulumi plan")
+		audit.logFailure(ctx, err)
+		return nil, err
 	}
 
 	// Auto-detect from Pulumi project (neither --pulumi-json nor --pulumi-state provided)
@@ -583,7 +559,7 @@ func loadActualResources(
 	if err != nil {
 		return nil, fmt.Errorf("reading --stack flag: %w", err)
 	}
-	return resolveResourcesFromPulumi(ctx, stackFlag, modePulumiExport)
+	return resolveResourcesFromPulumi(ctx, stackFlag)
 }
 
 // resolveFromDate determines the RFC3339-formatted start date ("from") to use for the actual cost

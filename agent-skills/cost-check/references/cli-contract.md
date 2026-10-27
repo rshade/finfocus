@@ -22,7 +22,7 @@ against a binary built from the `v0.5.0` line. A test in
 | --- | --- |
 | `--pulumi-json <file>` | Pulumi `preview --json` output. Omit it to auto-detect the project and run `pulumi preview --json`. |
 | `--terraform-state <file>` | Terraform state file. Mutually exclusive with `--pulumi-json`. |
-| `--stack <name>` | Stack for auto-detection. Ignored with `--pulumi-json`. |
+| `--stack <name>` | Stack for detected project state and preview, including when a saved preview is supplied. |
 | `--output json` | Machine output. Values: `table`, `json`, `ndjson`. |
 | `--adapter <name>` | Use one plugin only. |
 | `--filter <expr>` | Resource filter, for example `type=aws:ec2/instance`. |
@@ -38,10 +38,15 @@ against a binary built from the `v0.5.0` line. A test in
 
 | Path | Meaning |
 | --- | --- |
-| `finfocus.summary.totalMonthly` | Total projected monthly cost. |
+| `finfocus.summary.totalMonthly` | Plan total; budgets and exit codes use this value. |
 | `finfocus.summary.currency` | Currency code. |
 | `finfocus.summary.byProvider`, `byService`, `byAdapter` | Totals keyed by provider, service, and plugin. |
 | `finfocus.resources[]` | One row per resource. Use this array, not `summary.resources`. |
+| `finfocus.emptyPlan` | True when no plan-origin resource is priceable. Use this flag for `empty-plan`, even if state supplies a stack total. |
+| `finfocus.stack.totalMonthly`, `currency`, `resources` | Pulumi stack total, currency, and resource count, including unchanged deployed resources. Separate from the plan total. |
+| `finfocus.stack.complete`, `incompleteReason` | Whether state was read; otherwise a safe reason: `not_requested`, `backend_unreachable`, `passphrase_required`, or `read_failed`. An incomplete stack total equals the plan total. |
+| `finfocus.stack.omittedUnchanged` | Unchanged resource count omitted by the preview. Absent when zero. |
+| `finfocus.stack.unchanged[]` | State-added unchanged resources and their monthly costs, possibly with `error`. Absent when empty or state is unavailable. |
 | `resources[].resourceType`, `resourceId` | Pulumi type token and URN, or the Terraform address. |
 | `resources[].monthly`, `hourly` | Projected cost of the resource after the change. |
 | `resources[].error` | Absent when priced. Otherwise `{code, message, resourceType}`. |

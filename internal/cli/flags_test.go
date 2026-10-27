@@ -140,14 +140,9 @@ func TestFlags_GroupBy_Values(t *testing.T) {
 
 			err := cmd.Execute()
 
-			// Time-based grouping (daily/monthly) requires actual cost results
-			// Without plugins, this fails with "empty results" error
-			if groupBy == "daily" || groupBy == "monthly" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "empty results")
-			} else {
-				require.NoError(t, err, "GroupBy value %s should be valid", groupBy)
-			}
+			// Without plugins there are no results; every grouping reports that
+			// as an empty result rather than an error.
+			require.NoError(t, err, "GroupBy value %s should be valid", groupBy)
 		})
 	}
 }

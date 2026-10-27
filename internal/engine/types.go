@@ -27,12 +27,24 @@ const (
 	maxErrorsToDisplay = 5
 )
 
+// DescriptorOrigin identifies the inventory source of a resource descriptor.
+type DescriptorOrigin uint8
+
+const (
+	// OriginPlan preserves plan membership for existing descriptor callers.
+	OriginPlan DescriptorOrigin = iota
+	// OriginState identifies unchanged inventory appended from stack state.
+	OriginState
+)
+
 // ResourceDescriptor represents a cloud resource with its type, provider, and properties.
 type ResourceDescriptor struct {
-	Type       string         `json:"type"`
-	ID         string         `json:"id"`
-	Provider   string         `json:"provider"`
-	Properties map[string]any `json:"properties"`
+	// Origin is internal inventory metadata and is never sent in JSON.
+	Origin     DescriptorOrigin `json:"-"`
+	Type       string           `json:"type"`
+	ID         string           `json:"id"`
+	Provider   string           `json:"provider"`
+	Properties map[string]any   `json:"properties"`
 	// Refs maps an input property name to the Pulumi URNs that produced that
 	// property. Empty lists are omitted. Nil when the resource has no
 	// cross-resource references. ID remains the resource's own URN.

@@ -86,6 +86,10 @@ Results are paged at 250 rows.
 
 ### Recommendations controls
 
+Recommendations use the same live inventory as `finfocus cost recommendations`:
+preview resources plus unchanged deployed resources, including preview-only
+creates. A resource present in both state and preview uses the preview version.
+
 | Control | Effect |
 | --- | --- |
 | Filter | Filters by resource, action, or description. |
@@ -97,6 +101,10 @@ Dismissed recommendations are hidden by default. The browser cannot dismiss,
 snooze, or undismiss a recommendation. Results are paged at 250 rows.
 
 ### Estimate controls
+
+The resource picker uses the same live inventory as `finfocus cost estimate`,
+including unchanged deployed resources and preview-only creates. Estimate and
+Recommendations read the shared snapshot used by Overview.
 
 | Control | Effect |
 | --- | --- |

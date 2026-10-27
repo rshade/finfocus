@@ -1,0 +1,43 @@
+{
+  "steps": [
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::test-stack::pulumi:pulumi:Stack::test-stack-dev",
+      "newState": {
+        "urn": "urn:pulumi:dev::test-stack::pulumi:pulumi:Stack::test-stack-dev",
+        "type": "pulumi:pulumi:Stack"
+      },
+      "oldState": {
+        "urn": "urn:pulumi:dev::test-stack::pulumi:pulumi:Stack::test-stack-dev",
+        "type": "pulumi:pulumi:Stack"
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::test-stack::aws:ec2/instance:Instance::new",
+      "newState": {
+        "urn": "urn:pulumi:dev::test-stack::aws:ec2/instance:Instance::new",
+        "type": "aws:ec2/instance:Instance",
+        "provider": "urn:pulumi:dev::test-stack::pulumi:providers:aws::default_us-east-1",
+        "inputs": {
+          "ami": "ami-0123456789abcdef0",
+          "instanceType": "t3.large",
+          "tags": {
+            "Name": "web-server",
+            "Environment": "dev"
+          }
+        },
+        "outputs": {
+          "arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0",
+          "instanceType": "t3.medium",
+          "publicIp": "54.123.45.67",
+          "privateIp": "10.0.1.100"
+        }
+      }
+    }
+  ],
+  "changeSummary": {
+    "same": 1,
+    "create": 1
+  }
+}

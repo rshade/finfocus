@@ -16,7 +16,12 @@ import (
 // JSON keeps finfocus.summary.totalMonthly as the after total and adds
 // finfocus.diff. NDJSON writes one DiffEntry per line. showBreakdown adds
 // component sub-rows under the after cost and is ignored for JSON and NDJSON.
-func RenderProjectedDiff(w io.Writer, format OutputFormat, diff *DiffResult, showBreakdown bool) error {
+func RenderProjectedDiff(
+	w io.Writer,
+	format OutputFormat,
+	diff *DiffResult,
+	showBreakdown bool,
+) error {
 	if diff == nil {
 		return fmt.Errorf("rendering projected cost diff: %w", ErrEmptyResults)
 	}
@@ -39,7 +44,26 @@ func displayedProfile(profile string) string {
 	return profile
 }
 
+// NoChangesStackSummary is the explanation for a plan with nothing to price
+// when a complete stack total exists. ok is false in every other case.
+func NoChangesStackSummary(diff *DiffResult) (string, bool) {
+	if diff == nil || !diff.IncludeStack || !diff.EmptyPlan || !diff.Summary.StackComplete {
+		return "", false
+	}
+	return fmt.Sprintf(
+		"No changes. Projected monthly cost is zero.\nStack total: %s across %d unchanged resources.\n",
+		formatDiffMonthly(diff.Summary.StackTotal, diff.Summary.StackCurrency),
+		diff.Summary.StackResources,
+	), true
+}
+
 func renderDiffTable(w io.Writer, diff *DiffResult, showBreakdown bool) error {
+	if summary, ok := NoChangesStackSummary(diff); ok {
+		if _, err := io.WriteString(w, summary); err != nil {
+			return err
+		}
+		return writeDiffErrors(w, displayedDiffErrors(diff))
+	}
 	tw := tabwriter.NewWriter(w, 0, 0, defaultTabPadding, ' ', 0)
 	fmt.Fprintf(tw, "Profile: %s\n", displayedProfile(diff.Profile))
 	fmt.Fprintln(tw, "COST DIFF")
@@ -54,11 +78,48 @@ func renderDiffTable(w io.Writer, diff *DiffResult, showBreakdown bool) error {
 	for i := range diff.Entries {
 		writeDiffRow(tw, &diff.Entries[i], showBreakdown)
 	}
+	if diff.IncludeStack && diff.Summary.StackComplete {
+		if len(diff.StackUnchanged) > 0 {
+			fmt.Fprintln(tw, "\nUNCHANGED RESOURCES (not in the plan total)")
+			fmt.Fprintln(tw, "OP\tRESOURCE\tBEFORE\tAFTER\tCHANGE\tCURRENCY")
+			for i := range diff.StackUnchanged {
+				writeDiffRow(tw, &diff.StackUnchanged[i], showBreakdown)
+			}
+		}
+		fmt.Fprintf(
+			tw,
+			"Stack total: %s across %d resources (plan total %s)\n",
+			formatDiffMonthly(
+				diff.Summary.StackTotal,
+				diff.Summary.StackCurrency,
+			),
+			diff.Summary.StackResources,
+			formatDiffMonthly(diff.Summary.TotalAfter, diff.Summary.Currency),
+		)
+	}
 	renderSustainabilitySummary(context.Background(), tw, AggregateResults(diff.AfterCosts()))
 	if err := tw.Flush(); err != nil {
 		return err
 	}
-	return writeDiffErrors(w, diff.Errors)
+	return writeDiffErrors(w, displayedDiffErrors(diff))
+}
+
+// displayedDiffErrors adds state-origin failures only when the stack section is shown.
+func displayedDiffErrors(diff *DiffResult) []ErrorDetail {
+	if !diff.IncludeStack || !diff.Summary.StackComplete || len(diff.StackErrors) == 0 {
+		return diff.Errors
+	}
+	return append(append([]ErrorDetail{}, diff.Errors...), diff.StackErrors...)
+}
+
+func formatDiffMonthly(amount float64, currency string) string {
+	if currency == defaultCurrency {
+		return fmt.Sprintf("$%.2f/mo", amount)
+	}
+	if currency == "" {
+		return fmt.Sprintf("%.2f (mixed currencies)/mo", amount)
+	}
+	return fmt.Sprintf("%.2f %s/mo", amount, currency)
 }
 
 func writeDiffRow(w io.Writer, entry *DiffEntry, showBreakdown bool) {
@@ -147,7 +208,18 @@ type projectedDiffResource struct {
 	PricingSpec   *PricingSpecView `json:"pricing_spec,omitempty"`
 }
 
+type projectedStackDocument struct {
+	TotalMonthly     float64      `json:"totalMonthly"`
+	Currency         string       `json:"currency"`
+	Resources        int          `json:"resources"`
+	Complete         bool         `json:"complete"`
+	IncompleteReason string       `json:"incompleteReason,omitempty"`
+	OmittedUnchanged int          `json:"omittedUnchanged,omitempty"`
+	Unchanged        []CostResult `json:"unchanged,omitempty"`
+}
+
 type projectedDiffDocument struct {
+	Stack     *projectedStackDocument `json:"stack,omitempty"`
 	Summary   CostSummary             `json:"summary"`
 	Resources []projectedDiffResource `json:"resources"`
 	Diff      DiffSummary             `json:"diff"`
@@ -174,6 +246,22 @@ func renderDiffJSON(w io.Writer, diff *DiffResult) error {
 		EmptyPlan: diff.EmptyPlan,
 		Profile:   displayedProfile(diff.Profile),
 		Errors:    diffErrorsJSON(diff.Errors),
+	}
+	if diff.IncludeStack {
+		doc.Stack = &projectedStackDocument{
+			TotalMonthly: diff.Summary.StackTotal, Currency: diff.Summary.StackCurrency,
+			Resources: diff.Summary.StackResources, Complete: diff.Summary.StackComplete,
+			IncompleteReason: diff.Summary.StackIncompleteReason,
+			OmittedUnchanged: diff.Summary.OmittedUnchanged,
+		}
+		if diff.Summary.StackComplete {
+			doc.Stack.IncompleteReason = ""
+			for _, entry := range diff.StackUnchanged {
+				if entry.After != nil {
+					doc.Stack.Unchanged = append(doc.Stack.Unchanged, *entry.After)
+				}
+			}
+		}
 	}
 	for i := range diff.Entries {
 		entry := &diff.Entries[i]

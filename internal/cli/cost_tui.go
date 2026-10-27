@@ -25,7 +25,14 @@ func renderProjectedDiff(
 		return fmt.Errorf("unsupported output format: %s", fmtType)
 	}
 	breakdown := showBreakdown && fmtType == engine.OutputTable
-	return engine.RenderProjectedDiff(cmd.OutOrStdout(), fmtType, diff, breakdown)
+	if err := engine.RenderProjectedDiff(cmd.OutOrStdout(), fmtType, diff, breakdown); err != nil {
+		return err
+	}
+	// NDJSON carries no stack line, so an unchanged plan is explained on stderr.
+	if summary, ok := engine.NoChangesStackSummary(diff); ok && fmtType == engine.OutputNDJSON {
+		fmt.Fprint(cmd.ErrOrStderr(), summary)
+	}
+	return nil
 }
 
 // mergeProjectedDiffRecommendations attaches recommendations to the after cost
@@ -40,6 +47,16 @@ func mergeProjectedDiffRecommendations(
 	if diff == nil {
 		return
 	}
+	// Pricing omits internal types and separates state-origin entries, so
+	// diff indexes do not necessarily match the original inventory indexes.
+	type resourceKey struct{ id, resourceType string }
+	byResource := make(map[resourceKey]engine.ResourceDescriptor, len(resources))
+	for _, resource := range resources {
+		if resource.Origin == engine.OriginState || resource.Operation == "delete-replaced" {
+			continue
+		}
+		byResource[resourceKey{resource.ID, resource.Type}] = resource
+	}
 	recResources := make([]engine.ResourceDescriptor, 0, len(resources))
 	recResults := make([]engine.CostResult, 0, len(diff.Entries))
 	indexes := make([]int, 0, len(diff.Entries))
@@ -47,10 +64,11 @@ func mergeProjectedDiffRecommendations(
 		if diff.Entries[i].Operation == engine.DiffOperationDelete || diff.Entries[i].After == nil {
 			continue
 		}
-		if i >= len(resources) {
+		resource, ok := byResource[resourceKey{diff.Entries[i].ResourceID, diff.Entries[i].ResourceType}]
+		if !ok {
 			continue
 		}
-		recResources = append(recResources, resources[i])
+		recResources = append(recResources, resource)
 		recResults = append(recResults, *diff.Entries[i].After)
 		indexes = append(indexes, i)
 	}

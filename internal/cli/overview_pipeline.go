@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
+	"github.com/rshade/finfocus/internal/stackload"
 	"github.com/rshade/finfocus/internal/tui"
 )
 
@@ -67,14 +69,16 @@ func (e *PhaseError) Unwrap() error { return e.Err }
 // OverviewPipelineData is the output of the loading phases (1-3): the merged,
 // filtered rows plus the stack metadata later phases and renderers need.
 type OverviewPipelineData struct {
-	Rows         []engine.OverviewRow
-	PlanSteps    []engine.PlanStep
-	StackName    string
-	ProjectDir   string
-	IsStateOnly  bool
-	HasChanges   bool
-	ChangeCount  int
-	DetectErrMsg string
+	Snapshot           *stackload.Snapshot
+	TerraformResources []engine.ResourceDescriptor
+	Rows               []engine.OverviewRow
+	PlanSteps          []engine.PlanStep
+	StackName          string
+	ProjectDir         string
+	IsStateOnly        bool
+	HasChanges         bool
+	ChangeCount        int
+	DetectErrMsg       string
 }
 
 // OverviewPipelineResult is the final pipeline state delivered via
@@ -82,19 +86,21 @@ type OverviewPipelineData struct {
 // enriched, cluster-expanded rows; the dismissal delta and per-row deltas are
 // applied per the pipeline's mode (see overviewPipelineConfig).
 type OverviewPipelineResult struct {
-	Rows           []engine.OverviewRow
-	Engine         *engine.Engine
-	Clients        []*pluginhost.Client
-	StackName      string
-	ProjectDir     string
-	HasChanges     bool
-	ChangeCount    int
-	IsStateOnly    bool
-	ResourceCount  int
-	ExpansionNotes []string
-	Budget         *engine.BudgetResult
-	BudgetErr      error
-	RowsEnriched   int
+	Snapshot           *stackload.Snapshot
+	TerraformResources []engine.ResourceDescriptor
+	Rows               []engine.OverviewRow
+	Engine             *engine.Engine
+	Clients            []*pluginhost.Client
+	StackName          string
+	ProjectDir         string
+	HasChanges         bool
+	ChangeCount        int
+	IsStateOnly        bool
+	ResourceCount      int
+	ExpansionNotes     []string
+	Budget             *engine.BudgetResult
+	BudgetErr          error
+	RowsEnriched       int
 }
 
 // OverviewPipelineLoader performs the data-loading phases (1-3) and reports
@@ -322,6 +328,8 @@ func (p *OverviewPipeline) finishLoaded(
 	p.mu.Lock()
 	p.result.StackName = data.StackName
 	p.result.ProjectDir = data.ProjectDir
+	p.result.Snapshot = data.Snapshot
+	p.result.TerraformResources = data.TerraformResources
 	p.mu.Unlock()
 
 	clients, eng, proceed, startErr := p.startEngine(ctx, data, clients, pluginCleanup)
@@ -362,19 +370,21 @@ func (p *OverviewPipeline) finishLoaded(
 
 	p.mu.Lock()
 	p.result = OverviewPipelineResult{
-		Rows:           rows,
-		Engine:         eng,
-		Clients:        clients,
-		StackName:      data.StackName,
-		ProjectDir:     data.ProjectDir,
-		HasChanges:     data.HasChanges,
-		ChangeCount:    data.ChangeCount,
-		IsStateOnly:    data.IsStateOnly,
-		ResourceCount:  len(data.Rows),
-		ExpansionNotes: p.expansionNotes,
-		Budget:         budget,
-		BudgetErr:      budgetErr,
-		RowsEnriched:   p.rowsEnriched,
+		Snapshot:           p.result.Snapshot,
+		TerraformResources: data.TerraformResources,
+		Rows:               rows,
+		Engine:             eng,
+		Clients:            clients,
+		StackName:          data.StackName,
+		ProjectDir:         data.ProjectDir,
+		HasChanges:         data.HasChanges,
+		ChangeCount:        data.ChangeCount,
+		IsStateOnly:        data.IsStateOnly,
+		ResourceCount:      len(data.Rows),
+		ExpansionNotes:     p.expansionNotes,
+		Budget:             budget,
+		BudgetErr:          budgetErr,
+		RowsEnriched:       p.rowsEnriched,
 	}
 	result := p.result
 	p.mu.Unlock()
@@ -520,25 +530,18 @@ func (p *OverviewPipeline) startEngine(
 
 // previewStack names the stack a live preview targets. An explicit --stack wins
 // over the display name derived from a state file's name.
-func (p *OverviewPipeline) previewStack(result OverviewPipelineResult) string {
+func (p *OverviewPipeline) previewStack(displayName string) string {
 	if p.cfg.params.stack != "" {
 		return p.cfg.params.stack
 	}
-	return result.StackName
+	return displayName
 }
 
 // RunPreview runs the on-demand pulumi preview for a state-only session (the
 // TUI 'p' key and the web preview endpoint) and reports the result via
 // OnPreviewReady. It returns the same message the TUI consumes.
 func (p *OverviewPipeline) RunPreview(ctx context.Context) tui.OverviewChangesReadyMsg {
-	p.mu.Lock()
-	result := p.result
-	pw := p.passphrase
-	p.mu.Unlock()
-	msg := runBackgroundPreview(ctx, p.cfg.params, result.ProjectDir, p.previewStack(result), pw)
-	if p.OnPreviewReady != nil {
-		p.OnPreviewReady(msg)
-	}
+	msg, _ := p.RunPreviewWithError(ctx)
 	return msg
 }
 
@@ -784,6 +787,11 @@ func (p *OverviewPipeline) RefreshFallbackBudget(ctx context.Context, rows []eng
 // explicit files), lightweight change detection, optional preview, merge, and
 // filters.
 func tuiOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
+	// A supplied preview is already materialized; standalone plans need no state
+	// export before displaying their rows.
+	if p.cfg.params.pulumiJSON != "" && p.cfg.params.pulumiState == "" {
+		return plainOverviewLoader(ctx, p)
+	}
 	if _, terraformInput, err := overviewTerraformSource(p.cfg.params); err != nil {
 		if errors.Is(err, ErrNoProjectMarker) {
 			err = toValidationError(ctx, err)
@@ -802,13 +810,18 @@ func pulumiTUIOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvie
 	pw := p.Passphrase()
 
 	p.emitPhase(OverviewPhaseLoadStackState, overviewPhaseLoadStackStateName)
-	stateResources, manifestTime, projectDir, stackName, stateErr := loadStateForOverview(ctx, params, pw)
+	snapshot, stateErr := loadOverviewSnapshot(ctx, params, pw, true)
 	if stateErr != nil {
 		return nil, &PhaseError{
 			Phase: OverviewPhaseLoadStackState,
 			Err:   fmt.Errorf("resolve overview data: %w", stateErr),
 		}
 	}
+
+	if params.pulumiState != "" {
+		snapshot.ProjectDir = filepath.Dir(params.pulumiState)
+	}
+	stateResources, manifestTime, projectDir, stackName := snapshot.State, snapshot.ManifestTime, snapshot.ProjectDir, snapshot.StackName
 
 	// Record state resources to history store (fire-and-forget).
 	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
@@ -833,20 +846,22 @@ func pulumiTUIOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvie
 	}
 
 	p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
-	rows, planSteps, hasChanges, changeCount, mergePhaseErr := buildOverviewRows(
-		ctx, isStateOnly, stateResources, params, projectDir, stackName, pw,
-	)
-	if mergePhaseErr != nil {
-		if params.pulumiJSON != "" || ctx.Err() != nil {
-			return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: mergePhaseErr}
+	if !isStateOnly {
+		snapshot, stateErr = loadTUIOverviewPreview(ctx, p, snapshot, pw)
+		if stateErr != nil {
+			return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: stateErr}
 		}
-		rows = engine.NewRowsFromState(ctx, stateResources)
-		isStateOnly = true
-		detectErr = mergePhaseErr
-		if p.OnError != nil {
-			p.OnError(OverviewPhaseDetectChanges, errors.New("preview unavailable; showing current state"))
+		isStateOnly = !snapshot.PlanStatus.Loaded
+		if isStateOnly {
+			detectErr = errors.New("preview unavailable; showing current state")
 		}
 	}
+	rows, mergeErr := snapshot.Rows(ctx)
+	if mergeErr != nil {
+		return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: mergeErr}
+	}
+	planSteps := snapshot.Steps
+	hasChanges, changeCount := snapshot.PendingChanges(ctx)
 
 	// Record plan lineage to history store (fire-and-forget).
 	if !isStateOnly && len(planSteps) > 0 {
@@ -863,6 +878,7 @@ func pulumiTUIOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvie
 	}
 
 	return &OverviewPipelineData{
+		Snapshot:     snapshot,
 		Rows:         rows,
 		PlanSteps:    planSteps,
 		StackName:    stackName,
@@ -874,13 +890,38 @@ func pulumiTUIOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvie
 	}, nil
 }
 
+// loadTUIOverviewPreview keeps interactive project sessions usable when preview fails.
+func loadTUIOverviewPreview(
+	ctx context.Context,
+	p *OverviewPipeline,
+	base *stackload.Snapshot,
+	pw *string,
+) (*stackload.Snapshot, error) {
+	preview, err := stackload.LoadPlan(ctx, stackload.Source{
+		PlanPath:   p.cfg.params.pulumiJSON,
+		ProjectDir: base.ProjectDir,
+		Stack:      p.previewStack(base.StackName),
+		Passphrase: pw,
+	})
+	if err == nil {
+		return base.WithPlan(preview.Plan), nil
+	}
+	if p.cfg.params.pulumiJSON != "" || ctx.Err() != nil {
+		return nil, err
+	}
+	if p.OnError != nil {
+		p.OnError(OverviewPhaseDetectChanges, errors.New("preview unavailable; showing current state"))
+	}
+	return base, nil
+}
+
 // plainOverviewLoader is the non-interactive CLI loading flow: explicit files
 // or state-first auto-detect with the preview prompt, merge, and filters.
 func plainOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
 	params := p.cfg.params
 
 	p.emitPhase(OverviewPhaseLoadStackState, overviewPhaseLoadStackStateName)
-	stateResources, planSteps, stackName, isStateOnly, err := loadPlainOverviewData(ctx, p.cfg.cmd, params)
+	snapshot, terraformResources, isStateOnly, err := loadPlainOverviewSnapshot(ctx, p.cfg.cmd, params, p.Passphrase())
 	if err != nil {
 		wrappedErr := fmt.Errorf("resolve overview data: %w", err)
 		if p.cfg.audit != nil {
@@ -888,6 +929,8 @@ func plainOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPip
 		}
 		return nil, &PhaseError{Phase: OverviewPhaseLoadStackState, Err: wrappedErr}
 	}
+
+	stateResources, planSteps, stackName := snapshot.State, snapshot.Steps, snapshot.StackName
 
 	// Record state resources and plan lineage to history store (fire-and-forget).
 	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
@@ -898,26 +941,11 @@ func plainOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPip
 	}
 
 	p.emitPhase(OverviewPhaseDetectChanges, overviewPhaseDetectChangesName)
-	var hasChanges bool
-	var changeCount int
-	if !isStateOnly {
-		hasChanges, changeCount = engine.DetectPendingChanges(ctx, planSteps)
-	}
-
+	hasChanges, changeCount := snapshot.PendingChanges(ctx)
 	p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
-	var rows []engine.OverviewRow
-	if isStateOnly {
-		rows = engine.NewRowsFromState(ctx, stateResources)
-	} else {
-		var mergeErr error
-		rows, mergeErr = engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
-		if mergeErr != nil {
-			wrappedErr := fmt.Errorf("merging resources: %w", mergeErr)
-			if p.cfg.audit != nil {
-				p.cfg.audit.logFailure(ctx, wrappedErr)
-			}
-			return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: wrappedErr}
-		}
+	rows, err := snapshot.Rows(ctx)
+	if err != nil {
+		return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: fmt.Errorf("merging resources: %w", err)}
 	}
 
 	rows, err = validateAndApplyOverviewFilters(rows, params.filter)
@@ -926,85 +954,25 @@ func plainOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPip
 	}
 
 	return &OverviewPipelineData{
-		Rows:        rows,
-		PlanSteps:   planSteps,
-		StackName:   stackName,
-		IsStateOnly: isStateOnly,
-		HasChanges:  hasChanges,
-		ChangeCount: changeCount,
+		Snapshot:           snapshot,
+		TerraformResources: terraformResources,
+		ProjectDir:         snapshot.ProjectDir,
+		Rows:               rows,
+		PlanSteps:          planSteps,
+		StackName:          stackName,
+		IsStateOnly:        isStateOnly,
+		HasChanges:         hasChanges,
+		ChangeCount:        changeCount,
 	}, nil
 }
 
-// autoDetectOverviewLoader is the --web loading flow: explicit files, or the
-// overview auto-detect path (detectPulumiProject, exportStateFromProject,
-// loadOverviewFromAutoDetect) with the resolved passphrase threaded through.
-// Explicit files use resolveOverviewData; project loads share
-// loadOverviewProjectData with loadOverviewFromAutoDetect and retain the
-// project directory for on-demand preview.
+// autoDetectOverviewLoader keeps project launches state-first and delegates
+// explicit files to the common plain loader.
 func autoDetectOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
-	params := p.cfg.params
-	// Project launches use the same state-first loader as the TUI, including
-	// recoverable change-detection failures and on-demand preview support.
-	if params.pulumiState == "" && params.pulumiJSON == "" {
+	if p.cfg.params.pulumiState == "" && p.cfg.params.pulumiJSON == "" {
 		return tuiOverviewLoader(ctx, p)
 	}
-	pw := p.Passphrase()
-
-	p.emitPhase(OverviewPhaseLoadStackState, overviewPhaseLoadStackStateName)
-	var (
-		stateResources []engine.StateResource
-		planSteps      []engine.PlanStep
-		stackName      string
-		projectDir     string
-	)
-	if params.pulumiState != "" {
-		var err error
-		stateResources, planSteps, stackName, err = resolveOverviewData(ctx, params)
-		if err != nil {
-			return nil, &PhaseError{Phase: OverviewPhaseLoadStackState, Err: err}
-		}
-	} else {
-		var err error
-		stateResources, planSteps, projectDir, stackName, err = loadOverviewProjectData(ctx, params, pw)
-		if err != nil {
-			return nil, &PhaseError{Phase: OverviewPhaseLoadStackState, Err: err}
-		}
-	}
-
-	// Record state resources and plan lineage to history store (fire-and-forget).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
-	defer historyCleanup()
-	recordHistorySnapshot(ctx, historyStore, stateResources)
-	recordHistoryPlanLineage(ctx, historyStore, planSteps)
-
-	p.emitPhase(OverviewPhaseDetectChanges, overviewPhaseDetectChangesName)
-	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
-
-	p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
-	rows, mergeErr := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
-	if mergeErr != nil {
-		return nil, &PhaseError{
-			Phase: OverviewPhaseMergeResources,
-			Err:   fmt.Errorf("merging resources: %w", mergeErr),
-		}
-	}
-
-	rows, filterErr := validateAndApplyOverviewFilters(rows, params.filter)
-	if filterErr != nil {
-		return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: filterErr}
-	}
-
-	return &OverviewPipelineData{
-		Rows:        rows,
-		PlanSteps:   planSteps,
-		StackName:   stackName,
-		ProjectDir:  projectDir,
-		HasChanges:  hasChanges,
-		ChangeCount: changeCount,
-		// State without a plan has no preview yet, like the TUI's explicit
-		// --pulumi-state launch, so the on-demand preview stays available.
-		IsStateOnly: params.pulumiState != "" && params.pulumiJSON == "",
-	}, nil
+	return plainOverviewLoader(ctx, p)
 }
 
 // clearPassphrase releases the reference once the subprocess operation returns.
@@ -1041,6 +1009,10 @@ func (p *OverviewPipeline) loadWithPassphraseRetry(ctx context.Context) (*Overvi
 	}
 }
 func rejectedPassphrase(err error) bool {
+	var loadErr *stackload.Error
+	if errors.As(err, &loadErr) && loadErr.Reason == stackload.ReasonPassphraseRequired {
+		return true
+	}
 	message := strings.ToLower(err.Error())
 	return strings.Contains(message, "incorrect passphrase") || strings.Contains(message, "invalid passphrase") ||
 		strings.Contains(message, "failed to decrypt") ||
@@ -1095,8 +1067,42 @@ func (p *OverviewPipeline) previewAttempt(
 			return tui.OverviewChangesReadyMsg{}, false, err
 		}
 	}
-	msg, err := runBackgroundPreviewWithError(ctx, p.cfg.params, result.ProjectDir, p.previewStack(result), pw)
-	return msg, pw != nil, err
+	projectDir := result.ProjectDir
+	if projectDir == "" && p.cfg.params.pulumiState != "" {
+		projectDir = filepath.Dir(p.cfg.params.pulumiState)
+	}
+	preview, err := stackload.LoadPlan(
+		ctx,
+		stackload.Source{
+			PlanPath:   p.cfg.params.pulumiJSON,
+			ProjectDir: projectDir,
+			Stack:      p.previewStack(result.StackName),
+			Passphrase: pw,
+		},
+	)
+	if err != nil {
+		return tui.OverviewChangesReadyMsg{}, pw != nil, err
+	}
+	base := result.Snapshot
+	if base == nil {
+		base = &stackload.Snapshot{}
+	}
+	snapshot := base.WithPlan(preview.Plan)
+	p.mu.Lock()
+	p.result.Snapshot = snapshot
+	p.mu.Unlock()
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, p.cfg.params.cfg, config.GetResolvedProjectDir())
+	recordHistoryPlanLineage(ctx, historyStore, snapshot.Steps)
+	historyCleanup()
+	hasChanges, changeCount := snapshot.PendingChanges(ctx)
+	return tui.OverviewChangesReadyMsg{
+		StatusByURN: engine.BuildStatusByURN(
+			snapshot.Steps,
+		), PropertyDiffsByURN: engine.BuildPropertyDiffsByURN(snapshot.Steps),
+		ProjectedPropsByURN: engine.BuildProjectedPropertiesByURN(
+			snapshot.Steps,
+		), HasChanges: hasChanges, ChangeCount: changeCount,
+	}, pw != nil, nil
 }
 
 func (p *OverviewPipeline) waitForPassphraseRetry(ctx context.Context) (*string, error) {
