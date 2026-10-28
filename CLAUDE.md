@@ -541,6 +541,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   runs after that migration and passes an empty `baseVersion`. A request the
   caller got wrong is a `config.InvalidChangeError` (400); any other write
   error is logged and returned as a generic 500, because it can carry paths.
+  Both accept only keys `config.LookupSetting` knows: a new settable key needs
+  a `config.KnownSettings` entry (and a `defaultValue` case), which also puts
+  it on the Config page. That makes it a web surface for Principle VII.
 
 ### Registry (`internal/registry/`)
 
@@ -826,6 +829,8 @@ Specs 613-623 hold the details. Invariants:
   through an `os.Root`. Every failure is a warning. Tests never run npx.
 
 ## Recent Changes
+
+- 1735-pulumi-cloud-history (planned): opt-in `cost.history.pulumi_cloud.enabled` (`false`|`auto`|`true`) imports resource identity from Pulumi Cloud `/export/{version}` snapshots into the resource-history store with source `pulumi_cloud`. `cost actual` imports inline; `--import-cloud-history` pre-loads; overview and `--web` never fetch (`specs/1735-pulumi-cloud-history/`).
 
 - 1733-shared-stack-loader: Shared Pulumi state and preview snapshots align CLI and web live inventory. Projected output adds a separate stack total and safe state-availability categories while preserving plan totals, budgets, exit codes, and forecast totals (`specs/1733-shared-stack-loader/`).
 
