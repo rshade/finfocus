@@ -1,0 +1,67 @@
+{
+  "version": 3,
+  "deployment": {
+    "resources": [
+      {
+        "urn": "urn:pulumi:test::fixture::aws:ec2/instance:Instance::resource0",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "id": "i-test",
+        "inputs": {
+          "secret": {
+            "4dabf18193072939515e22adb298388d": "1b47061264138c4ac30d75fd1eb44270",
+            "ciphertext": "SENTINEL-CIPHERTEXT"
+          }
+        },
+        "outputs": {
+          "secret": "SENTINEL-CIPHERTEXT"
+        }
+      },
+      {
+        "urn": "urn:pulumi:test::fixture::aws:s3/bucket:Bucket::resource1",
+        "type": "aws:s3/bucket:Bucket",
+        "custom": false,
+        "id": "bucket-test",
+        "inputs": {
+          "secret": {
+            "4dabf18193072939515e22adb298388d": "1b47061264138c4ac30d75fd1eb44270",
+            "ciphertext": "SENTINEL-CIPHERTEXT"
+          }
+        },
+        "outputs": {
+          "secret": "SENTINEL-CIPHERTEXT"
+        }
+      },
+      {
+        "urn": "urn:pulumi:test::fixture::pulumi:providers:aws::resource2",
+        "type": "pulumi:providers:aws",
+        "custom": true,
+        "id": "provider-test",
+        "inputs": {
+          "secret": {
+            "4dabf18193072939515e22adb298388d": "1b47061264138c4ac30d75fd1eb44270",
+            "ciphertext": "SENTINEL-CIPHERTEXT"
+          }
+        },
+        "outputs": {
+          "secret": "SENTINEL-CIPHERTEXT"
+        }
+      },
+      {
+        "urn": "urn:pulumi:test::fixture::aws:s3/bucket:Bucket::resource3",
+        "type": "aws:s3/bucket:Bucket",
+        "custom": true,
+        "id": "",
+        "inputs": {
+          "secret": {
+            "4dabf18193072939515e22adb298388d": "1b47061264138c4ac30d75fd1eb44270",
+            "ciphertext": "SENTINEL-CIPHERTEXT"
+          }
+        },
+        "outputs": {
+          "secret": "SENTINEL-CIPHERTEXT"
+        }
+      }
+    ]
+  }
+}

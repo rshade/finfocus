@@ -163,7 +163,7 @@ func isCorruptionError(err error) bool {
 
 func (s *BoltStore) initBuckets() error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		for _, name := range []string{BucketResourceHistory, BucketResourceTags} {
+		for _, name := range []string{BucketResourceHistory, BucketResourceTags, BucketPulumiCloudUpdates, BucketPulumiCloudSnapshots} {
 			if _, err := tx.CreateBucketIfNotExists([]byte(name)); err != nil {
 				return fmt.Errorf("creating bucket %q: %w", name, err)
 			}
@@ -173,7 +173,7 @@ func (s *BoltStore) initBuckets() error {
 }
 
 // Upsert records a single resource observation.
-// If the (URN, CloudID) pair already exists for this stack, only LastSeen is updated.
+// If the (URN, CloudID) pair already exists for this stack, the observation time range is extended.
 // The stackHash scopes entries per Pulumi stack.
 func (s *BoltStore) Upsert(stackHash string, entry ResourceHistoryEntry) error {
 	if !s.enabled {
@@ -248,6 +248,9 @@ func (s *BoltStore) tryUpdateExisting(
 		return false, nil //nolint:nilerr // intentional: corrupt entries are overwritten
 	}
 
+	if entry.FirstSeen < existingEntry.FirstSeen {
+		existingEntry.FirstSeen = entry.FirstSeen
+	}
 	if entry.LastSeen > existingEntry.LastSeen {
 		existingEntry.LastSeen = entry.LastSeen
 	}

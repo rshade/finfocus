@@ -199,6 +199,9 @@ func newValidationResult(path string) ValidationResult {
 }
 
 func appendSemantic(result *ValidationResult, cfg *Config, lines map[string]int) {
+	if err := cfg.Cost.History.PulumiCloud.Enabled.Validate(); err != nil {
+		addSemanticError(result, err, lines)
+	}
 	savedESC := cfg.ESC
 	cfg.ESC = nil
 	if err := cfg.Validate(); err != nil {

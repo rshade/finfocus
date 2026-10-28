@@ -44,3 +44,13 @@ server. Point `PULUMI_BACKEND_URL` at `Server.URL` and set
 `PULUMI_ACCESS_TOKEN` to the token passed to `esctest.New`. The server
 records open, HEAD, and tag reads so a test can assert that a disabled
 selection makes no requests.
+
+## Session discovery
+
+`DiscoverSession(getenv, projectBackend, stackName)` exposes the existing
+backend, token, and organization rules to other core clients. Environment
+credentials override saved credentials when the backend is selected through
+`PULUMI_BACKEND_URL` or the current saved account. A project `backend.url`
+uses only credentials saved for that URL, and never receives an environment
+token. `Session.Token`
+must never be logged or persisted.

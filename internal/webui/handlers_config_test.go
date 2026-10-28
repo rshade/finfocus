@@ -234,3 +234,73 @@ func TestConfigAPIClassifiesWriteErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigAPIPulumiCloudHistory(t *testing.T) {
+	t.Parallel()
+	global := filepath.Join(t.TempDir(), "config.hujson")
+	require.NoError(t, os.WriteFile(global, []byte(`{}`), 0o600))
+	session := NewSession(context.Background(), SessionOptions{
+		ConfigView: func(context.Context) (config.Page, error) { return config.BuildPage(global, "") },
+		ConfigPreview: func(_ context.Context, request config.WriteRequest) (config.PatchResult, error) {
+			return writeConfig(global, request, true)
+		},
+		ConfigSave: func(_ context.Context, request config.WriteRequest) (config.PatchResult, error) {
+			return writeConfig(global, request, false)
+		},
+	})
+	server := newRunningServer(t, Options{Session: session})
+	response := overviewRequest(t, server, http.MethodGet, "/api/config", "")
+	require.Equal(t, http.StatusOK, response.StatusCode)
+	var page struct {
+		Versions map[string]string `json:"versions"`
+		Settings []struct {
+			Key       string   `json:"key"`
+			Kind      string   `json:"kind"`
+			Enum      []string `json:"enum"`
+			Effective struct {
+				Source string `json:"source"`
+				Value  any    `json:"value"`
+			} `json:"effective"`
+		} `json:"settings"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(readBody(t, response)), &page))
+	found := false
+	for _, row := range page.Settings {
+		if row.Key != "cost.history.pulumi_cloud.enabled" {
+			continue
+		}
+		found = true
+		assert.Equal(t, "enum", row.Kind)
+		assert.Equal(t, []string{"false", "auto", "true"}, row.Enum)
+		assert.Equal(t, "false", row.Effective.Value)
+		assert.Equal(t, config.SourceDefault, row.Effective.Source)
+	}
+	require.True(t, found, "Cloud history setting must be served by shared Config view")
+	requestBody := func(value string) string {
+		return `{"tier":"global","baseVersion":"` + page.Versions[config.TierGlobal] + `","changes":[{"key":"cost.history.pulumi_cloud.enabled","value":"` + value + `"}]}`
+	}
+	preview := overviewRequest(
+		t,
+		server,
+		http.MethodPost,
+		"/api/config/preview",
+		requestBody("auto"),
+	)
+	previewBody := readBody(t, preview)
+	require.Equal(t, http.StatusOK, preview.StatusCode, previewBody)
+	assert.Contains(t, previewBody, `"after":"\"auto\""`)
+	data, err := os.ReadFile(global)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{}`, string(data))
+	for _, path := range []string{"/api/config/preview", "/api/config"} {
+		rejected := overviewRequest(t, server, http.MethodPost, path, requestBody("maybe"))
+		assert.Equal(t, http.StatusBadRequest, rejected.StatusCode)
+		assert.Contains(t, readBody(t, rejected), `"code":"validation"`)
+	}
+	saved := overviewRequest(t, server, http.MethodPost, "/api/config", requestBody("auto"))
+	savedBody := readBody(t, saved)
+	require.Equal(t, http.StatusOK, saved.StatusCode, savedBody)
+	data, err = os.ReadFile(global)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"cost":{"history":{"pulumi_cloud":{"enabled":"auto"}}}}`, string(data))
+}

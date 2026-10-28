@@ -503,6 +503,8 @@ type StructuredError struct {
 
 // CostResult contains the calculated cost information for a single resource.
 type CostResult struct {
+	// HistoryImport reports incomplete opted-in identity imports.
+	HistoryImport  *HistoryImportStatus            `json:"historyImport,omitempty"`
 	ResourceType   string                          `json:"resourceType"`
 	ResourceID     string                          `json:"resourceId"`
 	Adapter        string                          `json:"adapter"`
@@ -564,8 +566,10 @@ type ErrorDetail struct {
 
 // CostResultWithErrors wraps results and any errors encountered during cost calculation.
 type CostResultWithErrors struct {
-	Results []CostResult
-	Errors  []ErrorDetail
+	// HistoryImport also carries status when Results is empty.
+	HistoryImport *HistoryImportStatus
+	Results       []CostResult
+	Errors        []ErrorDetail
 }
 
 // HasErrors returns true if any errors were encountered during cost calculation.

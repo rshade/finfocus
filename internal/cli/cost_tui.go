@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -100,12 +102,12 @@ func RenderActualCostOutput(
 	if fmtType == engine.OutputJSON || fmtType == engine.OutputNDJSON {
 		// Table flags do not change JSON or NDJSON. estimate-confidence still
 		// decides whether the confidence field is kept in those payloads.
-		return renderActualCostOutput(cmd.OutOrStdout(), fmtType, resultWithErrors.Results, groupBy, estimateConfidence)
+		return renderActualMachineOutput(cmd.OutOrStdout(), fmtType, resultWithErrors, groupBy, estimateConfidence)
 	}
 
 	mode := outputModeFromCmd(cmd)
 	opts := actualTableOptions(cmd, groupBy, estimateConfidence, showBreakdown, showConfidence)
-	if mode == tui.OutputModeInteractive && !showBreakdown && !showConfidence {
+	if mode == tui.OutputModeInteractive && !showBreakdown && !showConfidence && resultWithErrors.HistoryImport == nil {
 		stack, _ := cmd.Flags().GetString("stack")
 		return runInteractiveActualCostTUI(ctx, resultWithErrors, engine.GroupBy(groupBy), opts.Trends, stack)
 	}
@@ -114,7 +116,50 @@ func RenderActualCostOutput(
 		return err
 	}
 	displayErrorSummary(cmd, resultWithErrors, engine.OutputTable)
+	if resultWithErrors.HistoryImport != nil {
+		_, err := fmt.Fprintf(cmd.OutOrStdout(),
+			"Cloud history import incomplete: %d unreadable updates; totals may be incomplete.\n",
+			resultWithErrors.HistoryImport.UnreadableUpdates)
+		return err
+	}
 	return nil
+}
+
+// renderActualMachineOutput adds import status around the normal payload, so
+// time-based grouping and confidence handling retain their existing behavior.
+func renderActualMachineOutput(
+	writer io.Writer,
+	format engine.OutputFormat,
+	view *engine.CostResultWithErrors,
+	groupBy string,
+	estimateConfidence bool,
+) error {
+	if view.HistoryImport == nil {
+		return renderActualCostOutput(writer, format, view.Results, groupBy, estimateConfidence)
+	}
+	if format == engine.OutputNDJSON {
+		if err := renderActualCostOutput(writer, format, view.Results, groupBy, estimateConfidence); err != nil {
+			return err
+		}
+		return json.NewEncoder(writer).Encode(struct {
+			Type          string                      `json:"type"`
+			HistoryImport *engine.HistoryImportStatus `json:"historyImport"`
+		}{"historyImport", view.HistoryImport})
+	}
+	results := view.Results
+	if results == nil {
+		results = []engine.CostResult{}
+	}
+	var payload bytes.Buffer
+	if err := renderActualCostOutput(&payload, format, results, groupBy, estimateConfidence); err != nil {
+		return err
+	}
+	encoder := json.NewEncoder(writer)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(struct {
+		Results       json.RawMessage             `json:"results"`
+		HistoryImport *engine.HistoryImportStatus `json:"historyImport"`
+	}{json.RawMessage(payload.Bytes()), view.HistoryImport})
 }
 
 // renderActualResourceTable writes the actual-cost table. Time-based grouping

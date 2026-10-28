@@ -1,7 +1,10 @@
 package history_test
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -735,4 +738,82 @@ func TestHistoryWriter_RecordAnalyzerEvent_TagExtraction(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWriter_RecordCloudObservations(t *testing.T) {
+	t.Parallel()
+	var logBuffer bytes.Buffer
+	logger := zerolog.New(&logBuffer)
+	stack := history.StackContext{Organization: "org", Project: "project", Stack: "stack"}
+	ids := []history.CloudIdentity{
+		{URN: "urn", CloudID: "id", Type: "aws:ec2/instance:Instance", Provider: "aws"},
+		{URN: "empty"},
+	}
+	require.Error(t, history.NewWriter(nil, logger).RecordCloudObservations(stack, 100, ids))
+	disabled, err := history.NewBoltStore(context.Background(), "", false, 90)
+	require.NoError(t, err)
+	require.Error(t, history.NewWriter(disabled, logger).RecordCloudObservations(stack, 100, ids))
+	store, err := history.NewBoltStore(context.Background(), t.TempDir(), true, 90)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	writer := history.NewWriter(store, logger)
+	for range 2 {
+		require.NoError(t, writer.RecordCloudObservations(stack, 100, ids))
+	}
+	got, err := store.GetAllForStack(stack.Hash(), 0, 200)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, int64(100), got[0].FirstSeen)
+	assert.Equal(t, got[0].FirstSeen, got[0].LastSeen)
+	assert.Equal(t, history.SourcePulumiCloud, got[0].Source)
+	assert.Empty(t, got[0].Tags)
+	assert.Contains(t, logBuffer.String(), "empty CloudID")
+	require.Error(t, writer.RecordCloudObservations(stack, 0, ids))
+}
+
+type failingCloudStore struct{ history.Store }
+
+func (s failingCloudStore) UpsertBatch(string, []history.ResourceHistoryEntry) error {
+	return errors.New("write failed")
+}
+
+func TestWriter_CloudWriteFailure(t *testing.T) {
+	t.Parallel()
+	store, err := history.NewBoltStore(context.Background(), t.TempDir(), true, 90)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	writer := history.NewWriter(failingCloudStore{store}, zerolog.Nop())
+	err = writer.RecordCloudObservations(
+		history.StackContext{},
+		100,
+		[]history.CloudIdentity{{URN: "urn", CloudID: "id", Type: "aws:ec2/instance:Instance", Provider: "aws"}},
+	)
+	require.ErrorContains(t, err, "write failed")
+}
+
+func TestWriter_RecordCloudObservationsSkipsInvalidIdentityOnly(t *testing.T) {
+	t.Parallel()
+	var logBuffer bytes.Buffer
+	store, err := history.NewBoltStore(context.Background(), t.TempDir(), true, 90)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	stack := history.StackContext{Project: "project", Stack: "stack"}
+	ids := []history.CloudIdentity{
+		{
+			URN:      strings.Repeat("u", history.MaxURNLength+1),
+			CloudID:  "too-long-urn",
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+		},
+		{URN: "urn:ok", CloudID: "i-ok", Type: "aws:ec2/instance:Instance", Provider: "aws"},
+	}
+
+	require.NoError(t, history.NewWriter(store, zerolog.New(&logBuffer)).RecordCloudObservations(stack, 100, ids))
+
+	got, err := store.GetAllForStack(stack.Hash(), 0, 200)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "i-ok", got[0].CloudID)
+	assert.Contains(t, logBuffer.String(), "skipping invalid cloud identity")
+	assert.NotContains(t, logBuffer.String(), "too-long-urn")
 }

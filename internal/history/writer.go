@@ -233,3 +233,59 @@ func (w *Writer) RecordAnalyzerEvent(stackCtx StackContext, event AnalyzerResour
 			Msg("failed to record analyzer event")
 	}
 }
+
+// CloudIdentity is the identity-only representation of a Cloud resource.
+type CloudIdentity struct {
+	URN      string `json:"urn"`
+	CloudID  string `json:"cloud_id"`
+	Type     string `json:"type"`
+	Provider string `json:"provider"`
+}
+
+// RecordCloudObservations records identities at their actual observation time.
+// Unlike live snapshot recording it returns unavailable-store and write errors.
+func (w *Writer) RecordCloudObservations(stackCtx StackContext, observedAt int64, ids []CloudIdentity) error {
+	if w == nil || w.store == nil || !w.store.IsEnabled() {
+		return ErrHistoryDisabled
+	}
+	if observedAt <= 0 {
+		return fmt.Errorf("validate cloud observation: observation time must be positive, got %d", observedAt)
+	}
+	entries := make([]ResourceHistoryEntry, 0, len(ids))
+	for _, id := range ids {
+		if id.CloudID == "" {
+			w.logger.Debug().
+				Str("component", "history").
+				Str("operation", "record_cloud").
+				Msg("skipping resource with empty CloudID")
+			continue
+		}
+		entry := ResourceHistoryEntry{
+			URN:       id.URN,
+			CloudID:   id.CloudID,
+			Type:      id.Type,
+			Provider:  id.Provider,
+			FirstSeen: observedAt,
+			LastSeen:  observedAt,
+			Source:    SourcePulumiCloud,
+		}
+		// One unusable identity must not block the rest of the snapshot, which is
+		// already cached and would otherwise fail the same way on every run.
+		if err := entry.Validate(); err != nil {
+			w.logger.Warn().
+				Str("component", "history").
+				Str("operation", "record_cloud").
+				Err(err).
+				Msg("skipping invalid cloud identity")
+			continue
+		}
+		entries = append(entries, entry)
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	if err := w.store.UpsertBatch(stackCtx.Hash(), entries); err != nil {
+		return fmt.Errorf("record cloud observations: %w", err)
+	}
+	return nil
+}

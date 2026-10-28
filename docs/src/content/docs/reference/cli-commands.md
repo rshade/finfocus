@@ -1,6 +1,7 @@
 ---
 title: CLI Commands Reference
 description: Complete reference for all FinFocus CLI commands
+layout: docs
 ---
 
 Complete command reference for FinFocus.
@@ -49,7 +50,8 @@ finfocus analyzer serve     # Start the analyzer gRPC server
 
 ## Root Command Entry Points
 
-`finfocus` itself accepts two root-local server flags, `--mcp` and `--web`.
+`finfocus` accepts root-local modes `--mcp`, `--web`, and
+`--import-cloud-history`. These modes are mutually exclusive.
 They are defined on the root command only: no subcommand inherits them, so
 `finfocus cost actual --web` or `finfocus overview --web` fail with
 `unknown flag`. `--web` and `--mcp` are mutually exclusive.
@@ -326,6 +328,60 @@ Caveats:
   `tofu state pull` (or the Terraform equivalent) to obtain plaintext state
   first.
 - Deposed (create-before-destroy leftover) and tainted instances are excluded.
+
+## Pulumi Cloud History Import
+
+```bash
+finfocus --import-cloud-history [--from <date>] [--to <date>] [--stack <name>]
+finfocus --import-cloud-history --format json
+```
+
+This root flag imports historical resource identities without calculating costs
+or starting plugins. It requires `cost.history.pulumi_cloud.enabled` set to
+`auto` or `true` and an enabled resource history store. It cannot be combined
+with `--web`, `--mcp`, or a subcommand. Root `--from` and `--to` require the
+import flag; dates accept `YYYY-MM-DD` or RFC3339. `--to` defaults to now.
+`--from` defaults to the resolved retention cutoff and earlier dates are
+clamped to it. Retention uses `FINFOCUS_HISTORY_RETENTION_DAYS`, then
+`cost.history.retention_days`, then 90 days.
+
+The human summary reports updates listed, skipped operations, cache hits,
+fetched snapshots, recorded identities, and unreadable updates. JSON output
+contains `listed`, `skipped`, `fromCache`, `fetched`, `recorded`, `unreadable`,
+and `clamped` fields. JSON is also used when `AGENT_MODE` selects machine
+output. `--dry-run` validates the flags and range, prints what would be
+imported, and makes no request or history write.
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Import completed, including a no-op. |
+| 1 | Import unavailable, history locked, or an update unreadable. |
+| 2 | Invalid flags, dates, disabled Cloud import, disabled resource history, or a backend that is not Pulumi Cloud. |
+
+### Cloud history in cost actual
+
+`cost actual --verbose` prints the same import counters to stderr. It does not
+change stdout. The default `false` mode makes no requests. `auto` falls back
+when Cloud history is unavailable; a partial import emits a warning and
+incomplete status. `true` exits 1 before totals if import fails, or exits 2
+for a backend that is not Pulumi Cloud or disabled resource history.
+
+A saved input (`--pulumi-state`, `--pulumi-json`) whose resource URNs name a
+different stack than the selected one gets no Cloud or local history. Its
+billing query keeps only its own resources, and stderr says so.
+
+Incomplete cost rows carry
+`"historyImport":{"incomplete":true,"unreadableUpdates":N}`. Incomplete JSON
+uses `{"results":[],"historyImport":{"incomplete":true,"unreadableUpdates":N}}`,
+with the rows in `results`. Incomplete NDJSON ends with a status record of
+`{"type":"historyImport","historyImport":{"incomplete":true,"unreadableUpdates":N}}`.
+The status appears even with zero rows. Table output includes a footer naming
+the unreadable count. Complete runs keep the existing JSON array and NDJSON
+row stream, and omit `historyImport`.
+
+See the [Resource History Guide](../guides/resource-history.md#pulumi-cloud-update-history-opt-in)
+for credentials, caching, and the observation limit. Overview and web Cost
+views read stored history without fetching Cloud snapshots.
 
 ## cost history
 

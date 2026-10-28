@@ -6,6 +6,8 @@ import (
 )
 
 const (
+	// SourcePulumiCloud identifies observations imported from historical Cloud snapshots.
+	SourcePulumiCloud   = "pulumi_cloud"
 	SourceStateSnapshot = "state_snapshot"
 	SourcePlanLineage   = "plan_lineage"
 	SourceAnalyzerEvent = "analyzer_event"
@@ -37,7 +39,7 @@ type ResourceHistoryEntry struct {
 }
 
 func isValidSource(s string) bool {
-	return s == SourceStateSnapshot || s == SourcePlanLineage || s == SourceAnalyzerEvent
+	return s == SourcePulumiCloud || s == SourceStateSnapshot || s == SourcePlanLineage || s == SourceAnalyzerEvent
 }
 
 // Validate enforces all validation rules for a ResourceHistoryEntry.
@@ -79,8 +81,8 @@ func (e *ResourceHistoryEntry) Validate() error {
 	}
 
 	if !isValidSource(e.Source) {
-		return fmt.Errorf("source must be one of %q, %q, or %q, got %q",
-			SourceStateSnapshot, SourcePlanLineage, SourceAnalyzerEvent, e.Source)
+		return fmt.Errorf("source must be one of %q, %q, %q, or %q, got %q",
+			SourceStateSnapshot, SourcePlanLineage, SourceAnalyzerEvent, SourcePulumiCloud, e.Source)
 	}
 
 	if e.FirstSeen <= 0 {

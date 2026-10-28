@@ -1,0 +1,126 @@
+{
+  "example": "  # Calculate projected costs from a Pulumi plan\n  finfocus cost projected --pulumi-json plan.json\n\n  # Get actual costs for the last 7 days\n  finfocus cost actual --pulumi-json plan.json --from 2025-01-07\n\n  # Get cost recommendations with custom cache TTL (5 minutes)\n  finfocus cost recommendations --pulumi-json plan.json --cache-ttl 300\n\n  # Install a plugin from registry\n  finfocus plugin install kubecost\n\n  # List installed plugins\n  finfocus plugin list\n\n  # Initialize a new plugin project\n  finfocus plugin init aws-plugin --author \"Your Name\" --providers aws\n\n  # Validate all plugins\n  finfocus plugin validate\n\n  # Initialize configuration\n  finfocus config init\n\n  # Set configuration values\n  finfocus config set output.default_format json",
+  "flags": [
+    {
+      "name": "adapter",
+      "type": "string",
+      "usage": "restrict to a specific adapter plugin (only valid with --web)"
+    },
+    {
+      "name": "cache-ttl",
+      "type": "int",
+      "default": "0",
+      "usage": "cache TTL in seconds (0 = use config default, overrides config file and env var)"
+    },
+    {
+      "name": "debug",
+      "type": "bool",
+      "default": "false",
+      "usage": "enable debug logging"
+    },
+    {
+      "name": "dry-run",
+      "type": "bool",
+      "default": "false",
+      "usage": "emit the envelope without side effects"
+    },
+    {
+      "name": "filter",
+      "type": "stringSlice",
+      "default": "[]",
+      "usage": "resource filters (only valid with --web)"
+    },
+    {
+      "name": "format",
+      "type": "string",
+      "usage": "output format: json or human"
+    },
+    {
+      "name": "from",
+      "type": "string",
+      "usage": "start date (YYYY-MM-DD or RFC3339) (only valid with --web or --import-cloud-history)"
+    },
+    {
+      "name": "idempotency-key",
+      "type": "string",
+      "usage": "opaque key used to prevent duplicate-create retries"
+    },
+    {
+      "name": "import-cloud-history",
+      "type": "bool",
+      "default": "false",
+      "usage": "import Pulumi Cloud historical resource identities without calculating costs"
+    },
+    {
+      "name": "mcp",
+      "type": "bool",
+      "default": "false",
+      "usage": "serve finfocus as a Model Context Protocol server over stdio (alias for mcp-server)"
+    },
+    {
+      "name": "no-browser",
+      "type": "bool",
+      "default": "false",
+      "usage": "do not open a browser; print the web UI URL only (only valid with --web)"
+    },
+    {
+      "name": "port",
+      "type": "int",
+      "default": "0",
+      "usage": "pin the web UI port (0 = kernel-assigned; only valid with --web)"
+    },
+    {
+      "name": "project-dir",
+      "type": "string",
+      "usage": "explicit Pulumi project directory for config resolution"
+    },
+    {
+      "name": "pulumi-json",
+      "type": "string",
+      "usage": "path to Pulumi preview JSON (only valid with --web)"
+    },
+    {
+      "name": "pulumi-state",
+      "type": "string",
+      "usage": "path to Pulumi state JSON (only valid with --web)"
+    },
+    {
+      "name": "skip-version-check",
+      "type": "bool",
+      "default": "false",
+      "usage": "skip plugin spec version compatibility check"
+    },
+    {
+      "name": "stack",
+      "type": "string",
+      "usage": "Pulumi stack name for auto-detection (only valid with --web or --import-cloud-history)"
+    },
+    {
+      "name": "strict",
+      "type": "bool",
+      "default": "false",
+      "usage": "escalate warnings to a validation error"
+    },
+    {
+      "name": "to",
+      "type": "string",
+      "usage": "end date (YYYY-MM-DD or RFC3339, defaults to now) (only valid with --web or --import-cloud-history)"
+    },
+    {
+      "name": "web",
+      "type": "bool",
+      "default": "false",
+      "usage": "serve the finfocus web UI on localhost and open it in a browser (Pulumi or Terraform projects)"
+    },
+    {
+      "name": "yes",
+      "type": "bool",
+      "default": "false",
+      "usage": "confirm a confirmation-gated operation"
+    }
+  ],
+  "long": "FinFocus: Calculate projected and actual cloud costs via plugins.\n\nWith no subcommand, show overview for a detected Pulumi or Terraform project.\nTerraform projections run OpenTofu plan and show without running init.\nProjection commands accept --terraform-plan for saved show -json output and\n--include-workspace for workspace-scoped Terraform history.",
+  "non_deterministic_fields": [],
+  "short": "FinFocus CLI and plugin host",
+  "use": "finfocus"
+}

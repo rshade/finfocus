@@ -21,8 +21,19 @@ func TestKnownSettingsMatchSchema(t *testing.T) {
 		node := schemaNode(t, schema, setting.Key)
 		switch setting.Kind {
 		case KindEnum:
-			assert.Equal(t, "string", node["type"], setting.Key)
-			assert.Equal(t, stringList(node["enum"]), setting.Enum, setting.Key)
+			if setting.Key == keyPulumiCloudEnabled {
+				assert.ElementsMatch(t, []any{"boolean", "string"}, node["type"], setting.Key)
+				assert.ElementsMatch(
+					t,
+					[]any{false, "false", "auto", true, "true"},
+					node["enum"],
+					setting.Key,
+				)
+				assert.Equal(t, []string{"false", "auto", "true"}, setting.Enum)
+			} else {
+				assert.Equal(t, "string", node["type"], setting.Key)
+				assert.Equal(t, stringList(node["enum"]), setting.Enum, setting.Key)
+			}
 		case KindInt:
 			assert.Equal(t, "integer", node["type"], setting.Key)
 			assertBounds(t, setting, node)

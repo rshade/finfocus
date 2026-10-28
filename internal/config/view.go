@@ -267,7 +267,13 @@ func storedValue(doc map[string]any, key string) any {
 	if cluster, found := strings.CutPrefix(key, keyClusterContexts+"."); found {
 		return clusterValue(doc, cluster)
 	}
-	return walkPath(doc, strings.Split(key, "."))
+	value := walkPath(doc, strings.Split(key, "."))
+	if key == keyPulumiCloudEnabled {
+		if enabled, ok := value.(bool); ok {
+			return strconv.FormatBool(enabled)
+		}
+	}
+	return value
 }
 
 func pluginValue(doc map[string]any, name, configKey string) any {
@@ -363,6 +369,8 @@ func defaultValue(key string) any {
 		return float64(0)
 	case keyBudgetGlobalPeriod:
 		return DefaultBudgetPeriod
+	case keyPulumiCloudEnabled:
+		return cloudModeFalse
 	case "scoring.enabled":
 		return false
 	case "scoring.identifier_mode":

@@ -266,6 +266,9 @@ func convertEnginePlanStepsToHistoryPlanSteps(steps []engine.PlanStep) []history
 // be fully resolved, so callers can skip history operations rather than
 // recording under a meaningless zero-value hash.
 func detectHistoryStackContext(ctx context.Context) (history.StackContext, bool) {
+	if selected, ok := ctx.Value(historyStackContextKey{}).(history.StackContext); ok {
+		return selected, true
+	}
 	log := logging.FromContext(ctx)
 
 	projectDir, err := pulumidetect.FindProject(".")
@@ -315,10 +318,20 @@ func initHistoryFromConfig(
 	cfg *config.Config,
 	projectDir string,
 ) (history.Store, func()) {
+	store, cleanup, _ := initHistoryFromConfigWithError(ctx, cfg, projectDir)
+	return store, cleanup
+}
+
+// initHistoryFromConfigWithError preserves the initialization cause for required imports.
+func initHistoryFromConfigWithError(
+	ctx context.Context,
+	cfg *config.Config,
+	projectDir string,
+) (history.Store, func(), error) {
 	log := logging.FromContext(ctx)
 	noopCleanup := func() {}
 
-	retentionDays := cfg.Cost.History.GetRetentionDays()
+	retentionDays := resolvedHistoryRetention(ctx, cfg)
 	// Use IsEnabled() which handles nil (omitted) vs explicit false correctly.
 	enabled := cfg.Cost.History.IsEnabled()
 
@@ -335,20 +348,8 @@ func initHistoryFromConfig(
 		}
 	}
 
-	if envRetention := os.Getenv(config.HistoryEnvRetentionDays); envRetention != "" {
-		if days, err := strconv.Atoi(envRetention); err == nil && days > 0 {
-			retentionDays = days
-		} else {
-			log.Warn().Ctx(ctx).
-				Str("component", "history").
-				Str("env_var", config.HistoryEnvRetentionDays).
-				Str("value", envRetention).
-				Msg("invalid history retention days env var, ignoring")
-		}
-	}
-
 	if !enabled {
-		return nil, noopCleanup
+		return nil, noopCleanup, nil
 	}
 
 	historyDirectory := resolveHistoryDir(ctx, cfg, projectDir)
@@ -367,7 +368,7 @@ func initHistoryFromConfig(
 				Str("component", "history").
 				Msg("history initialization failed, proceeding without history")
 		}
-		return nil, noopCleanup
+		return nil, noopCleanup, err
 	}
 
 	log.Debug().Ctx(ctx).
@@ -385,7 +386,7 @@ func initHistoryFromConfig(
 		}
 	}
 
-	return store, cleanup
+	return store, cleanup, nil
 }
 
 // resolveHistoryDir determines the history directory using the resolution chain:

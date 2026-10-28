@@ -541,6 +541,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   runs after that migration and passes an empty `baseVersion`. A request the
   caller got wrong is a `config.InvalidChangeError` (400); any other write
   error is logged and returned as a generic 500, because it can carry paths.
+  Both accept only keys `config.LookupSetting` knows: a new settable key needs
+  a `config.KnownSettings` entry (and a `defaultValue` case), which also puts
+  it on the Config page. That makes it a web surface for Principle VII.
 
 ### Registry (`internal/registry/`)
 
@@ -826,6 +829,25 @@ Specs 613-623 hold the details. Invariants:
   through an `os.Root`. Every failure is a warning. Tests never run npx.
 
 ## Recent Changes
+
+- 1735-pulumi-cloud-history: `cost.history.pulumi_cloud.enabled` defaults
+  off (`false`); `auto` falls back and `true` requires a complete import.
+  Read historical snapshots from `/export/{version}`, not `/updates/{version}`.
+  The update list ends with `{"updates":null}`; a deployment with no `resources`
+  list is an empty snapshot, not a failed read.
+  Cache update metadata and extracted URN/cloud ID/type/provider only in
+  `history.db`; never retain raw exports, properties, tags, or ciphertext.
+  History merge takes minimum `FirstSeen` and maximum `LastSeen`. Clamp imports
+  using the resolved retention value (environment, config, default), never a
+  second config read. Overview and web never fetch Cloud history; the web Cost
+  page reads stored identities and overview keeps its state/plan inventory.
+  `KnownSettings` gates both `config set` and the Config page; the mode accepts
+  booleans or strings but writes strings. Preserve ESC's credential rule:
+  project `backend.url` gets only a saved token for that URL; an environment
+  token override requires explicit `PULUMI_BACKEND_URL` or the current account.
+  `internal/pulumicloud` wraps the official `pulumi-cloud-sdk` `apiclient`; its
+  `Executor` owns the token, no-redirect, retry, ETag, and size-bound rules.
+  Do not run `update-agent-context.sh`: it damages this file's curated content.
 
 - 1733-shared-stack-loader: Shared Pulumi state and preview snapshots align CLI and web live inventory. Projected output adds a separate stack total and safe state-availability categories while preserving plan totals, budgets, exit codes, and forecast totals (`specs/1733-shared-stack-loader/`).
 

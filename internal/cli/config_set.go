@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -65,7 +66,13 @@ For sensitive values like API keys or credentials, use environment variables ins
 				return nil
 			}
 			if err := ax.Perform(ctx, rehearse, commit); err != nil {
-				return fmt.Errorf("failed to set config value: %w", err)
+				wrapped := fmt.Errorf("failed to set config value: %w", err)
+				var invalid *config.InvalidChangeError
+				var rejected *config.TierValidationError
+				if errors.As(err, &invalid) || errors.As(err, &rejected) {
+					return toValidationError(ctx, wrapped)
+				}
+				return wrapped
 			}
 			return nil
 		},

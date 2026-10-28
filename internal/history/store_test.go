@@ -1185,3 +1185,30 @@ func TestBoltStore_CleanupExpired_WithTags(t *testing.T) {
 	assert.Len(t, remaining, 1)
 	assert.Equal(t, "i-active", remaining[0].CloudID)
 }
+
+func TestBoltStore_CloudObservationMerge(t *testing.T) {
+	t.Parallel()
+	store, err := history.NewBoltStore(context.Background(), t.TempDir(), true, 90)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	now := time.Now().Unix()
+	entry := newTestEntry("urn:cloud", "id")
+	entry.FirstSeen = now - 100
+	entry.LastSeen = now - 100
+	require.NoError(t, store.Upsert("stack", entry))
+	entry.FirstSeen = now - 200
+	entry.LastSeen = now - 200
+	entry.Source = history.SourcePulumiCloud
+	require.NoError(t, entry.Validate())
+	require.NoError(t, store.Upsert("stack", entry))
+	entry.FirstSeen = now
+	entry.LastSeen = now
+	entry.Source = history.SourceStateSnapshot
+	require.NoError(t, store.Upsert("stack", entry))
+	got, err := store.GetAllForStack("stack", 0, now+1)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, now-200, got[0].FirstSeen)
+	assert.Equal(t, now, got[0].LastSeen)
+	assert.Equal(t, history.SourceStateSnapshot, got[0].Source)
+}

@@ -1,4 +1,30 @@
 <!--
+Sync Impact Report - Constitution v1.8.1 (Pulumi Cloud Import Cache)
+==================================================================
+
+Version Change: 1.8.0 → 1.8.1
+Change Type: Document permitted cache buckets in the existing store (PATCH)
+
+Changes Made:
+- Persistence Model: document pulumi_cloud_updates and pulumi_cloud_snapshots
+  inside history.db; cache extracted identity and update metadata only
+- No principles renamed, added, or removed; no new sections
+
+Templates Requiring Updates:
+- ✅ .specify/templates/plan-template.md (existing Persistence Model check applies)
+- ✅ .specify/templates/spec-template.md (reviewed; no change required)
+- ✅ .specify/templates/tasks-template.md (reviewed; no change required)
+- ✅ .agents/skills/speckit-constitution/SKILL.md (reviewed; no change required)
+- ✅ CONTEXT.md (documents buckets before implementation)
+- Command templates directory is absent; runtime guidance remains consistent
+
+Follow-up TODOs:
+- None
+
+Date: 2026-10-27
+-->
+
+<!--
 Sync Impact Report - Constitution v1.8.0 (Web Parity)
 =====================================================
 
@@ -437,6 +463,7 @@ correct results without any prior local state. However, finfocus uses
 |-------|------|---------|-------------|
 | Cost cache | `~/.finfocus/cache/cache.db` | Avoids redundant plugin queries | Yes — rebuilds on next run |
 | Resource history | `~/.finfocus/history/history.db` | Tracks resource identity across billing periods | Yes — accuracy degrades for past periods |
+| Pulumi Cloud import cache | `history.db`: `pulumi_cloud_updates`, `pulumi_cloud_snapshots` | Update metadata and extracted identity only; never raw exports or resource properties | Yes — enabled import rebuilds it |
 | Recommendation dismissals | `~/.finfocus/dismissed.json` | Persists user dismissal decisions | Yes — dismissals reset |
 
 ### Constraints
@@ -514,4 +541,4 @@ When using the Pulumi SDK (`github.com/pulumi/pulumi/sdk/v3`):
 - Earlier versions may have different package structures or missing types
 - This ensures compatibility with the current Pulumi Analyzer protocol
 
-**Version**: 1.8.0 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-10-19
+**Version**: 1.8.1 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-10-27

@@ -20,6 +20,10 @@ To maintain its role as a lightweight orchestrator, the following are explicitly
 *   **Required Persistent State**: The core execution model is stateless — every command MUST produce correct results without any prior local state. However, finfocus uses **optional local persistence** (BoltDB) as a performance and accuracy aid:
     *   **Cost cache** (`~/.finfocus/cache/cache.db`): Avoids redundant plugin queries. Safe to delete; results rebuild on next run.
     *   **Resource history** (`~/.finfocus/history/history.db`): Tracks resource identity across billing periods for accurate month-long actual cost queries. Safe to delete; accuracy degrades for past periods but current queries still function.
+    *   **Pulumi Cloud import cache** (buckets `pulumi_cloud_updates` and
+        `pulumi_cloud_snapshots` inside `history.db`): Caches update metadata
+        and extracted resource identity only; never raw exports or resource
+        properties. Safe to delete; an enabled import rebuilds the cache.
     *   **Recommendation dismissals** (`dismissed.json`): Persists user dismissal decisions.
     *   **Configuration files** (`config.hujson`, legacy `config.yaml`): Optional user settings. Editing them does not modify cloud infrastructure.
     *   The distinction: finfocus **functions correctly** without any persisted state, just with **degraded performance** (no cache) or **reduced accuracy** (no history for replaced/destroyed resources). No persistent state is a hard prerequisite for any command to succeed.

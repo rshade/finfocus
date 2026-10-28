@@ -361,6 +361,9 @@ func acceptsKind(typ reflect.Type, kind hujson.Kind) bool {
 	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
+	if typ == reflect.TypeFor[PulumiCloudMode]() {
+		return kind == '"' || kind == 't' || kind == 'f'
+	}
 	if typ == reflect.TypeFor[Duration]() {
 		return kind == '"'
 	}
@@ -388,6 +391,9 @@ func expectedTypeName(typ reflect.Type) string {
 	}
 	if typ == reflect.TypeFor[Duration]() {
 		return "duration string"
+	}
+	if typ == reflect.TypeFor[PulumiCloudMode]() {
+		return "boolean or string"
 	}
 	switch typ.Kind() { //nolint:exhaustive // remaining kinds share the generic name
 	case reflect.String:
