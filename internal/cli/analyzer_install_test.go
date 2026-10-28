@@ -17,7 +17,8 @@ import (
 )
 
 func TestNewAnalyzerInstallCmd_FreshInstall(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 	root := cli.NewRootCmd("test-version")
@@ -33,7 +34,8 @@ func TestNewAnalyzerInstallCmd_FreshInstall(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_AlreadyInstalled_SameVersion(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 	root := cli.NewRootCmd("test-version")
@@ -52,7 +54,8 @@ func TestNewAnalyzerInstallCmd_AlreadyInstalled_SameVersion(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_AlreadyInstalled_DifferentVersion(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 
@@ -70,7 +73,8 @@ func TestNewAnalyzerInstallCmd_AlreadyInstalled_DifferentVersion(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_ForceReinstall(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 
@@ -90,7 +94,8 @@ func TestNewAnalyzerInstallCmd_ForceReinstall(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_FlagParsing(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	cmd := cli.NewAnalyzerInstallCmd()
 
@@ -105,7 +110,8 @@ func TestNewAnalyzerInstallCmd_FlagParsing(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_TargetDirPropagation(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	customDir := filepath.Join(t.TempDir(), "custom-location")
 	root := cli.NewRootCmd("test-version")
@@ -226,7 +232,8 @@ func TestAnalyzerInstallCmd_JSONIncludesLanguagePlugin(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_ErrorOnInvalidDir(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	if runtime.GOOS == "windows" {
 		t.Skip("Unix permission test")
 	}

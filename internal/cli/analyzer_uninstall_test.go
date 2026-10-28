@@ -15,7 +15,8 @@ import (
 )
 
 func TestNewAnalyzerUninstallCmd_RemovesInstallation(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 	root := cli.NewRootCmd("test-version")
@@ -34,7 +35,8 @@ func TestNewAnalyzerUninstallCmd_RemovesInstallation(t *testing.T) {
 }
 
 func TestNewAnalyzerUninstallCmd_NotInstalled(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 	root := cli.NewRootCmd("test-version")
@@ -47,7 +49,8 @@ func TestNewAnalyzerUninstallCmd_NotInstalled(t *testing.T) {
 }
 
 func TestNewAnalyzerUninstallCmd_FlagParsing(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	cmd := cli.NewAnalyzerUninstallCmd()
 
@@ -57,7 +60,8 @@ func TestNewAnalyzerUninstallCmd_FlagParsing(t *testing.T) {
 }
 
 func TestNewAnalyzerUninstallCmd_TargetDirPropagation(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	customDir := filepath.Join(t.TempDir(), "custom-location")
 	root := cli.NewRootCmd("test-version")

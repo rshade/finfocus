@@ -219,9 +219,10 @@ guide.
 - **FR-012**: The analyzer docs (getting started, integration, architecture,
   deployment, FAQ) MUST describe the new policy pack layout, and the FAQ MUST
   quote the missing-language-plugin error with its fix.
-- **FR-013**: A follow-up issue MUST be drafted for `rshade/finfocus-action`
-  about its analyzer setup, which writes the old layout, and filed once the
-  owner approves its text.
+- **FR-013**: `rshade/finfocus-action` MUST write both policy pack entries
+  in its analyzer setup, which writes only the old layout. The change is made
+  in that repository; the draft in `issue-drafts.md` is its PR text if a
+  tracking issue is wanted.
 - **FR-014**: The language host MUST give the analyzer `RunPluginRequest.pwd`
   as `FINFOCUS_PROJECT_DIR`, the variable the CLI already reads, so the
   analyzer resolves the Pulumi project instead of the policy pack directory.

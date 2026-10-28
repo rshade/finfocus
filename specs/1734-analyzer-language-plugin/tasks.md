@@ -374,11 +374,12 @@ answers the exact error (FR-012).
   `.exe` entry names, `FINFOCUS_TEST_PULUMI`), and a Recent Changes line for
   `1734-analyzer-language-plugin`. Edit by hand; do not run
   `update-agent-context.sh`, which rewrites the curated sections.
-- [ ] T030 Draft the FR-013 issue for `rshade/finfocus-action`
-  (`src/analyze.ts` `setupAnalyzerMode` writes only the legacy entry; it should
-  run `finfocus analyzer install` or create both entries), researched and
-  written as a detailed prompt-style issue, and file it once the owner
-  approves the text.
+- [ ] T030 Fix FR-013 in `rshade/finfocus-action`: `setupAnalyzerMode` in
+  `src/analyze.ts` copies the binary to both `pulumi-analyzer-policy-finfocus`
+  and `pulumi-language-finfocus`, keeps the binary extension, updates
+  `__tests__/unit/analyzer-mode.test.ts`, and rebuilds `dist/` with the
+  lockfile's ncc 0.45.0. Prepared on a local branch with its 248 tests and
+  lint passing; still to push, open the PR, and merge.
 - [X] T031 Resolve the analyzer's project directory from
   `RunPluginRequest.pwd` (FR-014) in this change, not in an issue:
   `projectDirEnv` in `internal/analyzer/languagehost.go` exports it as

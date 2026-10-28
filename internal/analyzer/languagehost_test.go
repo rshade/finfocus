@@ -33,7 +33,24 @@ func TestMain(m *testing.M) {
 		runLanguageHostTestChild(mode)
 		return
 	}
-	os.Exit(m.Run())
+	os.Exit(runIsolated(m))
+}
+
+// runIsolated points FINFOCUS_HOME at a scratch directory. Install sets up the
+// policy pack under it, and without it a test run replaces the entries in the
+// developer's real ~/.finfocus/analyzer with links to the test binary.
+func runIsolated(m *testing.M) int {
+	home, err := os.MkdirTemp("", "finfocus-analyzer-test-home-")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "isolated home: %v\n", err)
+		return 1
+	}
+	defer os.RemoveAll(home)
+	if setErr := os.Setenv("FINFOCUS_HOME", home); setErr != nil {
+		fmt.Fprintf(os.Stderr, "isolated home: %v\n", setErr)
+		return 1
+	}
+	return m.Run()
 }
 
 func runLanguageHostTestChild(mode string) {
