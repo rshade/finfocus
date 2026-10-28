@@ -5,6 +5,23 @@ import { el } from '../app.js';
 
 const TIERS = ['default', 'global', 'project', 'env'];
 
+// Copy for enum settings whose raw values do not say what they do. Values,
+// keys, and the save flow stay as the server sends them; this is wording only.
+const ENUM_GUIDES = {
+  'cost.history.pulumi_cloud.enabled': {
+    summary: 'Cloud history needs resource history (cost.history.enabled) to stay on.',
+    modes: {
+      false: { short: 'never contact Pulumi Cloud', detail: 'Never contact Pulumi Cloud. This is the default.' },
+      auto: { short: 'fall back if Cloud is unavailable', detail: 'Import when possible. If Pulumi Cloud cannot be read, continue with local history only.' },
+      true: { short: 'fail if the history is short', detail: 'Require a complete import. Fail instead of reporting a history that might be short.' },
+    },
+  },
+};
+
+function modeNote(setting, value) {
+  return ENUM_GUIDES[setting.key]?.modes[String(value)]?.short ?? '';
+}
+
 function slug(key) {
   return String(key).replace(/[^A-Za-z0-9_-]+/g, '-');
 }
@@ -13,6 +30,7 @@ function derivedIDs(token) {
   return {
     field: `config-${token}`,
     help: `config-${token}-help`,
+    modes: `config-${token}-modes`,
     clear: `config-clear-${token}`,
   };
 }
@@ -97,7 +115,10 @@ function editorControl(setting, tier, id) {
       select.append(el('option', { value: '', text: label }));
     }
     const options = setting.kind === 'bool' ? ['true', 'false'] : (setting.enum ?? []);
-    for (const option of options) select.append(el('option', { value: option, text: option }));
+    for (const option of options) {
+      const note = modeNote(setting, option);
+      select.append(el('option', { value: option, text: note ? `${option}: ${note}` : option }));
+    }
     select.value = initial;
     return select;
   }
@@ -165,6 +186,17 @@ function errorLines(err) {
     else if (detail) lines.push(detail);
   }
   return lines;
+}
+
+function modeGuide(setting, guide, id) {
+  const items = (setting.enum ?? []).map((value) => el('li', {},
+    el('code', { text: value }),
+    ` ${guide.modes[value]?.detail ?? ''}`,
+  ));
+  return el('div', { id, class: 'config-help config-modes' },
+    el('ul', {}, ...items),
+    el('p', { text: guide.summary }),
+  );
 }
 
 export function mount(container, { api }) {
@@ -287,13 +319,19 @@ export function mount(container, { api }) {
     const control = editorControl(setting, tier, assigned.field);
     const remove = clearControl(setting, tier, assigned.clear);
     const helpID = assigned.help;
-    control.setAttribute('aria-describedby', helpID);
+    const guide = ENUM_GUIDES[setting.key];
+    control.setAttribute('aria-describedby', guide ? `${helpID} ${assigned.modes}` : helpID);
+    const effectiveNote = guide ? modeNote(setting, setting.effective?.value) : '';
     return el('tr', {},
       el('th', { scope: 'row' },
         el('label', { for: assigned.field, text: setting.key }),
         el('p', { id: helpID, class: 'config-help', text: setting.help || '' }),
+        guide ? modeGuide(setting, guide, assigned.modes) : null,
       ),
-      el('td', { text: effectiveLabel(setting) }),
+      el('td', {},
+        effectiveLabel(setting),
+        effectiveNote ? el('span', { class: 'config-value-note', text: effectiveNote }) : null,
+      ),
       el('td', { text: setting.effective?.source || 'default' }),
       ...TIERS.map((name) => el('td', { text: tierLabel(setting, name) })),
       el('td', { class: 'config-edit' }, control, remove),
