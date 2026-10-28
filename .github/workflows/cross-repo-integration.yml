@@ -1,28 +1,22 @@
-# TEMPORARILY DISABLED - Schedule trigger disabled pending architectural fix
-# See enhancement issue for proper implementation using registry-based plugin install.
-#
-# Current Problem: Building plugin from source fails because generated data files
-# (CCF instance specs) are gitignored and not available in CI.
-#
-# Correct Approach: Use `finfocus plugin install aws-public` to download the
-# published plugin binary from GitHub releases instead of building from source.
+# Installs the published aws-public plugin with `finfocus plugin install` and
+# runs core against it, the way users consume it. Nothing is built from the
+# plugin source, so gitignored generated data (CCF instance specs) is not needed.
 
 name: Cross-Repository Integration
 
 on:
-  # schedule:
-  #   # Run at 2 AM UTC every day - TEMPORARILY DISABLED
-  #   - cron: '0 2 * * *'
+  schedule:
+    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       core_ref:
         description: 'finfocus (core) git ref'
         required: true
         default: 'main'
-      plugin_ref:
-        description: 'finfocus-plugin-aws-public git ref'
-        required: true
-        default: 'main'
+      plugin_version:
+        description: 'aws-public plugin version to install (for example v0.2.4); empty installs the latest release'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -42,69 +36,62 @@ jobs:
           path: core
           ref: ${{ github.event.inputs.core_ref || github.sha }}
 
-      - name: Checkout finfocus-plugin-aws-public
-        uses: actions/checkout@v7
-        with:
-          repository: rshade/finfocus-plugin-aws-public
-          path: plugin-aws
-          ref: ${{ github.event.inputs.plugin_ref || 'main' }}
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-          cache-dependency-path: |
-            core/go.sum
-            plugin-aws/go.sum
+          cache-dependency-path: core/go.sum
 
       - name: Build finfocus (core)
         run: |
           cd core
           make build
 
-      - name: Build and install aws-public plugin
+      - name: Install aws-public plugin from the registry
         env:
-          FINFOCUS_PLUGINS_DIR: ${{ github.workspace }}/plugins
+          FINFOCUS_HOME: ${{ github.workspace }}/finfocus-home
+          PLUGIN_VERSION: ${{ github.event.inputs.plugin_version }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          # Build the plugin binary
-          cd plugin-aws
-          go build -o finfocus-plugin-aws-public ./cmd/finfocus-plugin-aws-public
-
-          # Create proper registry directory structure: <name>/<version>/
-          # Use 'dev' version for CI integration builds
-          PLUGIN_DIR="${FINFOCUS_PLUGINS_DIR}/aws-public/dev"
-          mkdir -p "${PLUGIN_DIR}"
-          mv finfocus-plugin-aws-public "${PLUGIN_DIR}/"
-
-          # Make executable
-          chmod +x "${PLUGIN_DIR}/finfocus-plugin-aws-public"
+          SPEC="aws-public"
+          if [ -n "${PLUGIN_VERSION}" ]; then
+            SPEC="aws-public@${PLUGIN_VERSION}"
+          fi
+          core/bin/finfocus plugin install "${SPEC}"
 
       - name: Add core bin to PATH
         run: echo "${{ github.workspace }}/core/bin" >> "$GITHUB_PATH"
 
       - name: Verify plugin installation (fail-fast)
         env:
-          FINFOCUS_PLUGINS_DIR: ${{ github.workspace }}/plugins
+          FINFOCUS_HOME: ${{ github.workspace }}/finfocus-home
+          PLUGIN_VERSION: ${{ github.event.inputs.plugin_version }}
         run: |
-          # Fail-fast verification: check expected executable path exists
-          EXPECTED_BINARY="${FINFOCUS_PLUGINS_DIR}/aws-public/dev/finfocus-plugin-aws-public"
-          if [ ! -x "${EXPECTED_BINARY}" ]; then
-            echo "ERROR: Plugin binary not found or not executable at: ${EXPECTED_BINARY}"
-            echo "Directory contents:"
-            find "${FINFOCUS_PLUGINS_DIR}" -type f 2>/dev/null || echo "Plugin directory does not exist"
+          PLUGIN_ROOT="${FINFOCUS_HOME}/plugins/aws-public"
+          BINARY="$(find "${PLUGIN_ROOT}" -type f -name 'finfocus-plugin-aws-public*' -perm -u+x 2>/dev/null | head -n 1)"
+          if [ -z "${BINARY}" ]; then
+            echo "ERROR: no executable plugin binary under ${PLUGIN_ROOT}"
+            find "${FINFOCUS_HOME}" -type f 2>/dev/null || echo "FINFOCUS_HOME does not exist"
             exit 1
           fi
-          echo "Plugin binary verified: ${EXPECTED_BINARY}"
+          echo "Plugin binary verified: ${BINARY}"
 
-          # Verify finfocus can discover the plugin
-          finfocus plugin list
+          LISTING="$(finfocus plugin list)"
+          echo "${LISTING}"
+          if ! grep -q 'aws-public' <<<"${LISTING}"; then
+            echo "ERROR: finfocus plugin list does not show aws-public"
+            exit 1
+          fi
+          if [ -n "${PLUGIN_VERSION}" ] && ! grep -q "${PLUGIN_VERSION}" <<<"${LISTING}"; then
+            echo "ERROR: requested version ${PLUGIN_VERSION} not listed"
+            exit 1
+          fi
 
       - name: Run integration test (projected cost)
         env:
-          FINFOCUS_PLUGINS_DIR: ${{ github.workspace }}/plugins
+          FINFOCUS_HOME: ${{ github.workspace }}/finfocus-home
         run: |
-          # Use a simple plan from the core repo to test integration
           finfocus cost projected --pulumi-json core/testdata/simple-plan.json
 
   notify-failure:
@@ -120,7 +107,7 @@ jobs:
             const title = `Cross-repo integration failure - ${new Date().toISOString().split('T')[0]}`;
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const coreRef = "${{ github.event.inputs.core_ref || 'nightly' }}";
-            const pluginRef = "${{ github.event.inputs.plugin_ref || 'main' }}";
+            const pluginVersion = ${{ toJSON(github.event.inputs.plugin_version || 'latest') }};
 
             // Check if an issue already exists for today
             const existingIssues = await github.rest.issues.listForRepo({
@@ -134,7 +121,7 @@ jobs:
               issue.title.includes(new Date().toISOString().split('T')[0])
             );
 
-            const body = `## Cross-Repository Integration Failure\n\nThe integration test between finfocus and aws-public plugin has failed.\n\n**Core Ref:** ${coreRef}\n**Plugin Ref:** ${pluginRef}\n**Run URL:** ${runUrl}\n\nPlease investigate and fix the failing integration.`;
+            const body = `## Cross-Repository Integration Failure\n\nThe integration test between finfocus and aws-public plugin has failed.\n\n**Core Ref:** ${coreRef}\n**Plugin Version:** ${pluginVersion}\n**Run URL:** ${runUrl}\n\nPlease investigate and fix the failing integration.`;
 
             if (todayIssue) {
               await github.rest.issues.createComment({
