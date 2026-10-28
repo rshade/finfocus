@@ -835,13 +835,18 @@ Specs 613-623 hold the details. Invariants:
   analyzer names. `os.Executable()` resolves symlinks, so `RunPlugin` sets
   `Args[0]` to `pulumi-analyzer-policy-finfocus` (plus `.exe` on Windows) or
   the process starts the CLI.
-- The analyzer's working directory is `info.programDirectory`, the policy
-  pack directory, which holds no `Pulumi.yaml`. `projectDirEnv` exports
-  `RunPluginRequest.pwd` (the Pulumi project) as `FINFOCUS_PROJECT_DIR`, so
-  project-tier config, `last-cost-summary.json`, and cost history use the
-  project's `.finfocus/`, as on Pulumi before 3.270.0. An explicit
-  `FINFOCUS_PROJECT_DIR` wins, and a `pwd` that is not an absolute directory
-  is ignored. Do not resolve the project inside `analyzer serve`.
+- The analyzer runs in `RunPluginRequest.pwd` (the Pulumi project) when that
+  is an absolute directory, as on Pulumi before 3.270.0, and otherwise in
+  `info.programDirectory`, the pack directory, which holds no `Pulumi.yaml`.
+  The working directory matters: relative project paths such as
+  `cost.history.directory` resolve against it. `projectDirEnv` also exports
+  `pwd` as `FINFOCUS_PROJECT_DIR`, so project-tier config, `last-cost-summary.json`,
+  and cost history use the project's `.finfocus/`. An explicit
+  `FINFOCUS_PROJECT_DIR` wins. Do not resolve the project inside `analyzer serve`.
+- `RunAnalyzerServe` stops plugins before `grpcServer.Stop()` (Pulumi waits for
+  the process) but closes history after it, and the server is built with
+  `grpc.WaitForHandlers(true)`, so `Stop` returns only after in-flight
+  `Analyze` calls have. `BoltStore.Close` and `IsEnabled` are not synchronized.
 - Unix cancel sends SIGINT so `analyzer serve` can close plugin process
   groups before it stops gRPC. `GracefulStop` waits for Pulumi, and Pulumi
   waits for the process, so the signal path closes plugins and then calls

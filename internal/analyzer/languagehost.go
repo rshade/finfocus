@@ -186,7 +186,12 @@ func (h *LanguageHost) analyzerCommand(ctx context.Context, req *pulumirpc.RunPl
 	cmd := exec.CommandContext( //nolint:gosec // binary is this process; args[0] is the engine address
 		ctx, h.opts.Executable, req.GetArgs()[0], ".")
 	cmd.Args[0] = h.opts.AnalyzerName
+	// Pulumi before 3.270.0 starts the analyzer in the project, so relative
+	// paths in project config (cost.history.directory) resolve against it.
 	cmd.Dir = req.GetInfo().GetProgramDirectory()
+	if project := requestProjectDir(req); project != "" {
+		cmd.Dir = project
+	}
 	cmd.Env = append(os.Environ(), req.GetEnv()...)
 	cmd.Env = append(cmd.Env, projectDirEnv(req)...)
 	cmd.WaitDelay = h.opts.WaitDelay
@@ -194,20 +199,26 @@ func (h *LanguageHost) analyzerCommand(ctx context.Context, req *pulumirpc.RunPl
 	return cmd
 }
 
-// projectDirEnv hands the analyzer the Pulumi project through the same
-// FINFOCUS_PROJECT_DIR the CLI already reads. The analyzer runs in the policy
-// pack directory, which holds no Pulumi.yaml, so without it project-tier config
-// is never found. An explicit setting wins, and a pwd that is not an absolute
-// directory is ignored.
-func projectDirEnv(req *pulumirpc.RunPluginRequest) []string {
+// requestProjectDir returns the Pulumi project the preview runs in
+// (RunPluginRequest.pwd), or "" when it is not an absolute directory.
+func requestProjectDir(req *pulumirpc.RunPluginRequest) string {
 	pwd := req.GetPwd()
 	if !filepath.IsAbs(pwd) {
-		return nil
+		return ""
 	}
 	if info, err := os.Stat(pwd); err != nil || !info.IsDir() {
-		return nil
+		return ""
 	}
-	if os.Getenv(projectDirEnvVar) != "" {
+	return pwd
+}
+
+// projectDirEnv hands the analyzer the Pulumi project through the same
+// FINFOCUS_PROJECT_DIR the CLI already reads. The pack directory holds no
+// Pulumi.yaml, so without it project-tier config is never found. An explicit
+// setting wins.
+func projectDirEnv(req *pulumirpc.RunPluginRequest) []string {
+	pwd := requestProjectDir(req)
+	if pwd == "" || os.Getenv(projectDirEnvVar) != "" {
 		return nil
 	}
 	prefix := projectDirEnvVar + "="

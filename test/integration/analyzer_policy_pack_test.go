@@ -51,10 +51,14 @@ func TestAnalyzerPolicyPack_LoadsInPulumi(t *testing.T) {
 	t.Run("language_plugin", func(t *testing.T) {
 		run := newPolicyPackRun(t, pulumiBin, binary, true)
 		run.writeProgram()
+		run.writeProjectConfig(`{"cost": {"history": {"directory": ".finfocus/history"}}}`)
 		run.install()
 		previewOut := run.preview()
 		assert.Contains(t, previewOut, analyzerServingMarker)
 		assert.Contains(t, previewOut, "using "+languagePluginEntry)
+		assert.FileExists(t, filepath.Join(run.project, ".finfocus", "history", "history.db"),
+			"a relative project history directory resolves against the project")
+		assert.NoDirExists(t, filepath.Join(run.finfocusHome, "history"))
 		assertCostSummary(t, filepath.Join(run.project, ".finfocus"))
 		assert.NoFileExists(t, filepath.Join(run.finfocusHome, "last-cost-summary.json"))
 	})
@@ -173,6 +177,13 @@ func newPolicyPackRun(t *testing.T, pulumiBin, binary string, disableAcquisition
 func (r *policyPackRun) writeProgram() {
 	r.t.Helper()
 	require.NoError(r.t, os.WriteFile(filepath.Join(r.project, "Pulumi.yaml"), []byte(emptyProgramYAML), 0o600))
+}
+
+func (r *policyPackRun) writeProjectConfig(content string) {
+	r.t.Helper()
+	dir := filepath.Join(r.project, ".finfocus")
+	require.NoError(r.t, os.MkdirAll(dir, 0o750))
+	require.NoError(r.t, os.WriteFile(filepath.Join(dir, "config.hujson"), []byte(content), 0o600))
 }
 
 func (r *policyPackRun) environ() []string {

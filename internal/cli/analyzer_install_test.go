@@ -147,26 +147,24 @@ func TestAnalyzerInstallCmd_PrintsPATHInstructions(t *testing.T) {
 	}
 }
 
-func TestAnalyzerInstallCmd_NoPATHOnNoOp(t *testing.T) {
+func TestAnalyzerInstallCmd_ReportsPolicyPackOnNoOp(t *testing.T) {
 	dir := t.TempDir()
 	finfocusHome := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", finfocusHome)
 
 	root := cli.NewRootCmd("test-version")
 
-	// First install
 	result1 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
 	require.Equal(t, 0, result1.ExitCode)
 
-	// Second install (no-op)
 	result2 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
 	require.Equal(t, 0, result2.ExitCode)
 
 	output := string(result2.Stdout)
-	assert.NotContains(t, output, "To use the analyzer with pulumi preview")
-	assert.NotContains(t, output, "export PATH=")
-	assert.NotContains(t, output, "pulumi preview --policy-pack")
-	assert.NotContains(t, output, "Language plugin:")
+	assert.Contains(t, output, "Analyzer already installed")
+	assert.Contains(t, output, "To use the analyzer with pulumi preview")
+	assert.Contains(t, output, "Language plugin:")
+	assert.Contains(t, output, "pulumi preview --policy-pack")
 }
 
 func TestAnalyzerInstallCmd_PrintsLanguagePlugin(t *testing.T) {

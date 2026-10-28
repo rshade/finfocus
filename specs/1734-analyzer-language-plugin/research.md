@@ -127,11 +127,14 @@ so it did not exercise plugin cleanup.
 
 ## R6. Working directory (FR-009)
 
-**Decision**: The child still runs in `info.programDirectory`, the policy
-pack directory. The language host also sets `FINFOCUS_PROJECT_DIR` to
-`req.pwd` (the Pulumi project) when it is an absolute directory and nothing
-set the variable already. The first answer (option C, keep the pack
-directory) was reversed on 2026-10-28.
+**Decision**: The child runs in `req.pwd` (the Pulumi project) when that is an
+absolute existing directory, and in `info.programDirectory` (the policy pack
+directory) otherwise. The language host also sets `FINFOCUS_PROJECT_DIR` to
+`req.pwd` when nothing set the variable already. The first answer (option C,
+keep the pack directory) was reversed on 2026-10-28; running in the project
+rather than only exporting the variable followed a review finding that a
+relative `cost.history.directory` resolved against the pack directory and fell
+back to global history.
 
 **Finding behind the change**: `RunAnalyzerServe` resolves the project from
 `os.Getwd()` (`internal/cli/analyzer_serve.go:92-97`). In the pack directory

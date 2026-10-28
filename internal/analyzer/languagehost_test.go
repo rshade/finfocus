@@ -335,6 +335,10 @@ func TestLanguageHost_RunPluginProjectDir(t *testing.T) {
 
 	ambient := os.Getenv("FINFOCUS_PROJECT_DIR")
 	project := t.TempDir()
+	wantProject := project
+	if ambient != "" {
+		wantProject = ambient
+	}
 	notDir := filepath.Join(t.TempDir(), "file")
 	require.NoError(t, os.WriteFile(notDir, nil, 0o600))
 
@@ -344,7 +348,7 @@ func TestLanguageHost_RunPluginProjectDir(t *testing.T) {
 		env  []string
 		want string
 	}{
-		{name: "pwd becomes the project directory", pwd: project, want: project},
+		{name: "pwd becomes the project directory", pwd: project, want: wantProject},
 		{name: "empty pwd leaves the environment alone", pwd: "", want: ambient},
 		{name: "relative pwd is ignored", pwd: "relative/project", want: ambient},
 		{name: "missing pwd is ignored", pwd: filepath.Join(project, "missing"), want: ambient},
@@ -383,6 +387,55 @@ func TestLanguageHost_RunPluginProjectDir(t *testing.T) {
 			}
 			require.NoError(t, json.Unmarshal([]byte(rest), &payload))
 			assert.Equal(t, tt.want, payload.Project)
+		})
+	}
+}
+
+func TestLanguageHost_RunPluginWorkingDirectory(t *testing.T) {
+	t.Parallel()
+
+	project := t.TempDir()
+	tests := []struct {
+		name string
+		pwd  string
+		want func(pack string) string
+	}{
+		{name: "valid pwd is the working directory", pwd: project, want: func(string) string { return project }},
+		{name: "empty pwd keeps the pack directory", pwd: "", want: func(pack string) string { return pack }},
+		{
+			name: "relative pwd keeps the pack directory",
+			pwd:  "relative",
+			want: func(pack string) string { return pack },
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client, _ := startLanguageHost(t, LanguageHostOptions{
+				Executable:   testExecutable(t),
+				AnalyzerName: analyzerName(),
+			})
+			pack := t.TempDir()
+			stream, err := client.RunPlugin(context.Background(), &pulumirpc.RunPluginRequest{
+				Args: []string{"127.0.0.1:9999"},
+				Info: &pulumirpc.ProgramInfo{ProgramDirectory: pack},
+				Kind: "analyzer",
+				Pwd:  tt.pwd,
+				Env:  []string{"FINFOCUS_LANGHOST_TEST_CHILD=report"},
+			})
+			require.NoError(t, err)
+
+			got := readPluginStream(stream)
+			require.NoError(t, got.err)
+			_, rest, found := strings.Cut(string(got.stdout), "\n")
+			require.True(t, found)
+
+			var payload struct {
+				WD string `json:"wd"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(rest), &payload))
+			assert.Equal(t, tt.want(pack), payload.WD)
 		})
 	}
 }

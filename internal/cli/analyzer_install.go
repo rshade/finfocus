@@ -89,21 +89,6 @@ func reportAnalyzerInstall(cmd *cobra.Command, result *analyzer.InstallResult) e
 		cmd.Printf("  Version: v%s\n", result.Version)
 		cmd.Printf("  Path: %s\n", result.Path)
 		cmd.Printf("  Method: %s\n", result.Method)
-		if result.PolicyPackDir != "" {
-			cmd.Printf("  Policy pack: %s\n", result.PolicyPackDir)
-			cmd.Printf("  Policy pack method: %s\n", result.PolicyPackMethod)
-			if result.PolicyPackLanguagePlugin != "" {
-				cmd.Printf("  Language plugin: %s\n", result.PolicyPackLanguagePlugin)
-			}
-			cmd.Printf("\nTo use the analyzer with pulumi preview:\n")
-			if runtime.GOOS == "windows" {
-				cmd.Printf("\n  PowerShell:  $env:PATH = \"%s;$env:PATH\"\n", result.PolicyPackDir)
-			} else {
-				cmd.Printf("\n  export PATH=\"%s:$PATH\"\n", result.PolicyPackDir)
-			}
-			cmd.Printf("\nThen run:\n")
-			cmd.Printf("\n  pulumi preview --policy-pack \"%s\"\n", result.PolicyPackDir)
-		}
 	case analyzer.ActionUpdateAvailable:
 		cmd.Printf("Analyzer already installed at v%s\n", result.Version)
 		cmd.Printf("  Path: %s\n", result.Path)
@@ -116,5 +101,28 @@ func reportAnalyzerInstall(cmd *cobra.Command, result *analyzer.InstallResult) e
 		cmd.Printf("  Use --force to reinstall\n")
 	}
 
+	reportPolicyPack(cmd, result)
+
 	return nil
+}
+
+// reportPolicyPack prints the pack location and the preview command. Install
+// repairs both pack entries on every run, so this is shown for every action.
+func reportPolicyPack(cmd *cobra.Command, result *analyzer.InstallResult) {
+	if result.PolicyPackDir == "" {
+		return
+	}
+	cmd.Printf("  Policy pack: %s\n", result.PolicyPackDir)
+	cmd.Printf("  Policy pack method: %s\n", result.PolicyPackMethod)
+	if result.PolicyPackLanguagePlugin != "" {
+		cmd.Printf("  Language plugin: %s\n", result.PolicyPackLanguagePlugin)
+	}
+	cmd.Printf("\nTo use the analyzer with pulumi preview:\n")
+	if runtime.GOOS == "windows" {
+		cmd.Printf("\n  PowerShell:  $env:PATH = \"%s;$env:PATH\"\n", result.PolicyPackDir)
+	} else {
+		cmd.Printf("\n  export PATH=\"%s:$PATH\"\n", result.PolicyPackDir)
+	}
+	cmd.Printf("\nThen run:\n")
+	cmd.Printf("\n  pulumi preview --policy-pack \"%s\"\n", result.PolicyPackDir)
 }

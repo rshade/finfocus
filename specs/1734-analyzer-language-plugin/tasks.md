@@ -298,13 +298,15 @@ restored, both matrix entries pass.
 - [X] T019 [P] [US3] Add the same check with `pulumi-version: latest` to
   `.github/workflows/nightly.yml`, scheduled like the existing integration
   job, so Pulumi releases between PRs are caught.
-- [ ] T020 [US3] Run `make lint` (includes actionlint) for T018 and T019, and
+- [X] T020 [US3] Run `make lint` (includes actionlint) for T018 and T019, and
   run T016's subtests on both Pulumi versions: `language_plugin`,
   `default_acquisition`, and `plugin_cleanup` pass on both,
   `legacy_entry_only` passes on 3.268.0 and is skipped on 3.271.0. Push the
   branch and confirm all four `analyzer-policy-pack` jobs pass. The red side
   of the break check (SC-004) is T001's recorded run on `main`; do not repeat
   it here.
+  All four `analyzer-policy-pack` jobs passed on PR #1917 (ubuntu and macOS,
+  Pulumi 3.268.0 and latest).
 
 **Checkpoint**: The next Pulumi break turns CI red.
 
@@ -369,8 +371,8 @@ answers the exact error (FR-012).
 
 - [X] T029 Add an "Analyzer language host" bullet group under
   Package-Specific Gotchas in `CLAUDE.md` (the `os.Executable()` symlink
-  trap and the explicit `Args[0]`, `programDirectory` as working directory
-  with `pwd` exported as `FINFOCUS_PROJECT_DIR`, SIGINT on cancel and Kill on Windows, the
+  trap and the explicit `Args[0]`, the `pwd` working directory (falling back to
+  `programDirectory`) with `pwd` exported as `FINFOCUS_PROJECT_DIR`, SIGINT on cancel and Kill on Windows, the
   `.exe` entry names, `FINFOCUS_TEST_PULUMI`), and a Recent Changes line for
   `1734-analyzer-language-plugin`. Edit by hand; do not run
   `update-agent-context.sh`, which rewrites the curated sections.
@@ -402,6 +404,9 @@ answers the exact error (FR-012).
   Pulumi version, the `dir` listing of the pack (both `.exe` entries), and
   the preview output in the PR description (SC-001). If no Windows run is
   possible, say so in the PR; do not mark SC-001 met.
+  The demo preview on Pulumi 3.272.0 and the leftover-process check are done.
+  The Windows preview is tracked in rshade/finfocus#1918 (a `windows-latest`
+  job in `nightly.yml`); mark SC-001 met for Windows when that job passes.
 - [ ] T033 Final gates: `gofmt -l`, `make lint` (allow over 5 minutes),
   `make test`, `make validate`, `go test -race ./test/integration/ -run TestAnalyzerPolicyPack`
   on both Pulumi versions, a cross-compile of `./cmd/finfocus` for
