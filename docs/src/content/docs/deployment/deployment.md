@@ -109,6 +109,9 @@ Use containers for repeatable, isolated execution in shared environments.
 - For analyzer previews, run `finfocus analyzer install` so the mounted home
   contains both `pulumi-language-finfocus` and
   `pulumi-analyzer-policy-finfocus`, and put `~/.finfocus/analyzer` on `PATH`.
+  The official image does not include the Pulumi CLI, so run the preview from
+  an image that has Pulumi installed (for example one built on the official
+  image) or on a host that has Pulumi and the mounted `~/.finfocus`.
 
 #### Docker Quick Start
 

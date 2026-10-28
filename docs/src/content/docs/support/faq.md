@@ -138,7 +138,7 @@ A: Install the analyzer plugin, then add it to your PATH:
 
 ```bash
 finfocus analyzer install
-export PATH="${HOME}/.pulumi/plugins/analyzer-finfocus-v$(finfocus --version | cut -d' ' -f2):${PATH}"
+export PATH="${HOME}/.finfocus/analyzer:${PATH}"
 pulumi preview --policy-pack ~/.finfocus/analyzer
 ```
 
