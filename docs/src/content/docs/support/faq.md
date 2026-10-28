@@ -145,6 +145,26 @@ pulumi preview --policy-pack ~/.finfocus/analyzer
 See the [Analyzer Setup Guide](../getting-started/analyzer-setup.md) for the
 full walkthrough.
 
+### Q: Preview says no language plugin 'pulumi-language-finfocus'
+
+A: Pulumi 3.270.0 and later starts a policy pack through
+`pulumi-language-finfocus` and does not fall back to
+`pulumi-analyzer-policy-finfocus`. The preview error is:
+
+```text
+no language plugin 'pulumi-language-finfocus' found in the workspace or on your $PATH
+```
+
+Pulumi may also print a 404 while looking up a download named
+`pulumi-finfocus` (`could not find latest version`). Re-run the install and
+keep the pack directory on `PATH`:
+
+```bash
+finfocus analyzer install
+export PATH="${HOME}/.finfocus/analyzer:${PATH}"
+pulumi preview --policy-pack ~/.finfocus/analyzer
+```
+
 ### Q: Does the analyzer block deployments?
 
 A: No. All cost diagnostics are `ADVISORY` severity — they appear as

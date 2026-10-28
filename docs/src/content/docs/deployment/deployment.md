@@ -75,9 +75,12 @@ Use this model for individual developers or small teams validating costs during 
 
 #### Pulumi Analyzer Policy Pack
 
-- Policy pack directory: `~/.finfocus/analyzer`.
+- Policy pack directory: `~/.finfocus/analyzer`, created by
+  `finfocus analyzer install`.
 - Runtime config: `~/.finfocus/analyzer/PulumiPolicy.yaml`.
-- Binary name: `pulumi-analyzer-policy-finfocus`.
+- Entries: `pulumi-language-finfocus` (Pulumi 3.270.0 and later) and
+  `pulumi-analyzer-policy-finfocus` (earlier releases). On Windows both end
+  in `.exe`.
 
 #### Local Quick Start
 
@@ -103,6 +106,9 @@ Use containers for repeatable, isolated execution in shared environments.
 - Official image: Alpine base, non-root user (UID 1001), multi-stage builds.
 - Mount `~/.finfocus` for config, plugins, and specs.
 - Mount the workspace for Pulumi JSON input.
+- For analyzer previews, run `finfocus analyzer install` so the mounted home
+  contains both `pulumi-language-finfocus` and
+  `pulumi-analyzer-policy-finfocus`, and put `~/.finfocus/analyzer` on `PATH`.
 
 #### Docker Quick Start
 
@@ -126,6 +132,10 @@ Use CI/CD to automate cost analysis in pull requests and deployments.
 1. Generate Pulumi plan JSON (`pulumi preview --json > plan.json`).
 2. Run `finfocus cost projected` for cost estimation.
 3. Enforce policy thresholds and budget checks.
+4. For inline analyzer diagnostics, run `finfocus analyzer install` and put
+   `~/.finfocus/analyzer` on `PATH` before
+   `pulumi preview --policy-pack ~/.finfocus/analyzer`. That command creates
+   both pack entries.
 
 #### Environment Variables
 

@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -159,6 +160,69 @@ func TestAnalyzerInstallCmd_NoPATHOnNoOp(t *testing.T) {
 	assert.NotContains(t, output, "To use the analyzer with pulumi preview")
 	assert.NotContains(t, output, "export PATH=")
 	assert.NotContains(t, output, "pulumi preview --policy-pack")
+	assert.NotContains(t, output, "Language plugin:")
+}
+
+func TestAnalyzerInstallCmd_PrintsLanguagePlugin(t *testing.T) {
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+
+	root := cli.NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result.ExitCode, "stderr: %s", result.Stderr)
+
+	policyPackDir := filepath.Join(finfocusHome, "analyzer")
+	langName := "pulumi-language-finfocus"
+	if runtime.GOOS == "windows" {
+		langName += ".exe"
+	}
+	output := string(result.Stdout)
+	assert.Contains(t, output, "Analyzer installed successfully")
+	assert.Contains(t, output, "  Version: v"+version.GetVersion())
+	assert.Contains(t, output, "  Path:")
+	assert.Contains(t, output, "  Method:")
+	assert.Contains(t, output, "  Policy pack: "+policyPackDir)
+	assert.Contains(t, output, "  Policy pack method: ")
+	assert.Contains(t, output, "  Language plugin: "+filepath.Join(policyPackDir, langName))
+	assert.Contains(t, output, "To use the analyzer with pulumi preview")
+	assert.Contains(t, output, "pulumi preview --policy-pack \""+policyPackDir+"\"")
+	if runtime.GOOS == "windows" {
+		assert.Contains(t, output, "$env:PATH")
+	} else {
+		assert.Contains(t, output, "export PATH=\""+policyPackDir+":$PATH\"")
+	}
+}
+
+func TestAnalyzerInstallCmd_JSONIncludesLanguagePlugin(t *testing.T) {
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+
+	root := cli.NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root, []string{
+		"analyzer", "install", "--target-dir", dir, "--format", "json",
+	})
+	require.Equal(t, 0, result.ExitCode, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(result.Stdout, &got), "stdout: %s", result.Stdout)
+	policyPackDir := filepath.Join(finfocusHome, "analyzer")
+	langName := "pulumi-language-finfocus"
+	if runtime.GOOS == "windows" {
+		langName += ".exe"
+	}
+	assert.Equal(t, true, got["installed"])
+	assert.Equal(t, false, got["needs_update"])
+	assert.Equal(t, "installed", got["action"])
+	assert.Equal(t, policyPackDir, got["policy_pack_dir"])
+	assert.NotEmpty(t, got["policy_pack_method"])
+	assert.Equal(t, filepath.Join(policyPackDir, langName), got["policy_pack_language_plugin"])
+	for _, key := range []string{
+		"version", "path", "method", "current_version",
+	} {
+		assert.Contains(t, got, key)
+	}
 }
 
 func TestNewAnalyzerInstallCmd_ErrorOnInvalidDir(t *testing.T) {

@@ -125,6 +125,10 @@ Then run: `pulumi preview --policy-pack ~/.finfocus/analyzer`
 
 Add to PATH for discovery: `export PATH="$HOME/.finfocus/analyzer:$PATH"`
 
+The pack directory holds `PulumiPolicy.yaml`, `pulumi-language-finfocus`
+(Pulumi 3.270.0 and later), and `pulumi-analyzer-policy-finfocus` (earlier
+releases). On Windows both entries end in `.exe`.
+
 ### Step 7: Validate
 
 ```bash
@@ -144,6 +148,9 @@ finfocus plugin list --available  # Show registry plugins
 ├── cache/               # BoltDB cache (cache.db)
 ├── logs/                # Log files
 └── analyzer/            # Pulumi policy pack
+    ├── PulumiPolicy.yaml
+    ├── pulumi-language-finfocus
+    └── pulumi-analyzer-policy-finfocus
 ```
 
 ## References

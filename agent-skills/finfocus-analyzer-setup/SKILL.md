@@ -53,7 +53,13 @@ Restart PowerShell for changes to take effect.
 1. Creates `~/.pulumi/plugins/analyzer-finfocus-v{VERSION}/pulumi-analyzer-finfocus`
    (symlink on Unix, copy on Windows)
 2. Creates `~/.finfocus/analyzer/PulumiPolicy.yaml` (runtime: finfocus)
-3. Creates `~/.finfocus/analyzer/pulumi-analyzer-policy-finfocus` (binary reference)
+3. Creates `~/.finfocus/analyzer/pulumi-analyzer-policy-finfocus` (Pulumi before
+   3.270.0)
+4. Creates `~/.finfocus/analyzer/pulumi-language-finfocus` (Pulumi 3.270.0 and
+   later)
+
+On Windows both pack entries end in `.exe`. Running `finfocus analyzer install`
+again adds `pulumi-language-finfocus` to a pack that has only the older entry.
 
 Use `--force` to reinstall after upgrading finfocus. Use `--target-dir` to
 override the Pulumi plugin directory.

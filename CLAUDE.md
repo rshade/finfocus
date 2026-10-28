@@ -828,6 +828,26 @@ Specs 613-623 hold the details. Invariants:
   plugin dir (its `.npmrc` and `node_modules` could run code), and writes
   through an `os.Root`. Every failure is a warning. Tests never run npx.
 
+### Analyzer language host (`internal/analyzer/languagehost.go`, `cmd/finfocus/main.go`)
+
+- `filepath.Base(os.Args[0])` selects the mode. `pulumi-language-finfocus`
+  (and its `.exe` form) is the language host and is checked before the
+  analyzer names. `os.Executable()` resolves symlinks, so `RunPlugin` sets
+  `Args[0]` to `pulumi-analyzer-policy-finfocus` (plus `.exe` on Windows) or
+  the process starts the CLI.
+- The analyzer's working directory is `info.programDirectory`, the policy
+  pack directory. Project-tier config still comes from that directory until
+  the FR-014 follow-up reads `RunPluginRequest.pwd`.
+- Unix cancel sends SIGINT so `analyzer serve` can close plugin process
+  groups before it stops gRPC. `GracefulStop` waits for Pulumi, and Pulumi
+  waits for the process, so the signal path closes plugins and then calls
+  `Stop`. Windows cancel uses `Process.Kill` because `os.Interrupt` cannot be
+  delivered. `WaitDelay` is 3s and the host's shutdown cap is 4s.
+- `SetupPolicyPack` writes both entries. Names go through
+  `policyPackEntryName` / `PolicyPackEntryPath`.
+- The opt-in integration test needs `FINFOCUS_TEST_PULUMI` set to an absolute
+  pulumi binary, not a mise shim (`test/integration/analyzer_policy_pack_test.go`).
+
 ## Recent Changes
 
 - 1735-pulumi-cloud-history: `cost.history.pulumi_cloud.enabled` defaults
@@ -848,7 +868,7 @@ Specs 613-623 hold the details. Invariants:
   `internal/pulumicloud` wraps the official `pulumi-cloud-sdk` `apiclient`; its
   `Executor` owns the token, no-redirect, retry, ETag, and size-bound rules.
   Do not run `update-agent-context.sh`: it damages this file's curated content.
-
+- 1734-analyzer-language-plugin: Analyzer mode on Pulumi 3.270.0+ goes through `pulumi-language-finfocus`. `RunPlugin` re-executes the analyzer with an explicit `Args[0]`, and `finfocus analyzer install` writes both pack entries (`specs/1734-analyzer-language-plugin/`).
 - 1733-shared-stack-loader: Shared Pulumi state and preview snapshots align CLI and web live inventory. Projected output adds a separate stack total and safe state-availability categories while preserving plan totals, budgets, exit codes, and forecast totals (`specs/1733-shared-stack-loader/`).
 
 - 1732-terraform-plan-ingestion: Terraform plan mode parses `terraform show -json` through in-process `pluginsdk.CostParseProvider` (`ParseRequest` / `ParseResponse` plus `ValidateParseRequest` and `ValidateParseResponse`). Not served as `CostParseService`. `ParseResponse` has no operation; the host keeps `map[source_id]operation` beside it. `resource_type` stays the Terraform type and `ResolveResourceTypes` still runs after validation (`specs/1732-terraform-plan-ingestion/`). Terraform 1.16 records data sources on `prior_state`, not `resource_changes`; the committed plan fixture copies those emitted data resources into `resource_changes` with action `read`. `cost projected` plans a Terraform directory or reads `--terraform-plan`. Overview, estimate, recommendations, forecast, cost history, and `--web` also plan a detected Terraform directory. `cost actual` and `cost history collect` do not plan.

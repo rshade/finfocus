@@ -178,6 +178,33 @@ jobs:
       - name: Run govulncheck
         run: govulncheck ./...
 
+  analyzer-policy-pack:
+    name: Analyzer policy pack (${{ matrix.os }}, pulumi ${{ matrix.pulumi }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        pulumi: ["3.268.0", "latest"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v7
+        with:
+          pulumi-version: ${{ matrix.pulumi }}
+
+      - name: Run analyzer policy pack check
+        run: FINFOCUS_TEST_PULUMI="$(command -v pulumi)" go test -v -count=1 -run TestAnalyzerPolicyPack ./test/integration/
+
   validate:
     name: Validation
     runs-on: ubuntu-latest

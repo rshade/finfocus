@@ -715,7 +715,7 @@ func TestInstall_ForceSyncsPolicyPack(t *testing.T) {
 	assert.NotEmpty(t, result1.PolicyPackDir, "first install should create policy pack")
 
 	// Verify the policy pack binary exists
-	ppBinaryPath := filepath.Join(result1.PolicyPackDir, policyPackBinaryName)
+	ppBinaryPath := PolicyPackEntryPath(result1.PolicyPackDir, policyPackBinaryName)
 	_, statErr := os.Lstat(ppBinaryPath)
 	require.NoError(t, statErr, "policy pack binary should exist after first install")
 
@@ -807,46 +807,81 @@ func TestInstall_ForceSyncFailureWarns(t *testing.T) {
 	assert.Equal(t, ActionInstalled, result2.Action)
 }
 
-// --- T020: syncPolicyPackBinary unit tests ---
+// FINFOCUS_HOME is process-wide, so these tests do not run in parallel.
 
-func TestSyncPolicyPackBinary(t *testing.T) {
-	t.Parallel()
+func TestInstall_SetsLanguagePluginPath(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
-	t.Run("replaces existing binary", func(t *testing.T) {
-		t.Parallel()
-		ppDir := t.TempDir()
-		srcDir := t.TempDir()
+	result, err := Install(context.Background(), InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+	want := PolicyPackEntryPath(result.PolicyPackDir, LanguagePluginBinaryName)
+	assert.Equal(t, want, result.PolicyPackLanguagePlugin)
+	_, statErr := os.Lstat(want)
+	require.NoError(t, statErr)
+}
 
-		// Create a source binary
-		srcBinary := filepath.Join(srcDir, "finfocus-new")
-		require.NoError(t, os.WriteFile(srcBinary, []byte("new-version"), 0o755))
+func TestInstall_AlreadyCurrentAddsLanguagePlugin(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	ctx := context.Background()
 
-		// Create an existing old binary in the policy pack dir
-		oldBinary := filepath.Join(ppDir, policyPackBinaryName)
-		require.NoError(t, os.WriteFile(oldBinary, []byte("old-version"), 0o755))
+	first, err := Install(ctx, InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+	lang := PolicyPackEntryPath(first.PolicyPackDir, LanguagePluginBinaryName)
+	require.NoError(t, os.Remove(lang))
 
-		err := syncPolicyPackBinary(context.Background(), srcBinary, ppDir)
-		require.NoError(t, err)
+	second, err := Install(ctx, InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+	assert.Equal(t, ActionAlreadyCurrent, second.Action)
+	assert.Equal(t, lang, second.PolicyPackLanguagePlugin)
+	_, statErr := os.Lstat(lang)
+	require.NoError(t, statErr)
+	_, statErr = os.Lstat(PolicyPackEntryPath(first.PolicyPackDir, policyPackBinaryName))
+	require.NoError(t, statErr)
+}
 
-		// Verify the binary was replaced
-		_, statErr := os.Lstat(filepath.Join(ppDir, policyPackBinaryName))
-		require.NoError(t, statErr, "binary should exist after sync")
-	})
+func TestInstall_ForceRecreatesBothEntries(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	ctx := context.Background()
 
-	t.Run("creates binary when none exists", func(t *testing.T) {
-		t.Parallel()
-		ppDir := t.TempDir()
-		srcDir := t.TempDir()
+	execPath, err := os.Executable()
+	require.NoError(t, err)
+	execPath, err = filepath.EvalSymlinks(execPath)
+	require.NoError(t, err)
 
-		srcBinary := filepath.Join(srcDir, "finfocus")
-		require.NoError(t, os.WriteFile(srcBinary, []byte("binary-content"), 0o755))
+	first, err := Install(ctx, InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+	for _, name := range policyPackEntryNames() {
+		path := PolicyPackEntryPath(first.PolicyPackDir, name)
+		require.NoError(t, os.Remove(path))
+		require.NoError(t, os.WriteFile(path, []byte("stale"), 0o755))
+	}
 
-		err := syncPolicyPackBinary(context.Background(), srcBinary, ppDir)
-		require.NoError(t, err)
+	result, err := Install(ctx, InstallOptions{TargetDir: dir, Force: true})
+	require.NoError(t, err)
+	assert.Equal(t, ActionInstalled, result.Action)
+	assert.Equal(t,
+		PolicyPackEntryPath(result.PolicyPackDir, LanguagePluginBinaryName),
+		result.PolicyPackLanguagePlugin)
 
-		_, statErr := os.Lstat(filepath.Join(ppDir, policyPackBinaryName))
-		require.NoError(t, statErr, "binary should be created")
-	})
+	for _, name := range policyPackEntryNames() {
+		path := PolicyPackEntryPath(result.PolicyPackDir, name)
+		info, statErr := os.Lstat(path)
+		require.NoError(t, statErr)
+		if info.Mode()&os.ModeSymlink != 0 {
+			target, readErr := os.Readlink(path)
+			require.NoError(t, readErr)
+			assert.Equal(t, execPath, target)
+			continue
+		}
+		got, readErr := os.ReadFile(path)
+		require.NoError(t, readErr)
+		want, readErr := os.ReadFile(execPath)
+		require.NoError(t, readErr)
+		assert.Equal(t, want, got)
+	}
 }
 
 // readBinaryContent returns the symlink target (for symlinks) or file bytes (for regular files).

@@ -92,6 +92,9 @@ func reportAnalyzerInstall(cmd *cobra.Command, result *analyzer.InstallResult) e
 		if result.PolicyPackDir != "" {
 			cmd.Printf("  Policy pack: %s\n", result.PolicyPackDir)
 			cmd.Printf("  Policy pack method: %s\n", result.PolicyPackMethod)
+			if result.PolicyPackLanguagePlugin != "" {
+				cmd.Printf("  Language plugin: %s\n", result.PolicyPackLanguagePlugin)
+			}
 			cmd.Printf("\nTo use the analyzer with pulumi preview:\n")
 			if runtime.GOOS == "windows" {
 				cmd.Printf("\n  PowerShell:  $env:PATH = \"%s;$env:PATH\"\n", result.PolicyPackDir)

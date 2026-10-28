@@ -184,9 +184,11 @@ list varies based on configuration.
 ## Graceful Shutdown
 
 The server registers signal handlers for `SIGINT` and `SIGTERM`. On receipt, it
-calls `grpcServer.GracefulStop()`, which drains in-flight RPCs before exiting.
-Pulumi treats a lost analyzer connection as non-fatal: the preview completes
-without cost annotations.
+closes cost plugin processes, including their process group on Linux and macOS,
+and then stops the gRPC server. It does not wait for Pulumi to hang up first:
+Pulumi waits for the analyzer process to exit, so that wait would never reach
+plugin cleanup. Pulumi treats a lost analyzer connection as non-fatal when the
+analyzer never served.
 
 ## CLI Usage
 
@@ -205,9 +207,11 @@ export PATH="${HOME}/.finfocus/analyzer:${PATH}"
 pulumi preview --policy-pack ~/.finfocus/analyzer
 ```
 
-Pulumi finds `pulumi-analyzer-policy-finfocus` by searching PATH, executes it as
-a subprocess, reads the port from stdout, and connects over gRPC for the duration
-of the preview or update.
+Pulumi 3.270.0 and later finds `pulumi-language-finfocus` on `PATH` and starts
+it as the language host. `RunPlugin` starts the analyzer in the policy pack
+directory, reads the port from its output, and connects over gRPC for the
+preview or update. Pulumi before 3.270.0 still starts
+`pulumi-analyzer-policy-finfocus` from `PATH` and reads the port the same way.
 
 > **Note:** Adding `analyzers:` to `Pulumi.yaml` does not work for YAML-runtime
 > projects. Use `--policy-pack` with the binary on PATH.

@@ -38,7 +38,12 @@ func validateDiagnostics(t *testing.T, output string, diagnostics []AnalyzerDiag
 // ensureAnalyzerConfig sets up the policy pack directory for the analyzer.
 // This creates a directory with:
 //   - PulumiPolicy.yaml (required for policy pack loading)
-//   - The finfocus binary renamed to pulumi-analyzer-policy-finfocus
+//   - The finfocus binary copied to pulumi-analyzer-policy-finfocus
+//   - The finfocus binary copied to pulumi-language-finfocus
+//
+// The names match the legacy analyzer entry and
+// analyzer.LanguagePluginBinaryName. This module cannot import
+// internal/analyzer, so the names stay literal.
 //
 // Returns the absolute path to the policy pack directory.
 func ensureAnalyzerConfig(t *testing.T, projectDir string) string {
@@ -58,22 +63,23 @@ version: 0.0.0-dev
 	err = os.WriteFile(filepath.Join(policyPackDir, "PulumiPolicy.yaml"), []byte(policyYaml), 0644)
 	require.NoError(t, err)
 
-	// Determine destination binary name (pulumi-analyzer-policy-finfocus)
-	// Preserve extension if present (e.g., .exe)
+	// Preserve extension if present (e.g., .exe).
 	ext := filepath.Ext(binaryPath)
-	destBinaryName := "pulumi-analyzer-policy-finfocus" + ext
-	destBinaryPath := filepath.Join(policyPackDir, destBinaryName)
-
-	// Copy the binary
-	input, err := os.ReadFile(binaryPath)
-	require.NoError(t, err)
-	err = os.WriteFile(destBinaryPath, input, 0755)
-	require.NoError(t, err)
+	for _, name := range []string{"pulumi-analyzer-policy-finfocus", "pulumi-language-finfocus"} {
+		copyAnalyzerEntry(t, binaryPath, filepath.Join(policyPackDir, name+ext))
+	}
 
 	absPolicyPackDir, err := filepath.Abs(policyPackDir)
 	require.NoError(t, err)
 
 	return absPolicyPackDir
+}
+
+func copyAnalyzerEntry(t *testing.T, src, dst string) {
+	t.Helper()
+	input, err := os.ReadFile(src)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(dst, input, 0755))
 }
 
 func skipIfPulumiNotInstalled(t *testing.T) {

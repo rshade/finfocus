@@ -355,7 +355,9 @@ routing:
 >
 > When finfocus runs as a Pulumi policy pack (`pulumi preview --policy-pack`),
 > routing configuration is **not consulted**. All plugins discovered in the plugin
-> directory are loaded and queried for every resource.
+> directory are loaded and queried for every resource. Pulumi 3.270.0 and later
+> starts that pack through `pulumi-language-finfocus`; earlier releases start
+> `pulumi-analyzer-policy-finfocus`. `finfocus analyzer install` writes both.
 >
 > Additionally, global plugins (those with `supported_providers: ["*"]`) cannot be
 > excluded via routing even in standard CLI mode — they are always included for all
