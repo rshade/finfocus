@@ -147,6 +147,30 @@ func reportActualCloudHistory(
 	return nil
 }
 
+// inputStackMismatch reports whether the loaded resources name a different
+// stack than the one Cloud and local history resolve. An input with no
+// parseable URN, or no resolved stack, gives nothing to compare.
+func inputStackMismatch(resources []engine.ResourceDescriptor, stack history.StackContext) bool {
+	want := stack.Stack[strings.LastIndex(stack.Stack, "/")+1:]
+	if want == "" {
+		return false
+	}
+	for _, resource := range resources {
+		urn, _ := resource.Properties[engine.PropertyPulumiURN].(string)
+		if urn == "" {
+			urn = resource.ID
+		}
+		rest, ok := strings.CutPrefix(urn, "urn:pulumi:")
+		if !ok {
+			continue
+		}
+		if got, _, found := strings.Cut(rest, "::"); found {
+			return got != want
+		}
+	}
+	return false
+}
+
 type historyStackContextKey struct{}
 
 // actualHistoryContext pins an explicit stack for recording and enrichment.

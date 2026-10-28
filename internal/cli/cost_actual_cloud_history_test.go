@@ -268,3 +268,44 @@ func TestActualCloudVerboseCounters(t *testing.T) {
 		assert.NotContains(t, string(second.Stderr), label)
 	}
 }
+
+// Configures process-wide config and environment.
+func TestActualCloudHistorySkipsMismatchedInputStack(t *testing.T) {
+	state, err := os.ReadFile("testdata/pulumi/stack-export-dev.json")
+	require.NoError(t, err)
+	setupCloudModeProject(t, "auto")
+	statePath := filepath.Join(t.TempDir(), "production.json")
+	require.NoError(
+		t,
+		os.WriteFile(
+			statePath,
+			[]byte(strings.ReplaceAll(string(state), "urn:pulumi:dev::", "urn:pulumi:production::")),
+			0o600,
+		),
+	)
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("PULUMI_BACKEND_URL", server.URL)
+	now := time.Now().Truncate(time.Second)
+
+	result := axtest.Run(
+		context.Background(),
+		t,
+		NewRootCmd("test"),
+		[]string{
+			"cost", "actual",
+			"--pulumi-state", statePath,
+			"--stack", "dev",
+			"--from", now.Add(-24 * time.Hour).Format(time.RFC3339),
+			"--to", now.Format(time.RFC3339),
+			"--output", "json",
+		},
+	)
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.Zero(t, requests, "a state input for another stack must not import this stack's Cloud history")
+	assert.Contains(t, string(result.Stderr), "history was not applied")
+}

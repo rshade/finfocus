@@ -215,3 +215,82 @@ func serveImportHistoryFailure(w http.ResponseWriter, r *http.Request) {
 	}
 	http.NotFound(w, r)
 }
+
+// Root commands and project configuration use process-wide state.
+func TestImportCloudHistoryMachineOutputModes(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		env  string
+	}{
+		{"AGENT_MODE json", nil, "json"},
+		{"AGENT_MODE one", nil, "1"},
+		{"agent alias", []string{"--format", "agent"}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupCloudModeProject(t, "auto")
+			t.Setenv("AGENT_MODE", tc.env)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/user" {
+					_, _ = w.Write([]byte(`{}`))
+					return
+				}
+				_, _ = w.Write([]byte(`{"updates":[]}`))
+			}))
+			t.Cleanup(server.Close)
+			t.Setenv("PULUMI_BACKEND_URL", server.URL)
+			args := append([]string{"--import-cloud-history", "--stack", "dev"}, tc.args...)
+			result := axtest.Run(context.Background(), t, NewRootCmd("test"), args)
+			require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+			var got cloudhistory.Result
+			require.NoError(t, json.Unmarshal(result.Stdout, &got), string(result.Stdout))
+		})
+	}
+}
+
+// Root commands and project configuration use process-wide state.
+func TestImportCloudHistoryDryRunWritesNothing(t *testing.T) {
+	setupCloudModeProject(t, "auto")
+	requests := 0
+	server := httptest.NewServer(
+		http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests++ }),
+	)
+	t.Cleanup(server.Close)
+	t.Setenv("PULUMI_BACKEND_URL", server.URL)
+	historyDir := filepath.Join(config.ResolveConfigDir(), "history")
+
+	result := axtest.Run(
+		context.Background(),
+		t,
+		NewRootCmd("test"),
+		[]string{"--import-cloud-history", "--dry-run"},
+	)
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.Contains(t, string(result.Stdout), "Would import Pulumi Cloud history")
+	assert.Zero(t, requests)
+	assert.NoDirExists(t, historyDir)
+
+	machine := axtest.Run(
+		context.Background(),
+		t,
+		NewRootCmd("test"),
+		[]string{"--import-cloud-history", "--dry-run", "--format", "json"},
+	)
+	require.Equal(t, 0, machine.ExitCode, string(machine.Stderr))
+	assert.Contains(t, string(machine.Stdout), `"would_import_cloud_history"`)
+	assert.NoDirExists(t, historyDir)
+}
+
+// Root commands and project configuration use process-wide state.
+func TestImportCloudHistoryNonCloudBackendIsValidationError(t *testing.T) {
+	setupCloudModeProject(t, "auto")
+	t.Setenv("PULUMI_BACKEND_URL", "file://"+t.TempDir())
+	result := axtest.Run(
+		context.Background(),
+		t,
+		NewRootCmd("test"),
+		[]string{"--import-cloud-history", "--stack", "dev"},
+	)
+	assert.Equal(t, 2, result.ExitCode, string(result.Stderr))
+	assert.Contains(t, string(result.Stderr), "non_cloud_backend")
+}

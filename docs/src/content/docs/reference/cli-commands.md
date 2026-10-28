@@ -348,7 +348,9 @@ clamped to it. Retention uses `FINFOCUS_HISTORY_RETENTION_DAYS`, then
 The human summary reports updates listed, skipped operations, cache hits,
 fetched snapshots, recorded identities, and unreadable updates. JSON output
 contains `listed`, `skipped`, `fromCache`, `fetched`, `recorded`, `unreadable`,
-and `clamped` fields.
+and `clamped` fields. JSON is also used when `AGENT_MODE` selects machine
+output. `--dry-run` validates the flags and range, prints what would be
+imported, and makes no request or history write.
 
 | Exit code | Meaning |
 | --- | --- |
@@ -363,6 +365,10 @@ change stdout. The default `false` mode makes no requests. `auto` falls back
 when Cloud history is unavailable; a partial import emits a warning and
 incomplete status. `true` exits 1 before totals if import fails, or exits 2
 for a backend that is not Pulumi Cloud or disabled resource history.
+
+A saved input (`--pulumi-state`, `--pulumi-json`) whose resource URNs name a
+different stack than the selected one gets no Cloud or local history. Its
+billing query keeps only its own resources, and stderr says so.
 
 Incomplete cost rows carry
 `"historyImport":{"incomplete":true,"unreadableUpdates":N}`. Incomplete JSON

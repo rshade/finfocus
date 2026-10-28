@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/cloudhistory"
@@ -67,10 +69,7 @@ func runImportCloudHistory(cmd *cobra.Command, args []string) error {
 			),
 		)
 	}
-	format, _ := cmd.Flags().GetString("format")
-	if format != "" && format != "json" && format != "human" {
-		return toValidationError(ctx, errors.New("invalid format: use human or json"))
-	}
+	machine := machineOutputRequested(cmd)
 	now := time.Now()
 	from := now.AddDate(0, 0, -resolvedHistoryRetention(ctx, cfg))
 	to := now
@@ -91,6 +90,31 @@ func runImportCloudHistory(cmd *cobra.Command, args []string) error {
 	if !to.After(from) {
 		return toValidationError(ctx, errors.New("'to' date must be after 'from' date"))
 	}
+	// Opening the store can delete expired history, so a rehearsal never reaches it.
+	rehearse := func(_ context.Context) error {
+		if machine {
+			return writeJSON(cmd, actionResult{Action: "would_import_cloud_history", DryRun: true})
+		}
+		cmd.Printf(
+			"Would import Pulumi Cloud history from %s to %s\n",
+			from.Format(time.RFC3339),
+			to.Format(time.RFC3339),
+		)
+		return nil
+	}
+	commit := func(_ context.Context) error {
+		return importCloudHistory(cmd, cfg, from, to, now, machine)
+	}
+	return ax.Perform(ctx, rehearse, commit)
+}
+
+func importCloudHistory(
+	cmd *cobra.Command,
+	cfg *config.Config,
+	from, to, now time.Time,
+	machine bool,
+) error {
+	ctx := cmd.Context()
 	store, cleanup, storeErr := initHistoryFromConfigWithError(
 		ctx,
 		cfg,
@@ -109,7 +133,7 @@ func runImportCloudHistory(cmd *cobra.Command, args []string) error {
 	if result.Clamped {
 		cmd.PrintErrln("Note: --from was moved to the history retention cutoff.")
 	}
-	if format == "json" {
+	if machine {
 		if err = json.NewEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
 			return fmt.Errorf("writing Cloud history summary: %w", err)
 		}
@@ -118,8 +142,7 @@ func runImportCloudHistory(cmd *cobra.Command, args []string) error {
 	}
 	if importErr != nil {
 		var required *cloudhistory.RequiredError
-		if errors.As(importErr, &required) && required.Validation &&
-			required.Reason == "history_disabled" {
+		if errors.As(importErr, &required) && required.Validation {
 			return toValidationError(ctx, importErr)
 		}
 		return importErr

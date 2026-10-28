@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,11 +17,19 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/history"
+	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 )
 
 // Uses the process-wide Pulumi runner, config, environment, and working directory.
 func TestActualCloudHistoryExplicitStack(t *testing.T) {
+	state, err := os.ReadFile("testdata/pulumi/stack-export-dev.json")
+	require.NoError(t, err)
+	plan, err := os.ReadFile("testdata/pulumi/preview-create-only.json")
+	require.NoError(t, err)
 	setupCloudModeProject(t, "true")
+	// The selected stack's export names that stack, as the Pulumi CLI does.
+	production := []byte(strings.ReplaceAll(string(state), "urn:pulumi:dev::", "urn:pulumi:production::"))
+	t.Cleanup(pulumidetect.SetRunnerForTest(scriptedPulumi{export: production, preview: plan}))
 	now := time.Now().Truncate(time.Second)
 	store, err := history.NewBoltStore(
 		context.Background(),

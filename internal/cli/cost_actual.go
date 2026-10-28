@@ -613,12 +613,19 @@ func actualCostQuery(
 			ctx, fmt.Errorf("parsing time range: %w", err),
 		)
 	}
-	historyImport, importErr := runActualCloudHistory(cmd, historyStore, from, to, historyErr, params.verbose)
-	if importErr != nil {
-		return nil, engine.ActualCostRequest{}, cloudhistory.Result{}, importErr
+	var historyImport cloudhistory.Result
+	if inputBelongsToOtherStack(ctx, cmd, historyStore, resources) {
+		cmd.PrintErrln("Warning: the input names a different stack than the selected one; " +
+			"Pulumi Cloud and local history was not applied.")
+	} else {
+		var importErr error
+		historyImport, importErr = runActualCloudHistory(cmd, historyStore, from, to, historyErr, params.verbose)
+		if importErr != nil {
+			return nil, engine.ActualCostRequest{}, cloudhistory.Result{}, importErr
+		}
+		// Enrich before filtering so merged entries are also subject to filter criteria.
+		resources = enrichWithHistoricalResources(ctx, historyStore, resources, from, to)
 	}
-	// Enrich before filtering so merged entries are also subject to filter criteria.
-	resources = enrichWithHistoricalResources(ctx, historyStore, resources, from, to)
 	resources, err = ApplyFilters(ctx, resources, params.filter)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
@@ -630,6 +637,28 @@ func actualCostQuery(
 	// Resolve raw Terraform types after filtering so type filters match the raw token.
 	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
 	return resources, buildActualCostRequest(params, resources, from, to), historyImport, nil
+}
+
+// inputBelongsToOtherStack keeps a saved input from acquiring the cloud IDs of
+// the stack the workspace happens to have selected.
+func inputBelongsToOtherStack(
+	ctx context.Context,
+	cmd *cobra.Command,
+	store history.Store,
+	resources []engine.ResourceDescriptor,
+) bool {
+	if store == nil || !store.IsEnabled() {
+		return false
+	}
+	stack, ok := detectHistoryStackContext(ctx)
+	if !ok || !inputStackMismatch(resources, stack) {
+		return false
+	}
+	logging.FromContext(cmd.Context()).Warn().
+		Str("component", "history").
+		Str("selected_stack", stack.Stack).
+		Msg("input names a different stack than the selected one, skipping history")
+	return true
 }
 
 // buildActualCostRequest constructs an ActualCostRequest from the resolved parameters.

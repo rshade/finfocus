@@ -146,8 +146,12 @@ func renderActualMachineOutput(
 			HistoryImport *engine.HistoryImportStatus `json:"historyImport"`
 		}{"historyImport", view.HistoryImport})
 	}
+	results := view.Results
+	if results == nil {
+		results = []engine.CostResult{}
+	}
 	var payload bytes.Buffer
-	if err := renderActualCostOutput(&payload, format, view.Results, groupBy, estimateConfidence); err != nil {
+	if err := renderActualCostOutput(&payload, format, results, groupBy, estimateConfidence); err != nil {
 		return err
 	}
 	encoder := json.NewEncoder(writer)
