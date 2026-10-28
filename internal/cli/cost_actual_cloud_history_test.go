@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -283,9 +284,9 @@ func TestActualCloudHistorySkipsMismatchedInputStack(t *testing.T) {
 			0o600,
 		),
 	)
-	requests := 0
+	var requests atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		requests++
+		requests.Add(1)
 		_, _ = w.Write([]byte(`{}`))
 	}))
 	t.Cleanup(server.Close)
@@ -306,6 +307,19 @@ func TestActualCloudHistorySkipsMismatchedInputStack(t *testing.T) {
 		},
 	)
 	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
-	assert.Zero(t, requests, "a state input for another stack must not import this stack's Cloud history")
+	assert.Zero(t, requests.Load(), "a state input for another stack must not import this stack's Cloud history")
 	assert.Contains(t, string(result.Stderr), "history was not applied")
+
+	store, err := history.NewBoltStore(
+		context.Background(),
+		filepath.Join(config.ResolveConfigDir(), "history"),
+		true,
+		90,
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	stack := history.StackContext{Project: "test", Stack: "dev"}
+	entries, err := store.GetAllForStack(stack.Hash(), 0, now.Add(time.Hour).Unix())
+	require.NoError(t, err)
+	assert.Empty(t, entries, "another stack's resources must not be recorded under the selected stack")
 }

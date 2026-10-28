@@ -248,6 +248,9 @@ func (w *Writer) RecordCloudObservations(stackCtx StackContext, observedAt int64
 	if w == nil || w.store == nil || !w.store.IsEnabled() {
 		return ErrHistoryDisabled
 	}
+	if observedAt <= 0 {
+		return fmt.Errorf("validate cloud observation: observation time must be positive, got %d", observedAt)
+	}
 	entries := make([]ResourceHistoryEntry, 0, len(ids))
 	for _, id := range ids {
 		if id.CloudID == "" {
@@ -266,8 +269,15 @@ func (w *Writer) RecordCloudObservations(stackCtx StackContext, observedAt int64
 			LastSeen:  observedAt,
 			Source:    SourcePulumiCloud,
 		}
+		// One unusable identity must not block the rest of the snapshot, which is
+		// already cached and would otherwise fail the same way on every run.
 		if err := entry.Validate(); err != nil {
-			return fmt.Errorf("validate cloud observation: %w", err)
+			w.logger.Warn().
+				Str("component", "history").
+				Str("operation", "record_cloud").
+				Err(err).
+				Msg("skipping invalid cloud identity")
+			continue
 		}
 		entries = append(entries, entry)
 	}

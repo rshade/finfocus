@@ -80,11 +80,9 @@ func cloudHistoryRequest(
 		return deps, req, errors.New("history store does not support Cloud cache")
 	}
 	deps.Cache = cache
-	searchDir, _ := cmd.Flags().GetString("project-dir")
-	if searchDir == "" {
-		searchDir = "."
-	}
-	project, err := pulumi.FindProject(searchDir)
+	// --project-dir resolves configuration only. Enrichment detects the project
+	// from the working directory, so the import must record under the same one.
+	project, err := pulumi.FindProject(".")
 	if err != nil {
 		//nolint:nilerr // Import detection classifies unavailable project context according to the selected mode.
 		return deps, req, nil

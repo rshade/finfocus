@@ -248,7 +248,7 @@ func TestClientCancellationStopsRetryWait(t *testing.T) {
 	var attempts atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		attempts.Add(1)
-		w.Header().Set("Retry-After", "3600")
+		w.Header().Set("Retry-After", "20")
 		w.WriteHeader(http.StatusTooManyRequests)
 		cancel()
 	}))
@@ -473,4 +473,25 @@ func TestClientUpdateListStopsAtByteLimit(t *testing.T) {
 	_, err := client.ListUpdates(context.Background(), StackRef{"o", "p", "s"}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid Pulumi Cloud update-list response")
+}
+
+func TestClientRetryAfterBeyondCapFailsFast(t *testing.T) {
+	t.Parallel()
+	var attempts atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts.Add(1)
+		w.Header().Set("Retry-After", "86400")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(esc.Session{Backend: server.URL, Token: "secret"}, server.Client()).(*restClient)
+	client.sleep = func(context.Context, time.Duration) error {
+		assert.Fail(t, "a wait beyond the cap must not sleep")
+		return nil
+	}
+	_, err := client.ListUpdates(context.Background(), StackRef{"o", "p", "s"}, "")
+	var throttled *RateLimitError
+	require.ErrorAs(t, err, &throttled)
+	assert.Equal(t, 24*time.Hour, throttled.RetryAfter)
+	assert.Equal(t, int64(1), attempts.Load())
 }

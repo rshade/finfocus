@@ -199,3 +199,27 @@ func TestCleanupExpired_DisabledStore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, count, "cleanup on disabled store should be no-op")
 }
+
+func TestCleanupExpired_RemovesStaleCloudSnapshots(t *testing.T) {
+	t.Parallel()
+
+	store, err := history.NewBoltStore(context.Background(), t.TempDir(), true, 365)
+	require.NoError(t, err)
+	defer store.Close()
+
+	now := time.Now()
+	stale := history.SnapshotRecord{Version: 1, ObservedAt: now.Add(-120 * 24 * time.Hour).Unix()}
+	recent := history.SnapshotRecord{Version: 2, ObservedAt: now.Add(-2 * 24 * time.Hour).Unix()}
+	require.NoError(t, store.PutSnapshot("stack", stale))
+	require.NoError(t, store.PutSnapshot("stack", recent))
+
+	_, err = store.CleanupExpired(90)
+	require.NoError(t, err)
+
+	_, found, err := store.GetSnapshot("stack", stale.Version)
+	require.NoError(t, err)
+	assert.False(t, found, "a snapshot older than retention cannot be read again and must not accumulate")
+	_, found, err = store.GetSnapshot("stack", recent.Version)
+	require.NoError(t, err)
+	assert.True(t, found)
+}

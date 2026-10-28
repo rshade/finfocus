@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -47,16 +49,16 @@ func TestImportCloudHistoryValidation(t *testing.T) {
 				contents := fmt.Sprintf(`{"cost":{"history":{"pulumi_cloud":{"enabled":"%s"}}}}`, tc.mode)
 				require.NoError(t, os.WriteFile(".finfocus/config.hujson", []byte(contents), 0600))
 			}
-			requests := 0
+			var requests atomic.Int64
 			server := httptest.NewServer(
-				http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests++ }),
+				http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests.Add(1) }),
 			)
 			t.Cleanup(server.Close)
 			t.Setenv("PULUMI_BACKEND_URL", server.URL)
 			result := axtest.Run(context.Background(), t, NewRootCmd("test"), tc.args)
 			assert.Equal(t, 2, result.ExitCode, string(result.Stderr))
 			assert.Contains(t, string(result.Stderr), tc.message)
-			assert.Zero(t, requests)
+			assert.Zero(t, requests.Load())
 		})
 	}
 }
@@ -66,7 +68,7 @@ func TestImportCloudHistoryOutput(t *testing.T) {
 	setupCloudModeProject(t, "auto")
 	t.Setenv("FINFOCUS_HISTORY_RETENTION_DAYS", "10")
 	at := time.Now().Add(-time.Hour).Unix()
-	exports := 0
+	var exports atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/user":
@@ -82,7 +84,7 @@ func TestImportCloudHistoryOutput(t *testing.T) {
 				_, _ = w.Write([]byte(`{"updates":[]}`))
 			}
 		case strings.Contains(r.URL.Path, "/export/"):
-			exports++
+			exports.Add(1)
 			_, _ = w.Write(
 				[]byte(
 					`{"deployment":{"resources":[{"urn":"urn:pulumi:dev::test::aws:ec2/instance:Instance::old","id":"i-old","type":"aws:ec2/instance:Instance","custom":true}]}}`,
@@ -121,7 +123,7 @@ func TestImportCloudHistoryOutput(t *testing.T) {
 	require.NoError(t, json.Unmarshal(second.Stdout, &got))
 	assert.Equal(t, 1, got.FromCache)
 	assert.Zero(t, got.Fetched)
-	assert.Equal(t, 1, exports)
+	assert.Equal(t, int64(1), exports.Load())
 	assert.True(t, got.Clamped)
 }
 
@@ -251,9 +253,9 @@ func TestImportCloudHistoryMachineOutputModes(t *testing.T) {
 // Root commands and project configuration use process-wide state.
 func TestImportCloudHistoryDryRunWritesNothing(t *testing.T) {
 	setupCloudModeProject(t, "auto")
-	requests := 0
+	var requests atomic.Int64
 	server := httptest.NewServer(
-		http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests++ }),
+		http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests.Add(1) }),
 	)
 	t.Cleanup(server.Close)
 	t.Setenv("PULUMI_BACKEND_URL", server.URL)
@@ -267,7 +269,7 @@ func TestImportCloudHistoryDryRunWritesNothing(t *testing.T) {
 	)
 	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
 	assert.Contains(t, string(result.Stdout), "Would import Pulumi Cloud history")
-	assert.Zero(t, requests)
+	assert.Zero(t, requests.Load())
 	assert.NoDirExists(t, historyDir)
 
 	machine := axtest.Run(
@@ -293,4 +295,45 @@ func TestImportCloudHistoryNonCloudBackendIsValidationError(t *testing.T) {
 	)
 	assert.Equal(t, 2, result.ExitCode, string(result.Stderr))
 	assert.Contains(t, string(result.Stderr), "non_cloud_backend")
+}
+
+// Root commands and project configuration use process-wide state.
+func TestImportCloudHistoryProjectDirDoesNotChangeDetectedProject(t *testing.T) {
+	setupCloudModeProject(t, "auto")
+	other := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(other, "Pulumi.yaml"), []byte("name: other\nruntime: yaml\n"), 0o600))
+	require.NoError(t, os.MkdirAll(filepath.Join(other, ".finfocus"), 0o750))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(other, ".finfocus", "config.hujson"),
+		[]byte(`{"cost":{"history":{"pulumi_cloud":{"enabled":"auto"}}}}`),
+		0o600,
+	))
+	var mu sync.Mutex
+	var paths []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		if strings.HasSuffix(r.URL.Path, "/updates") {
+			_, _ = w.Write([]byte(`{"updates":[]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("PULUMI_BACKEND_URL", server.URL)
+
+	result := axtest.Run(
+		context.Background(),
+		t,
+		NewRootCmd("test"),
+		[]string{"--import-cloud-history", "--stack", "dev", "--project-dir", other},
+	)
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Contains(t, paths, "/api/stacks/org/test/dev/updates")
+	for _, path := range paths {
+		assert.NotContains(t, path, "/other/", "the import must use the working-directory project")
+	}
 }

@@ -437,3 +437,14 @@ func TestValidateConfigSourcePulumiCloudMode(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateConfigSourcePulumiCloudModeWrongKind(t *testing.T) {
+	t.Parallel()
+	result, _ := ValidateConfigSource(
+		"config.hujson",
+		[]byte(`{"cost":{"history":{"pulumi_cloud":{"enabled":1}}}}`),
+	)
+	assert.False(t, result.Valid)
+	require.NotEmpty(t, result.Errors)
+	assert.Contains(t, result.Errors[0].Message, "boolean or string")
+}

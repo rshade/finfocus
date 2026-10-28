@@ -27,6 +27,7 @@ func (s *BoltStore) cleanupExpiredEntries(retentionDays int) (int, error) {
 	deleted := 0
 
 	err := s.db.Update(func(tx *bolt.Tx) error {
+		s.deleteExpiredCloudSnapshots(tx, cutoff)
 		historyBucket := tx.Bucket([]byte(BucketResourceHistory))
 		if historyBucket == nil {
 			return nil
@@ -54,6 +55,30 @@ func (s *BoltStore) cleanupExpiredEntries(retentionDays int) (int, error) {
 	}
 
 	return deleted, err
+}
+
+// deleteExpiredCloudSnapshots removes cached Pulumi Cloud snapshots observed
+// before the cutoff. Import clamps its range to the same cutoff, so an expired
+// snapshot is never read again. An undecodable record is also unreadable.
+func (s *BoltStore) deleteExpiredCloudSnapshots(tx *bolt.Tx, cutoff int64) {
+	bucket := tx.Bucket([]byte(BucketPulumiCloudSnapshots))
+	if bucket == nil {
+		return
+	}
+	var expired [][]byte
+	_ = bucket.ForEach(func(k, v []byte) error {
+		var rec SnapshotRecord
+		if json.Unmarshal(v, &rec) != nil || rec.ObservedAt < cutoff {
+			expired = append(expired, append([]byte(nil), k...))
+		}
+		return nil
+	})
+	for _, key := range expired {
+		if err := bucket.Delete(key); err != nil {
+			s.logger.Debug().Err(err).Str("component", "history").
+				Msg("failed to delete expired cloud snapshot")
+		}
+	}
 }
 
 // deleteExpiredFromBucket iterates the history bucket and removes entries

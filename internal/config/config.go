@@ -1379,9 +1379,9 @@ func (c *Config) getCostHistoryValue(parts []string) (any, error) {
 	}
 	switch strings.Join(parts, ".") {
 	case "enabled":
-		return c.Cost.History.Enabled, nil
+		return c.Cost.History.IsEnabled(), nil
 	case "retention_days":
-		return c.Cost.History.RetentionDays, nil
+		return c.Cost.History.GetRetentionDays(), nil
 	case "directory":
 		return c.Cost.History.Directory, nil
 	case "pulumi_cloud":

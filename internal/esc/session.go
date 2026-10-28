@@ -8,6 +8,14 @@ type Session struct {
 	Org     string
 }
 
+// String omits Token so %v and %+v cannot print the credential.
+func (s Session) String() string {
+	return "esc.Session{Backend: " + s.Backend + ", Org: " + s.Org + "}"
+}
+
+// GoString omits Token so %#v cannot print the credential.
+func (s Session) GoString() string { return s.String() }
+
 // DiscoverSession exposes the shared Pulumi login and organization discovery.
 func DiscoverSession(getenv func(string) string, projectBackend, stackName string) (Session, *Failure) {
 	auth, fail := discover(getenv, projectBackend)

@@ -172,6 +172,10 @@ cannot be read completely. Both modes require `cost.history.enabled: true`.
 import counters to stderr. A separate `--import-cloud-history` run prepares
 history without calculating costs or starting a plugin. Overview and the web
 Cost page read stored history and never fetch Cloud snapshots themselves.
+Cached Cloud snapshots expire with the rest of the history under
+`cost.history.retention_days`. If Pulumi Cloud asks for a wait longer than 30
+seconds (`Retry-After`), FinFocus stops retrying and treats the import as
+unavailable instead of waiting.
 
 FinFocus reuses the Pulumi CLI login. There is no config token key. To override
 the saved token, use `PULUMI_ACCESS_TOKEN`. For a backend selected in a project's

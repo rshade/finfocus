@@ -24,6 +24,7 @@ const (
 	httpScheme         = "http"
 	maxAttempts        = 3
 	retryBaseDelay     = 250 * time.Millisecond
+	maxRetryWait       = 30 * time.Second
 	maxUpdateListBytes = 32 * 1024 * 1024
 	maxErrorBodyBytes  = 4 * 1024
 	updatePageSize     = 100
@@ -171,7 +172,9 @@ func (c *restClient) execute(request *http.Request) (*http.Response, error) {
 		}
 		_ = response.Body.Close()
 		delay := retryDelay(response.Header.Get("Retry-After"), c.now(), attempt)
-		if attempt == maxAttempts-1 {
+		// The server picks Retry-After; a wait past the cap fails fast so a
+		// hostile or misconfigured backend cannot stall the command.
+		if attempt == maxAttempts-1 || delay > maxRetryWait {
 			return nil, &RateLimitError{RetryAfter: delay}
 		}
 		if sleepErr := c.sleep(ctx, delay); sleepErr != nil {

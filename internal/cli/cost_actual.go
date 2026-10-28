@@ -207,10 +207,15 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	defer combinedCleanup()
 	eng = eng.WithJobs(params.jobs)
 
-	recordDescriptorHistory(ctx, historyStore, resources)
+	// Decide once, before anything is written: an input for another stack must
+	// not be recorded under, or enriched from, the selected stack's history.
+	otherStack := inputBelongsToOtherStack(ctx, cmd, historyStore, resources)
+	if !otherStack {
+		recordDescriptorHistory(ctx, historyStore, resources)
+	}
 
 	resources, request, historyImport, err := actualCostQuery(
-		ctx, cmd, params, audit, resources, historyStore, historyErr, clients, cacheStore,
+		ctx, cmd, params, audit, resources, historyStore, historyErr, clients, cacheStore, otherStack,
 	)
 	if err != nil {
 		return err
@@ -599,6 +604,7 @@ func actualCostQuery(
 	historyErr error,
 	clients []*pluginhost.Client,
 	cacheStore cache.Cache,
+	skipHistory bool,
 ) ([]engine.ResourceDescriptor, engine.ActualCostRequest, cloudhistory.Result, error) {
 	log := logging.FromContext(ctx)
 	fromStr, err := resolveFromDate(ctx, params, resources)
@@ -614,10 +620,7 @@ func actualCostQuery(
 		)
 	}
 	var historyImport cloudhistory.Result
-	if inputBelongsToOtherStack(ctx, cmd, historyStore, resources) {
-		cmd.PrintErrln("Warning: the input names a different stack than the selected one; " +
-			"Pulumi Cloud and local history was not applied.")
-	} else {
+	if !skipHistory {
 		var importErr error
 		historyImport, importErr = runActualCloudHistory(cmd, historyStore, from, to, historyErr, params.verbose)
 		if importErr != nil {
@@ -654,6 +657,8 @@ func inputBelongsToOtherStack(
 	if !ok || !inputStackMismatch(resources, stack) {
 		return false
 	}
+	cmd.PrintErrln("Warning: the input names a different stack than the selected one; " +
+		"Pulumi Cloud and local history was not applied.")
 	logging.FromContext(cmd.Context()).Warn().
 		Str("component", "history").
 		Str("selected_stack", stack.Stack).

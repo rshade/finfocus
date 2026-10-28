@@ -18,7 +18,8 @@ Its `Executor` (`restClient.execute`) owns everything the SDK does not:
 - the `Authorization: token` header, set only for the configured backend;
 - the no-redirect `http.Client`, so the token never reaches another host;
 - backend validation: `https`, or `http` on a loopback host only;
-- up to three attempts on `429` and `503`, honoring `Retry-After`;
+- up to three attempts on `429` and `503`, honoring `Retry-After` up to 30
+  seconds (a longer wait returns `RateLimitError` at once);
 - the `ETag` of the first update page and `304` as `UpdateList.NotModified`;
 - the 256 MiB export bound, applied before the SDK reads the body.
 
