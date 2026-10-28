@@ -278,7 +278,7 @@ func validateCostConfig(cmd *cobra.Command, paths []string) error {
 		}
 	}
 	if failed {
-		return errConfigurationInvalid
+		return toValidationError(cmd.Context(), errConfigurationInvalid)
 	}
 	return nil
 }

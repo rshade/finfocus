@@ -418,3 +418,22 @@ func TestValidateProjectConfigSource_LegacyYAML(t *testing.T) {
 	assert.Nil(t, cfg)
 	assert.Contains(t, broken.Errors[0].Message, "syntax is invalid")
 }
+
+func TestValidateConfigSourcePulumiCloudMode(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, document string }{
+		{"hujson", `{"cost":{"history":{"pulumi_cloud":{"enabled":"maybe"}}}}`},
+		{"yaml", "cost:\n  history:\n    pulumi_cloud:\n      enabled: maybe\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, _ := ValidateConfigSource("config."+tc.name, []byte(tc.document))
+			if tc.name == "yaml" {
+				result, _ = ValidateProjectConfigSource("config.yaml", []byte(tc.document))
+			}
+			assert.False(t, result.Valid)
+			require.NotEmpty(t, result.Errors)
+			assert.Contains(t, result.Errors[0].Message, "false, auto, true")
+		})
+	}
+}

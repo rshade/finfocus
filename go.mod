@@ -13,6 +13,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/pulumi/esc-sdk/sdk v0.14.0
+	github.com/pulumi/pulumi-cloud-sdk/go v1.20261027.1310
 	github.com/pulumi/pulumi/sdk/v3 v3.270.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.9.0
@@ -36,6 +37,7 @@ require (
 	connectrpc.com/grpchealth v1.5.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
@@ -46,6 +48,7 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect

@@ -1366,8 +1366,30 @@ func (c *Config) getCostValue(parts []string) (any, error) {
 	switch parts[0] {
 	case "budgets":
 		return c.getCostBudgetsValue(parts[1:])
+	case "history":
+		return c.getCostHistoryValue(parts[1:])
 	default:
 		return nil, fmt.Errorf("unknown cost setting: %s", parts[0])
+	}
+}
+
+func (c *Config) getCostHistoryValue(parts []string) (any, error) {
+	if len(parts) == 0 {
+		return c.Cost.History, nil
+	}
+	switch strings.Join(parts, ".") {
+	case "enabled":
+		return c.Cost.History.Enabled, nil
+	case "retention_days":
+		return c.Cost.History.RetentionDays, nil
+	case "directory":
+		return c.Cost.History.Directory, nil
+	case "pulumi_cloud":
+		return c.Cost.History.PulumiCloud, nil
+	case "pulumi_cloud.enabled":
+		return c.Cost.History.PulumiCloud.Enabled.String(), nil
+	default:
+		return nil, fmt.Errorf("unknown cost.history setting: %s", strings.Join(parts, "."))
 	}
 }
 

@@ -1,0 +1,2636 @@
+{
+  "updates": [
+    {
+      "kind": "update",
+      "startTime": 1783350465,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed",
+        "environment_25": "scrubbed",
+        "environment_26": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1783351199,
+      "version": 31,
+      "resourceChanges": {
+        "create": 2,
+        "same": 60
+      },
+      "resourceCount": 66
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1783350424,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1783350452,
+      "version": 30,
+      "resourceChanges": {
+        "delete": 2,
+        "same": 60
+      },
+      "resourceCount": 64
+    },
+    {
+      "kind": "update",
+      "startTime": 1783348936,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed",
+        "environment_25": "scrubbed",
+        "environment_26": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1783349673,
+      "version": 29,
+      "resourceChanges": {
+        "create": 2,
+        "same": 60
+      },
+      "resourceCount": 66
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1783348807,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1783348858,
+      "version": 28,
+      "resourceChanges": {
+        "delete": 2,
+        "same": 60
+      },
+      "resourceCount": 64
+    },
+    {
+      "kind": "update",
+      "startTime": 1783346199,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1783347052,
+      "version": 27,
+      "resourceChanges": {
+        "create": 62
+      },
+      "resourceCount": 66
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1783045932,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1783046079,
+      "version": 26,
+      "resourceChanges": {
+        "delete": 16
+      }
+    },
+    {
+      "kind": "import",
+      "startTime": 1783045907,
+      "message": "scrubbed",
+      "environment": {},
+      "config": {},
+      "result": "succeeded",
+      "endTime": 1783045907,
+      "version": 25,
+      "resourceChanges": {
+        "create": 0,
+        "delete": 1,
+        "same": 14,
+        "update": 4
+      },
+      "resourceCount": 18
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1783045725,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1783045731,
+      "version": 24,
+      "resourceCount": 19
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1783042294,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1783042600,
+      "version": 23,
+      "resourceChanges": {
+        "delete": 38,
+        "same": 61
+      },
+      "resourceCount": 19
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1783042183,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1783042208,
+      "version": 22,
+      "resourceChanges": {
+        "same": 61
+      },
+      "resourceCount": 61
+    },
+    {
+      "kind": "refresh",
+      "startTime": 1783042119,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1783042130,
+      "version": 21,
+      "resourceChanges": {
+        "same": 56,
+        "update": 1
+      },
+      "resourceCount": 61
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1783041994,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1783042009,
+      "version": 20,
+      "resourceChanges": {
+        "delete": 4
+      },
+      "resourceCount": 61
+    },
+    {
+      "kind": "update",
+      "startTime": 1783028233,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_11": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_12": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_13": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1783029038,
+      "version": 19,
+      "resourceChanges": {
+        "create": 3,
+        "replace": 2,
+        "same": 50,
+        "update": 4
+      },
+      "resourceCount": 65
+    },
+    {
+      "kind": "update",
+      "startTime": 1783018937,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1783019800,
+      "version": 18,
+      "resourceChanges": {
+        "create": 56
+      },
+      "resourceCount": 60
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1782920234,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782920484,
+      "version": 17,
+      "resourceChanges": {
+        "delete": 45
+      }
+    },
+    {
+      "kind": "update",
+      "startTime": 1782852903,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_10": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782852949,
+      "version": 16,
+      "resourceChanges": {
+        "create": 5,
+        "same": 40
+      },
+      "resourceCount": 48
+    },
+    {
+      "kind": "update",
+      "startTime": 1782848828,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782848835,
+      "version": 15,
+      "resourceChanges": {
+        "create": 1,
+        "same": 39
+      },
+      "resourceCount": 43
+    },
+    {
+      "kind": "update",
+      "startTime": 1782848727,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1782848734,
+      "version": 14,
+      "resourceChanges": {
+        "same": 39
+      },
+      "resourceCount": 43
+    },
+    {
+      "kind": "update",
+      "startTime": 1782848357,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_8": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_9": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "failed",
+      "endTime": 1782848365,
+      "version": 13,
+      "resourceChanges": {
+        "same": 36
+      },
+      "resourceCount": 43
+    },
+    {
+      "kind": "update",
+      "startTime": 1782827643,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782827866,
+      "version": 12,
+      "resourceChanges": {
+        "create": 39
+      },
+      "resourceCount": 42
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1782827447,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782827607,
+      "version": 11,
+      "resourceChanges": {
+        "delete": 39
+      }
+    },
+    {
+      "kind": "update",
+      "startTime": 1782825854,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782826072,
+      "version": 10,
+      "resourceChanges": {
+        "create": 39
+      },
+      "resourceCount": 42
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1782770706,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782770885,
+      "version": 9,
+      "resourceChanges": {
+        "delete": 39
+      }
+    },
+    {
+      "kind": "update",
+      "startTime": 1782770595,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782770601,
+      "version": 8,
+      "resourceChanges": {
+        "create": 1,
+        "same": 38
+      },
+      "resourceCount": 42
+    },
+    {
+      "kind": "update",
+      "startTime": 1782770103,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782770232,
+      "version": 7,
+      "resourceChanges": {
+        "create": 1,
+        "replace": 3,
+        "same": 33,
+        "update": 1
+      },
+      "resourceCount": 41
+    },
+    {
+      "kind": "update",
+      "startTime": 1782762591,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782762609,
+      "version": 6,
+      "resourceChanges": {
+        "same": 36,
+        "update": 1
+      },
+      "resourceCount": 40
+    },
+    {
+      "kind": "update",
+      "startTime": 1782762363,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed",
+        "environment_24": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782762383,
+      "version": 5,
+      "resourceChanges": {
+        "same": 36,
+        "update": 1
+      },
+      "resourceCount": 40
+    },
+    {
+      "kind": "update",
+      "startTime": 1782750452,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_6": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_7": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782750657,
+      "version": 4,
+      "resourceChanges": {
+        "create": 2,
+        "same": 35
+      },
+      "resourceCount": 40
+    },
+    {
+      "kind": "update",
+      "startTime": 1782740891,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782741176,
+      "version": 3,
+      "resourceChanges": {
+        "create": 35
+      },
+      "resourceCount": 37
+    },
+    {
+      "kind": "destroy",
+      "startTime": 1782511748,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782511891,
+      "version": 2,
+      "resourceChanges": {
+        "delete": 35
+      }
+    },
+    {
+      "kind": "update",
+      "startTime": 1782511071,
+      "message": "scrubbed",
+      "environment": {
+        "environment_1": "scrubbed",
+        "environment_2": "scrubbed",
+        "environment_3": "scrubbed",
+        "environment_4": "scrubbed",
+        "environment_5": "scrubbed",
+        "environment_6": "scrubbed",
+        "environment_7": "scrubbed",
+        "environment_8": "scrubbed",
+        "environment_9": "scrubbed",
+        "environment_10": "scrubbed",
+        "environment_11": "scrubbed",
+        "environment_12": "scrubbed",
+        "environment_13": "scrubbed",
+        "environment_14": "scrubbed",
+        "environment_15": "scrubbed",
+        "environment_16": "scrubbed",
+        "environment_17": "scrubbed",
+        "environment_18": "scrubbed",
+        "environment_19": "scrubbed",
+        "environment_20": "scrubbed",
+        "environment_21": "scrubbed",
+        "environment_22": "scrubbed",
+        "environment_23": "scrubbed"
+      },
+      "config": {
+        "config_1": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_2": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": true
+        },
+        "config_3": {
+          "string": "scrubbed",
+          "secret": true,
+          "object": false
+        },
+        "config_4": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        },
+        "config_5": {
+          "string": "scrubbed",
+          "secret": false,
+          "object": false
+        }
+      },
+      "result": "succeeded",
+      "endTime": 1782511344,
+      "version": 1,
+      "resourceChanges": {
+        "create": 35
+      },
+      "resourceCount": 37
+    }
+  ]
+}

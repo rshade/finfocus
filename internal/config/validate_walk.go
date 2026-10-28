@@ -361,6 +361,9 @@ func acceptsKind(typ reflect.Type, kind hujson.Kind) bool {
 	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
+	if typ == reflect.TypeFor[PulumiCloudMode]() {
+		return kind == '"' || kind == 't' || kind == 'f'
+	}
 	if typ == reflect.TypeFor[Duration]() {
 		return kind == '"'
 	}

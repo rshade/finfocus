@@ -830,7 +830,24 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
-- 1735-pulumi-cloud-history (planned): opt-in `cost.history.pulumi_cloud.enabled` (`false`|`auto`|`true`) imports resource identity from Pulumi Cloud `/export/{version}` snapshots into the resource-history store with source `pulumi_cloud`. `cost actual` imports inline; `--import-cloud-history` pre-loads; overview and `--web` never fetch (`specs/1735-pulumi-cloud-history/`).
+- 1735-pulumi-cloud-history: `cost.history.pulumi_cloud.enabled` defaults
+  off (`false`); `auto` falls back and `true` requires a complete import.
+  Read historical snapshots from `/export/{version}`, not `/updates/{version}`.
+  The update list ends with `{"updates":null}`; a deployment with no `resources`
+  list is an empty snapshot, not a failed read.
+  Cache update metadata and extracted URN/cloud ID/type/provider only in
+  `history.db`; never retain raw exports, properties, tags, or ciphertext.
+  History merge takes minimum `FirstSeen` and maximum `LastSeen`. Clamp imports
+  using the resolved retention value (environment, config, default), never a
+  second config read. Overview and web never fetch Cloud history; the web Cost
+  page reads stored identities and overview keeps its state/plan inventory.
+  `KnownSettings` gates both `config set` and the Config page; the mode accepts
+  booleans or strings but writes strings. Preserve ESC's credential rule:
+  project `backend.url` gets only a saved token for that URL; an environment
+  token override requires explicit `PULUMI_BACKEND_URL` or the current account.
+  `internal/pulumicloud` wraps the official `pulumi-cloud-sdk` `apiclient`; its
+  `Executor` owns the token, no-redirect, retry, ETag, and size-bound rules.
+  Do not run `update-agent-context.sh`: it damages this file's curated content.
 
 - 1733-shared-stack-loader: Shared Pulumi state and preview snapshots align CLI and web live inventory. Projected output adds a separate stack total and safe state-availability categories while preserving plan totals, budgets, exit codes, and forecast totals (`specs/1733-shared-stack-loader/`).
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -140,6 +141,7 @@ Projection commands accept --terraform-plan for saved show -json output and
 	cmd.Flags().Bool(mcpFlag, false,
 		"serve finfocus as a Model Context Protocol server over stdio (alias for mcp-server)")
 	registerWebFlags(cmd, webFlags)
+	registerImportCloudHistoryFlags(cmd)
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
 	cmd.AddCommand(newMCPServerCmd(cmd, ver, &lifecycle), newSchemaCmd(cmd, ver))
 	applyMCPExclusions(cmd)
@@ -161,6 +163,19 @@ func rootRunE(
 	return func(cmd *cobra.Command, args []string) error {
 		if lifecycle.serving {
 			return lifecycle.runRootMCP(cmd, ver)
+		}
+		if err := validateImportCloudHistoryFlags(cmd); err != nil {
+			return toValidationError(cmd.Context(), err)
+		}
+		importCloud, _ := cmd.Flags().GetBool(importCloudHistoryFlag)
+		if importCloud {
+			return runImportCloudHistory(cmd, args)
+		}
+		if !webFlags.web && (cmd.Flags().Changed("from") || cmd.Flags().Changed("to")) {
+			return toValidationError(
+				cmd.Context(),
+				errors.New("--from and --to require --web or --import-cloud-history"),
+			)
 		}
 		if err := webFlags.validate(cmd); err != nil {
 			return toValidationError(cmd.Context(), err)

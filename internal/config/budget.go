@@ -209,6 +209,9 @@ const (
 
 // HistoryConfig defines resource history tracking behavior.
 type HistoryConfig struct {
+	// PulumiCloud controls optional Cloud history imports.
+	PulumiCloud PulumiCloudHistory `yaml:"pulumi_cloud" json:"pulumi_cloud"`
+
 	// Enabled controls whether history tracking is active (default: true).
 	// Pointer type distinguishes explicit false from omitted (nil = use default).
 	Enabled *bool `yaml:"enabled" json:"enabled"`

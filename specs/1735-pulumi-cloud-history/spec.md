@@ -18,7 +18,8 @@
 - Q: Which commands trigger the import? → A: First answered as "every actual
   cost view", then narrowed: `cost actual` imports inline, and a dedicated
   `--import-cloud-history` command does the long pull ahead of time. The
-  overview and `finfocus --web` never fetch or wait on Pulumi Cloud; they read
+  overview and `finfocus --web` never fetch or wait on Pulumi Cloud. Overview
+  keeps its current state/plan inventory; the web Cost page reads
   the stored history. This replaces the earlier manual-refresh follow-up.
 - Q: Which updates are imported? → A: Any `update`, `refresh`, or `destroy`
   whose snapshot shows resources, whatever its result (including failed or

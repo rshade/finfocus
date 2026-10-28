@@ -9,6 +9,25 @@
       "type": "object",
       "description": "Cost management settings",
       "properties": {
+        "history": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "retention_days": {"type": "integer", "default": 90, "minimum": 1},
+            "directory": {"type": "string"},
+            "pulumi_cloud": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": ["boolean", "string"],
+                  "enum": [false, "false", "auto", true, "true"],
+                  "default": false,
+                  "description": "Import resource identity from Pulumi Cloud update history."
+                }
+              }
+            }
+          }
+        },
         "budgets": {
           "type": "object",
           "description": "Budget thresholds and alerts. The applied scope is global, providers, tags, or types.",

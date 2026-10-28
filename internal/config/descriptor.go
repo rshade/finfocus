@@ -48,6 +48,7 @@ const (
 	keyBudgetGlobalAmount = "cost.budgets.global.amount"
 	keyBudgetGlobalPeriod = "cost.budgets.global.period"
 	keyScoringTimeout     = "scoring.timeout_seconds"
+	keyPulumiCloudEnabled = "cost.history.pulumi_cloud.enabled"
 
 	isoCurrencyLength = 3
 )
@@ -86,6 +87,11 @@ func KnownSettings() []Setting {
 			Pattern: `^[A-Z]{3}$`,
 		},
 		{Key: keyBudgetGlobalPeriod, Kind: KindEnum, Help: "Global budget period", Enum: []string{"monthly"}},
+		{
+			Key: keyPulumiCloudEnabled, Kind: KindEnum,
+			Help: "Import resource identity from Pulumi Cloud update history",
+			Enum: []string{cloudModeFalse, "auto", envBoolTrue},
+		},
 		{Key: "scoring.enabled", Kind: KindBool, Help: "Score recommendations. Requires scoring.plugin."},
 		{Key: "scoring.plugin", Kind: KindString, Help: "Plugin that scores recommendations"},
 		{

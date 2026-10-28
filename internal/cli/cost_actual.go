@@ -12,10 +12,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/rshade/finfocus/internal/cloudhistory"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/stackload"
 )
@@ -43,6 +46,7 @@ type costActualParams struct {
 	groupBy            string
 	filter             []string
 	jobs               int
+	verbose            bool
 }
 
 // defaultToNow returns s if non-empty, otherwise returns the current time in RFC3339 format.
@@ -157,6 +161,7 @@ timestamp if not provided.`,
 		"Resource filter expressions (e.g., 'type=aws:ec2/instance', 'tag:env=prod')")
 	cmd.Flags().IntVarP(&params.jobs, "jobs", "j", 0,
 		"Number of parallel workers (0 = auto based on CPU count)")
+	cmd.Flags().BoolVar(&params.verbose, "verbose", false, "Print Cloud history import counters to stderr")
 	addAccessibilityFlags(cmd)
 
 	// Note: --pulumi-json and --from are no longer required - validation is done in executeCostActual
@@ -171,7 +176,7 @@ timestamp if not provided.`,
 // (flag validation, resource loading, time parsing, plugin initialization, cost retrieval,
 // rendering, or budget evaluation) and nil on success.
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
-	ctx := cmd.Context()
+	ctx := actualHistoryContext(cmd)
 	log := logging.FromContext(ctx)
 
 	if err := validateActualParams(params); err != nil {
@@ -198,41 +203,18 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 
 	warnNoTypeResolvingPlugin(cmd, params.terraformState, clients)
 
-	eng, historyStore, cacheStore, combinedCleanup := newEngineWithCacheAndHistory(ctx, cmd, clients, nil)
+	eng, historyStore, cacheStore, combinedCleanup, historyErr := newActualEngineWithHistory(ctx, cmd, clients)
 	defer combinedCleanup()
 	eng = eng.WithJobs(params.jobs)
 
 	recordDescriptorHistory(ctx, historyStore, resources)
 
-	fromStr, err := resolveFromDate(ctx, params, resources)
+	resources, request, historyImport, err := actualCostQuery(
+		ctx, cmd, params, audit, resources, historyStore, historyErr, clients, cacheStore,
+	)
 	if err != nil {
-		return toValidationError(ctx, err)
+		return err
 	}
-
-	from, to, err := ParseTimeRange(fromStr, defaultToNow(params.toStr))
-	if err != nil {
-		log.Error().Ctx(ctx).Err(err).Msg("failed to parse time range")
-		audit.logFailure(ctx, err)
-		return toValidationError(ctx, fmt.Errorf("parsing time range: %w", err))
-	}
-
-	// Enrich with historical resources before filtering so merged entries
-	// are also subject to filter criteria.
-	resources = enrichWithHistoricalResources(ctx, historyStore, resources, from, to)
-
-	resources, err = ApplyFilters(ctx, resources, params.filter)
-	if err != nil {
-		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
-		audit.logFailure(ctx, err)
-		return toValidationError(ctx, fmt.Errorf("applying filters: %w", err))
-	}
-
-	// Resolve raw Terraform types to Pulumi tokens after filtering so
-	// --filter type=aws_instance matches raw TF types, consistent with
-	// cost projected. No-op for Pulumi-sourced resources.
-	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
-
-	request := buildActualCostRequest(params, resources, from, to)
 	start := time.Now()
 	resultWithErrors, err := eng.GetActualCostWithOptionsAndErrors(ctx, request)
 	if err != nil {
@@ -242,6 +224,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	}
 
 	fetchAndMergeRecommendations(ctx, eng, resources, resultWithErrors.Results)
+	markHistoryImportStatus(cmd, resultWithErrors, historyImport)
 
 	if renderErr := RenderActualCostOutput(
 		ctx, cmd, params.output, resultWithErrors, request.GroupBy,
@@ -603,6 +586,50 @@ func resolveFromDate(
 
 	// This shouldn't happen due to validation, but handle gracefully
 	return "", errors.New("--from date is required")
+}
+
+// actualCostQuery applies the billing window, Cloud history, and filters.
+func actualCostQuery(
+	ctx context.Context,
+	cmd *cobra.Command,
+	params costActualParams,
+	audit *auditContext,
+	resources []engine.ResourceDescriptor,
+	historyStore history.Store,
+	historyErr error,
+	clients []*pluginhost.Client,
+	cacheStore cache.Cache,
+) ([]engine.ResourceDescriptor, engine.ActualCostRequest, cloudhistory.Result, error) {
+	log := logging.FromContext(ctx)
+	fromStr, err := resolveFromDate(ctx, params, resources)
+	if err != nil {
+		return nil, engine.ActualCostRequest{}, cloudhistory.Result{}, toValidationError(ctx, err)
+	}
+	from, to, err := ParseTimeRange(fromStr, defaultToNow(params.toStr))
+	if err != nil {
+		log.Error().Ctx(ctx).Err(err).Msg("failed to parse time range")
+		audit.logFailure(ctx, err)
+		return nil, engine.ActualCostRequest{}, cloudhistory.Result{}, toValidationError(
+			ctx, fmt.Errorf("parsing time range: %w", err),
+		)
+	}
+	historyImport, importErr := runActualCloudHistory(cmd, historyStore, from, to, historyErr, params.verbose)
+	if importErr != nil {
+		return nil, engine.ActualCostRequest{}, cloudhistory.Result{}, importErr
+	}
+	// Enrich before filtering so merged entries are also subject to filter criteria.
+	resources = enrichWithHistoricalResources(ctx, historyStore, resources, from, to)
+	resources, err = ApplyFilters(ctx, resources, params.filter)
+	if err != nil {
+		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
+		audit.logFailure(ctx, err)
+		return nil, engine.ActualCostRequest{}, cloudhistory.Result{}, toValidationError(
+			ctx, fmt.Errorf("applying filters: %w", err),
+		)
+	}
+	// Resolve raw Terraform types after filtering so type filters match the raw token.
+	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
+	return resources, buildActualCostRequest(params, resources, from, to), historyImport, nil
 }
 
 // buildActualCostRequest constructs an ActualCostRequest from the resolved parameters.

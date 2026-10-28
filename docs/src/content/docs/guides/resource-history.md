@@ -1,6 +1,7 @@
 ---
 title: Resource History Guide
 description: How FinFocus tracks resource identity over time for accurate month-long cost queries.
+layout: docs
 ---
 
 ## Overview
@@ -144,6 +145,48 @@ state and records all resources. This is the primary data source and requires no
 configuration.
 
 **What it captures**: URN, cloud ID, resource type, provider, resource tags.
+
+### Pulumi Cloud Update History (Opt-In)
+
+Pulumi Cloud history fills observation gaps by reading state snapshots from past
+`update`, `refresh`, `destroy`, and `import` operations. Imported observations
+have source `pulumi_cloud`. FinFocus extracts only URN, cloud ID, resource type,
+and provider; it caches those identities in `history.db`. It never stores
+snapshot properties or secrets.
+
+Enable the import from the project directory:
+
+```bash
+finfocus config set cost.history.pulumi_cloud.enabled auto
+finfocus --import-cloud-history --from 2026-10-01 --to 2026-10-27
+finfocus cost actual --from 2026-10-01 --to 2026-10-27 --verbose
+```
+
+The dashboard Config page exposes the same setting as an enum with `false`,
+`auto`, and `true` choices. The default is `false`, which makes no requests.
+`auto` uses local history when Cloud history is unavailable and warns when an
+import is incomplete. `true` fails before reporting totals when Cloud history
+cannot be read completely. Both modes require `cost.history.enabled: true`.
+
+`cost actual` imports before it reads local resource history. `--verbose` sends
+import counters to stderr. A separate `--import-cloud-history` run prepares
+history without calculating costs or starting a plugin. Overview and the web
+Cost page read stored history and never fetch Cloud snapshots themselves.
+
+FinFocus reuses the Pulumi CLI login. There is no config token key. To override
+the saved token, use `PULUMI_ACCESS_TOKEN`. For a backend selected in a project's
+`backend.url`, an override also requires explicitly setting `PULUMI_BACKEND_URL`;
+otherwise FinFocus uses only credentials saved for that project backend URL.
+
+The import range is clamped to the retention cutoff. Retention resolves from
+`FINFOCUS_HISTORY_RETENTION_DAYS`, then `cost.history.retention_days`, then 90
+days, matching history cleanup. Without `--from`, the import command starts at
+that cutoff; `--to` defaults to now. Repeated runs reuse cached identities.
+
+**Known limit:** Only snapshots observed within the requested period add
+identities. A resource created before the period and destroyed inside it may
+have no in-period snapshot containing its ID, so Cloud history does not add it.
+Previously stored observations and billing tags can still provide coverage.
 
 ### Plan Lineage (From Preview)
 

@@ -12,7 +12,8 @@ identity, and records it in the existing resource-history store with source
 `pulumi_cloud`. `cost actual` runs the import inline before it reads the
 history. A new `--import-cloud-history` root flag runs the long pull ahead of
 time so the overview and `finfocus --web`, which never fetch, start fast and
-read what was stored. The default is off (`cost.history.pulumi_cloud.enabled`
+the web Cost page reads what was stored; overview retains its state/plan
+inventory (user clarification, 2026-10-27). The default is off (`cost.history.pulumi_cloud.enabled`
 of `false`); `auto` falls back quietly and `true` fails rather than report
 totals that may be short.
 

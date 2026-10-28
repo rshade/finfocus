@@ -38,8 +38,63 @@ read 2026-10-27), and code facts from this repository at `main`.
   spec requires the last three (FR-009, FR-012), and CI runners often have a
   token and no CLI.
 - **Alternatives considered**: Reuse `pulumiExporter` (less code, fails the
-  spec's rate-limit and token requirements). Use the generated Pulumi SDK
-  client (not available for stack export; the ESC SDK is for ESC only).
+  spec's rate-limit and token requirements). Use the official generated Pulumi
+  Cloud SDK, `github.com/pulumi/pulumi-cloud-sdk/go/apiclient`. An earlier
+  version of this entry said no generated client covers stack export. That was
+  wrong: the SDK is generated from the published OpenAPI spec
+  (`https://api.pulumi.com/api/openapi/pulumi-spec.json`) and has
+  `GetStackUpdates` and `ExportStackAtVersion`. The `pulumi-pulumiservice`
+  provider is not an alternative: its `pulumiservice:api/*` resources are also
+  generated from that spec but manage resources and are still preview.
+- **SDK fit** (read from `v1.20261027.1310`; the module is date-versioned, needs
+  Go 1.26.6, and adds `go-jose`, `blang/semver`, and `yaml.v3`):
+  - `CloudClient{BaseURL, Executor, Interceptor}`. Every request goes through
+    `Executor`, so the SDK does not set auth in Go. Redirect refusal, the HTTPS
+    and loopback check on the backend, and the token all stay ours, set there.
+  - It has no retry. A 4xx or 5xx becomes `*APIError`, which keeps the status
+    and `ResponseHeader()`, so `Retry-After` is readable. Retry and the shared
+    three-attempt budget stay ours, either in `Executor` or around the call.
+  - It sends `Accept: application/vnd.pulumi+8` by default, as we do.
+  - `GetStackUpdates` returns `*any`, so the page still needs hand decoding.
+    `ExportStackAtVersion` returns `AppUntypedDeployment` with `deployment` as
+    `json.RawMessage`, read with `io.ReadAll` and `json.Unmarshal`. There is no
+    size bound and no streaming, so the whole deployment, secret ciphertext
+    included, sits in memory before our identity decoder runs. (Today's
+    `DecodeIdentities` is not a stream either: `json.Decoder.Decode` reads the
+    whole top-level value first. The T065 spike below measures both.) Neither SDK method returns
+    response headers, so a conditional request cannot read `ETag` from them.
+  - Conditional requests work only through `Executor`: `If-None-Match` goes in
+    through `extraHeaders`, but a `304` is a status below 400, so the SDK
+    treats it as a body and fails `json.Unmarshal` on an empty one. `Executor`
+    must record the `ETag` and turn a `304` into a sentinel itself.
+- **Open decision**: The maintainer prefers the SDK, so the client inherits
+  upstream API changes. Moving to it removes URL building and the error
+  envelope parse, and keeps retry, ETag, `304`, the token and redirect rules,
+  and the size bound in an `Executor` wrapper. For the export it also needs
+  the unbounded read accepted or bypassed (an `Executor` can wrap
+  `resp.Body` in `io.LimitReader`). Until that migration lands, the REST
+  client above is what ships. The migration is not verified against a live
+  backend for `429` or `304`.
+- **T065 spike** (SDK `v1.20261027.1310`, Go 1.27.3, linux/amd64, a 1 KB
+  `inputs` pad per resource, server in the same process, `Executor` wrapping
+  `resp.Body` in a reader that fails at a 256 MiB cap):
+
+  | Payload | SDK path max RSS | Current `DecodeIdentities` max RSS |
+  | --- | --- | --- |
+  | 1 MiB | 14 MiB | not run |
+  | 64 MiB | 240 MiB | 185 MiB |
+  | 250 MiB | 899 MiB | 685 MiB |
+  | 300 MiB (over cap) | 666 MiB, fails with the cap error | not run |
+
+  The SDK path costs about 1.3 times the current memory at the cap, and both
+  are several times the payload. The cap reader must return a non-EOF error:
+  `io.ReadAll` hands it back unchanged and the SDK returns it, so the
+  "exceeds limit" message survives. A reader that returned `io.EOF` at the
+  cap would instead surface as a JSON unmarshal error. The rows are single runs
+  on one machine, so read them as an order of magnitude.
+- **T066 decision**: migrate both calls. The extra memory is bounded by the
+  same 256 MiB cap, the existing path is already a whole-value read, and a
+  split transport would keep two code paths for a 1.3 times difference.
 - **Follow-up**: The two paths can share the identity decoder later. They stay
   separate now because collect prices whole resources and the import must never
   decode properties.
@@ -281,3 +336,23 @@ read 2026-10-27), and code facts from this repository at `main`.
   restores observations after cleanup or interrupted writes without exports.
 - **Alternatives considered**: Skip cached versions entirely (loses history);
   mark versions permanently imported (cannot recover removed observations).
+
+## Implementation clarification: credential trust (2026-10-27)
+
+The user explicitly chose to preserve the existing credential protection.
+A project-controlled `backend.url` receives only a token saved for that URL,
+never `PULUMI_ACCESS_TOKEN`. To override the token for a project backend,
+explicitly select the backend with `PULUMI_BACKEND_URL`. The current saved
+account continues to accept the environment token override. This clarification
+supersedes broader override wording elsewhere in these artifacts; there is
+no change to the shared ESC credential rule.
+
+## Implementation clarification: overview inventory (2026-10-27)
+
+The user explicitly chose to keep overview's current state/plan inventory.
+Unlike the web Cost path, the existing overview loaders record observations
+but do not read historical-only identities into rows. This feature verifies
+that overview makes zero Pulumi Cloud requests and retains its inventory;
+it does not add historical rows. The web Cost page and `cost actual` read
+stored identities. This supersedes wording that assumed both views already
+included imported identities.

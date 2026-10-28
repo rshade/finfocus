@@ -1,6 +1,7 @@
 ---
 title: Configuration Reference
 description: Configuration options for FinFocus Core
+layout: docs
 ---
 
 FinFocus is configured via a configuration file (default:
@@ -220,6 +221,7 @@ full-month cost reporting by remembering all cloud IDs a resource has ever had.
 | `cost.history.enabled` | bool | `true` | `FINFOCUS_HISTORY_ENABLED` | Master switch for resource history tracking. When disabled, all history operations are no-ops and commands fall back to current-state-only behavior. |
 | `cost.history.retention_days` | int | `90` | `FINFOCUS_HISTORY_RETENTION_DAYS` | Days before stale entries are removed. Entries with `LastSeen` older than this window are cleaned up on startup. |
 | `cost.history.directory` | string | `<FinFocus home>/history` | `FINFOCUS_HISTORY_DIR` | History database directory. |
+| `cost.history.pulumi_cloud.enabled` | bool or string enum | `false` | None | Import Pulumi Cloud resource identities: `false` disables requests, `auto` falls back to local history, `true` requires a complete import. Requires `cost.history.enabled`. |
 
 The history directory resolves in this order: `FINFOCUS_HISTORY_DIR`, then
 `cost.history.directory`, then `<FinFocus home>/history`. FinFocus home is
@@ -233,6 +235,27 @@ example through a symlink), or when a history database file in it is a symlink, 
 controls that file. The global config value and `FINFOCUS_HISTORY_DIR` are
 trusted.
 
+`cost.history.pulumi_cloud.enabled` accepts YAML/JSON booleans `false` and
+`true`, or strings `"false"`, `"auto"`, and `"true"`. Other values are rejected.
+Both global and project configuration may set it. `config get` and the Config
+page display string values; `config set` and the Config page save strings.
+
+```bash
+finfocus config set cost.history.pulumi_cloud.enabled auto
+finfocus config get cost.history.pulumi_cloud.enabled
+```
+
+The dashboard Config page provides an editable enum row for
+`cost.history.pulumi_cloud.enabled` with the three choices and default `false`.
+Overview and web cost views use stored history; they never import from Cloud.
+See the [Resource History Guide](../guides/resource-history.md#pulumi-cloud-update-history-opt-in)
+for import behavior and observation limits.
+
+Pulumi Cloud credentials come from the Pulumi CLI login or
+`PULUMI_ACCESS_TOKEN`; no token config key exists. An environment token override
+for a project's `backend.url` requires `PULUMI_BACKEND_URL` to explicitly select
+that backend. Without it, only the token saved for that URL is used.
+
 #### Example: History Configuration
 
 ```yaml
@@ -241,6 +264,8 @@ cost:
     enabled: true
     retention_days: 90
     directory: ""  # FINFOCUS_HISTORY_DIR, else <FinFocus home>/history
+    pulumi_cloud:
+      enabled: auto  # false (default), auto, or true
 ```
 
 ### Cost Allocation
