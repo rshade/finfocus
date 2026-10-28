@@ -106,12 +106,15 @@ Use containers for repeatable, isolated execution in shared environments.
 - Official image: Alpine base, non-root user (UID 1001), multi-stage builds.
 - Mount `~/.finfocus` for config, plugins, and specs.
 - Mount the workspace for Pulumi JSON input.
-- For analyzer previews, run `finfocus analyzer install` so the mounted home
-  contains both `pulumi-language-finfocus` and
-  `pulumi-analyzer-policy-finfocus`, and put `~/.finfocus/analyzer` on `PATH`.
+- For analyzer previews, run `finfocus analyzer install` in the environment
+  that runs `pulumi preview`, so both `pulumi-language-finfocus` and
+  `pulumi-analyzer-policy-finfocus` exist, and put `~/.finfocus/analyzer` on
+  `PATH`. The entries link to the `finfocus` binary that ran the install. A
+  pack created inside the container points at a path the host does not have,
+  so on a host, run the install there with a host `finfocus` binary.
   The official image does not include the Pulumi CLI, so run the preview from
   an image that has Pulumi installed (for example one built on the official
-  image) or on a host that has Pulumi and the mounted `~/.finfocus`.
+  image) or on a host that has Pulumi and a host-installed pack.
 
 #### Docker Quick Start
 
