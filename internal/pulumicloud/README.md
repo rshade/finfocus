@@ -39,7 +39,7 @@ stack := pulumicloud.StackRef{Org: session.Org, Project: "demo", Stack: "dev"}
 updates, err := client.ListUpdates(ctx, stack, "")
 ```
 
-`example_test.go` compiles the full version of this snippet.
+`example_test.go` runs `DecodeIdentities` on an export and checks its output.
 
 ## Endpoints
 

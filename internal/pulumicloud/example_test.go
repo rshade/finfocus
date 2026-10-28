@@ -1,31 +1,25 @@
 package pulumicloud_test
 
 import (
-	"context"
 	"fmt"
-	"os"
+	"strings"
 
-	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/pulumicloud"
 )
 
-func ExampleNewClient() {
-	session, fail := esc.DiscoverSession(os.Getenv, "", "dev")
-	if fail != nil {
-		return
-	}
-	client := pulumicloud.NewClient(session, nil)
-	stack := pulumicloud.StackRef{Org: session.Org, Project: "demo", Stack: "dev"}
+func ExampleDecodeIdentities() {
+	export := `{"deployment":{"resources":[{
+		"urn":"urn:pulumi:dev::demo::aws:ec2/instance:Instance::web",
+		"type":"aws:ec2/instance:Instance","custom":true,"id":"i-0abc",
+		"inputs":{"password":"never retained"}}]}}`
 
-	updates, err := client.ListUpdates(context.Background(), stack, "")
+	identities, err := pulumicloud.DecodeIdentities(strings.NewReader(export))
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
-	for _, update := range updates.Updates {
-		identities, err := client.ExportIdentities(context.Background(), stack, update.Version)
-		if err != nil {
-			return
-		}
-		fmt.Println(update.Version, len(identities))
+	for _, identity := range identities {
+		fmt.Println(identity.CloudID, identity.Type, identity.Provider)
 	}
+	// Output: i-0abc aws:ec2/instance:Instance aws
 }
