@@ -836,8 +836,12 @@ Specs 613-623 hold the details. Invariants:
   `Args[0]` to `pulumi-analyzer-policy-finfocus` (plus `.exe` on Windows) or
   the process starts the CLI.
 - The analyzer's working directory is `info.programDirectory`, the policy
-  pack directory. Project-tier config still comes from that directory until
-  the FR-014 follow-up reads `RunPluginRequest.pwd`.
+  pack directory, which holds no `Pulumi.yaml`. `projectDirEnv` exports
+  `RunPluginRequest.pwd` (the Pulumi project) as `FINFOCUS_PROJECT_DIR`, so
+  project-tier config, `last-cost-summary.json`, and cost history use the
+  project's `.finfocus/`, as on Pulumi before 3.270.0. An explicit
+  `FINFOCUS_PROJECT_DIR` wins, and a `pwd` that is not an absolute directory
+  is ignored. Do not resolve the project inside `analyzer serve`.
 - Unix cancel sends SIGINT so `analyzer serve` can close plugin process
   groups before it stops gRPC. `GracefulStop` waits for Pulumi, and Pulumi
   waits for the process, so the signal path closes plugins and then calls
@@ -868,7 +872,7 @@ Specs 613-623 hold the details. Invariants:
   `internal/pulumicloud` wraps the official `pulumi-cloud-sdk` `apiclient`; its
   `Executor` owns the token, no-redirect, retry, ETag, and size-bound rules.
   Do not run `update-agent-context.sh`: it damages this file's curated content.
-- 1734-analyzer-language-plugin: Analyzer mode on Pulumi 3.270.0+ goes through `pulumi-language-finfocus`. `RunPlugin` re-executes the analyzer with an explicit `Args[0]`, and `finfocus analyzer install` writes both pack entries (`specs/1734-analyzer-language-plugin/`).
+- 1734-analyzer-language-plugin: Analyzer mode on Pulumi 3.270.0+ goes through `pulumi-language-finfocus`. `RunPlugin` re-executes the analyzer with an explicit `Args[0]`, and `finfocus analyzer install` writes both pack entries. `pwd` becomes `FINFOCUS_PROJECT_DIR`, so the analyzer reads the Pulumi project's config (`specs/1734-analyzer-language-plugin/`).
 - 1733-shared-stack-loader: Shared Pulumi state and preview snapshots align CLI and web live inventory. Projected output adds a separate stack total and safe state-availability categories while preserving plan totals, budgets, exit codes, and forecast totals (`specs/1733-shared-stack-loader/`).
 
 - 1732-terraform-plan-ingestion: Terraform plan mode parses `terraform show -json` through in-process `pluginsdk.CostParseProvider` (`ParseRequest` / `ParseResponse` plus `ValidateParseRequest` and `ValidateParseResponse`). Not served as `CostParseService`. `ParseResponse` has no operation; the host keeps `map[source_id]operation` beside it. `resource_type` stays the Terraform type and `ResolveResourceTypes` still runs after validation (`specs/1732-terraform-plan-ingestion/`). Terraform 1.16 records data sources on `prior_state`, not `resource_changes`; the committed plan fixture copies those emitted data resources into `resource_changes` with action `read`. `cost projected` plans a Terraform directory or reads `--terraform-plan`. Overview, estimate, recommendations, forecast, cost history, and `--web` also plan a detected Terraform directory. `cost actual` and `cost history collect` do not plan.

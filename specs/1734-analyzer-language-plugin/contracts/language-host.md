@@ -53,7 +53,9 @@ Behavior:
    (`pulumi-analyzer-policy-finfocus`, `.exe` on Windows), then
    `args[0]` and `"."`.
 2. Working directory: `info.programDirectory`.
-3. Environment: the language host's environment, then `req.env`.
+3. Environment: the language host's environment, then `req.env`, then
+   `FINFOCUS_PROJECT_DIR=<req.pwd>` when `pwd` is an absolute directory and
+   neither environment already sets that variable (FR-014).
 4. Stream the child's stdout and stderr as `RunPluginResponse` messages, bytes
    unchanged, so the first stdout line remains the analyzer's port.
 5. When the stream's context is canceled: Unix sends SIGINT, Windows kills;

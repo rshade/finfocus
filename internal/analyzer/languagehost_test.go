@@ -50,6 +50,7 @@ func runLanguageHostTestChild(mode string) {
 			"args":     os.Args,
 			"wd":       wd,
 			"sentinel": os.Getenv("FINFOCUS_LANGHOST_SENTINEL"),
+			"project":  os.Getenv("FINFOCUS_PROJECT_DIR"),
 		}
 		if encErr := json.NewEncoder(os.Stdout).Encode(payload); encErr != nil {
 			fmt.Fprintf(os.Stderr, "encode: %v\n", encErr)
@@ -310,6 +311,70 @@ func TestLanguageHost_RunPluginReportsChild(t *testing.T) {
 	assert.Equal(t, []string{analyzerName(), engine, "."}, payload.Args)
 	assert.Equal(t, dir, payload.WD)
 	assert.Equal(t, sentinel, payload.Sentinel)
+}
+
+func TestLanguageHost_RunPluginProjectDir(t *testing.T) {
+	t.Parallel()
+
+	ambient := os.Getenv("FINFOCUS_PROJECT_DIR")
+	project := t.TempDir()
+	notDir := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(notDir, nil, 0o600))
+
+	tests := []struct {
+		name string
+		pwd  string
+		env  []string
+		want string
+	}{
+		{name: "pwd becomes the project directory", pwd: project, want: project},
+		{name: "empty pwd leaves the environment alone", pwd: "", want: ambient},
+		{name: "relative pwd is ignored", pwd: "relative/project", want: ambient},
+		{name: "missing pwd is ignored", pwd: filepath.Join(project, "missing"), want: ambient},
+		{name: "pwd that is a file is ignored", pwd: notDir, want: ambient},
+		{
+			name: "explicit request env wins",
+			pwd:  project,
+			env:  []string{"FINFOCUS_PROJECT_DIR=/explicit"},
+			want: "/explicit",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client, _ := startLanguageHost(t, LanguageHostOptions{
+				Executable:   testExecutable(t),
+				AnalyzerName: analyzerName(),
+			})
+			stream, err := client.RunPlugin(context.Background(), &pulumirpc.RunPluginRequest{
+				Args: []string{"127.0.0.1:9999"},
+				Info: &pulumirpc.ProgramInfo{ProgramDirectory: t.TempDir()},
+				Kind: "analyzer",
+				Pwd:  tt.pwd,
+				Env:  append([]string{"FINFOCUS_LANGHOST_TEST_CHILD=report"}, tt.env...),
+			})
+			require.NoError(t, err)
+
+			got := readPluginStream(stream)
+			require.NoError(t, got.err)
+			_, rest, found := strings.Cut(string(got.stdout), "\n")
+			require.True(t, found)
+
+			var payload struct {
+				Project string `json:"project"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(rest), &payload))
+			assert.Equal(t, tt.want, payload.Project)
+		})
+	}
+}
+
+// Not parallel: t.Setenv changes the process environment.
+func TestProjectDirEnv_HostEnvironmentWins(t *testing.T) {
+	t.Setenv("FINFOCUS_PROJECT_DIR", "/from-host")
+
+	assert.Nil(t, projectDirEnv(&pulumirpc.RunPluginRequest{Pwd: t.TempDir()}))
 }
 
 func TestLanguageHost_RunPluginStderr(t *testing.T) {

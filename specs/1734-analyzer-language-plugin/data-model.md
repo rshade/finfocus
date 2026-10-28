@@ -48,7 +48,7 @@ Chosen in `cmd/finfocus/main.go` from `filepath.Base(os.Args[0])`:
 | `args[0]` | engine address, passed through as the analyzer's first argument |
 | `info.programDirectory` | working directory of the analyzer (FR-009, R6) |
 | `env` | appended to the language host's environment |
-| `pwd` | not used (FR-014 follow-up) |
+| `pwd` | exported to the analyzer as `FINFOCUS_PROJECT_DIR` when absolute, existing, and not already set (FR-014) |
 | `kind` | must be `analyzer`; any other kind is rejected with `InvalidArgument` |
 
 The analyzer process: path = the language host's own executable,

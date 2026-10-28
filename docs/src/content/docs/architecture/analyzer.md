@@ -130,6 +130,14 @@ mixed currencies, and produces a total. The summary is used by both
 to `last-cost-summary.json` using an atomic write pattern (write to a temp file,
 then rename) to prevent partial reads.
 
+The file is written under the Pulumi project's `.finfocus/` directory. Pulumi
+before 3.270.0 starts the analyzer in the project, so the analyzer finds the
+project itself. From 3.270.0 the analyzer runs in the policy pack directory, and
+the language host passes the project (`RunPluginRequest.pwd`) as
+`FINFOCUS_PROJECT_DIR`. Project-tier config and cost history use the same
+directory. An explicit `FINFOCUS_PROJECT_DIR` in the environment takes
+precedence.
+
 ### Per-Resource Cache Lifecycle
 
 The analyzer maintains an in-memory map of resource URN to `CostResult`.

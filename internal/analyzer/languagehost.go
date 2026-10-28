@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,9 @@ import (
 
 	"github.com/rshade/finfocus/pkg/version"
 )
+
+// projectDirEnvVar is the variable config.ResolveProjectDir reads.
+const projectDirEnvVar = "FINFOCUS_PROJECT_DIR"
 
 // LanguageHostDefaultWaitDelay is how long RunPlugin waits after cancel
 // before the analyzer process is killed.
@@ -184,9 +188,35 @@ func (h *LanguageHost) analyzerCommand(ctx context.Context, req *pulumirpc.RunPl
 	cmd.Args[0] = h.opts.AnalyzerName
 	cmd.Dir = req.GetInfo().GetProgramDirectory()
 	cmd.Env = append(os.Environ(), req.GetEnv()...)
+	cmd.Env = append(cmd.Env, projectDirEnv(req)...)
 	cmd.WaitDelay = h.opts.WaitDelay
 	setCmdCancel(cmd)
 	return cmd
+}
+
+// projectDirEnv hands the analyzer the Pulumi project through the same
+// FINFOCUS_PROJECT_DIR the CLI already reads. The analyzer runs in the policy
+// pack directory, which holds no Pulumi.yaml, so without it project-tier config
+// is never found. An explicit setting wins, and a pwd that is not an absolute
+// directory is ignored.
+func projectDirEnv(req *pulumirpc.RunPluginRequest) []string {
+	pwd := req.GetPwd()
+	if !filepath.IsAbs(pwd) {
+		return nil
+	}
+	if info, err := os.Stat(pwd); err != nil || !info.IsDir() {
+		return nil
+	}
+	if os.Getenv(projectDirEnvVar) != "" {
+		return nil
+	}
+	prefix := projectDirEnvVar + "="
+	for _, entry := range req.GetEnv() {
+		if strings.HasPrefix(entry, prefix) && len(entry) > len(prefix) {
+			return nil
+		}
+	}
+	return []string{prefix + pwd}
 }
 
 func finishRunPlugin(waitErr error, send func(*pulumirpc.RunPluginResponse) error) error {

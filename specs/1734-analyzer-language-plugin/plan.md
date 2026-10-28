@@ -37,9 +37,9 @@ empty-project test took 2.07s on Pulumi 3.268.0 through the legacy entry and
 2.02s through the language host; analysis itself is untouched.
 **Constraints**: only the port on standard output; analyzer stopped within
 Pulumi's 5-second grace period (3-second `WaitDelay`, language host shutdown
-capped at 4 seconds); no change to where analyzer mode reads config or writes
-summaries and history (FR-009); graceful plugin cleanup on Linux and macOS
-only (FR-007).
+capped at 4 seconds); analyzer mode reads config and writes summaries and
+history under the Pulumi project, as Pulumi before 3.270.0 did (FR-009,
+FR-014); graceful plugin cleanup on Linux and macOS only (FR-007).
 **Scale/Scope**: about 8 Go files touched or added, 7 docs and 2 agent-skill
 files, 2 workflows.
 
@@ -176,9 +176,9 @@ Matches the phases in [tasks.md](tasks.md).
 5. Integration subtests, E2E pack setup, CI and nightly jobs (US3,
    T016-T020).
 6. Docs, FAQ entry, agent skill and archive (US4, T021-T028).
-7. `CLAUDE.md`, follow-up issue drafts for `finfocus-action` (FR-013) and the
-   analyzer project directory (FR-014), demo and Windows checks, final gates
-   (T029-T033).
+7. `CLAUDE.md`, the follow-up issue draft for `finfocus-action` (FR-013),
+   demo and Windows checks, final gates (T029-T033). FR-014 shipped in this
+   change, not as an issue.
 
 ## Risks
 

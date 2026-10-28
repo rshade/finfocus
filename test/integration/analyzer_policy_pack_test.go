@@ -55,7 +55,8 @@ func TestAnalyzerPolicyPack_LoadsInPulumi(t *testing.T) {
 		previewOut := run.preview()
 		assert.Contains(t, previewOut, analyzerServingMarker)
 		assert.Contains(t, previewOut, "using "+languagePluginEntry)
-		assertCostSummary(t, run.finfocusHome)
+		assertCostSummary(t, filepath.Join(run.project, ".finfocus"))
+		assert.NoFileExists(t, filepath.Join(run.finfocusHome, "last-cost-summary.json"))
 	})
 
 	//nolint:paralleltest // executes the shared finfocus binary
@@ -220,9 +221,9 @@ func (r *policyPackRun) preview() string {
 	return previewOut
 }
 
-func assertCostSummary(t *testing.T, finfocusHome string) {
+func assertCostSummary(t *testing.T, summaryDir string) {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(finfocusHome, "last-cost-summary.json"))
+	data, err := os.ReadFile(filepath.Join(summaryDir, "last-cost-summary.json"))
 	require.NoError(t, err)
 	var summary struct {
 		Stack   string `json:"stack"`

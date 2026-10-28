@@ -251,10 +251,10 @@ restored, both matrix entries pass.
   `test/integration/analyzer_policy_pack_test.go` into subtests that share
   one built binary and environment builder: `language_plugin` (the current
   assertions, plus: after the preview, read
-  `$FINFOCUS_HOME/last-cost-summary.json` and require `stack` = `dev` and
+  `<project>/.finfocus/last-cost-summary.json` and require `stack` = `dev` and
   `project` = `policy-pack-smoke`, which proves `ConfigureStack` reached the
-  analyzer on this path (US1 AS4) and that the summary still lands in the
-  global directory (FR-009); if the analyzer writes no summary for a program
+  analyzer on this path (US1 AS4) and that the summary lands under the
+  project's `.finfocus/` and not under `FINFOCUS_HOME` (FR-009, FR-014); if the analyzer writes no summary for a program
   with no resources, give this subtest's `Pulumi.yaml` one resource and
   assert again); `default_acquisition` (the same preview without
   `PULUMI_DISABLE_AUTOMATIC_PLUGIN_ACQUISITION`: it passes, and the output
@@ -370,21 +370,25 @@ answers the exact error (FR-012).
 - [X] T029 Add an "Analyzer language host" bullet group under
   Package-Specific Gotchas in `CLAUDE.md` (the `os.Executable()` symlink
   trap and the explicit `Args[0]`, `programDirectory` as working directory
-  until the FR-014 follow-up, SIGINT on cancel and Kill on Windows, the
+  with `pwd` exported as `FINFOCUS_PROJECT_DIR`, SIGINT on cancel and Kill on Windows, the
   `.exe` entry names, `FINFOCUS_TEST_PULUMI`), and a Recent Changes line for
   `1734-analyzer-language-plugin`. Edit by hand; do not run
   `update-agent-context.sh`, which rewrites the curated sections.
 - [ ] T030 Draft the FR-013 issue for `rshade/finfocus-action`
-  (`src/analyze.ts` `setupAnalyzer` writes only the legacy entry; it should
+  (`src/analyze.ts` `setupAnalyzerMode` writes only the legacy entry; it should
   run `finfocus analyzer install` or create both entries), researched and
   written as a detailed prompt-style issue, and file it once the owner
   approves the text.
-- [ ] T031 Draft the FR-014 issue in `rshade/finfocus`: resolve the
-  analyzer's project directory from `RunPluginRequest.pwd` (the Pulumi
-  project) instead of `os.Getwd()` in `internal/cli/analyzer_serve.go`, so
-  policy-pack mode reads project-tier config, with the summary
-  and history location change, a `history.directory` safety check, and a
-  release note; file it once the owner approves the text.
+- [X] T031 Resolve the analyzer's project directory from
+  `RunPluginRequest.pwd` (FR-014) in this change, not in an issue:
+  `projectDirEnv` in `internal/analyzer/languagehost.go` exports it as
+  `FINFOCUS_PROJECT_DIR`, which `config.ResolveProjectDir` already reads, so
+  `analyzer serve` is unchanged and the `cost.history.directory` safety check
+  applies as before. `TestLanguageHost_RunPluginProjectDir` covers an
+  absolute directory, empty, relative, missing, and file `pwd`, and an
+  explicit setting winning. `language_plugin` now expects the summary under
+  the project's `.finfocus/` and none under `FINFOCUS_HOME`. A demo preview
+  on Pulumi 3.272.0 confirmed Pulumi sends the project as `pwd`.
 - [ ] T032 Run quickstart.md step 4 against `../finfocus-demo` with
   `pulumi preview` only (no `pulumi up`), compare the cost diagnostics with
   a Pulumi 3.268.0 run, and check `ps` for leftover `finfocus-plugin-*`,
@@ -468,7 +472,7 @@ Task: "T006 RunAnalyzerLanguageHost port and shutdown test in internal/cli/analy
    since both are P1 and US2 is small.
 2. US3 (CI coverage) and US4 (docs) complete the PR; the docs must ship with
    the code (Principle IV).
-3. Polish: CLAUDE.md, follow-up issues, demo check, final gates.
+3. Polish: CLAUDE.md, the finfocus-action issue draft, demo check, final gates.
 
 ## Notes
 

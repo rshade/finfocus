@@ -127,15 +127,24 @@ so it did not exercise plugin cleanup.
 
 ## R6. Working directory (FR-009)
 
-**Decision**: The child runs in `info.programDirectory`, the policy pack
-directory, as the analyzer does today. `req.pwd` (the Pulumi project) is not
-used. Resolved in the spec's clarification session (option C); the
-project-directory change is the FR-014 follow-up issue.
+**Decision**: The child still runs in `info.programDirectory`, the policy
+pack directory. The language host also sets `FINFOCUS_PROJECT_DIR` to
+`req.pwd` (the Pulumi project) when it is an absolute directory and nothing
+set the variable already. The first answer (option C, keep the pack
+directory) was reversed on 2026-10-28.
 
-**Finding behind the follow-up**: `RunAnalyzerServe` resolves the project
-from `os.Getwd()` (`internal/cli/analyzer_serve.go:92-97`). In the pack
-directory there is no `Pulumi.yaml` above it, so analyzer mode reads only the
-global tier today.
+**Finding behind the change**: `RunAnalyzerServe` resolves the project from
+`os.Getwd()` (`internal/cli/analyzer_serve.go:92-97`). In the pack directory
+there is no `Pulumi.yaml` above it, so the first implementation read only the
+global tier and wrote the summary under `FINFOCUS_HOME`, unlike Pulumi before
+3.270.0, which starts the analyzer in the project. A preview of
+`finfocus-demo` on Pulumi 3.272.0 confirmed that Pulumi sends `pwd` as the
+project, and the summary then lands in the project's `.finfocus/`.
+
+**Why the environment variable**: `config.ResolveProjectDir` already reads
+`--project-dir`, then `FINFOCUS_PROJECT_DIR`, then the nearest `Pulumi.yaml`.
+Reusing it adds no second project-directory rule and needs no change to
+`analyzer serve`.
 
 ## R7. Environment variables Pulumi no longer sets
 

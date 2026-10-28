@@ -31,9 +31,10 @@
 
 ## Notes
 
-- FR-009 resolved on 2026-10-22 (option C): keep the policy pack directory
-  as the analyzer's project directory; FR-014 files the follow-up to move it
-  to the Pulumi project directory. Recorded under Clarifications.
+- FR-009 first resolved on 2026-10-22 (option C): keep the policy pack
+  directory as the analyzer's project directory. Reversed on 2026-10-28:
+  FR-014 now passes the Pulumi project (`RunPluginRequest.pwd`) to the
+  analyzer. Recorded under Clarifications.
 - The spec names plugin entries, `PATH`, and Pulumi versions. Those are what
   users type, see in errors, and install, so they count as user-facing setup,
   not implementation detail.
