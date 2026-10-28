@@ -624,6 +624,28 @@ button:disabled {
   color: var(--fg-muted);
   font-size: 0.875rem;
   font-weight: 400;
+  text-wrap: pretty;
+}
+
+.config-table th[scope='row'] {
+  min-width: 16rem;
+}
+
+.config-modes ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.config-modes p {
+  margin: 0.25rem 0 0;
+}
+
+.config-value-note {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
 }
 
 /* Status copy for an ESC-supplied plugin setting. --fg on --bg and on

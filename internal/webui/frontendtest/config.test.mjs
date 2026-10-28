@@ -182,3 +182,38 @@ test('settings whose keys slug alike keep separate controls', async () => {
     { key: 'overview.cluster_contexts.prod-west', value: 'ctx-dash-new' },
   ]);
 });
+
+test('Pulumi Cloud history mode is explained without changing its values', async () => {
+  const t = await setup('config');
+  const page = configPage();
+  page.settings = [{
+    key: 'cost.history.pulumi_cloud.enabled', kind: 'enum', secret: false,
+    help: 'Import resource identity from Pulumi Cloud update history',
+    enum: ['false', 'auto', 'true'],
+    effective: { source: 'default', value: 'false' },
+    tiers: {
+      default: { set: true, value: 'false' }, global: { set: false },
+      project: { set: false }, env: { set: false },
+    },
+  }];
+  t.calls[0].resolve(page);
+  await flush();
+
+  const select = t.container.querySelector('#config-cost-history-pulumi_cloud-enabled');
+  const options = select.children.filter((n) => n.tagName === 'option');
+  assert.deepEqual(options.filter((n) => n.value !== '').map((n) => n.value), ['false', 'auto', 'true']);
+  assert.match(options.find((n) => n.value === 'auto').textContent, /fall back/);
+  assert.match(options.find((n) => n.value === 'true').textContent, /fail/);
+
+  const modes = t.container.querySelector('#config-cost-history-pulumi_cloud-enabled-modes');
+  assert.match(modes.textContent, /Never contact Pulumi Cloud/);
+  assert.match(modes.textContent, /cost\.history\.enabled/);
+  assert.equal(select.attrs['aria-describedby'], 'config-cost-history-pulumi_cloud-enabled-help config-cost-history-pulumi_cloud-enabled-modes');
+  assert.match(t.container.querySelector('.config-value-note').textContent, /never contact Pulumi Cloud/);
+
+  select.value = 'auto';
+  t.container.querySelector('#config-save').dispatch('click');
+  assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.changes)), [
+    { key: 'cost.history.pulumi_cloud.enabled', value: 'auto' },
+  ]);
+});
