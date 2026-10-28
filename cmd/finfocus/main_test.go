@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,6 +44,34 @@ func TestMainComponents(t *testing.T) {
 		require.NotNil(t, root)
 		assert.NotEmpty(t, root.Use)
 	})
+}
+
+func TestStartModeFor(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		exe  string
+		want startMode
+	}{
+		{exe: "pulumi-language-finfocus", want: startModeLanguageHost},
+		{exe: "pulumi-language-finfocus.exe", want: startModeLanguageHost},
+		{
+			exe:  filepath.Join("/opt/finfocus/analyzer", "pulumi-language-finfocus"),
+			want: startModeLanguageHost,
+		},
+		{exe: "pulumi-analyzer-policy-finfocus", want: startModeAnalyzer},
+		{exe: "pulumi-analyzer-policy-finfocus.exe", want: startModeAnalyzer},
+		{exe: "pulumi-analyzer-finfocus", want: startModeAnalyzer},
+		{exe: "pulumi-analyzer-finfocus.exe", want: startModeAnalyzer},
+		{exe: "finfocus", want: startModeCLI},
+		{exe: "finfocus.exe", want: startModeCLI},
+	}
+	for _, tt := range tests {
+		t.Run(tt.exe, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, startModeFor(tt.exe))
+		})
+	}
 }
 
 // Budget-exceeded exit-code preservation is now verified where the conversion

@@ -221,6 +221,29 @@ jobs:
             test/e2e/*.log
           retention-days: 7
 
+  analyzer-policy-pack:
+    name: Analyzer policy pack
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run_integration == 'true' }}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v7
+        with:
+          pulumi-version: latest
+
+      - name: Run analyzer policy pack check
+        run: FINFOCUS_TEST_PULUMI="$(command -v pulumi)" go test -v -count=1 -run TestAnalyzerPolicyPack ./test/integration/
+
   # Deep fuzzing (Linux only - runs longer)
   deep-fuzz:
     name: Deep Fuzz Testing

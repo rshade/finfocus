@@ -16,12 +16,37 @@ const (
 	// policyPackDirName is the subdirectory name for the policy pack.
 	policyPackDirName = "analyzer"
 
-	// policyPackBinaryName is the binary name Pulumi expects in the policy pack directory.
+	// policyPackBinaryName is the legacy analyzer entry Pulumi starts before 3.270.0.
 	policyPackBinaryName = "pulumi-analyzer-policy-finfocus"
 
 	// pulumiPolicyFilename is the YAML configuration file for the policy pack.
 	pulumiPolicyFilename = "PulumiPolicy.yaml"
 )
+
+// LanguagePluginBinaryName is the policy pack entry Pulumi 3.270.0 and later
+// starts as the language host for a finfocus policy pack.
+const LanguagePluginBinaryName = "pulumi-language-finfocus"
+
+// policyPackEntryNames lists pack entries, legacy analyzer first and the
+// language plugin second. SetupPolicyPack creates every name.
+func policyPackEntryNames() []string {
+	return []string{policyPackBinaryName, LanguagePluginBinaryName}
+}
+
+// policyPackEntryName appends the Windows executable suffix. Other operating
+// systems keep the name unchanged.
+func policyPackEntryName(name, goos string) string {
+	if goos == goosWindows {
+		return name + ".exe"
+	}
+	return name
+}
+
+// PolicyPackEntryPath returns the path of a policy pack entry in dir,
+// including the platform executable suffix.
+func PolicyPackEntryPath(dir, name string) string {
+	return filepath.Join(dir, policyPackEntryName(name, runtime.GOOS))
+}
 
 // PolicyPackConfig represents the PulumiPolicy.yaml configuration.
 type PolicyPackConfig struct {
@@ -75,8 +100,9 @@ func WritePulumiPolicyYAML(dir string) error {
 }
 
 // SetupPolicyPack creates the policy pack directory structure with PulumiPolicy.yaml
-// and a binary reference (symlink on Unix, copy on Windows). It is idempotent: calling
-// it when the directory already exists will re-write the YAML and re-create the binary reference.
+// and both binary entries (symlink on Unix, copy on Windows). It is idempotent:
+// calling it when the directory already exists rewrites the YAML and recreates
+// every entry. The returned method is the language plugin entry's.
 //
 // Parameters:
 //   - ctx: context for logging
@@ -101,21 +127,9 @@ func SetupPolicyPack(ctx context.Context, execPath string) (string, string, erro
 		return "", "", fmt.Errorf("writing policy pack YAML: %w", yamlErr)
 	}
 
-	// Create binary reference (symlink or copy)
-	binaryPath := filepath.Join(ppDir, policyPackBinaryName)
-
-	// Remove existing binary reference if present (idempotent re-setup)
-	if _, statErr := os.Lstat(binaryPath); statErr == nil {
-		if removeErr := os.Remove(binaryPath); removeErr != nil {
-			return "", "", fmt.Errorf("removing existing binary reference: %w", removeErr)
-		}
-	} else if !os.IsNotExist(statErr) {
-		return "", "", fmt.Errorf("checking existing binary reference: %w", statErr)
-	}
-
-	method, linkErr := linkOrCopy(ctx, execPath, binaryPath)
+	method, linkErr := createPolicyPackEntries(ctx, execPath, ppDir)
 	if linkErr != nil {
-		return "", "", fmt.Errorf("creating binary reference: %w", linkErr)
+		return "", "", linkErr
 	}
 
 	log.Info().
@@ -135,11 +149,37 @@ func copyBinary(src, dst string) error {
 	return copyFile(src, dst)
 }
 
-// policyPackBinaryPath returns the full path to the binary inside a policy pack directory.
-func policyPackBinaryPath(dir string) string {
-	name := policyPackBinaryName
-	if runtime.GOOS == goosWindows {
-		name += ".exe"
+// createPolicyPackEntries recreates every pack entry. A stale path is removed
+// with Lstat so a dangling symlink is replaced and never followed. The method
+// is the language plugin entry's; both entries are created the same way.
+func createPolicyPackEntries(ctx context.Context, execPath, ppDir string) (string, error) {
+	var method string
+	for _, name := range policyPackEntryNames() {
+		binaryPath := PolicyPackEntryPath(ppDir, name)
+		if err := removeExistingEntry(binaryPath); err != nil {
+			return "", err
+		}
+		linked, linkErr := linkOrCopy(ctx, execPath, binaryPath)
+		if linkErr != nil {
+			return "", fmt.Errorf("creating binary reference: %w", linkErr)
+		}
+		method = linked
 	}
-	return filepath.Join(dir, name)
+	return method, nil
+}
+
+// removeExistingEntry deletes a pack entry when one is present. A missing
+// entry is not an error.
+func removeExistingEntry(path string) error {
+	_, statErr := os.Lstat(path)
+	if statErr == nil {
+		if removeErr := os.Remove(path); removeErr != nil {
+			return fmt.Errorf("removing existing binary reference: %w", removeErr)
+		}
+		return nil
+	}
+	if os.IsNotExist(statErr) {
+		return nil
+	}
+	return fmt.Errorf("checking existing binary reference: %w", statErr)
 }

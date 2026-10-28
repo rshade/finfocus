@@ -1,19 +1,39 @@
 # Analyzer Troubleshooting
 
+## no language plugin 'pulumi-language-finfocus'
+
+**Cause:** Pulumi 3.270.0 and later starts `pulumi-language-finfocus`. An older
+pack has only `pulumi-analyzer-policy-finfocus`.
+
+```text
+no language plugin 'pulumi-language-finfocus' found in the workspace or on your $PATH
+```
+
+Pulumi may also print a 404 while looking up a download named `pulumi-finfocus`
+(`could not find latest version`).
+
+```bash
+finfocus analyzer install
+export PATH="$HOME/.finfocus/analyzer:$PATH"
+```
+
 ## "could not start policy pack"
 
-**Cause:** `pulumi-analyzer-policy-finfocus` not found on PATH.
+**Cause:** The pack directory is not on PATH, so Pulumi cannot start
+`pulumi-language-finfocus` (3.270.0 and later) or
+`pulumi-analyzer-policy-finfocus` (earlier releases).
 
 ```bash
 # Fix: add policy pack dir to PATH
 export PATH="$HOME/.finfocus/analyzer:$PATH"
 
 # Verify
+which pulumi-language-finfocus
 which pulumi-analyzer-policy-finfocus
 ```
 
-Pulumi searches PATH to find the binary — having it only in the policy pack
-directory is not sufficient unless that directory is on PATH.
+Pulumi searches PATH for the entry it starts. Having the files only in the
+policy pack directory is not sufficient unless that directory is on PATH.
 
 ## No cost diagnostics appear
 
@@ -136,7 +156,8 @@ projects. Use the `--policy-pack` flag or `PULUMI_POLICY_PACK_PATH` env var.
 
 When Pulumi invokes the analyzer:
 
-1. Pulumi executes `pulumi-analyzer-policy-finfocus`
+1. Pulumi 3.270.0 and later executes `pulumi-language-finfocus`. Earlier
+   releases execute `pulumi-analyzer-policy-finfocus`
 2. Binary starts gRPC server on random TCP port
 3. Prints ONLY the port number to stdout (single line)
 4. Pulumi connects to `127.0.0.1:PORT` via gRPC

@@ -75,8 +75,12 @@ All logging output goes to stderr.`,
 
 // analyzerInfra holds the analyzer server infrastructure components.
 type analyzerInfra struct {
-	server  *analyzer.Server
+	server *analyzer.Server
+	// cleanup stops the plugin processes.
 	cleanup func()
+	// closeHistory closes the history store. It must run after gRPC has stopped
+	// and its handlers have returned, because Analyze handlers write to it.
+	closeHistory func()
 }
 
 // setupAnalyzerInfra creates and returns analyzerInfra configured for the given command and logger.
@@ -146,19 +150,13 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) (analyzerInfr
 		historyWriter = history.NewWriter(historyStore, logger)
 	}
 
-	combinedCleanup := func() {
-		historyCleanup()
-		if cleanup != nil {
-			cleanup()
-		}
-	}
-
 	return analyzerInfra{
 		server: analyzer.NewServer(eng, version).
 			WithConfig(cfg).
 			WithSummaryDir(summaryDir).
 			WithHistoryWriter(historyWriter),
-		cleanup: combinedCleanup,
+		cleanup:      cleanup,
+		closeHistory: historyCleanup,
 	}, nil
 }
 
@@ -201,9 +199,23 @@ func RunAnalyzerServe(cmd *cobra.Command) error {
 	if err != nil {
 		return toValidationError(cmd.Context(), err)
 	}
-	if infra.cleanup != nil {
-		defer infra.cleanup()
+	// releasePlugins stops plugin processes. It runs before the gRPC server
+	// stops: GracefulStop waits for Pulumi to hang up, and Pulumi waits for
+	// this process to exit, so a deferred cleanup would never run. The
+	// language host would then SIGKILL the analyzer and plugin children
+	// would survive.
+	releasePlugins := func() {
+		if infra.cleanup != nil {
+			infra.cleanup()
+			infra.cleanup = nil
+		}
 	}
+	defer releasePlugins()
+	defer func() {
+		if infra.closeHistory != nil {
+			infra.closeHistory()
+		}
+	}()
 
 	// Listen on random port (localhost only)
 	//nolint:noctx // net.Listen does not accept a context
@@ -234,7 +246,9 @@ func RunAnalyzerServe(cmd *cobra.Command) error {
 	fmt.Println(port)
 
 	// Create gRPC server
-	grpcServer := grpc.NewServer()
+	// WaitForHandlers makes Stop return only after in-flight Analyze calls have,
+	// so the history store is not closed under them.
+	grpcServer := grpc.NewServer(grpc.WaitForHandlers(true))
 	pulumirpc.RegisterAnalyzerServer(grpcServer, infra.server)
 
 	// Set up signal handling for graceful shutdown
@@ -254,7 +268,8 @@ func RunAnalyzerServe(cmd *cobra.Command) error {
 	select {
 	case sig := <-sigChan:
 		stderrLogger.Info().Str("signal", sig.String()).Msg("received shutdown signal")
-		grpcServer.GracefulStop()
+		releasePlugins()
+		grpcServer.Stop()
 	case serveErr := <-errChan:
 		if serveErr != nil {
 			stderrLogger.Error().Err(serveErr).Msg("server error")
@@ -262,7 +277,8 @@ func RunAnalyzerServe(cmd *cobra.Command) error {
 		}
 	case <-cmd.Context().Done():
 		stderrLogger.Info().Msg("context canceled")
-		grpcServer.GracefulStop()
+		releasePlugins()
+		grpcServer.Stop()
 	}
 
 	stderrLogger.Info().Msg("analyzer server stopped")

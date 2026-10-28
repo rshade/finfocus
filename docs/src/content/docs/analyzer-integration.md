@@ -24,24 +24,28 @@ The analyzer is invoked automatically by Pulumi during preview. It:
 
 ## Key Technical Details
 
-### Binary Naming Convention
+### Policy Pack Layout
 
-Pulumi looks for `pulumi-analyzer-policy-<runtime>` on PATH. The binary must be in
-your PATH — having it only in the policy pack directory is not sufficient. Since we
-use `runtime: finfocus` in `PulumiPolicy.yaml`, the binary must be named:
+`finfocus analyzer install` writes `~/.finfocus/analyzer` with
+`PulumiPolicy.yaml` and two entries (both end in `.exe` on Windows):
 
-```text
-pulumi-analyzer-policy-finfocus
-```
+- `pulumi-language-finfocus` for Pulumi 3.270.0 and later. Pulumi starts this
+  language host. `RunPlugin` then starts the analyzer in the policy pack
+  directory.
+- `pulumi-analyzer-policy-finfocus` for Pulumi before 3.270.0.
+
+The pack directory must be on `PATH`. Run `finfocus analyzer install` again to
+add the language plugin entry to an older pack.
 
 ### Handshake Protocol
 
 When Pulumi starts the analyzer:
 
-1. Pulumi executes the binary.
-2. The binary detects it is being run as an analyzer (by checking `os.Args[0]`).
-3. The binary starts a gRPC server on a random available port.
-4. Binary prints the port number to `stdout` (ONLY the port, nothing else).
+1. Pulumi 3.270.0 and later executes `pulumi-language-finfocus`. Older releases
+   execute `pulumi-analyzer-policy-finfocus`.
+2. The process detects its mode from `os.Args[0]`.
+3. It starts a gRPC server on a random available port.
+4. It prints the port number to `stdout` (only the port).
 5. Pulumi connects to that port via gRPC.
 6. **Important**: All logging must go to `stderr` to avoid breaking the handshake.
 

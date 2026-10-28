@@ -44,7 +44,7 @@ has no dashboard surface), so there is no Web Parity phase.
 
 **Purpose**: Record the failing baseline the change must turn green.
 
-- [ ] T001 Reproduce the break check from quickstart.md step 1: unpack Pulumi
+- [X] T001 Reproduce the break check from quickstart.md step 1: unpack Pulumi
   3.271.0 into `bin/pulumi-3.271.0/` (git-ignored), then run
   `FINFOCUS_TEST_PULUMI=<path> go test -count=1 -run TestAnalyzerPolicyPack ./test/integration/ -v`
   against it (expect FAIL with `no language plugin 'pulumi-language-finfocus' found`)
@@ -62,7 +62,7 @@ research R8).
 
 **⚠️ CRITICAL**: No user story work begins until this phase is complete.
 
-- [ ] T002 Write failing tests in `internal/analyzer/policypack_test.go`:
+- [X] T002 Write failing tests in `internal/analyzer/policypack_test.go`:
   (a) table test of a pure `policyPackEntryName(name, goos string) string`
   for `linux`, `darwin`, and `windows` (Windows appends `.exe`, others do
   not), for both `policyPackBinaryName` and `LanguagePluginBinaryName`;
@@ -76,7 +76,7 @@ research R8).
   and mark those tests non-parallel. Replace the existing
   `policyPackBinaryPath_returns_correct_name` subtest with (b). The nightly
   `windows-latest` job runs this file natively.
-- [ ] T003 Implement in `internal/analyzer/policypack.go`: exported constant
+- [X] T003 Implement in `internal/analyzer/policypack.go`: exported constant
   `LanguagePluginBinaryName = "pulumi-language-finfocus"`, an unexported list
   of the two entry names (legacy first), `policyPackEntryName(name, goos)`,
   exported `PolicyPackEntryPath(dir, name string) string` (uses
@@ -102,14 +102,14 @@ and 3.268.0 (quickstart.md step 2).
 
 ### Tests for User Story 1 (TDD) ⚠️
 
-- [ ] T004 [P] [US1] Write a failing table test in `cmd/finfocus/main_test.go`
+- [X] T004 [P] [US1] Write a failing table test in `cmd/finfocus/main_test.go`
   for a pure `startModeFor(exeName string) startMode` covering
   `pulumi-language-finfocus` and its `.exe` form (language host),
   `pulumi-analyzer-policy-finfocus` and `pulumi-analyzer-finfocus` with and
   without `.exe` (analyzer serve), a path prefix such as
   `/home/u/.finfocus/analyzer/pulumi-language-finfocus`, and `finfocus` /
   `finfocus.exe` (CLI). Contract: data-model.md "Start-up mode".
-- [ ] T005 [P] [US1] Write failing tests in
+- [X] T005 [P] [US1] Write failing tests in
   `internal/analyzer/languagehost_test.go` (package `analyzer`) against a
   `bufconn` gRPC server, following `internal/pluginhost/client_test.go`:
   `GetPluginInfo` returns `version.GetVersion()`; `Handshake`,
@@ -131,7 +131,7 @@ and 3.268.0 (quickstart.md step 2).
   `RunPlugin` return an error; canceling the stream makes a child that waits
   for SIGINT exit cleanly within `WaitDelay` (Unix only, `//go:build unix`
   subtest in `languagehost_unix_test.go`).
-- [ ] T006 [P] [US1] Write a failing test in
+- [X] T006 [P] [US1] Write a failing test in
   `internal/cli/analyzer_language_test.go`: run `RunAnalyzerLanguageHost`
   with a cancelable command context and a buffer as `cmd.OutOrStdout()`;
   read exactly one line, check it is a port number and the buffer holds
@@ -143,7 +143,7 @@ and 3.268.0 (quickstart.md step 2).
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Implement `internal/analyzer/languagehost.go` per
+- [X] T007 [US1] Implement `internal/analyzer/languagehost.go` per
   contracts/language-host.md: `LanguageHostOptions{Executable, AnalyzerName
   string; WaitDelay time.Duration}`, `NewLanguageHost` (defaults:
   `os.Executable()`, `policyPackEntryName(policyPackBinaryName, runtime.GOOS)`,
@@ -157,12 +157,12 @@ and 3.268.0 (quickstart.md step 2).
   data-model.md. Import `pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"`;
   do not import `sdk/.../rpcutil` (research R10). Exported identifiers get
   doc comments.
-- [ ] T008 [P] [US1] Add `internal/analyzer/languagehost_unix.go`
+- [X] T008 [P] [US1] Add `internal/analyzer/languagehost_unix.go`
   (`//go:build unix`, `cmd.Cancel` sends `os.Interrupt`) and
   `internal/analyzer/languagehost_windows.go` (`//go:build windows`,
   `cmd.Cancel` calls `Process.Kill`), each with a comment saying why
   (research R5). `languagehost.go` calls the shared unexported setter.
-- [ ] T009 [US1] Implement `internal/cli/analyzer_language.go`:
+- [X] T009 [US1] Implement `internal/cli/analyzer_language.go`:
   `RunAnalyzerLanguageHost(cmd *cobra.Command) error` sets up the stderr
   logger the same way `RunAnalyzerServe` does, wraps `cmd.Context()` with
   `signal.NotifyContext(..., os.Interrupt, syscall.SIGTERM)`, listens on
@@ -172,13 +172,13 @@ and 3.268.0 (quickstart.md step 2).
   `WaitDelay` + 1 second (4 seconds by default) has passed, so the host exits
   before Pulumi's 5-second force-kill (contracts/language-host.md "Process").
   Run T006 until it passes.
-- [ ] T010 [US1] In `cmd/finfocus/main.go`, add `startMode`/`startModeFor`
+- [X] T010 [US1] In `cmd/finfocus/main.go`, add `startMode`/`startModeFor`
   and dispatch the language host name to `cli.RunAnalyzerLanguageHost` before
   the analyzer names, with a `cobra.Command` whose output is `os.Stdout` and
   context is `context.Background()`, exactly as the analyzer branch builds
   its command. Update `run()`'s doc comment to list the three names. Run T004
   until it passes.
-- [ ] T011 [US1] Run `go test -race -shuffle=on -count=3 ./internal/analyzer/... ./internal/cli/ -run 'LanguageHost|PolicyPack|AnalyzerLanguage'`,
+- [X] T011 [US1] Run `go test -race -shuffle=on -count=3 ./internal/analyzer/... ./internal/cli/ -run 'LanguageHost|PolicyPack|AnalyzerLanguage'`,
   then the integration test on both Pulumi versions (quickstart.md step 2):
   both PASS, and on 3.271.0 the preview output contains
   `using pulumi-language-finfocus` and `analyzer server listening`. Measure
@@ -204,14 +204,14 @@ on Pulumi 3.271.0.
 
 ### Tests for User Story 2 (TDD) ⚠️
 
-- [ ] T012 [P] [US2] Write failing tests in `internal/analyzer/install_test.go`
+- [X] T012 [P] [US2] Write failing tests in `internal/analyzer/install_test.go`
   (non-parallel; `t.Setenv("FINFOCUS_HOME", t.TempDir())`): a fresh
   `Install` sets `InstallResult.PolicyPackLanguagePlugin` to the absolute
   language plugin entry path; an `Install` that finds the analyzer already
   current still adds the language plugin entry to a legacy-only pack
   directory; `Install` with `Force` recreates both entries pointing at the
   current executable.
-- [ ] T013 [P] [US2] Write failing tests in
+- [X] T013 [P] [US2] Write failing tests in
   `internal/cli/analyzer_install_test.go`: human output contains the line
   `Language plugin: <pack dir>/pulumi-language-finfocus` indented two spaces
   (with `.exe` on Windows) and every existing line of contracts/cli-analyzer-install.md
@@ -220,14 +220,14 @@ on Pulumi 3.271.0.
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] In `internal/analyzer/install.go`, add
+- [X] T014 [US2] In `internal/analyzer/install.go`, add
   `PolicyPackLanguagePlugin string \`json:"policy_pack_language_plugin,omitempty"\``
   to `InstallResult` with a doc comment, set it in
   `setupPolicyPackForInstall` from `PolicyPackEntryPath`, and replace
   `maybeSyncPolicyPack`/`syncPolicyPackBinary` with a `SetupPolicyPack` call,
   which already recreates every entry (research R8). Delete the removed
   functions and their tests' references. Run T012 until it passes.
-- [ ] T015 [US2] In `internal/cli/analyzer_install.go`, print a
+- [X] T015 [US2] In `internal/cli/analyzer_install.go`, print a
   `Language plugin: %s` line, indented two spaces like its neighbors, after
   `Policy pack method:` when
   `PolicyPackLanguagePlugin` is set. Run T013 until it passes.
@@ -247,14 +247,14 @@ restored, both matrix entries pass.
 
 ### Tests for User Story 3 (TDD) ⚠️
 
-- [ ] T016 [US3] Restructure
+- [X] T016 [US3] Restructure
   `test/integration/analyzer_policy_pack_test.go` into subtests that share
   one built binary and environment builder: `language_plugin` (the current
   assertions, plus: after the preview, read
-  `$FINFOCUS_HOME/last-cost-summary.json` and require `stack` = `dev` and
+  `<project>/.finfocus/last-cost-summary.json` and require `stack` = `dev` and
   `project` = `policy-pack-smoke`, which proves `ConfigureStack` reached the
-  analyzer on this path (US1 AS4) and that the summary still lands in the
-  global directory (FR-009); if the analyzer writes no summary for a program
+  analyzer on this path (US1 AS4) and that the summary lands under the
+  project's `.finfocus/` and not under `FINFOCUS_HOME` (FR-009, FR-014); if the analyzer writes no summary for a program
   with no resources, give this subtest's `Pulumi.yaml` one resource and
   assert again); `default_acquisition` (the same preview without
   `PULUMI_DISABLE_AUTOMATIC_PLUGIN_ACQUISITION`: it passes, and the output
@@ -285,7 +285,7 @@ restored, both matrix entries pass.
   `gh workflow run nightly.yml --ref <branch> -f run_analyzer=true` (it needs
   the repository's AWS credentials, so it cannot run locally) and confirm the
   `Analyzer E2E Tests` job passes; it failed on 2026-10-22 with this bug.
-- [ ] T018 [P] [US3] Add a job `analyzer-policy-pack` to
+- [X] T018 [P] [US3] Add a job `analyzer-policy-pack` to
   `.github/workflows/ci.yml`: matrix `os: [ubuntu-latest, macos-latest]` ×
   `pulumi: ["3.268.0", "latest"]` with `fail-fast: false` and
   `runs-on: ${{ matrix.os }}` (macOS runs the same `//go:build unix` test, so
@@ -295,16 +295,18 @@ restored, both matrix entries pass.
   `FINFOCUS_TEST_PULUMI="$(command -v pulumi)" go test -v -count=1 -run TestAnalyzerPolicyPack ./test/integration/`
   with a 15-minute timeout. Match the existing jobs' `permissions` and
   pinning style.
-- [ ] T019 [P] [US3] Add the same check with `pulumi-version: latest` to
+- [X] T019 [P] [US3] Add the same check with `pulumi-version: latest` to
   `.github/workflows/nightly.yml`, scheduled like the existing integration
   job, so Pulumi releases between PRs are caught.
-- [ ] T020 [US3] Run `make lint` (includes actionlint) for T018 and T019, and
+- [X] T020 [US3] Run `make lint` (includes actionlint) for T018 and T019, and
   run T016's subtests on both Pulumi versions: `language_plugin`,
   `default_acquisition`, and `plugin_cleanup` pass on both,
   `legacy_entry_only` passes on 3.268.0 and is skipped on 3.271.0. Push the
   branch and confirm all four `analyzer-policy-pack` jobs pass. The red side
   of the break check (SC-004) is T001's recorded run on `main`; do not repeat
   it here.
+  All four `analyzer-policy-pack` jobs passed on PR #1917 (ubuntu and macOS,
+  Pulumi 3.268.0 and latest).
 
 **Checkpoint**: The next Pulumi break turns CI red.
 
@@ -319,31 +321,31 @@ answers the exact error (FR-012).
 3.271.0 reaches a working preview; searching the docs for
 `pulumi-language-finfocus` finds the FAQ entry.
 
-- [ ] T021 [P] [US4] Update
+- [X] T021 [P] [US4] Update
   `docs/src/content/docs/getting-started/analyzer-setup.md`: the pack holds
   `PulumiPolicy.yaml`, `pulumi-analyzer-policy-finfocus`, and
   `pulumi-language-finfocus`; Pulumi 3.270.0+ uses the language plugin;
   existing installs re-run `finfocus analyzer install`; add the error message
   to Troubleshooting.
-- [ ] T022 [P] [US4] Update `docs/src/content/docs/analyzer-integration.md`
+- [X] T022 [P] [US4] Update `docs/src/content/docs/analyzer-integration.md`
   to the new layout and setup commands.
-- [ ] T023 [P] [US4] Update `docs/src/content/docs/architecture/analyzer.md`:
+- [X] T023 [P] [US4] Update `docs/src/content/docs/architecture/analyzer.md`:
   replace "Pulumi finds `pulumi-analyzer-policy-finfocus` by searching PATH"
   with the language host flow (Pulumi starts `pulumi-language-finfocus`,
   `RunPlugin` starts the analyzer in the policy pack directory, the port is
   read from its output), and note the legacy entry for Pulumi before 3.270.0.
-- [ ] T024 [P] [US4] Update `docs/src/content/docs/deployment/deployment.md`
+- [X] T024 [P] [US4] Update `docs/src/content/docs/deployment/deployment.md`
   CI and container setup steps to create both entries (or run
   `finfocus analyzer install`).
-- [ ] T025 [P] [US4] Update the policy pack references in
+- [X] T025 [P] [US4] Update the policy pack references in
   `docs/src/content/docs/guides/routing.md`.
-- [ ] T026 [P] [US4] Add an FAQ entry to
+- [X] T026 [P] [US4] Add an FAQ entry to
   `docs/src/content/docs/support/faq.md` quoting
   `no language plugin 'pulumi-language-finfocus' found in the workspace or on your $PATH`
   and the 404 line about `pulumi-finfocus`, with the cause (Pulumi 3.270.0)
   and the fix (re-run `finfocus analyzer install`, keep the pack directory on
   `PATH`).
-- [ ] T027 [P] [US4] Write a failing
+- [X] T027 [P] [US4] Write a failing
   `internal/cli/finfocus_analyzer_setup_skill_test.go`, modeled on
   `finfocus_diagnose_skill_test.go`: the archive
   `agent-skills/finfocus-analyzer-setup/finfocus-analyzer-setup.skill` holds
@@ -357,7 +359,7 @@ answers the exact error (FR-012).
   the archive from `agent-skills/` with only those two paths
   (`zip -X <skill>/<skill>.skill <skill>/SKILL.md <skill>/references/*` into a
   fresh file). Run `go test ./internal/cli/ -run 'Skill'` until it passes.
-- [ ] T028 [US4] Run `make docs-lint` and `markdownlint-cli2` on the files
+- [X] T028 [US4] Run `make docs-lint` and `markdownlint-cli2` on the files
   changed in T021-T027 (`docs/src/content/docs/**`, `agent-skills/**`); fix
   all findings.
 
@@ -367,24 +369,29 @@ answers the exact error (FR-012).
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T029 Add an "Analyzer language host" bullet group under
+- [X] T029 Add an "Analyzer language host" bullet group under
   Package-Specific Gotchas in `CLAUDE.md` (the `os.Executable()` symlink
-  trap and the explicit `Args[0]`, `programDirectory` as working directory
-  until the FR-014 follow-up, SIGINT on cancel and Kill on Windows, the
+  trap and the explicit `Args[0]`, the `pwd` working directory (falling back to
+  `programDirectory`) with `pwd` exported as `FINFOCUS_PROJECT_DIR`, SIGINT on cancel and Kill on Windows, the
   `.exe` entry names, `FINFOCUS_TEST_PULUMI`), and a Recent Changes line for
   `1734-analyzer-language-plugin`. Edit by hand; do not run
   `update-agent-context.sh`, which rewrites the curated sections.
-- [ ] T030 Draft the FR-013 issue for `rshade/finfocus-action`
-  (`src/analyze.ts` `setupAnalyzer` writes only the legacy entry; it should
-  run `finfocus analyzer install` or create both entries), researched and
-  written as a detailed prompt-style issue, and file it once the owner
-  approves the text.
-- [ ] T031 Draft the FR-014 issue in `rshade/finfocus`: resolve the
-  analyzer's project directory from `RunPluginRequest.pwd` (the Pulumi
-  project) instead of `os.Getwd()` in `internal/cli/analyzer_serve.go`, so
-  policy-pack mode reads project-tier config, with the summary
-  and history location change, a `history.directory` safety check, and a
-  release note; file it once the owner approves the text.
+- [ ] T030 Fix FR-013 in `rshade/finfocus-action`: `setupAnalyzerMode` in
+  `src/analyze.ts` copies the binary to both `pulumi-analyzer-policy-finfocus`
+  and `pulumi-language-finfocus`, keeps the binary extension, updates
+  `__tests__/unit/analyzer-mode.test.ts`, and rebuilds `dist/` with the
+  lockfile's ncc 0.45.0. Prepared on a local branch with its 248 tests and
+  lint passing; still to push, open the PR, and merge.
+- [X] T031 Resolve the analyzer's project directory from
+  `RunPluginRequest.pwd` (FR-014) in this change, not in an issue:
+  `projectDirEnv` in `internal/analyzer/languagehost.go` exports it as
+  `FINFOCUS_PROJECT_DIR`, which `config.ResolveProjectDir` already reads, so
+  `analyzer serve` is unchanged and the `cost.history.directory` safety check
+  applies as before. `TestLanguageHost_RunPluginProjectDir` covers an
+  absolute directory, empty, relative, missing, and file `pwd`, and an
+  explicit setting winning. `language_plugin` now expects the summary under
+  the project's `.finfocus/` and none under `FINFOCUS_HOME`. A demo preview
+  on Pulumi 3.272.0 confirmed Pulumi sends the project as `pwd`.
 - [ ] T032 Run quickstart.md step 4 against `../finfocus-demo` with
   `pulumi preview` only (no `pulumi up`), compare the cost diagnostics with
   a Pulumi 3.268.0 run, and check `ps` for leftover `finfocus-plugin-*`,
@@ -397,6 +404,9 @@ answers the exact error (FR-012).
   Pulumi version, the `dir` listing of the pack (both `.exe` entries), and
   the preview output in the PR description (SC-001). If no Windows run is
   possible, say so in the PR; do not mark SC-001 met.
+  The demo preview on Pulumi 3.272.0 and the leftover-process check are done.
+  The Windows preview is tracked in rshade/finfocus#1918 (a `windows-latest`
+  job in `nightly.yml`); mark SC-001 met for Windows when that job passes.
 - [ ] T033 Final gates: `gofmt -l`, `make lint` (allow over 5 minutes),
   `make test`, `make validate`, `go test -race ./test/integration/ -run TestAnalyzerPolicyPack`
   on both Pulumi versions, a cross-compile of `./cmd/finfocus` for
@@ -468,7 +478,7 @@ Task: "T006 RunAnalyzerLanguageHost port and shutdown test in internal/cli/analy
    since both are P1 and US2 is small.
 2. US3 (CI coverage) and US4 (docs) complete the PR; the docs must ship with
    the code (Principle IV).
-3. Polish: CLAUDE.md, follow-up issues, demo check, final gates.
+3. Polish: CLAUDE.md, the finfocus-action issue draft, demo check, final gates.
 
 ## Notes
 

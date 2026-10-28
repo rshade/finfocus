@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,7 +17,8 @@ import (
 )
 
 func TestNewAnalyzerInstallCmd_FreshInstall(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 	root := cli.NewRootCmd("test-version")
@@ -32,7 +34,8 @@ func TestNewAnalyzerInstallCmd_FreshInstall(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_AlreadyInstalled_SameVersion(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 	root := cli.NewRootCmd("test-version")
@@ -51,7 +54,8 @@ func TestNewAnalyzerInstallCmd_AlreadyInstalled_SameVersion(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_AlreadyInstalled_DifferentVersion(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 
@@ -69,7 +73,8 @@ func TestNewAnalyzerInstallCmd_AlreadyInstalled_DifferentVersion(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_ForceReinstall(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	dir := t.TempDir()
 
@@ -89,7 +94,8 @@ func TestNewAnalyzerInstallCmd_ForceReinstall(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_FlagParsing(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	cmd := cli.NewAnalyzerInstallCmd()
 
@@ -104,7 +110,8 @@ func TestNewAnalyzerInstallCmd_FlagParsing(t *testing.T) {
 }
 
 func TestNewAnalyzerInstallCmd_TargetDirPropagation(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	customDir := filepath.Join(t.TempDir(), "custom-location")
 	root := cli.NewRootCmd("test-version")
@@ -140,29 +147,91 @@ func TestAnalyzerInstallCmd_PrintsPATHInstructions(t *testing.T) {
 	}
 }
 
-func TestAnalyzerInstallCmd_NoPATHOnNoOp(t *testing.T) {
+func TestAnalyzerInstallCmd_ReportsPolicyPackOnNoOp(t *testing.T) {
 	dir := t.TempDir()
 	finfocusHome := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", finfocusHome)
 
 	root := cli.NewRootCmd("test-version")
 
-	// First install
 	result1 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
 	require.Equal(t, 0, result1.ExitCode)
 
-	// Second install (no-op)
 	result2 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
 	require.Equal(t, 0, result2.ExitCode)
 
 	output := string(result2.Stdout)
-	assert.NotContains(t, output, "To use the analyzer with pulumi preview")
-	assert.NotContains(t, output, "export PATH=")
-	assert.NotContains(t, output, "pulumi preview --policy-pack")
+	assert.Contains(t, output, "Analyzer already installed")
+	assert.Contains(t, output, "To use the analyzer with pulumi preview")
+	assert.Contains(t, output, "Language plugin:")
+	assert.Contains(t, output, "pulumi preview --policy-pack")
+}
+
+func TestAnalyzerInstallCmd_PrintsLanguagePlugin(t *testing.T) {
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+
+	root := cli.NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result.ExitCode, "stderr: %s", result.Stderr)
+
+	policyPackDir := filepath.Join(finfocusHome, "analyzer")
+	langName := "pulumi-language-finfocus"
+	if runtime.GOOS == "windows" {
+		langName += ".exe"
+	}
+	output := string(result.Stdout)
+	assert.Contains(t, output, "Analyzer installed successfully")
+	assert.Contains(t, output, "  Version: v"+version.GetVersion())
+	assert.Contains(t, output, "  Path:")
+	assert.Contains(t, output, "  Method:")
+	assert.Contains(t, output, "  Policy pack: "+policyPackDir)
+	assert.Contains(t, output, "  Policy pack method: ")
+	assert.Contains(t, output, "  Language plugin: "+filepath.Join(policyPackDir, langName))
+	assert.Contains(t, output, "To use the analyzer with pulumi preview")
+	assert.Contains(t, output, "pulumi preview --policy-pack \""+policyPackDir+"\"")
+	if runtime.GOOS == "windows" {
+		assert.Contains(t, output, "$env:PATH")
+	} else {
+		assert.Contains(t, output, "export PATH=\""+policyPackDir+":$PATH\"")
+	}
+}
+
+func TestAnalyzerInstallCmd_JSONIncludesLanguagePlugin(t *testing.T) {
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+
+	root := cli.NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root, []string{
+		"analyzer", "install", "--target-dir", dir, "--format", "json",
+	})
+	require.Equal(t, 0, result.ExitCode, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(result.Stdout, &got), "stdout: %s", result.Stdout)
+	policyPackDir := filepath.Join(finfocusHome, "analyzer")
+	langName := "pulumi-language-finfocus"
+	if runtime.GOOS == "windows" {
+		langName += ".exe"
+	}
+	assert.Equal(t, true, got["installed"])
+	assert.Equal(t, false, got["needs_update"])
+	assert.Equal(t, "installed", got["action"])
+	assert.Equal(t, policyPackDir, got["policy_pack_dir"])
+	assert.NotEmpty(t, got["policy_pack_method"])
+	assert.Equal(t, filepath.Join(policyPackDir, langName), got["policy_pack_language_plugin"])
+	for _, key := range []string{
+		"version", "path", "method", "current_version",
+	} {
+		assert.Contains(t, got, key)
+	}
 }
 
 func TestNewAnalyzerInstallCmd_ErrorOnInvalidDir(t *testing.T) {
-	t.Parallel()
+	// Not parallel: t.Setenv keeps the policy pack out of the real home.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	if runtime.GOOS == "windows" {
 		t.Skip("Unix permission test")
 	}

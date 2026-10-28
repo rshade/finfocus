@@ -16,10 +16,12 @@ keeps 3.268.0 working.
 ### Session 2026-10-22
 
 - Q: Where should the analyzer resolve its project from when Pulumi starts
-  it through the language plugin? → A: The policy pack directory, as today,
-  so this fix changes nothing else. Resolving from the Pulumi project
-  directory, which Pulumi now passes, goes to a follow-up issue (FR-009,
-  FR-014).
+  it through the language plugin? → A: The Pulumi project directory, which
+  Pulumi passes as `RunPluginRequest.pwd`, so policy-pack mode reads
+  project-tier config and writes summaries and history where Pulumi before
+  3.270.0 did (FR-009, FR-014). First answered as "the policy pack
+  directory, as today" on 2026-10-22; changed on 2026-10-28 after a demo
+  preview showed that answer drops the project's `.finfocus/` config.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -202,9 +204,11 @@ guide.
 - **FR-008**: When the analyzer exits with an error, Pulumi MUST receive that
   exit status.
 - **FR-009**: The analyzer MUST resolve its project directory (project-tier
-  config, summary location, cost history) from the policy pack directory, as
-  it does today, on every Pulumi version. Summaries and history MUST stay
-  where they are written now.
+  config, summary location, cost history) from the Pulumi project the
+  preview runs in, on every Pulumi version. Before 3.270.0 Pulumi starts the
+  analyzer in that project; from 3.270.0 the language host passes it as
+  `RunPluginRequest.pwd` (FR-014). Summaries and history MUST land under that
+  project, where Pulumi before 3.270.0 already wrote them.
 - **FR-010**: An automated check MUST run `pulumi preview --policy-pack`
   against a project with no resources on Pulumi 3.268.0 and on the newest
   Pulumi release, and MUST fail when the FinFocus analyzer does not serve the
@@ -215,15 +219,17 @@ guide.
 - **FR-012**: The analyzer docs (getting started, integration, architecture,
   deployment, FAQ) MUST describe the new policy pack layout, and the FAQ MUST
   quote the missing-language-plugin error with its fix.
-- **FR-013**: A follow-up issue MUST be drafted for `rshade/finfocus-action`
-  about its analyzer setup, which writes the old layout, and filed once the
-  owner approves its text.
-- **FR-014**: A follow-up issue MUST be drafted, and filed once the owner
-  approves its text, in this repository for
-  resolving the analyzer's project directory from the Pulumi project the
-  preview runs in. In policy-pack mode the analyzer currently ignores that
-  project's `.finfocus/` config; the issue covers that gap, the move of
-  summaries and history, and the release note it needs.
+- **FR-013**: `rshade/finfocus-action` MUST write both policy pack entries
+  in its analyzer setup, which writes only the old layout. The change is made
+  in that repository; the draft in `issue-drafts.md` is its PR text if a
+  tracking issue is wanted.
+- **FR-014**: The language host MUST give the analyzer `RunPluginRequest.pwd`
+  as `FINFOCUS_PROJECT_DIR`, the variable the CLI already reads, so the
+  analyzer resolves the Pulumi project instead of the policy pack directory.
+  An explicit `FINFOCUS_PROJECT_DIR` (in the host environment or in
+  `RunPluginRequest.env`) MUST win, and a `pwd` that is empty, relative,
+  missing, or not a directory MUST be ignored. The existing
+  `cost.history.directory` safety check applies unchanged.
 
 ### Key Entities
 
@@ -323,6 +329,4 @@ guide.
 - Changes to `finfocus-action` and `finfocus-demo` beyond the follow-up
   issue; each repository tracks its own change.
 - Any change to what the analyzer computes or reports.
-- Resolving the analyzer's project from the Pulumi project directory; that
-  is the FR-014 follow-up.
 - Graceful cost plugin cleanup on Windows (FR-007, Assumptions).

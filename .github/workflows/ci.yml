@@ -33,6 +33,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: '**/go.sum'
 
       - name: Build plugin binaries for integration tests
         run: |
@@ -114,6 +115,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: '**/go.sum'
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
@@ -171,12 +173,41 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: '**/go.sum'
 
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
       - name: Run govulncheck
         run: govulncheck ./...
+
+  analyzer-policy-pack:
+    name: Analyzer policy pack (${{ matrix.os }}, pulumi ${{ matrix.pulumi }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        pulumi: ["3.268.0", "latest"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: '**/go.sum'
+
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v7
+        with:
+          pulumi-version: ${{ matrix.pulumi }}
+
+      - name: Run analyzer policy pack check
+        run: FINFOCUS_TEST_PULUMI="$(command -v pulumi)" go test -v -count=1 -run TestAnalyzerPolicyPack ./test/integration/
 
   validate:
     name: Validation
@@ -190,6 +221,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: '**/go.sum'
 
       - name: Check gofmt
         run: |
@@ -261,6 +293,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: '**/go.sum'
 
       - name: Restore fuzz corpus cache
         uses: actions/cache@v6
@@ -309,6 +342,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: '**/go.sum'
 
       - name: Run benchmarks
         env:
@@ -341,6 +375,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: '**/go.sum'
 
       - name: Install benchstat
         run: go install golang.org/x/perf/cmd/benchstat@latest
@@ -509,6 +544,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: '**/go.sum'
 
       - name: Build binary
         env:
@@ -572,9 +608,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-          cache-dependency-path: |
-            go.sum
-            test/e2e/go.sum
+          cache-dependency-path: '**/go.sum'
 
       - name: Check browser module tidy
         run: go -C test/e2e mod tidy -diff
@@ -594,11 +628,22 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: '**/go.sum'
 
       - name: Install kind and kubectl
         uses: helm/kind-action@v1
         with:
           install_only: true
+
+      - name: Download modules
+        run: |
+          for dir in . test/e2e; do
+            for attempt in 1 2 3 4; do
+              go -C "$dir" mod download && break
+              [ "$attempt" -eq 4 ] && exit 1
+              sleep $((attempt * 10))
+            done
+          done
 
       - name: Run kind E2E
         env:

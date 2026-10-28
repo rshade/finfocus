@@ -13,44 +13,27 @@ estimates directly within your `pulumi preview` and `pulumi up` workflow.
 
 ## Setup Instructions
 
-Pulumi expects analyzer policy packs to follow a specific naming and directory convention.
+`finfocus analyzer install` creates the policy pack at `~/.finfocus/analyzer`.
+The directory holds:
 
-### 1. Create a Policy Pack Directory
+- `PulumiPolicy.yaml`
+- `pulumi-analyzer-policy-finfocus`, which Pulumi before 3.270.0 starts
+- `pulumi-language-finfocus`, which Pulumi 3.270.0 and later starts
 
-Create a dedicated directory to hold your FinFocus policy pack:
-
-```bash
-mkdir -p ~/.finfocus/analyzer
-```
-
-### 2. Configure the Policy Pack
-
-Create a `PulumiPolicy.yaml` file in that directory. This file tells Pulumi to use the `finfocus` runtime.
+On Windows both entries end in `.exe`.
 
 ```bash
-cat > ~/.finfocus/analyzer/PulumiPolicy.yaml << 'EOF'
-runtime: finfocus
-name: finfocus
-version: 0.3.0
-EOF
+finfocus analyzer install
 ```
 
-### 3. Install the Binary
+An existing pack that has only `pulumi-analyzer-policy-finfocus` is updated by
+running `finfocus analyzer install` again.
 
-Copy your `finfocus` binary to the policy pack directory, renaming it to match Pulumi's expected naming convention:
-`pulumi-analyzer-policy-<runtime>`.
+### Enable the Analyzer
 
-```bash
-# From the finfocus root directory
-cp bin/finfocus ~/.finfocus/analyzer/pulumi-analyzer-policy-finfocus
-chmod +x ~/.finfocus/analyzer/pulumi-analyzer-policy-finfocus
-```
-
-### 4. Enable the Analyzer
-
-To use the analyzer, the binary must be on your PATH **and** you must point Pulumi
-to the policy pack directory. Pulumi finds `pulumi-analyzer-policy-finfocus` by
-searching PATH — having the binary only in the policy pack directory is not sufficient.
+The pack directory must be on your PATH, and the preview must point at that
+directory. Pulumi 3.270.0 and later starts `pulumi-language-finfocus` from
+PATH. Older releases start `pulumi-analyzer-policy-finfocus` the same way.
 
 #### Option A: CLI Flag (Recommended for testing)
 
@@ -82,14 +65,29 @@ Policies:
 
 ## Troubleshooting
 
+### no language plugin 'pulumi-language-finfocus'
+
+Pulumi 3.270.0 and later fails the preview when the language plugin entry is
+missing:
+
+```text
+no language plugin 'pulumi-language-finfocus' found in the workspace or on your $PATH
+```
+
+Pulumi may also print a 404 while looking up a download named `pulumi-finfocus`
+(`could not find latest version`). Re-run `finfocus analyzer install` and keep
+`~/.finfocus/analyzer` on `PATH`.
+
 ### "could not start policy pack"
 
 Ensure:
 
-1. The binary name in `~/.finfocus/analyzer/` matches exactly: `pulumi-analyzer-policy-finfocus`.
+1. `~/.finfocus/analyzer/` contains `PulumiPolicy.yaml`,
+   `pulumi-analyzer-policy-finfocus`, and `pulumi-language-finfocus`
+   (both binaries end in `.exe` on Windows).
 2. The directory is on your PATH: `export PATH="${HOME}/.finfocus/analyzer:${PATH}"`.
-   Pulumi searches PATH for the analyzer binary — placing it only in the policy pack
-   directory is not sufficient.
+   Pulumi searches PATH for the entry it starts. Placing the files only in the
+   policy pack directory is not sufficient.
 
 ### No cost diagnostics appear
 

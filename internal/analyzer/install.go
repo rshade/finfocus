@@ -73,6 +73,10 @@ type InstallResult struct {
 
 	// PolicyPackMethod is "symlink" or "copy" for the policy pack binary.
 	PolicyPackMethod string `json:"policy_pack_method,omitempty"`
+
+	// PolicyPackLanguagePlugin is the absolute path of the
+	// pulumi-language-finfocus entry. Empty when the policy pack was not set up.
+	PolicyPackLanguagePlugin string `json:"policy_pack_language_plugin,omitempty"`
 }
 
 // normalizeVersion ensures a version string has exactly one "v" prefix.
@@ -229,7 +233,7 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 			if resolved, resolveErr := filepath.EvalSymlinks(execPath); resolveErr == nil {
 				execPath = resolved
 			}
-			setupPolicyPackForInstall(ctx, result, execPath, false)
+			setupPolicyPackForInstall(ctx, result, execPath)
 		}
 
 		return result, nil
@@ -288,14 +292,14 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 		Action:         ActionInstalled,
 	}
 
-	setupPolicyPackForInstall(ctx, result, execPath, opts.Force)
+	setupPolicyPackForInstall(ctx, result, execPath)
 
 	return result, nil
 }
 
-// setupPolicyPackForInstall sets up the policy pack directory and optionally syncs
-// the binary on force installs. Results are stored in the InstallResult.
-func setupPolicyPackForInstall(ctx context.Context, result *InstallResult, execPath string, force bool) {
+// setupPolicyPackForInstall creates the policy pack directory and both entries.
+// A failure is logged and leaves the policy pack fields empty.
+func setupPolicyPackForInstall(ctx context.Context, result *InstallResult, execPath string) {
 	log := logging.FromContext(ctx)
 
 	ppDir, ppMethod, ppErr := SetupPolicyPack(ctx, execPath)
@@ -306,61 +310,11 @@ func setupPolicyPackForInstall(ctx context.Context, result *InstallResult, execP
 			Str("operation", "install").
 			Err(ppErr).
 			Msg("failed to set up policy pack directory")
-	} else {
-		result.PolicyPackDir = ppDir
-		result.PolicyPackMethod = ppMethod
-	}
-
-	if force {
-		maybeSyncPolicyPack(ctx, execPath)
-	}
-}
-
-// maybeSyncPolicyPack syncs the policy pack binary if the directory exists.
-// Errors are logged as warnings but do not fail the overall install.
-func maybeSyncPolicyPack(ctx context.Context, execPath string) {
-	log := logging.FromContext(ctx)
-
-	ppDir, resolveErr := ResolvePolicyPackDir()
-	if resolveErr != nil {
 		return
 	}
-
-	if _, statErr := os.Stat(ppDir); statErr != nil {
-		return
-	}
-
-	if syncErr := syncPolicyPackBinary(ctx, execPath, ppDir); syncErr != nil {
-		log.Warn().
-			Ctx(ctx).
-			Str("component", "analyzer").
-			Str("operation", "install").
-			Err(syncErr).
-			Msg("failed to sync policy pack binary")
-	}
-}
-
-// syncPolicyPackBinary removes the old binary reference in the policy pack directory
-// and creates a new one pointing to the given executable path. This keeps the policy
-// pack binary in sync with the Pulumi plugin binary after a --force reinstall.
-func syncPolicyPackBinary(ctx context.Context, execPath, policyPackDir string) error {
-	binaryPath := filepath.Join(policyPackDir, policyPackBinaryName)
-
-	// Remove existing binary reference
-	if _, statErr := os.Lstat(binaryPath); statErr == nil {
-		if removeErr := os.Remove(binaryPath); removeErr != nil {
-			return fmt.Errorf("removing old policy pack binary: %w", removeErr)
-		}
-	} else if !os.IsNotExist(statErr) {
-		return fmt.Errorf("lstat %s: %w", binaryPath, statErr)
-	}
-
-	_, linkErr := linkOrCopy(ctx, execPath, binaryPath)
-	if linkErr != nil {
-		return fmt.Errorf("creating policy pack binary reference: %w", linkErr)
-	}
-
-	return nil
+	result.PolicyPackDir = ppDir
+	result.PolicyPackMethod = ppMethod
+	result.PolicyPackLanguagePlugin = PolicyPackEntryPath(ppDir, LanguagePluginBinaryName)
 }
 
 // Uninstall removes all analyzer-finfocus-v* directories from the plugin directory.
