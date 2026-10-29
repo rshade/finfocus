@@ -101,6 +101,10 @@ creates. A resource present in both state and preview uses the preview version.
 Dismissed recommendations are hidden by default. The browser cannot dismiss,
 snooze, or undismiss a recommendation. Results are paged at 250 rows.
 
+The session can return the same lifecycle events as
+`finfocus cost recommendations history` for a recommendation in the latest
+list. The detail panel does not show that lifecycle yet.
+
 ### Carbon controls
 
 The Carbon view calls the same Go method as `finfocus carbon actual` and shows
@@ -230,6 +234,10 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | Install or update whose confirmation does not match a fresh plan | 409 | `conflict` | The named version, repository, or security level changed. |
 | A second install, update, or remove of the same plugin | 409 | `busy` | That plugin is already being modified. |
 | Catalog host failure | 502 | `upstream` | A rate limit says to set `GITHUB_TOKEN`. Other host failures stay generic. |
+| `GET /api/recommendations/history?id=<id>` | 200 | - | Lifecycle events for a recommendation in the latest list, oldest first, plus `warnings` when a plugin could not answer. |
+| `GET /api/recommendations/history` with no id | 400 | `invalid_query` | `recommendation id required` |
+| `GET /api/recommendations/history` for an id that is not in the latest list | 404 | `not_found` | `recommendation not found` |
+| Recommendation history lookup failed | 502 | `history_unavailable` | `recommendation history unavailable` |
 
 The session cookie is `finfocus_session_<port>`, with `HttpOnly`,
 `SameSite=Strict`, and `Path=/`, and without `Secure`. The token stays valid

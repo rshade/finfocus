@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
@@ -643,4 +644,203 @@ func TestReadOnlyShutdownDoesNotWaitForSlowErrorWriter(t *testing.T) {
 			<-closed
 		})
 	}
+}
+
+func TestRecommendationHistoryShutdownDoesNotWaitForSlowResponseWriter(t *testing.T) {
+	t.Parallel()
+	s := newHistoryServer(
+		t,
+		[]engine.Recommendation{{ID: "rec-1", Type: "Resize"}},
+		func(context.Context, string) ([]config.LifecycleEvent, []string, error) {
+			return []config.LifecycleEvent{{Action: config.ActionDismissed}}, nil, nil
+		},
+	)
+	writer := &blockedJSONWriter{
+		ResponseRecorder: httptest.NewRecorder(),
+		entered:          make(chan struct{}),
+		release:          make(chan struct{}),
+	}
+	returned := make(chan struct{})
+	go func() {
+		defer close(returned)
+		s.handleRecommendationHistory(
+			writer,
+			httptest.NewRequest(http.MethodGet, s.BaseURL()+"/api/recommendations/history?id=rec-1", nil),
+		)
+	}()
+	<-writer.entered
+	closed := make(chan struct{})
+	go func() { s.session.Close(); close(closed) }()
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		assert.Fail(t, "session shutdown waited for a slow history write")
+	}
+	close(writer.release)
+	<-returned
+	<-closed
+	assert.Equal(t, http.StatusOK, writer.Code)
+}
+
+func TestRecommendationHistoryHTTP(t *testing.T) {
+	t.Parallel()
+	when := time.Date(2026, time.January, 2, 15, 4, 5, 0, time.UTC)
+	events := []config.LifecycleEvent{
+		{
+			Action:       config.ActionDismissed,
+			Reason:       "password rotation note",
+			CustomReason: "see the token procedure",
+			Actor:        "ada",
+			Timestamp:    when,
+		},
+		{
+			Action:    config.ActionSnoozed,
+			Reason:    "later",
+			Timestamp: when.Add(time.Hour),
+		},
+	}
+	listed := []engine.Recommendation{{ID: "rec-1", ResourceID: "database", Type: "Resize"}}
+
+	t.Run("missing id", func(t *testing.T) {
+		t.Parallel()
+		var calls atomic.Int32
+		s := newHistoryServer(t, listed, func(context.Context, string) ([]config.LifecycleEvent, []string, error) {
+			calls.Add(1)
+			return []config.LifecycleEvent{}, []string{}, nil
+		})
+		resp := overviewRequest(t, s, http.MethodGet, "/api/recommendations/history", "")
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		assert.Zero(t, calls.Load())
+	})
+
+	t.Run("unknown id does not call history", func(t *testing.T) {
+		t.Parallel()
+		var calls atomic.Int32
+		s := newHistoryServer(t, listed, func(context.Context, string) ([]config.LifecycleEvent, []string, error) {
+			calls.Add(1)
+			return events, nil, nil
+		})
+		resp := overviewRequest(t, s, http.MethodPost, "/api/recommendations/query", `{}`)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		resp = overviewRequest(t, s, http.MethodGet, "/api/recommendations/history?id=missing", "")
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+		assert.Zero(t, calls.Load())
+	})
+
+	t.Run("not ready", func(t *testing.T) {
+		t.Parallel()
+		session := NewSession(context.Background(), SessionOptions{
+			Recommendations: func(context.Context, bool) (*engine.RecommendationsResult, error) {
+				return &engine.RecommendationsResult{Recommendations: listed}, nil
+			},
+		})
+		session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+		s := newRunningServer(t, Options{Session: session})
+		resp := overviewRequest(t, s, http.MethodGet, "/api/recommendations/history?id=rec-1", "")
+		assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	})
+
+	t.Run("matches command events and keeps free text", func(t *testing.T) {
+		t.Parallel()
+		s := newHistoryServer(t, listed, func(_ context.Context, id string) ([]config.LifecycleEvent, []string, error) {
+			assert.Equal(t, "rec-1", id)
+			return events, nil, nil
+		})
+		resp := overviewRequest(t, s, http.MethodGet, "/api/recommendations/history?id=rec-1", "")
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		var decoded recommendationHistoryResponse
+		require.NoError(t, json.Unmarshal(body, &decoded))
+		assert.Equal(t, events, decoded.Events)
+		assert.Equal(t, "rec-1", decoded.RecommendationID)
+		assert.Equal(t, 2, decoded.EventCount)
+		assert.Empty(t, decoded.Warnings)
+		assert.Contains(t, string(body), "password rotation note")
+		assert.Contains(t, string(body), "see the token procedure")
+		assert.Contains(t, string(body), "ada")
+		assert.NotContains(t, string(body), `"password"`)
+	})
+
+	t.Run("plugin warning keeps events", func(t *testing.T) {
+		t.Parallel()
+		s := newHistoryServer(t, listed, func(context.Context, string) ([]config.LifecycleEvent, []string, error) {
+			return events[:1], []string{"aws: recommendation history unavailable"}, nil
+		})
+		resp := overviewRequest(t, s, http.MethodGet, "/api/recommendations/history?id=rec-1", "")
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		var decoded recommendationHistoryResponse
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&decoded))
+		assert.Equal(t, events[:1], decoded.Events)
+		assert.Equal(t, []string{"aws: recommendation history unavailable"}, decoded.Warnings)
+		assert.NotContains(t, decoded.Warnings[0], "history backend down")
+	})
+
+	t.Run("lookup error hides the go error", func(t *testing.T) {
+		t.Parallel()
+		s := newHistoryServer(t, listed, func(context.Context, string) ([]config.LifecycleEvent, []string, error) {
+			return nil, nil, errors.New("dismissal state file is corrupted; remove or fix /tmp/secret-path")
+		})
+		resp := overviewRequest(t, s, http.MethodGet, "/api/recommendations/history?id=rec-1", "")
+		require.Equal(t, http.StatusBadGateway, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Contains(t, string(body), "history_unavailable")
+		assert.NotContains(t, string(body), "secret-path")
+		assert.NotContains(t, string(body), "events")
+	})
+
+	t.Run("loads the list once when none is cached", func(t *testing.T) {
+		t.Parallel()
+		var lists atomic.Int32
+		var looked atomic.Int32
+		session := NewSession(context.Background(), SessionOptions{
+			Recommendations: func(context.Context, bool) (*engine.RecommendationsResult, error) {
+				lists.Add(1)
+				return &engine.RecommendationsResult{Recommendations: listed}, nil
+			},
+			RecommendationHistory: func(context.Context, string) ([]config.LifecycleEvent, []string, error) {
+				looked.Add(1)
+				return []config.LifecycleEvent{}, nil, nil
+			},
+		})
+		session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+		s := newRunningServer(t, Options{Session: session})
+		resp := overviewRequest(t, s, http.MethodGet, "/api/recommendations/history?id=rec-1", "")
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, int32(1), lists.Load())
+		assert.Equal(t, int32(1), looked.Load())
+	})
+}
+
+func TestRecommendationHistoryRedactsCredentialKeys(t *testing.T) {
+	t.Parallel()
+	body, err := RedactJSON(map[string]any{
+		"events": []any{map[string]any{
+			"reason":   "ok",
+			"actor":    "ada",
+			"password": "hunter2",
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "ada")
+	assert.Contains(t, string(body), "ok")
+	assert.NotContains(t, string(body), "hunter2")
+	assert.NotContains(t, string(body), "password")
+}
+
+func newHistoryServer(
+	t *testing.T,
+	recs []engine.Recommendation,
+	history func(context.Context, string) ([]config.LifecycleEvent, []string, error),
+) *Server {
+	t.Helper()
+	session := NewSession(context.Background(), SessionOptions{
+		Recommendations: func(context.Context, bool) (*engine.RecommendationsResult, error) {
+			return &engine.RecommendationsResult{Recommendations: append([]engine.Recommendation(nil), recs...)}, nil
+		},
+		RecommendationHistory: history,
+	})
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	return newRunningServer(t, Options{Session: session})
 }

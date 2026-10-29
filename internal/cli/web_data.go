@@ -467,6 +467,24 @@ func (d *webData) recommendations(ctx context.Context, include bool) (*engine.Re
 
 func (d *webData) tableTrends() (map[string]string, string) { return d.trends, d.totalTrend }
 
+// recommendationHistory reads one recommendation's lifecycle through the
+// dashboard engine and the same dismissal store the CLI history command uses.
+func (d *webData) recommendationHistory(
+	ctx context.Context,
+	id string,
+) ([]config.LifecycleEvent, []string, error) {
+	eng, release, err := d.queryEngine(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer release()
+	store, err := loadDismissalStore()
+	if err != nil {
+		return nil, nil, err
+	}
+	return eng.GetRecommendationHistory(ctx, store, id)
+}
+
 // queryEngine returns the engine cost and estimate queries should use. After a
 // plugin reload this is the replacement, not the overview pipeline's original.
 func (d *webData) queryEngine(ctx context.Context) (*engine.Engine, func(), error) {

@@ -391,7 +391,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get history
-		history, err := engine.GetRecommendationHistory(ctx, store, "rec-history")
+		history, _, err := engine.GetRecommendationHistory(ctx, store, "rec-history")
 		require.NoError(t, err)
 		require.Len(t, history, 1)
 		assert.Equal(t, config.ActionDismissed, history[0].Action)
@@ -402,7 +402,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 		engine := createTestEngine()
 		store := createTestStore(t)
 
-		history, err := engine.GetRecommendationHistory(ctx, store, "rec-unknown")
+		history, _, err := engine.GetRecommendationHistory(ctx, store, "rec-unknown")
 		require.NoError(t, err)
 		assert.Empty(t, history)
 	})
@@ -413,7 +413,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 		store := createTestStore(t)
 
 		// Never dismissed recommendation should have no history
-		history, err := engine.GetRecommendationHistory(ctx, store, "rec-active")
+		history, _, err := engine.GetRecommendationHistory(ctx, store, "rec-active")
 		require.NoError(t, err)
 		assert.Empty(t, history)
 	})
@@ -423,7 +423,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 		engine := createTestEngine()
 		store := createTestStore(t)
 
-		_, err := engine.GetRecommendationHistory(ctx, store, "")
+		_, _, err := engine.GetRecommendationHistory(ctx, store, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "recommendation ID is required")
 	})
@@ -452,7 +452,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get history
-		history, err := engine.GetRecommendationHistory(ctx, store, "rec-multi-history")
+		history, _, err := engine.GetRecommendationHistory(ctx, store, "rec-multi-history")
 		require.NoError(t, err)
 		require.Len(t, history, 2)
 		assert.Equal(t, config.ActionDismissed, history[0].Action)

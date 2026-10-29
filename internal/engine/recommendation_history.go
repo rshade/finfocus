@@ -21,30 +21,34 @@ import (
 var recommendationHistoryTimeout = perResourceTimeout //nolint:gochecknoglobals // tests shorten it
 
 // GetRecommendationHistory returns local and plugin lifecycle events for one
-// recommendation, oldest first. It does not modify the dismissal store.
-// The caller's cancellation stops the query. A plugin that times out, or that
-// reports cancellation on its own, is logged and skipped.
+// recommendation, oldest first, plus one warning for each plugin that failed
+// to answer. A plugin that does not implement history is skipped with no
+// warning. Warnings name the plugin and do not include the plugin error.
+// It does not modify the dismissal store.
+// The caller's cancellation stops the query and returns no events. A plugin
+// that times out, or that reports cancellation on its own, is logged, warned,
+// and skipped.
 func (e *Engine) GetRecommendationHistory(
 	ctx context.Context,
 	store *config.DismissalStore,
 	recommendationID string,
-) ([]config.LifecycleEvent, error) {
+) ([]config.LifecycleEvent, []string, error) {
 	if recommendationID == "" {
-		return nil, errors.New("recommendation ID is required")
+		return nil, nil, errors.New("recommendation ID is required")
 	}
 	if store == nil {
-		return nil, errors.New("dismissal store is required")
+		return nil, nil, errors.New("dismissal store is required")
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	local := localRecommendationHistory(store, recommendationID)
-	pluginEvents, err := e.pluginRecommendationHistory(ctx, recommendationID)
+	pluginEvents, warnings, err := e.pluginRecommendationHistory(ctx, recommendationID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return mergeRecommendationHistory(local, pluginEvents), nil
+	return mergeRecommendationHistory(local, pluginEvents), warnings, nil
 }
 
 func localRecommendationHistory(store *config.DismissalStore, recommendationID string) []config.LifecycleEvent {
@@ -62,12 +66,13 @@ func localRecommendationHistory(store *config.DismissalStore, recommendationID s
 func (e *Engine) pluginRecommendationHistory(
 	ctx context.Context,
 	recommendationID string,
-) ([]config.LifecycleEvent, error) {
+) ([]config.LifecycleEvent, []string, error) {
 	log := logging.FromContext(ctx)
 	var merged []config.LifecycleEvent
+	var warnings []string
 	for _, client := range e.clients {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		callCtx, cancel := context.WithTimeout(ctx, recommendationHistoryTimeout)
 		events, err := recommendationHistoryFromClient(callCtx, client, recommendationID)
@@ -76,7 +81,7 @@ func (e *Engine) pluginRecommendationHistory(
 			// A deadline on this one call is that plugin's failure. Stop only
 			// when the caller is done, matching batch cost's parent-context check.
 			if ctxErr := ctx.Err(); ctxErr != nil {
-				return nil, ctxErr
+				return nil, nil, ctxErr
 			}
 			if status.Code(err) == codes.Unimplemented {
 				log.Debug().
@@ -92,11 +97,18 @@ func (e *Engine) pluginRecommendationHistory(
 				Str("plugin", pluginClientName(client)).
 				Err(err).
 				Msg("plugin recommendation history failed")
+			warnings = append(warnings, recommendationHistoryWarning(pluginClientName(client)))
 			continue
 		}
 		merged = append(merged, events...)
 	}
-	return merged, nil
+	return merged, warnings, nil
+}
+
+// recommendationHistoryWarning is the browser-facing notice for one plugin.
+// The plugin error stays in the log and is not copied here.
+func recommendationHistoryWarning(plugin string) string {
+	return plugin + ": recommendation history unavailable"
 }
 
 func recommendationHistoryFromClient(

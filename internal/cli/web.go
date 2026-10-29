@@ -426,10 +426,13 @@ func webSessionOptions(
 	passphrases chan<- string,
 ) webui.SessionOptions {
 	return webui.SessionOptions{
-		HistoricalCarbon:  sessionCarbonQuery(queryHistoricalCarbon, data),
-		EstimateResources: data.estimateResources,
-		QueryEngine:       data.queryEngine,
-		ActualCosts:       data.actualCosts, Recommendations: data.recommendations, Trends: data.tableTrends,
+		HistoricalCarbon:      sessionCarbonQuery(queryHistoricalCarbon, data),
+		EstimateResources:     data.estimateResources,
+		QueryEngine:           data.queryEngine,
+		ActualCosts:           data.actualCosts,
+		Recommendations:       data.recommendations,
+		RecommendationHistory: data.recommendationHistory,
+		Trends:                data.tableTrends,
 		Preview: func(previewCtx context.Context) ([]engine.OverviewRow, error) {
 			rows, previewErr := previewWebRows(previewCtx, pipe, pipeDone)
 			if previewErr != nil {

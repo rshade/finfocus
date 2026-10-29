@@ -100,7 +100,7 @@ func executeHistory(cmd *cobra.Command, recommendationID string, output string) 
 	}
 
 	eng := engine.New(clients, nil)
-	events, err := eng.GetRecommendationHistory(ctx, store, recommendationID)
+	events, _, err := eng.GetRecommendationHistory(ctx, store, recommendationID)
 	if err != nil {
 		return fmt.Errorf("getting recommendation history: %w", err)
 	}
