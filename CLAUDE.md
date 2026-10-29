@@ -893,6 +893,13 @@ Specs 613-623 hold the details. Invariants:
 ## Recent Changes
 
 - 1921-recommendation-history-web: `GET /api/recommendations/history` returns `GetRecommendationHistory` for an id in the session's last recommendations list. Plugin failures other than `Unimplemented` are fixed warnings. The detail panel does not render them yet (`specs/1921-recommendation-history-web/`).
+- 1737-forecast-web-hook: `POST /api/forecast/query` (`webData.forecast`)
+  returns the `cost forecast --output json` document plus `display` strings.
+  `runForecast` and the web callback share `buildForecast`, and
+  `forecast.Document` is the CLI JSON type. Setting errors are
+  `forecast.InputError`, which the handler maps to 400 with the CLI's text.
+  The web prices `planOriginResources(snapshot.Descriptors())` on the session
+  engine and opens no plugins; history uses the session stack.
 - 1735-pulumi-cloud-history: `cost.history.pulumi_cloud.enabled` defaults
   off (`false`); `auto` falls back and `true` requires a complete import.
   Read historical snapshots from `/export/{version}`, not `/updates/{version}`.

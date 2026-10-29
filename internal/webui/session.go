@@ -12,6 +12,7 @@ import (
 	"github.com/rshade/finfocus/internal/carbonreport"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/forecast"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
@@ -43,6 +44,10 @@ type SessionOptions struct {
 	// that the session has already listed. Warnings name plugins that failed
 	// to answer. The callback uses the dashboard engine.
 	RecommendationHistory func(context.Context, string) ([]config.LifecycleEvent, []string, error)
+	// Forecast runs `cost forecast` for the session stack. A forecast.InputError
+	// is the caller's mistake and forecast.IsUnprojectable is a stack with
+	// nothing to project; any other error means the data is unavailable.
+	Forecast              func(context.Context, ForecastQuery) (forecast.Document, error)
 	Trends                func() (map[string]string, string)
 	DayOfMonth            int
 	Preview               func(context.Context) ([]engine.OverviewRow, error)

@@ -433,6 +433,7 @@ func webSessionOptions(
 		Recommendations:       data.recommendations,
 		RecommendationHistory: data.recommendationHistory,
 		Trends:                data.tableTrends,
+		Forecast:              data.forecast,
 		Preview: func(previewCtx context.Context) ([]engine.OverviewRow, error) {
 			rows, previewErr := previewWebRows(previewCtx, pipe, pipeDone)
 			if previewErr != nil {

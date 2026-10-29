@@ -238,6 +238,11 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `GET /api/recommendations/history` with no id | 400 | `invalid_query` | `recommendation id required` |
 | `GET /api/recommendations/history` for an id that is not in the latest list | 404 | `not_found` | `recommendation not found` |
 | Recommendation history lookup failed | 502 | `history_unavailable` | `recommendation history unavailable` |
+| `POST /api/forecast/query` | 200 | - | The `cost forecast --output json` document for the session stack, plus `display` strings. The body takes `months`, `growthType`, `growthRate` (text), and `noHistory`; omitted fields use the CLI defaults. |
+| `POST /api/forecast/query` with invalid months, growth type, or rate | 400 | `invalid_forecast` | The message `cost forecast` prints for the same flags. |
+| `POST /api/forecast/query` when no resource was priced, or priced resources use two currencies | 422 | `no_forecast` | The message `cost forecast` prints, such as `no cost data available`. |
+| `POST /api/forecast/query` before the session has loaded | 503 | `not_ready` | `forecast data is loading` |
+| `POST /api/forecast/query` whose pricing fails | 502 | `forecast_unavailable` | `forecast data unavailable` |
 
 The session cookie is `finfocus_session_<port>`, with `HttpOnly`,
 `SameSite=Strict`, and `Path=/`, and without `Secure`. The token stays valid

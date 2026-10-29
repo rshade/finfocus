@@ -274,6 +274,7 @@ func (s *Server) handler() http.Handler {
 		s.registerCarbon(mux)
 		s.registerEstimate(mux)
 		s.registerRecommendations(mux)
+		s.registerForecast(mux)
 		s.registerConfig(mux)
 		s.registerPlugins(mux)
 		mux.HandleFunc("/", s.handleRoot)
