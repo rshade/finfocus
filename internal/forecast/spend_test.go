@@ -101,3 +101,21 @@ func TestParseSpendCSV_ByteOrderMark(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, withHeader.Points, 1)
 }
+
+func TestParseSpendCSV_RowLimit(t *testing.T) {
+	t.Parallel()
+	var b strings.Builder
+	first := day(2010, 1, 1)
+	for i := range MaxSpendRows + 1 {
+		b.WriteString(first.AddDate(0, 0, i).Format("2006-01-02") + ",1\n")
+	}
+	_, err := ParseSpendCSV(strings.NewReader(b.String()))
+	require.EqualError(t, err, "spend history line 3661: spend history has more than 3660 rows; "+
+		"keep at most ten years of daily spend")
+	assert.True(t, IsInputError(err))
+
+	atLimit := strings.Join(strings.Split(b.String(), "\n")[:MaxSpendRows], "\n")
+	got, err := ParseSpendCSV(strings.NewReader(atLimit))
+	require.NoError(t, err)
+	assert.Len(t, got.Points, MaxSpendRows)
+}

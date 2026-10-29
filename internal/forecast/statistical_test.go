@@ -211,3 +211,12 @@ func TestProjectStatistical_CoverageNotes(t *testing.T) {
 		"spend history ends 2026-03-01, 6 months before Oct 2026; the forecast spans that gap",
 	)
 }
+
+func TestValidateSpendHistory_CountsAfterExclusion(t *testing.T) {
+	t.Parallel()
+	history, _ := weeklySpend(day(2026, 9, 1), 12)
+	require.NoError(t, ValidateSpendHistory(history, Drivers{}))
+	err := ValidateSpendHistory(history, Drivers{Excludes: []DateRange{{From: day(2026, 9, 1), To: day(2026, 9, 3)}}})
+	require.EqualError(t, err, "spend history has 9 usable points; at least 10 are required")
+	assert.True(t, IsInputError(err))
+}

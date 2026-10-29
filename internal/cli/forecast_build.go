@@ -74,6 +74,9 @@ func parseForecastModel(in forecastModelInputs, settings *forecastSettings) erro
 		if spendErr != nil {
 			return spendErr
 		}
+		if spendErr = forecast.ValidateSpendHistory(spend, drivers); spendErr != nil {
+			return spendErr
+		}
 		settings.spend = &spend
 	}
 	return nil

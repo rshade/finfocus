@@ -26,6 +26,21 @@ func ValidateConfidence(confidence float64) error {
 	return nil
 }
 
+// ValidateSpendHistory reports whether enough points remain for a fit after
+// the exclusions, so a caller can reject the input before pricing anything.
+func ValidateSpendHistory(history SpendHistory, drivers Drivers) error {
+	fitHistory, _ := drivers.Exclude(history)
+	return checkUsablePoints(fitHistory)
+}
+
+func checkUsablePoints(history SpendHistory) error {
+	if n := len(history.Points); n < autoarima.MinObservations {
+		return inputError(fmt.Errorf(
+			"spend history has %d usable points; at least %d are required", n, autoarima.MinObservations))
+	}
+	return nil
+}
+
 // ProjectStatistical fits an automatically selected (seasonal) ARIMA model to
 // spend history, after drivers.Exclude, and returns calendar-month totals from
 // start's month through months ahead, with bounds at confidence. Daily spend
@@ -49,11 +64,10 @@ func ProjectStatistical(
 		return Projection{}, err
 	}
 	fitHistory, notes := drivers.Exclude(history)
-	n := len(fitHistory.Points)
-	if n < autoarima.MinObservations {
-		return Projection{}, inputError(fmt.Errorf(
-			"spend history has %d usable points; at least %d are required", n, autoarima.MinObservations))
+	if err := checkUsablePoints(fitHistory); err != nil {
+		return Projection{}, err
 	}
+	n := len(fitHistory.Points)
 
 	origin := monthStart(start)
 	end := origin.AddDate(0, months+1, 0)

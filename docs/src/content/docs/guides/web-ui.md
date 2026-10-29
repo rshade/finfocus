@@ -107,8 +107,9 @@ finfocus --web --filter provider=aws
 ```
 
 These flags are valid only together with `--web`, and only on the root
-`finfocus` command. Sources and dates are fixed for the session; the page has
-no file picker or upload control. Restart the session to change them.
+`finfocus` command. Sources and dates are fixed for the session and cannot be
+changed from the page. Restart the session to change them. The only file the
+page reads is the optional spend CSV on the Forecast view.
 
 ## Unlock an encrypted stack
 

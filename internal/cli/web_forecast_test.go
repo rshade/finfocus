@@ -102,6 +102,8 @@ func webForecastDocument(t *testing.T, query webui.ForecastQuery) forecastJSON {
 
 func intPtr(v int) *int { return &v }
 
+func spendPtr(v string) *string { return &v }
+
 func TestWebForecast_MatchesCLIJSON(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -325,7 +327,7 @@ func TestWebForecast_ArimaMatchesCLIJSON(t *testing.T) {
 	data.params.cfg = &config.Config{}
 	data.forecastNow = arimaNow()
 	doc, err := data.forecast(t.Context(), webui.ForecastQuery{
-		Months: intPtr(4), Model: "arima", SpendHistory: csv, Confidence: &confidence, GrowthCap: &growthCap,
+		Months: intPtr(4), Model: "arima", SpendHistory: &csv, Confidence: &confidence, GrowthCap: &growthCap,
 		Steps: []string{"2026-12-01=200"}, Exclude: []string{"2026-06-01:2026-06-07"}, NoHistory: true,
 	})
 	require.NoError(t, err)
@@ -347,9 +349,20 @@ func TestWebForecast_ArimaInputErrorsMatchCLI(t *testing.T) {
 		{name: "arima without history", args: []string{"--model", "arima"},
 			query: webui.ForecastQuery{Model: "arima"}},
 		{name: "history without arima", args: []string{"--spend-history", "PATH"},
-			query: webui.ForecastQuery{SpendHistory: "2026-04-01,1\n"}},
+			query: webui.ForecastQuery{SpendHistory: spendPtr("2026-04-01,1\n")}},
 		{name: "bad row", args: []string{"--model", "arima", "--spend-history", "PATH"},
-			query: webui.ForecastQuery{Model: "arima", SpendHistory: "2026-04-01,1\n2026-04-02,x\n"}},
+			query: webui.ForecastQuery{Model: "arima", SpendHistory: spendPtr("2026-04-01,1\n2026-04-02,x\n")}},
+		{name: "empty file", args: []string{"--model", "arima", "--spend-history", "PATH"},
+			query: webui.ForecastQuery{Model: "arima", SpendHistory: spendPtr("")}},
+		{
+			name: "too short after exclusion",
+			args: []string{"--model", "arima", "--spend-history", "PATH", "--exclude", "2026-04-01:2026-04-03"},
+			query: webui.ForecastQuery{
+				Model:        "arima",
+				SpendHistory: spendPtr(shortSpendCSV),
+				Exclude:      []string{"2026-04-01:2026-04-03"},
+			},
+		},
 		{name: "bad step", args: []string{"--step", "x"}, query: webui.ForecastQuery{Steps: []string{"x"}}},
 	}
 	for _, tc := range cases {
@@ -358,7 +371,7 @@ func TestWebForecast_ArimaInputErrorsMatchCLI(t *testing.T) {
 			args := append([]string(nil), tc.args...)
 			for i, arg := range args {
 				if arg == "PATH" {
-					args[i] = writeSpendCSV(t, tc.query.SpendHistory)
+					args[i] = writeSpendCSV(t, *tc.query.SpendHistory)
 				}
 			}
 			var buf bytes.Buffer
@@ -372,3 +385,8 @@ func TestWebForecast_ArimaInputErrorsMatchCLI(t *testing.T) {
 		})
 	}
 }
+
+// shortSpendCSV is twelve days, which leaves nine usable points once the
+// first three are excluded.
+const shortSpendCSV = "2026-04-01,1\n2026-04-02,2\n2026-04-03,3\n2026-04-04,4\n2026-04-05,5\n2026-04-06,6\n" +
+	"2026-04-07,7\n2026-04-08,8\n2026-04-09,9\n2026-04-10,10\n2026-04-11,11\n2026-04-12,12\n"

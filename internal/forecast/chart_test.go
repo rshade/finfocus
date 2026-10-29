@@ -71,14 +71,30 @@ func TestRender_NoProviderSplitOmitsProvider(t *testing.T) {
 
 func TestRender_StatisticalGolden(t *testing.T) {
 	t.Parallel()
-	history, _ := weeklySpend(day(2026, 4, 4), 180)
-	projection, err := ProjectStatistical(history, Drivers{}, 6, day(2026, 10, 15), 0.8, "USD")
-	require.NoError(t, err)
-	projection.Baseline = Series{
-		Name:   SeriesBaseline,
-		Points: stamp(day(2026, 10, 1), []float64{1900, 1900, 1900, 1900, 1900, 1900, 1900}),
+	start := day(2026, 10, 1)
+	projection := Projection{
+		Currency:   "USD",
+		Months:     6,
+		Model:      ModelARIMA,
+		ModelOrder: "SARIMA(1,1,1)(0,1,1)[7]",
+		Confidence: 0.8,
+		Forecast: Series{
+			Name:   SeriesForecast,
+			Points: stamp(start, []float64{2000, 2050, 2110, 2160, 2230, 2280, 2350}),
+		},
+		Lower: Series{
+			Name:   SeriesLower,
+			Points: stamp(start, []float64{1950, 1900, 1850, 1780, 1720, 1650, 1590}),
+		},
+		Upper: Series{
+			Name:   SeriesUpper,
+			Points: stamp(start, []float64{2050, 2200, 2370, 2540, 2740, 2910, 3110}),
+		},
+		Baseline: Series{
+			Name:   SeriesBaseline,
+			Points: stamp(start, []float64{1900, 1900, 1900, 1900, 1900, 1900, 1900}),
+		},
 	}
-	Drivers{}.Apply(&projection)
 
 	out := Render(projection, ChartOptions{Height: 10, Width: 50, SplitProviders: true, Budget: 2600, NoColor: true})
 	path := filepath.Join("testdata", "chart_statistical.golden")

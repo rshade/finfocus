@@ -537,16 +537,10 @@ func (d *webData) forecast(ctx context.Context, query webui.ForecastQuery) (fore
 		return forecast.Document{}, err
 	}
 	settings.now = d.forecastNow
-	unlock, err := d.lock(ctx)
+	costs, stack, err := d.forecastInputs(ctx)
 	if err != nil {
 		return forecast.Document{}, err
 	}
-	defer unlock()
-	costs, err := d.priceForecast(ctx)
-	if err != nil {
-		return forecast.Document{}, err
-	}
-	stack := d.forecastStack()
 	built, err := buildForecast(costs, settings, func() ([]history.CostSnapshot, error) {
 		return d.readHistory(stack)
 	})
@@ -554,6 +548,22 @@ func (d *webData) forecast(ctx context.Context, query webui.ForecastQuery) (fore
 		return forecast.Document{}, err
 	}
 	return built.document(), nil
+}
+
+// forecastInputs prices the forecast and captures the stack under the query
+// gate, then releases it: the model fit and the history read need neither
+// the session engine nor its clients.
+func (d *webData) forecastInputs(ctx context.Context) ([]engine.CostResult, string, error) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	defer unlock()
+	costs, err := d.priceForecast(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	return costs, d.forecastStack(), nil
 }
 
 // webForecastSettings validates a dashboard query with the CLI's rules and
@@ -584,8 +594,8 @@ func webForecastSettings(query webui.ForecastQuery, cfg *config.Config) (forecas
 		steps:      query.Steps,
 		excludes:   query.Exclude,
 	}
-	if query.SpendHistory != "" {
-		inputs.spendCSV = strings.NewReader(query.SpendHistory)
+	if query.SpendHistory != nil {
+		inputs.spendCSV = strings.NewReader(*query.SpendHistory)
 	}
 	if err = parseForecastModel(inputs, &settings); err != nil {
 		return forecastSettings{}, err

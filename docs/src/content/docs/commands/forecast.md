@@ -77,7 +77,10 @@ with nothing to price leaves the baseline out with a warning.
 
 A constant spend history forecasts a flat line, with a warning. A CSV with a
 gap, a duplicate date, two cadences, a negative value, or a bad column is
-rejected with its line number.
+rejected with its line number. A CSV may hold at most 3,660 rows, ten years of
+daily spend, and needs at least ten usable rows after `--exclude`. Every input
+error, including a bad `--months` or growth setting, is reported before any
+plugin starts and exits with code 2.
 
 ## Drivers
 

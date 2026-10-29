@@ -100,3 +100,17 @@
   `spendHistory`; the server never takes a file path.
 - **Rationale**: A path from the page would let any page in the session read
   local files. The 1 MiB request limit holds decades of daily rows.
+
+## R10. PR review corrections (2026-10-29)
+
+- **Decision**: Forecast input errors exit 2 through `toValidationError`
+  (existing growth flags included). The usable-point count after exclusions
+  is checked before pricing (`forecast.ValidateSpendHistory`). A spend CSV is
+  capped at `MaxSpendRows` = 3660. The web keeps an empty chosen file distinct
+  from no file (`spendHistory` is a pointer). The query gate is released after
+  pricing, before the fit. `ParseGrowth` rejects non-finite rates; the model
+  label uses `%.6g`; the 502 path logs its cause.
+- **Rationale**: Copilot and CodeRabbit review of #1931. Fit time measured on
+  daily data: 1 year 12 ms, 3 years 37 ms, 5 years 71 ms, 10 years 126 ms,
+  20 years 269 ms, about linear. Ten years bounds a fit near 0.13 s and covers
+  any monthly horizon this command offers.

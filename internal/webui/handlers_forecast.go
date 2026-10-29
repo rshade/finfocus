@@ -10,14 +10,15 @@ import (
 // ForecastQuery is the dashboard's `cost forecast` request. Omitted fields take
 // the CLI defaults. GrowthRate, Steps, and Exclude are text in the flags'
 // syntax, so a bad value gets the CLI's message. SpendHistory is the CSV text
-// the browser read; the server never opens a path from the page.
+// the browser read; the server never opens a path from the page. It is a
+// pointer so an empty chosen file stays distinct from no file.
 type ForecastQuery struct {
 	Months       *int     `json:"months,omitempty"`
 	GrowthType   string   `json:"growthType,omitempty"`
 	GrowthRate   string   `json:"growthRate,omitempty"`
 	NoHistory    bool     `json:"noHistory,omitempty"`
 	Model        string   `json:"model,omitempty"`
-	SpendHistory string   `json:"spendHistory,omitempty"`
+	SpendHistory *string  `json:"spendHistory,omitempty"`
 	Confidence   *float64 `json:"confidence,omitempty"`
 	GrowthCap    *float64 `json:"growthCap,omitempty"`
 	Steps        []string `json:"steps,omitempty"`
@@ -83,6 +84,8 @@ func (s *Server) handleForecastQuery(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, http.StatusUnprocessableEntity, "no_forecast", err.Error())
 			return
 		}
+		s.logger.Warn().Err(err).Str("component", "webui").Str("operation", "forecast").
+			Msg("forecast query failed")
 		s.writeError(w, http.StatusBadGateway, "forecast_unavailable", "forecast data unavailable")
 		return
 	}

@@ -88,7 +88,8 @@ func TestForecastQuery_StatisticalFieldsRoundTrip(t *testing.T) {
 		`"steps":["2027-06-01=500"],"exclude":["2025-12-01:2025-12-31"]}`)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "arima", got.Model)
-	assert.Equal(t, "2026-04-01,1\n", got.SpendHistory)
+	require.NotNil(t, got.SpendHistory)
+	assert.Equal(t, "2026-04-01,1\n", *got.SpendHistory)
 	require.NotNil(t, got.Confidence)
 	assert.InDelta(t, 0.8, *got.Confidence, 1e-12)
 	require.NotNil(t, got.GrowthCap)
@@ -99,6 +100,19 @@ func TestForecastQuery_StatisticalFieldsRoundTrip(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
 	assert.Equal(t, "ARIMA(1,1,0)", body.ModelOrder)
 	assert.Equal(t, "ARIMA(1,1,0)", body.Display.Model, "no confidence in the fixture")
+}
+
+func TestForecastQuery_EmptySpendHistoryStaysPresent(t *testing.T) {
+	t.Parallel()
+	var got ForecastQuery
+	s := newForecastServer(t, func(_ context.Context, q ForecastQuery) (forecast.Document, error) {
+		got = q
+		return forecastFixture(), nil
+	})
+	resp := overviewRequest(t, s, http.MethodPost, "/api/forecast/query", `{"model":"arima","spendHistory":""}`)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NotNil(t, got.SpendHistory, "an empty chosen file is not the same as no file")
+	assert.Empty(t, *got.SpendHistory)
 }
 
 func TestForecastModelDisplay(t *testing.T) {

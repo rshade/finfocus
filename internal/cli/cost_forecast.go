@@ -128,7 +128,7 @@ func runForecast(cmd *cobra.Command, deps forecastDeps) error {
 	}
 	settings, err := forecastFlagSettings(cmd, deps)
 	if err != nil {
-		return err
+		return forecastInputError(ctx, err)
 	}
 
 	audit := newAuditContext(ctx, "cost forecast", map[string]string{auditKeyOutput: format})
@@ -145,7 +145,7 @@ func runForecast(cmd *cobra.Command, deps forecastDeps) error {
 	})
 	if err != nil {
 		audit.logFailure(ctx, err)
-		return err
+		return forecastInputError(ctx, err)
 	}
 	if split, _ := cmd.Flags().GetBool("split-providers"); split && settings.model == forecast.ModelARIMA {
 		built.projection.Warnings = append(built.projection.Warnings,
@@ -621,4 +621,13 @@ func planOriginResources(resources []engine.ResourceDescriptor) []engine.Resourc
 	return slices.DeleteFunc(resources, func(r engine.ResourceDescriptor) bool {
 		return r.Origin == engine.OriginState
 	})
+}
+
+// forecastInputError gives a forecast setting error the validation exit code.
+// The wrapped forecast.InputError stays reachable for [errors.Is] and [errors.As].
+func forecastInputError(ctx context.Context, err error) error {
+	if forecast.IsInputError(err) {
+		return toValidationError(ctx, err)
+	}
+	return err
 }

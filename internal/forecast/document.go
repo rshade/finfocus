@@ -3,6 +3,7 @@ package forecast
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -70,7 +71,7 @@ func ParseGrowth(kind, rawRate string) (string, *float64, error) {
 	var rate *float64
 	if rawRate != "" {
 		parsed, err := strconv.ParseFloat(rawRate, 64)
-		if err != nil {
+		if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
 			return "", nil, inputError(fmt.Errorf("invalid growth rate %q", rawRate))
 		}
 		if parsed < -1 {
@@ -129,5 +130,5 @@ const percent = 100
 // ModelLabel names a statistical model and its bound level, the same in the
 // CLI and the dashboard: "SARIMA(1,1,1)(0,1,1)[7], bounds at 95% confidence".
 func ModelLabel(order string, confidence float64) string {
-	return fmt.Sprintf("%s, bounds at %g%% confidence", order, confidence*percent)
+	return fmt.Sprintf("%s, bounds at %.6g%% confidence", order, confidence*percent)
 }

@@ -127,6 +127,8 @@ func TestParseGrowth(t *testing.T) {
 		},
 		{name: "unparseable rate", kind: "linear", rate: "ten", wantErr: `invalid growth rate "ten"`},
 		{name: "rate below -1", kind: "linear", rate: "-1.5", wantIs: ErrInvalidGrowthRate},
+		{name: "NaN rate", kind: "linear", rate: "NaN", wantErr: `invalid growth rate "NaN"`},
+		{name: "infinite rate", kind: "exponential", rate: "+Inf", wantErr: `invalid growth rate "+Inf"`},
 		{name: "linear without rate", kind: "linear", wantIs: ErrMissingGrowthRate},
 		{name: "exponential without rate", kind: "exponential", wantIs: ErrMissingGrowthRate},
 	}
@@ -178,3 +180,10 @@ func TestIsUnprojectable(t *testing.T) {
 }
 
 func ptr(v float64) *float64 { return &v }
+
+func TestModelLabel_RoundsFloatNoise(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "ARIMA(1,1,0), bounds at 29% confidence", ModelLabel("ARIMA(1,1,0)", 0.29))
+	assert.Equal(t, "ARIMA(1,1,0), bounds at 7% confidence", ModelLabel("ARIMA(1,1,0)", 0.07))
+	assert.Equal(t, "ARIMA(1,1,0), bounds at 95% confidence", ModelLabel("ARIMA(1,1,0)", 0.95))
+}

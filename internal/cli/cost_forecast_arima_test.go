@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rshade/ax-go"
+
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/forecast"
@@ -68,6 +70,7 @@ func TestRunForecast_ModelInputsRejectedBeforePricing(t *testing.T) {
 	t.Parallel()
 	good := writeSpendCSV(t, spendCSV())
 	bad := writeSpendCSV(t, "date,value\n2026-04-01,1\n2026-04-02,oops\n")
+	short := writeSpendCSV(t, strings.Join(strings.Split(spendCSV(), "\n")[:10], "\n")+"\n")
 	cases := []struct {
 		name string
 		args []string
@@ -93,6 +96,13 @@ func TestRunForecast_ModelInputsRejectedBeforePricing(t *testing.T) {
 			want: `invalid exclude range "2026-05-01": use FROM:TO with dates as 2006-01-02`},
 		{name: "bad csv row", args: []string{"--model", "arima", "--spend-history", bad},
 			want: `spend history line 3: invalid value "oops"`},
+		{name: "too short", args: []string{"--model", "arima", "--spend-history", short},
+			want: "spend history has 9 usable points; at least 10 are required"},
+		{name: "too short after exclusion",
+			args: []string{"--model", "arima", "--spend-history", good, "--exclude", "2026-04-04:2026-09-25"},
+			want: "spend history has 5 usable points; at least 10 are required"},
+		{name: "bad growth type", args: []string{"--growth-type", "cubic"},
+			want: `invalid growth type "cubic" (supported: none, linear, exponential)`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -102,6 +112,7 @@ func TestRunForecast_ModelInputsRejectedBeforePricing(t *testing.T) {
 			err := runForecast(cmd, forecastDeps{skipPrice: true, costErr: errArimaTestPriced, skipHistory: true})
 			require.EqualError(t, err, tc.want)
 			assert.True(t, forecast.IsInputError(err))
+			assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err), "input errors exit 2")
 		})
 	}
 
