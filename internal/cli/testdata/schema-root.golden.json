@@ -10,7 +10,7 @@
       "name": "cache-ttl",
       "type": "int",
       "default": "0",
-      "usage": "cache TTL in seconds (0 = use config default, overrides config file and env var)"
+      "usage": "cache TTL in seconds; when set, overrides FINFOCUS_CACHE_TTL and config (0 disables the cache)"
     },
     {
       "name": "debug",
