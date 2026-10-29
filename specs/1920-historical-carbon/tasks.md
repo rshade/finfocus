@@ -51,4 +51,4 @@ and verified as recorded in the pull request.
 
 ## Follow-up (separate issue)
 
-- [ ] T013 Browser query form and provenance table, tracked in #1921
+- [x] T013 Browser query form and provenance table, delivered by #1921

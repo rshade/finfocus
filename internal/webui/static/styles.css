@@ -864,3 +864,26 @@ button:disabled {
     font-weight: 600;
   }
 }
+
+/* Keep the carbon query form inside the viewport; the records table scrolls inside its wrapper. */
+.carbon-toolbar .filter-label {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.carbon-toolbar .filter-input,
+.carbon-toolbar select {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 40rem) {
+  .carbon-toolbar .filter-label {
+    flex: none;
+  }
+}
+
+.carbon-table td.carbon-absent,
+.carbon-table td.carbon-missing {
+  color: var(--fg-muted);
+}
