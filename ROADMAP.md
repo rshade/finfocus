@@ -35,6 +35,20 @@ Completed Milestones, 2026-Q4).
 
 ## Near-Term Vision (Forecasting & Profiles)
 
+- [ ] **Shared Stack Loader Follow-ups** *(from #1733)*
+  - [ ] Count a Pulumi replacement once in the estimate and recommendations
+        inventory ([#1910](https://github.com/rshade/finfocus/issues/1910)) [S]
+  - [ ] Fix Terraform no-change output in JSON and NDJSON modes
+        ([#1904](https://github.com/rshade/finfocus/issues/1904)) [S]
+  - [ ] Decide whether cost forecast includes unchanged stack resources
+        ([#1903](https://github.com/rshade/finfocus/issues/1903)) [M]
+  - [ ] Run a real policy pack preview on Windows in CI
+        ([#1918](https://github.com/rshade/finfocus/issues/1918)) [S]
+- [ ] **Historical Carbon Emissions** *(finfocus-spec v0.7.10)*
+  - [ ] Report provider-published historical carbon emissions
+        ([#1920](https://github.com/rshade/finfocus/issues/1920)) [L]
+  - [ ] Web UI: historical carbon report form
+        ([#1921](https://github.com/rshade/finfocus/issues/1921)) [M]
 - [ ] **Web Parity — Base API Hooks** *(Constitution Principle VII, v1.8.0:
       a user-facing CLI feature ships its `internal/webui` hook; the later
       `web-ui` issue is UX only)*
@@ -73,6 +87,8 @@ Completed Milestones, 2026-Q4).
 
 ## Future Vision (Later - Notifications, Integrations & Backlog)
 
+- [ ] Refine web resource labels and table layout for shared stack inventory
+      ([#1905](https://github.com/rshade/finfocus/issues/1905)) [M]
 - [ ] **Web Parity — Base API Hooks (later)** *(Constitution Principle VII)*
   - [ ] Cost history view, diff, and resource series through web API hooks
         ([#1860](https://github.com/rshade/finfocus/issues/1860)) [L]
@@ -80,12 +96,6 @@ Completed Milestones, 2026-Q4).
   - [ ] Cost cluster allocation through a web API hook
         ([#1861](https://github.com/rshade/finfocus/issues/1861)) [L]
         *The base hook a web view of #1840 or Jev idea 8 would extend*
-- [ ] **Governance Overrides ("YOLO Mode")**
-      ([#365](https://github.com/rshade/finfocus/issues/365)) [M]
-  - [ ] CLI: Implement `--yolo` / `--force` flag to bypass budget gates
-  - [ ] UX: "Warning Mode" UI styles for bypassed runs
-  - *Blocked:* Requires `BypassReason` enum in
-    [finfocus-spec](https://github.com/rshade/finfocus-spec) (not yet defined)
 - [ ] **External Notifications** *(Slack and webhook shipped in #220;
       these reuse its destination interface)*
   - [ ] Email (SMTP) destination for budget alert notifications
@@ -102,8 +112,6 @@ Completed Milestones, 2026-Q4).
 - [ ] Custom plugin registry sources for the web UI and CLI
       ([#1766](https://github.com/rshade/finfocus/issues/1766)) [L]
       *Follow-up to #1765*
-- [ ] Use registry-based plugin install for cross-repo integration tests
-      ([#517](https://github.com/rshade/finfocus/issues/517)) [M]
 - [ ] **Dependency Visualization ("Blast Radius")**
       ([#366](https://github.com/rshade/finfocus/issues/366)) [L]
   - [ ] TUI: Interactive Dependency Tree view (consuming Lineage Metadata)
@@ -147,9 +155,6 @@ Completed Milestones, 2026-Q4).
     returned by the orchestration layer.
   - *Success Criteria*: A valid GFM document is generated that renders
     correctly in a GitHub comment using only data from the `CostResult` array.
-- [ ] **Pulumi Cloud API Integration** *(depends on #934)*
-  - [ ] Pulumi Cloud API Integration for Historical State Snapshots
-        ([#935](https://github.com/rshade/finfocus/issues/935)) [L]
 - [x] **Agent Skills** *(co-located, tool-dependent; `plugin-manage`,
       the last planned skill, shipped 2026-10-19 in #911)*
   - *Format:* Agent Skills spec (SKILL.md + references/), installable via
@@ -293,6 +298,12 @@ Completed Milestones, 2026-Q4).
 
 ### 2026-Q4
 
+- [x] #365 `governance`: add the `--yolo` governance bypass flag.
+      Closed 2026-10-28. [M]
+- [x] #517 `ci`: install plugins from the registry in cross-repo integration tests.
+      Closed 2026-10-28. [M]
+- [x] #935 `history`: import Pulumi Cloud update history for state snapshots.
+      Closed 2026-10-28. [L]
 - [x] #1816 `recommendations`: merge plugin lifecycle events into `history`.
       Closed 2026-10-19. [M]
 - [x] #1728 `scorer`: backend-neutral scorer plugin with Jev and Clef backends.
