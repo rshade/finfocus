@@ -39,7 +39,7 @@
 
 - [x] T010 Document `GET /api/recommendations/history` in `docs/src/content/docs/reference/web-ui.md` and the contract in `specs/1921-recommendation-history-web/contracts/http-api.md`
 - [x] T011 Record the Recommendations detail render in the spec's Web UI Fit section
-- [ ] T012 File one UX-only `web-ui` issue for the detail-panel history table after the PR is open
+- [x] T012 Filed #1934, the UX-only `web-ui` issue for the detail-panel history table
 
 ## Phase 5: Verification
 
