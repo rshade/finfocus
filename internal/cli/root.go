@@ -142,7 +142,8 @@ Projection commands accept --terraform-plan for saved show -json output and
 		"serve finfocus as a Model Context Protocol server over stdio (alias for mcp-server)")
 	registerWebFlags(cmd, webFlags)
 	registerImportCloudHistoryFlags(cmd)
-	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
+	cmd.AddCommand(newCarbonCmd(), newCostCmd(), newPluginCmd(), newConfigCmd())
+	cmd.AddCommand(NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
 	cmd.AddCommand(newMCPServerCmd(cmd, ver, &lifecycle), newSchemaCmd(cmd, ver))
 	applyMCPExclusions(cmd)
 

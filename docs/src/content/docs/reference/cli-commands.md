@@ -1723,3 +1723,29 @@ Earlier releases reported these as exit code 1 with
 ---
 
 See [User Guide](../guides/user-guide.md) for workflow examples.
+
+## Historical carbon reports
+
+`finfocus carbon actual` queries available monthly aggregate emissions from
+`aws-ce`. Enable `plugins.aws-ce.carbon_enabled` in configuration or set
+`FINFOCUS_AWS_CARBON_ENABLED=true`, then restart the plugin.
+
+```sh
+finfocus carbon actual --start 2026-01-01 --end 2026-03-01 \
+  --method market-based --scope total --output json
+```
+
+| Flag | Values |
+| --- | --- |
+| `--start` | Required inclusive UTC month boundary, `YYYY-MM-DD` |
+| `--end` | Required exclusive UTC month boundary, `YYYY-MM-DD` |
+| `--method` | `market-based` (default), `location-based` |
+| `--scope` | `total` (default), `1`, `2`, `3` |
+| `--account` | Account IDs, comma-separated or repeated |
+| `--region` | AWS regions, comma-separated or repeated |
+| `--service` | AWS service names, comma-separated or repeated |
+| `--output` | `table` (default), `json` |
+
+The total covers returned records only. Missing reports have no numeric total;
+explicit zero values remain zero. See [historical AWS carbon reporting](../../plugins/historical-carbon/)
+for provenance, permissions, pagination behavior, and authenticated web parity.

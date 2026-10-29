@@ -46,7 +46,10 @@ func TestPluginInit_GeneratedProjectInstallsAndValidates(t *testing.T) {
 		t.Helper()
 		cmd := exec.Command(name, args...)
 		cmd.Dir = projectDir
-		cmd.Env = append(os.Environ(), env...)
+		// The generated module must exercise its own dependencies, independently
+		// of any external workspace used to develop core and the SDK together.
+		cmd.Env = append(os.Environ(), "GOWORK=off")
+		cmd.Env = append(cmd.Env, env...)
 		out, err := cmd.CombinedOutput()
 		require.NoError(t, err, "%s %v:\n%s", name, args, out)
 	}

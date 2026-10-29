@@ -271,6 +271,7 @@ func (s *Server) handler() http.Handler {
 		s.mux = mux
 		s.registerOverview(mux)
 		s.registerCost(mux)
+		s.registerCarbon(mux)
 		s.registerEstimate(mux)
 		s.registerRecommendations(mux)
 		s.registerConfig(mux)

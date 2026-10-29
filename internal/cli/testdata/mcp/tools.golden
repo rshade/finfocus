@@ -1,6 +1,7 @@
 finfocus-analyzer-check
 finfocus-analyzer-install
 finfocus-analyzer-uninstall
+finfocus-carbon-actual
 finfocus-config-init
 finfocus-config-list
 finfocus-config-routes-list
