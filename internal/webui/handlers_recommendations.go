@@ -161,6 +161,7 @@ func (s *Server) handleRecommendationHistory(w http.ResponseWriter, r *http.Requ
 	if warnings == nil {
 		warnings = []string{}
 	}
+	done()
 	s.WriteJSON(w, http.StatusOK, recommendationHistoryResponse{
 		RecommendationID: resolved,
 		Events:           events,

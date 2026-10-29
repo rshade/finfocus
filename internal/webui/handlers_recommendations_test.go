@@ -646,6 +646,42 @@ func TestReadOnlyShutdownDoesNotWaitForSlowErrorWriter(t *testing.T) {
 	}
 }
 
+func TestRecommendationHistoryShutdownDoesNotWaitForSlowResponseWriter(t *testing.T) {
+	t.Parallel()
+	s := newHistoryServer(
+		t,
+		[]engine.Recommendation{{ID: "rec-1", Type: "Resize"}},
+		func(context.Context, string) ([]config.LifecycleEvent, []string, error) {
+			return []config.LifecycleEvent{{Action: config.ActionDismissed}}, nil, nil
+		},
+	)
+	writer := &blockedJSONWriter{
+		ResponseRecorder: httptest.NewRecorder(),
+		entered:          make(chan struct{}),
+		release:          make(chan struct{}),
+	}
+	returned := make(chan struct{})
+	go func() {
+		defer close(returned)
+		s.handleRecommendationHistory(
+			writer,
+			httptest.NewRequest(http.MethodGet, s.BaseURL()+"/api/recommendations/history?id=rec-1", nil),
+		)
+	}()
+	<-writer.entered
+	closed := make(chan struct{})
+	go func() { s.session.Close(); close(closed) }()
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		assert.Fail(t, "session shutdown waited for a slow history write")
+	}
+	close(writer.release)
+	<-returned
+	<-closed
+	assert.Equal(t, http.StatusOK, writer.Code)
+}
+
 func TestRecommendationHistoryHTTP(t *testing.T) {
 	t.Parallel()
 	when := time.Date(2026, time.January, 2, 15, 4, 5, 0, time.UTC)
