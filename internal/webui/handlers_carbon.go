@@ -21,7 +21,8 @@ func (s *Server) handleCarbonQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	req, err := selectors.Request()
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "invalid_query", err.Error())
+		s.writeError(w, http.StatusBadRequest, "carbon_invalid_query",
+			"The historical carbon query is invalid. Use complete UTC months and a supported method and scope.")
 		return
 	}
 	if s.session == nil || s.session.opts.HistoricalCarbon == nil {

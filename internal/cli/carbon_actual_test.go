@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"reflect"
 	"testing"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +16,7 @@ import (
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/carbonreport"
+	"github.com/rshade/finfocus/internal/esc"
 )
 
 func TestCarbonCommandDiscovery(t *testing.T) {
@@ -43,8 +44,24 @@ func TestCarbonActualValidation(t *testing.T) {
 		cmd.SetArgs(args)
 		cmd.SetOut(&bytes.Buffer{})
 		cmd.SetErr(&bytes.Buffer{})
-		require.Error(t, cmd.Execute())
+		err := cmd.Execute()
+		require.Error(t, err)
+		assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err), "args %v", args)
 	}
+}
+
+func TestCarbonActualRejectsPositionalArgs(t *testing.T) {
+	t.Parallel()
+	cmd := newCarbonActualCmd(func(context.Context, *pbc.GetCarbonEmissionsRequest) (*carbonreport.Report, error) {
+		t.Fatal("invalid input launched plugins")
+		return nil, errors.New("unreachable invalid query")
+	})
+	cmd.SetArgs([]string{"extra", "--start", "2026-01-01", "--end", "2026-03-01"})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
 }
 func TestCarbonActualAtomicOutputAndIO(t *testing.T) {
 	t.Parallel()
@@ -135,12 +152,28 @@ func TestWebCarbonQueryWiring(t *testing.T) {
 	t.Parallel()
 	options := webSessionOptions(context.Background(), &webData{}, nil, nil, nil)
 	require.NotNil(t, options.HistoricalCarbon)
-	// The registered callback must be the provider-opening operation used by CLI.
-	assert.Equal(
-		t,
-		reflect.ValueOf(carbonQuery(queryHistoricalCarbon)).Pointer(),
-		reflect.ValueOf(options.HistoricalCarbon).Pointer(),
+}
+
+func TestSessionCarbonQueryPropagatesESCAndCancellation(t *testing.T) {
+	t.Parallel()
+	src := &esc.Source{}
+	data := &webData{}
+	data.noteESC(esc.WithSource(context.Background(), src))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	query := sessionCarbonQuery(
+		func(got context.Context, _ *pbc.GetCarbonEmissionsRequest) (*carbonreport.Report, error) {
+			found, ok := esc.SourceFromContext(got)
+			assert.True(t, ok)
+			assert.Same(t, src, found)
+			cancel()
+			assert.ErrorIs(t, got.Err(), context.Canceled)
+			return &carbonreport.Report{}, nil
+		},
+		data,
 	)
+	_, err := query(ctx, &pbc.GetCarbonEmissionsRequest{})
+	require.NoError(t, err)
 }
 
 func TestCarbonMCPSchemaReadOnlyAndFlags(t *testing.T) {

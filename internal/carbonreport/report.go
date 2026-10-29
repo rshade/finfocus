@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -15,6 +16,9 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
+
+// pageTimeout bounds one GetCarbonEmissions call. A shorter caller deadline wins.
+const pageTimeout = time.Minute
 
 // ErrInvalidResponse identifies provider data or pagination that cannot form a valid report.
 var ErrInvalidResponse = errors.New("invalid historical carbon response")
@@ -35,6 +39,15 @@ type Report struct {
 // Query walks at most 100 pages atomically. It never mutates the caller's request
 // and returns no partial report on provider, pagination or validation failure.
 func Query(ctx context.Context, client Client, req *pbc.GetCarbonEmissionsRequest) (*Report, error) {
+	return queryWithPageTimeout(ctx, client, req, pageTimeout)
+}
+
+func queryWithPageTimeout(
+	ctx context.Context,
+	client Client,
+	req *pbc.GetCarbonEmissionsRequest,
+	pageLimit time.Duration,
+) (*Report, error) {
 	if err := pluginsdk.ValidateGetCarbonEmissionsRequest(req); err != nil {
 		return nil, fmt.Errorf("invalid historical carbon query: %w", err)
 	}
@@ -50,7 +63,9 @@ func Query(ctx context.Context, client Client, req *pbc.GetCarbonEmissionsReques
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		resp, err := client.GetCarbonEmissions(ctx, proto.CloneOf(query))
+		pageCtx, cancel := context.WithTimeout(ctx, pageLimit)
+		resp, err := client.GetCarbonEmissions(pageCtx, proto.CloneOf(query))
+		cancel()
 		if err != nil {
 			return nil, fmt.Errorf("historical carbon page %d: %w", page+1, err)
 		}

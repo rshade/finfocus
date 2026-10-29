@@ -61,6 +61,9 @@ func TestCarbonQueryAuthValidationAndParity(t *testing.T) {
 	for _, bad := range []string{`{}`, `{"start":"2026-01-02","end":"2026-03-01"}`, `{"start":"2026-01-01","end":"2026-03-01","scope":"bad"}`} {
 		resp = overviewRequest(t, s, http.MethodPost, "/api/carbon/actual/query", bad)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		errBody, readErr := io.ReadAll(resp.Body)
+		require.NoError(t, readErr)
+		assert.Contains(t, string(errBody), `"carbon_invalid_query"`)
 		require.NoError(t, resp.Body.Close())
 	}
 	assert.Equal(t, 1, called)

@@ -207,3 +207,16 @@ func TestReportJSONProvenance(t *testing.T) {
 	assert.Contains(t, string(data), `"totalGrams":0`)
 	assert.Contains(t, string(data), `"modelVersion":"v1"`)
 }
+
+func TestQueryBoundsStalledPage(t *testing.T) {
+	t.Parallel()
+	stalled := pageClient(
+		func(ctx context.Context, _ *pbc.GetCarbonEmissionsRequest) (*pbc.GetCarbonEmissionsResponse, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	)
+	report, err := queryWithPageTimeout(context.Background(), stalled, request(), 20*time.Millisecond)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Nil(t, report)
+}

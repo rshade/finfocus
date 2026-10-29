@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -43,23 +44,37 @@ func newCarbonActualCmd(query carbonQuery) *cobra.Command {
 		SilenceUsage: true,
 		Short:        "Report available monthly AWS emissions with source provenance",
 		Long:         "Query aws-ce historical carbon emissions for complete UTC months. End is exclusive. Totals sum returned records; missing data is not zero. Enable FINFOCUS_AWS_CARBON_ENABLED=true or configure plugins.aws-ce.carbon_enabled=true.",
-		Args:         cobra.NoArgs,
+		Args: func(cmd *cobra.Command, args []string) error {
+			return carbonValidation(cmd, cobra.NoArgs(cmd, args))
+		},
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			var missing []string
+			for _, name := range []string{"start", "end"} {
+				if !cmd.Flags().Changed(name) {
+					missing = append(missing, name)
+				}
+			}
+			if len(missing) > 0 {
+				return carbonValidation(cmd, fmt.Errorf(`required flag(s) "%s" not set`, strings.Join(missing, `", "`)))
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			for _, filter := range []struct {
 				name   string
 				values []string
 			}{{"account", selectors.Accounts}, {"region", selectors.Regions}, {"service", selectors.Services}} {
 				if cmd.Flags().Changed(filter.name) && len(filter.values) == 0 {
-					return toValidationError(cmd.Context(), fmt.Errorf("--%s must not be empty", filter.name))
+					return carbonValidation(cmd, fmt.Errorf("--%s must not be empty", filter.name))
 				}
 			}
 			req, err := selectors.Request()
 			if err != nil {
-				return toValidationError(cmd.Context(), err)
+				return carbonValidation(cmd, err)
 			}
 			format := resolveOutputFormat(cmd, "output", output)
 			if format != "table" && format != "json" {
-				return toValidationError(cmd.Context(), errors.New("output must be table or json"))
+				return carbonValidation(cmd, errors.New("output must be table or json"))
 			}
 			report, err := query(cmd.Context(), req)
 			if err != nil {
@@ -89,6 +104,14 @@ func newCarbonActualCmd(query carbonQuery) *cobra.Command {
 	_ = ax.DeclareFlagEnum(cmd, "scope", "total", "1", "2", "3")
 	_ = ax.DeclareFlagEnum(cmd, "output", "table", "json")
 	return cmd
+}
+
+// sessionCarbonQuery runs query with the web session's ESC source so the plugin
+// launches with the same delivered settings as the settings callbacks.
+func sessionCarbonQuery(query carbonQuery, data *webData) carbonQuery {
+	return func(ctx context.Context, req *pbc.GetCarbonEmissionsRequest) (*carbonreport.Report, error) {
+		return query(withSessionESC(ctx, data), req)
+	}
 }
 
 // queryHistoricalCarbon is the sole provider-opening operation used by both CLI
@@ -175,4 +198,15 @@ func renderCarbonTable(out io.Writer, report *carbonreport.Report) error {
 	}
 	_, err := fmt.Fprintf(out, "Total of returned records: %g gCO2e\n", *report.TotalGrams)
 	return err
+}
+
+func carbonValidation(cmd *cobra.Command, err error) error {
+	if err == nil {
+		return nil
+	}
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return toValidationError(ctx, err)
 }
