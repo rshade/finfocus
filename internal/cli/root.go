@@ -135,7 +135,7 @@ Projection commands accept --terraform-plan for saved show -json output and
 	cmd.PersistentFlags().
 		Bool("skip-version-check", false, "skip plugin spec version compatibility check")
 	cmd.PersistentFlags().
-		Int("cache-ttl", 0, "cache TTL in seconds (0 = use config default, overrides config file and env var)")
+		Int("cache-ttl", 0, "cache TTL in seconds; when set, overrides FINFOCUS_CACHE_TTL and config (0 disables the cache)")
 	cmd.PersistentFlags().StringVar(&projectDirFlag, "project-dir", "",
 		"explicit Pulumi project directory for config resolution")
 	cmd.Flags().Bool(mcpFlag, false,
