@@ -3,9 +3,12 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -13,10 +16,12 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/esc"
+	"github.com/rshade/finfocus/internal/forecast"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/stackload"
+	"github.com/rshade/finfocus/internal/webui"
 )
 
 // webData owns the shared CLI domain pipelines. Its immutable source snapshot is
@@ -47,6 +52,9 @@ type webData struct {
 		*engine.RecommendationsResult) (bool, func(), error)
 	mergeDismissed func(context.Context, *engine.RecommendationsResult) error
 	loadDismissals func(context.Context) map[string]*config.DismissalRecord
+	priceForecast  func(context.Context) ([]engine.CostResult, error)
+	readHistory    func(string) ([]history.CostSnapshot, error)
+	forecastNow    time.Time
 	reloadCleanup  func()
 	replaced       bool
 	escMu          sync.Mutex
@@ -61,8 +69,9 @@ func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRang
 		cmd: cmd, params: params, dates: dates, audit: audit, gate: make(chan struct{}, 1),
 		resolveScorer: resolveScorerClient, fetchRecommendations: fetchRecommendationsWithProgress,
 		scoreRecommendations: runScoringStep, mergeDismissed: mergeDismissedRecommendations,
-		loadDismissals: loadDismissalRecordsForOverview,
+		loadDismissals: loadDismissalRecordsForOverview, readHistory: readForecastHistory,
 	}
+	data.priceForecast = data.sessionForecastCosts
 	if cmd != nil {
 		data.noteESC(cmd.Context())
 	}
@@ -517,4 +526,123 @@ func (d *webData) estimateResources(ctx context.Context) ([]engine.ResourceDescr
 		return nil, err
 	}
 	return prepareEstimateResources(ctx, d.clients, resources), nil
+}
+
+// forecast answers the dashboard's `cost forecast` query for the session stack.
+// It prices the resources the session already holds with its query engine and
+// builds the document through the same buildForecast the CLI calls.
+func (d *webData) forecast(ctx context.Context, query webui.ForecastQuery) (forecast.Document, error) {
+	settings, err := webForecastSettings(query, d.params.cfg)
+	if err != nil {
+		return forecast.Document{}, err
+	}
+	settings.now = d.forecastNow
+	costs, stack, err := d.forecastInputs(ctx)
+	if err != nil {
+		return forecast.Document{}, err
+	}
+	built, err := buildForecast(costs, settings, func() ([]history.CostSnapshot, error) {
+		return d.readHistory(stack)
+	})
+	if err != nil {
+		return forecast.Document{}, err
+	}
+	return built.document(), nil
+}
+
+// forecastInputs prices the forecast and captures the stack under the query
+// gate, then releases it: the model fit and the history read need neither
+// the session engine nor its clients.
+func (d *webData) forecastInputs(ctx context.Context) ([]engine.CostResult, string, error) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	defer unlock()
+	costs, err := d.priceForecast(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	return costs, d.forecastStack(), nil
+}
+
+// webForecastSettings validates a dashboard query with the CLI's rules and
+// order: growth, then months.
+func webForecastSettings(query webui.ForecastQuery, cfg *config.Config) (forecastSettings, error) {
+	growthType, rate, err := forecast.ParseGrowth(query.GrowthType, query.GrowthRate)
+	if err != nil {
+		return forecastSettings{}, err
+	}
+	months := forecast.DefaultMonths
+	if query.Months != nil {
+		months = *query.Months
+	}
+	if err = forecast.ValidateMonths(months); err != nil {
+		return forecastSettings{}, err
+	}
+	settings := forecastSettings{
+		months:     months,
+		growthType: growthType,
+		rate:       rate,
+		noHistory:  query.NoHistory,
+		cfg:        cfg,
+	}
+	inputs := forecastModelInputs{
+		model:      query.Model,
+		confidence: query.Confidence,
+		growthCap:  query.GrowthCap,
+		steps:      query.Steps,
+		excludes:   query.Exclude,
+	}
+	if query.SpendHistory != nil {
+		inputs.spendCSV = strings.NewReader(*query.SpendHistory)
+	}
+	if err = parseForecastModel(inputs, &settings); err != nil {
+		return forecastSettings{}, err
+	}
+	return settings, nil
+}
+
+// sessionForecastCosts prices sessionForecastResources with the session query
+// engine. The caller holds the query gate.
+func (d *webData) sessionForecastCosts(ctx context.Context) ([]engine.CostResult, error) {
+	if d.eng == nil {
+		return nil, errors.New("overview data unavailable")
+	}
+	resources, err := d.sessionForecastResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	diff, err := d.eng.GetProjectedCostDiff(ctx, resources)
+	if err != nil {
+		return nil, fmt.Errorf("calculating projected costs: %w", err)
+	}
+	return diff.AfterCosts(), nil
+}
+
+// sessionForecastResources is the membership `cost forecast` prices:
+// plan-origin resources (#1903), or a Terraform session's planned resources,
+// after the launch filters.
+func (d *webData) sessionForecastResources(ctx context.Context) ([]engine.ResourceDescriptor, error) {
+	var resources []engine.ResourceDescriptor
+	switch {
+	case d.terraformSource:
+		resources = cloneWebResources(d.terraformPlanned)
+	case d.snapshot != nil:
+		resources = planOriginResources(d.snapshot.Descriptors())
+	default:
+		return nil, errors.New("stack source unavailable")
+	}
+	resources, err := ApplyFilters(ctx, resources, d.params.filter)
+	if err != nil {
+		return nil, err
+	}
+	return resolveResourceTypes(ctx, d.clients, d.cache, resources), nil
+}
+
+func (d *webData) forecastStack() string {
+	if d.snapshot != nil && d.snapshot.StackName != "" {
+		return d.snapshot.StackName
+	}
+	return d.params.stack
 }

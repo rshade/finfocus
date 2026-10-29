@@ -994,3 +994,54 @@ button:disabled {
 .carbon-table td.carbon-missing {
   color: var(--fg-muted);
 }
+
+/* Forecast form: wrap within the viewport; statistical fields join the same row. */
+.forecast-toolbar .filter-label,
+.forecast-arima .filter-label {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.forecast-toolbar .filter-input,
+.forecast-toolbar select,
+.forecast-arima input[type="file"] {
+  min-width: 0;
+  width: 100%;
+}
+
+.forecast-arima {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: inherit;
+}
+
+.forecast-arima[hidden] {
+  display: none;
+}
+
+.forecast-toolbar .forecast-check {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.forecast-inputs,
+.forecast-warnings {
+  margin: 0.75rem 0;
+  padding-left: 1.25rem;
+  color: var(--fg-muted);
+}
+
+@media (max-width: 40rem) {
+  .forecast-toolbar .filter-label,
+  .forecast-arima .filter-label {
+    flex: none;
+  }
+
+  .forecast-arima {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

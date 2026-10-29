@@ -28,6 +28,18 @@ const (
 	SeriesForecast = "forecast"
 	// SeriesHistory is stored cost-history snapshots, when the command has them.
 	SeriesHistory = "history"
+	// SeriesLower and SeriesUpper bound a statistical forecast.
+	SeriesLower = "lower"
+	SeriesUpper = "upper"
+	// SeriesBaseline is the plan growth projection beside a statistical forecast.
+	SeriesBaseline = "baseline"
+	// SeriesSpend is the spend history a statistical forecast was fitted to.
+	SeriesSpend = "spend"
+
+	// ModelGrowth projects each priced resource with its growth model.
+	ModelGrowth = "growth"
+	// ModelARIMA fits a (seasonal) ARIMA model to spend history.
+	ModelARIMA = "arima"
 	// LineWarning is the NDJSON kind for a warning line.
 	LineWarning = "warning"
 
@@ -80,13 +92,22 @@ type Series struct {
 	Points []Point `json:"points"`
 }
 
-// Projection is the forecast for a set of resources.
+// Projection is the forecast for a set of resources, or for spend history
+// when Model is ModelARIMA. The statistical fields are empty for growth.
 type Projection struct {
 	Currency   string   `json:"currency"`
 	Months     int      `json:"months"`
 	Forecast   Series   `json:"forecast"`
 	ByProvider []Series `json:"byProvider,omitempty"`
 	Warnings   []string `json:"warnings,omitempty"`
+
+	Model      string  `json:"model,omitempty"`
+	ModelOrder string  `json:"modelOrder,omitempty"`
+	Confidence float64 `json:"confidence,omitempty"`
+	Lower      Series  `json:"lower,omitzero"`
+	Upper      Series  `json:"upper,omitzero"`
+	Baseline   Series  `json:"baseline,omitzero"`
+	Spend      Series  `json:"spend,omitzero"`
 }
 
 // Project sums each resource's growth from start through months ahead.

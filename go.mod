@@ -18,6 +18,7 @@ require (
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.9.0
 	github.com/rshade/finfocus-spec v0.7.10
+	github.com/rshade/goarima v0.4.1-0.20261029015414-6420b7848c38
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f

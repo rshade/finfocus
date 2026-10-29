@@ -68,3 +68,43 @@ func TestRender_NoProviderSplitOmitsProvider(t *testing.T) {
 	assert.NotContains(t, out, "AWS")
 	assert.NotContains(t, out, "GCP")
 }
+
+func TestRender_StatisticalGolden(t *testing.T) {
+	t.Parallel()
+	start := day(2026, 10, 1)
+	projection := Projection{
+		Currency:   "USD",
+		Months:     6,
+		Model:      ModelARIMA,
+		ModelOrder: "SARIMA(1,1,1)(0,1,1)[7]",
+		Confidence: 0.8,
+		Forecast: Series{
+			Name:   SeriesForecast,
+			Points: stamp(start, []float64{2000, 2050, 2110, 2160, 2230, 2280, 2350}),
+		},
+		Lower: Series{
+			Name:   SeriesLower,
+			Points: stamp(start, []float64{1950, 1900, 1850, 1780, 1720, 1650, 1590}),
+		},
+		Upper: Series{
+			Name:   SeriesUpper,
+			Points: stamp(start, []float64{2050, 2200, 2370, 2540, 2740, 2910, 3110}),
+		},
+		Baseline: Series{
+			Name:   SeriesBaseline,
+			Points: stamp(start, []float64{1900, 1900, 1900, 1900, 1900, 1900, 1900}),
+		},
+	}
+
+	out := Render(projection, ChartOptions{Height: 10, Width: 50, SplitProviders: true, Budget: 2600, NoColor: true})
+	path := filepath.Join("testdata", "chart_statistical.golden")
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		require.NoError(t, os.WriteFile(path, []byte(out), 0o644))
+	}
+	want, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, string(want), out)
+	assert.Contains(t, out, "Forecast monthly cost (USD, "+projection.ModelOrder+")")
+	assert.Contains(t, out, "Legend: Forecast  Lower  Upper  Baseline  Budget")
+	assert.NotContains(t, out, "\x1b[")
+}

@@ -97,7 +97,22 @@ func chartSeries(p Projection, opt ChartOptions) ([][]float64, []string, []ascii
 	data := [][]float64{valuesOf(p.Forecast.Points)}
 	legends := []string{"Forecast"}
 	colors := []asciigraph.AnsiColor{asciigraph.Blue}
-	if opt.SplitProviders {
+	for _, extra := range []struct {
+		series Series
+		legend string
+		color  asciigraph.AnsiColor
+	}{
+		{p.Lower, "Lower", asciigraph.DarkGray},
+		{p.Upper, "Upper", asciigraph.DarkGray},
+		{p.Baseline, "Baseline", asciigraph.Yellow},
+	} {
+		if len(extra.series.Points) == len(p.Forecast.Points) {
+			data = append(data, valuesOf(extra.series.Points))
+			legends = append(legends, extra.legend)
+			colors = append(colors, extra.color)
+		}
+	}
+	if opt.SplitProviders && p.Model != ModelARIMA {
 		palette := []asciigraph.AnsiColor{asciigraph.Green, asciigraph.Cyan, asciigraph.Magenta, asciigraph.Yellow}
 		for i, series := range p.ByProvider {
 			data = append(data, valuesOf(series.Points))
@@ -120,9 +135,13 @@ func chartSeries(p Projection, opt ChartOptions) ([][]float64, []string, []ascii
 func chartCaption(p Projection) string {
 	first := p.Forecast.Points[0].Time.UTC()
 	last := p.Forecast.Points[len(p.Forecast.Points)-1].Time.UTC()
+	label := p.Currency
+	if p.ModelOrder != "" {
+		label = fmt.Sprintf("%s, %s", p.Currency, p.ModelOrder)
+	}
 	return fmt.Sprintf(
 		"Forecast monthly cost (%s) — %s – %s",
-		p.Currency,
+		label,
 		first.Format("Jan 2006"),
 		last.Format("Jan 2006"),
 	)
