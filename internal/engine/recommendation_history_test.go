@@ -81,7 +81,7 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 			}}}, nil
 		}}
 		eng := enginepkg.New([]*pluginhost.Client{historyClient("aws", plugin)}, nil)
-		history, err := eng.GetRecommendationHistory(context.Background(), createTestStore(t), "rec-plugin")
+		history, _, err := eng.GetRecommendationHistory(context.Background(), createTestStore(t), "rec-plugin")
 		require.NoError(t, err)
 		require.Len(t, history, 1)
 		assert.Equal(t, config.LifecycleAction("acknowledged"), history[0].Action)
@@ -120,7 +120,7 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 		}}
 		eng := enginepkg.New([]*pluginhost.Client{historyClient("aws", plugin)}, nil)
 
-		history, err := eng.GetRecommendationHistory(context.Background(), store, "rec-merge")
+		history, _, err := eng.GetRecommendationHistory(context.Background(), store, "rec-merge")
 		require.NoError(t, err)
 		require.Len(t, history, 3)
 		assert.Equal(t, config.ActionSnoozed, history[0].Action)
@@ -130,7 +130,7 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 		assert.Equal(t, config.LifecycleAction("note-only"), history[2].Action)
 		assert.True(t, history[2].Timestamp.IsZero())
 
-		again, err := eng.GetRecommendationHistory(context.Background(), store, "rec-merge")
+		again, _, err := eng.GetRecommendationHistory(context.Background(), store, "rec-merge")
 		require.NoError(t, err)
 		assert.Equal(t, history, again)
 	})
@@ -151,7 +151,7 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 			}}, nil
 		}}
 		eng := enginepkg.New([]*pluginhost.Client{historyClient("aws", plugin)}, nil)
-		history, err := eng.GetRecommendationHistory(context.Background(), createTestStore(t), "rec-distinct")
+		history, _, err := eng.GetRecommendationHistory(context.Background(), createTestStore(t), "rec-distinct")
 		require.NoError(t, err)
 		require.Len(t, history, 4)
 		assert.Equal(t, "ada", history[0].Actor)
@@ -188,9 +188,10 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 			historyClient("live", live),
 		}, nil)
 
-		history, err := eng.GetRecommendationHistory(ctx, store, "rec-old")
+		history, warnings, err := eng.GetRecommendationHistory(ctx, store, "rec-old")
 		require.NoError(t, err)
 		require.Len(t, history, 1)
+		assert.Empty(t, warnings)
 		assert.Equal(t, config.ActionDismissed, history[0].Action)
 		assert.Equal(t, 1, old.calls)
 		assert.Equal(t, 1, live.calls)
@@ -219,9 +220,11 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 		}}
 		eng := enginepkg.New([]*pluginhost.Client{historyClient("aws", plugin)}, nil)
 
-		history, err := eng.GetRecommendationHistory(ctx, store, "rec-down")
+		history, warnings, err := eng.GetRecommendationHistory(ctx, store, "rec-down")
 		require.NoError(t, err)
 		require.Len(t, history, 1)
+		assert.Equal(t, []string{"aws: recommendation history unavailable"}, warnings)
+		assert.NotContains(t, warnings[0], "history backend down")
 		assert.Contains(t, logs.String(), "aws")
 		assert.Contains(t, logs.String(), "history backend down")
 		assert.NotContains(t, logs.String(), "secret-token")
@@ -233,9 +236,10 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 		when := historyAt(7)
 		localDismiss(t, store, "rec-nil", when)
 		eng := enginepkg.New([]*pluginhost.Client{{Name: "broken"}}, nil)
-		history, err := eng.GetRecommendationHistory(context.Background(), store, "rec-nil")
+		history, warnings, err := eng.GetRecommendationHistory(context.Background(), store, "rec-nil")
 		require.NoError(t, err)
 		require.Len(t, history, 1)
+		assert.Equal(t, []string{"broken: recommendation history unavailable"}, warnings)
 		assert.Equal(t, config.ActionDismissed, history[0].Action)
 	})
 
@@ -251,7 +255,7 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 		eng := enginepkg.New([]*pluginhost.Client{historyClient("aws", plugin)}, nil)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		history, err := eng.GetRecommendationHistory(ctx, createTestStore(t), "rec-cancel")
+		history, _, err := eng.GetRecommendationHistory(ctx, createTestStore(t), "rec-cancel")
 		require.ErrorIs(t, err, context.Canceled)
 		assert.Nil(t, history)
 		assert.Zero(t, plugin.calls)
@@ -279,7 +283,7 @@ func TestEngine_GetRecommendationHistory_PluginMerge(t *testing.T) {
 				historyClient("aws", plugin),
 				historyClient("next", next),
 			}, nil)
-			history, err := eng.GetRecommendationHistory(context.Background(), store, "rec-stop")
+			history, _, err := eng.GetRecommendationHistory(context.Background(), store, "rec-stop")
 			require.NoError(t, err)
 			require.Len(t, history, 2)
 			assert.Equal(t, config.ActionDismissed, history[0].Action)
@@ -315,7 +319,7 @@ func TestEngine_GetRecommendationHistory_PluginTimeoutKeepsLocal(t *testing.T) {
 	}, nil)
 
 	started := time.Now()
-	history, err := eng.GetRecommendationHistory(context.Background(), store, "rec-hang")
+	history, _, err := eng.GetRecommendationHistory(context.Background(), store, "rec-hang")
 	elapsed := time.Since(started)
 
 	require.NoError(t, err)
@@ -345,7 +349,7 @@ func TestEngine_GetRecommendationHistory_CallerCancelDuringPluginCall(t *testing
 		cancel()
 	}()
 
-	history, err := eng.GetRecommendationHistory(ctx, createTestStore(t), "rec-cancel-mid")
+	history, _, err := eng.GetRecommendationHistory(ctx, createTestStore(t), "rec-cancel-mid")
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Nil(t, history)
 	assert.Equal(t, 1, plugin.calls)

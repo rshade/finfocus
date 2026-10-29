@@ -36,9 +36,13 @@ type SessionOptions struct {
 	// QueryEngine runs while the caller holds the engine. The returned function
 	// releases it. Reload waits until that function runs. When nil, Engine()
 	// is the overview engine and the release function is a no-op.
-	QueryEngine           func(context.Context) (*engine.Engine, func(), error)
-	ActualCosts           func(context.Context, string, map[string]string) (*engine.CostResultWithErrors, error)
-	Recommendations       func(context.Context, bool) (*engine.RecommendationsResult, error)
+	QueryEngine     func(context.Context) (*engine.Engine, func(), error)
+	ActualCosts     func(context.Context, string, map[string]string) (*engine.CostResultWithErrors, error)
+	Recommendations func(context.Context, bool) (*engine.RecommendationsResult, error)
+	// RecommendationHistory returns lifecycle events for one recommendation id
+	// that the session has already listed. Warnings name plugins that failed
+	// to answer. The callback uses the dashboard engine.
+	RecommendationHistory func(context.Context, string) ([]config.LifecycleEvent, []string, error)
 	Trends                func() (map[string]string, string)
 	DayOfMonth            int
 	Preview               func(context.Context) ([]engine.OverviewRow, error)

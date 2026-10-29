@@ -498,6 +498,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   a default query and present, flagged `Dismissed`, with `includeDismissed`.
   With no successful query yet, the endpoint runs the query once and caches
   it. With several tabs the last query wins.
+  `GET /api/recommendations/history` uses that same cache, then
+  `(*engine.Engine).GetRecommendationHistory` on the dashboard engine from
+  `queryEngine` and `loadDismissalStore`. It does not open a second plugin
+  set. A missing id is 400. An id outside the cache, or a row with an empty
+  recommendation id, is 404 and is not sent to plugins. Warnings from the
+  engine are returned with the events. A lookup error is 502
+  `history_unavailable` with a fixed message. The detail panel does not
+  render the events (`specs/1921-recommendation-history-web/`).
   The overview EventSource checks `GET /api/overview/budget` (same-origin
   cookie, no bearer token) after a connection failure. A 401 stops retries
   and tells the user to open the link printed in the terminal. `close`
@@ -702,7 +710,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   plugin `GetRecommendationHistory` events with the local dismissal record.
   It queries every connected plugin, including when that id has no local
   record, and does not need a Pulumi plan. `Unimplemented`, an empty result,
-  and any other plugin failure are logged and local history stays. Each plugin
+  and any other plugin failure are logged and local history stays. A failure
+  other than `Unimplemented` also returns one warning,
+  `<plugin>: recommendation history unavailable`, with no plugin error text.
+  The CLI renderer ignores that slice. Each plugin
   call uses `perResourceTimeout`. A plugin that hits that deadline, or that
   returns `Canceled` or `DeadlineExceeded` on its own, is skipped. Only the
   caller's context being canceled or past its deadline aborts the query. The
@@ -859,6 +870,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 1921-recommendation-history-web: `GET /api/recommendations/history` returns `GetRecommendationHistory` for an id in the session's last recommendations list. Plugin failures other than `Unimplemented` are fixed warnings. The detail panel does not render them yet (`specs/1921-recommendation-history-web/`).
 - 1735-pulumi-cloud-history: `cost.history.pulumi_cloud.enabled` defaults
   off (`false`); `auto` falls back and `true` requires a complete import.
   Read historical snapshots from `/export/{version}`, not `/updates/{version}`.

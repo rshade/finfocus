@@ -4,10 +4,20 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/proto"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
+
+// recommendationHistoryResponse is the browser form of command-line history
+// JSON, plus warnings for plugins that failed to answer.
+type recommendationHistoryResponse struct {
+	RecommendationID string                  `json:"recommendation_id"`
+	Events           []config.LifecycleEvent `json:"events"`
+	EventCount       int                     `json:"event_count"`
+	Warnings         []string                `json:"warnings"`
+}
 
 // RecommendationQuery is independent tab state for read-only recommendation views.
 type RecommendationQuery struct {
@@ -33,6 +43,7 @@ func recommendationSort(value string) (viewmodel.RecommendationSortField, bool) 
 func (s *Server) registerRecommendations(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/recommendations/query", s.handleRecommendationsQuery)
 	mux.HandleFunc("GET /api/recommendations/item", s.handleRecommendationItem)
+	mux.HandleFunc("GET /api/recommendations/history", s.handleRecommendationHistory)
 }
 
 func (s *Server) handleRecommendationsQuery(w http.ResponseWriter, r *http.Request) {
@@ -120,6 +131,67 @@ func (s *Server) handleRecommendationItem(w http.ResponseWriter, r *http.Request
 		}
 	}
 	s.writeError(w, http.StatusNotFound, "not_found", "recommendation not found")
+}
+
+func (s *Server) handleRecommendationHistory(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		s.writeError(w, http.StatusBadRequest, "invalid_query", "recommendation id required")
+		return
+	}
+	resolved, ok := s.recommendationIDForHistory(w, r, id)
+	if !ok {
+		return
+	}
+	ctx, done, err := s.session.beginQuery(r.Context())
+	if err != nil {
+		s.writeError(w, http.StatusServiceUnavailable, "not_ready", "recommendation data is loading")
+		return
+	}
+	defer done()
+	events, warnings, err := s.session.opts.RecommendationHistory(ctx, resolved)
+	if err != nil {
+		done()
+		s.writeError(w, http.StatusBadGateway, "history_unavailable", "recommendation history unavailable")
+		return
+	}
+	if events == nil {
+		events = []config.LifecycleEvent{}
+	}
+	if warnings == nil {
+		warnings = []string{}
+	}
+	s.WriteJSON(w, http.StatusOK, recommendationHistoryResponse{
+		RecommendationID: resolved,
+		Events:           events,
+		EventCount:       len(events),
+		Warnings:         warnings,
+	})
+}
+
+// recommendationIDForHistory applies the detail endpoint's id rule and writes
+// the error response when the id cannot be used. The returned id is the
+// recommendation's own id, which is the dismissal id.
+func (s *Server) recommendationIDForHistory(w http.ResponseWriter, r *http.Request, id string) (string, bool) {
+	if s.session == nil || s.session.opts.Recommendations == nil || s.session.opts.RecommendationHistory == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "not_ready", "recommendation data is loading")
+		return "", false
+	}
+	items, queried := s.session.presentedRecommendations()
+	if !queried {
+		safe, ok := s.fetchRecommendations(r.Context(), w, false)
+		if !ok {
+			return "", false
+		}
+		items = s.session.initPresentedRecommendations(safe.Recommendations)
+	}
+	for _, rec := range items {
+		if recommendationMatches(r, rec, id) && rec.ID != "" {
+			return rec.ID, true
+		}
+	}
+	s.writeError(w, http.StatusNotFound, "not_found", "recommendation not found")
+	return "", false
 }
 
 func recommendationMatches(r *http.Request, rec engine.Recommendation, id string) bool {
