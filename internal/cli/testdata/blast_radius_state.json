@@ -1,0 +1,38 @@
+{
+  "version": 3,
+  "deployment": {
+    "manifest": {"time": "2025-06-15T10:00:00Z", "magic": "", "version": ""},
+    "resources": [
+      {
+        "urn": "urn:pulumi:prod::myapp::pulumi:pulumi:Stack::myapp-prod",
+        "type": "pulumi:pulumi:Stack",
+        "custom": false
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:rds/instance:Instance::orders-db",
+        "type": "aws:rds/instance:Instance",
+        "custom": true,
+        "id": "orders-db",
+        "parent": "urn:pulumi:prod::myapp::pulumi:pulumi:Stack::myapp-prod"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ecs/service:Service::orders-api",
+        "type": "aws:ecs/service:Service",
+        "custom": true,
+        "id": "orders-api",
+        "parent": "urn:pulumi:prod::myapp::pulumi:pulumi:Stack::myapp-prod",
+        "dependencies": ["urn:pulumi:prod::myapp::aws:rds/instance:Instance::orders-db"]
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:lb/loadBalancer:LoadBalancer::public-lb",
+        "type": "aws:lb/loadBalancer:LoadBalancer",
+        "custom": true,
+        "id": "public-lb",
+        "parent": "urn:pulumi:prod::myapp::pulumi:pulumi:Stack::myapp-prod",
+        "propertyDependencies": {
+          "targets": ["urn:pulumi:prod::myapp::aws:ecs/service:Service::orders-api"]
+        }
+      }
+    ]
+  }
+}

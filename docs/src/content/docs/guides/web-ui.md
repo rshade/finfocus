@@ -124,7 +124,18 @@ never puts it in a response, an event, or a log line, and never saves it.
 When the session starts from state only, choose **Run preview** in the overview
 to run `pulumi preview` on demand, like the `p` key in the terminal UI. The
 overview shows the elapsed time and updates pending changes when the preview
-finishes. Only one preview runs at a time.
+finishes. Only one preview runs at a time. A resource's detail panel lists its
+dependents under **Blast radius**; after the preview it includes the
+dependents the plan creates, changes or deletes. The terminal
+[overview](../commands/overview.md#blast-radius) shows the same section.
+
+The **Blast radius** table keeps its summary and column headings in view while
+a long list scrolls, and it fits a narrow window without scrolling sideways.
+The Status column spells out `new`, `deleting`, `replacing`, `updating` and
+`component`, so no state depends on color. Each dependent is a link: press
+`Enter` on it (reach it with `Tab`) to open that resource's detail, then choose
+**Back to** the earlier resource, or **Close detail** to return to the row you
+started from.
 
 There is no general refresh. To fetch fresh actual costs, stop the session and
 launch it again.

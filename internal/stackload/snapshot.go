@@ -34,12 +34,21 @@ type Snapshot struct {
 	OmittedUnchanged int
 	// Mismatches lists resource URNs that disagree between state and preview.
 	Mismatches []string
+	graph      engine.DependencyGraph
+	stateGraph engine.DependencyGraph
+}
+
+// Graph returns the dependency graph of this load. The graph is shared and
+// must not be modified.
+func (s *Snapshot) Graph() engine.DependencyGraph {
+	return s.graph
 }
 
 // WithPlan returns a new snapshot with a preview attached, preserving the receiver.
 func (s *Snapshot) WithPlan(plan *ingest.PulumiPlan) *Snapshot {
 	next := *s
 	next.Plan = plan
+	next.graph = OverlayPlanGraph(s.stateGraph, plan)
 	next.Steps = nil
 	next.PlanStatus = Status{Reason: ReasonNotRequested}
 	if plan != nil {

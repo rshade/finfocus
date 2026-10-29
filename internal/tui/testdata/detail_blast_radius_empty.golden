@@ -1,0 +1,16 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:lb/loadBalancer:LoadBalancer::public-lb                    │
+│ Type:   aws:lb/loadBalancer:LoadBalancer                                                       │
+│ Status: active                                                                                 │
+│                                                                                                │
+│ PROJECTED COST (Monthly)                                                                       │
+│   Total: $18.40                                                                                │
+│                                                                                                │
+│ BLAST RADIUS                                                                                   │
+│   nothing depends on this resource                                                             │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

@@ -1,0 +1,22 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:rds/instance:Instance::orders-db                           │
+│ Type:   aws:rds/instance:Instance                                                              │
+│ Status: active                                                                                 │
+│                                                                                                │
+│ PROJECTED COST (Monthly)                                                                       │
+│   Total: $182.50                                                                               │
+│                                                                                                │
+│ BLAST RADIUS                                                                                   │
+│   4 dependents, $61.20/month                                                                   │
+│   └ orders-api (aws:ecs/service:Service)                $61.20  [new]                          │
+│     └ orders-dash (aws:cloudwatch/dashboard:Dashboard)  no price                               │
+│     └ orders-queue (aws:sqs/queue:Queue)                $0.00                                  │
+│   └ orders-cache (aws:elasticache/cluster:Cluster)      -  [deleting]                          │
+│   └ orders-group (demo:index:Group)                     -  [component]                         │
+│   1 deleted and 1 unpriced dependents are not in the total                                     │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

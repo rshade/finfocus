@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -294,4 +296,183 @@ func TestGolden_ListView_SourceWarningWraps(t *testing.T) {
 	require.Greater(t, model.sourceWarningRows(), 1, "warning must wrap")
 	assert.Equal(t, base.table.Height()-model.sourceWarningRows(), model.table.Height())
 	testGolden(t, "overview_source_warning_wrapped", model.renderListView())
+}
+
+const blastGoldenPrefix = "urn:pulumi:prod::myapp::"
+
+func blastGoldenRow(kind, name string, monthly float64) engine.OverviewRow {
+	return engine.OverviewRow{
+		URN:           blastGoldenPrefix + kind + "::" + name,
+		Type:          kind,
+		Status:        engine.StatusActive,
+		ProjectedCost: &engine.ProjectedCostData{MonthlyCost: monthly, Currency: "USD"},
+	}
+}
+
+func blastGoldenChain() ([]engine.OverviewRow, engine.DependencyGraph) {
+	rows := []engine.OverviewRow{
+		blastGoldenRow("aws:rds/instance:Instance", "orders-db", 182.50),
+		blastGoldenRow("aws:ecs/service:Service", "orders-api", 61.20),
+		blastGoldenRow("aws:lb/loadBalancer:LoadBalancer", "public-lb", 18.40),
+	}
+	graph := engine.DependencyGraph{
+		Available: true,
+		Nodes: map[string]engine.DependencyNode{
+			rows[0].URN: {URN: rows[0].URN},
+			rows[1].URN: {URN: rows[1].URN, DependsOn: []string{rows[0].URN}},
+			rows[2].URN: {URN: rows[2].URN, DependsOn: []string{rows[1].URN}},
+		},
+	}
+	return rows, graph
+}
+
+// TestGolden_DetailView_BlastRadius verifies the BLAST RADIUS section for a
+// populated tree, a resource nothing depends on, and an unavailable graph.
+func TestGolden_DetailView_BlastRadius(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		golden   string
+		selected int
+		graph    func(engine.DependencyGraph) engine.DependencyGraph
+	}{
+		{name: "populated tree", golden: "detail_blast_radius_tree", selected: 0},
+		{name: "nothing depends on it", golden: "detail_blast_radius_empty", selected: 2},
+		{
+			name:   "graph unavailable",
+			golden: "detail_blast_radius_unavailable",
+			graph:  func(engine.DependencyGraph) engine.DependencyGraph { return engine.DependencyGraph{} },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rows, graph := blastGoldenChain()
+			if tt.graph != nil {
+				graph = tt.graph(graph)
+			}
+			model := newGoldenModel(t, rows)
+			model.selected = tt.selected
+			model.graph = graph
+			model.graphLoaded = true
+			output := model.renderDetailViewForDay(goldenDayOfMonth)
+			testGolden(t, tt.golden, output)
+		})
+	}
+}
+
+// TestGolden_DetailView_BlastRadiusMidChange verifies the markers for a new,
+// a deleting, an unpriced and a component dependent, and the left-out note.
+func TestGolden_DetailView_BlastRadiusMidChange(t *testing.T) {
+	t.Parallel()
+
+	rows := []engine.OverviewRow{
+		blastGoldenRow("aws:rds/instance:Instance", "orders-db", 182.50),
+		blastGoldenRow("aws:ecs/service:Service", "orders-api", 61.20),
+		blastGoldenRow("aws:elasticache/cluster:Cluster", "orders-cache", 44.00),
+		blastGoldenRow("aws:sqs/queue:Queue", "orders-queue", 0),
+		blastGoldenRow("aws:cloudwatch/dashboard:Dashboard", "orders-dash", 0),
+		blastGoldenRow("demo:index:Group", "orders-group", 0),
+	}
+	rows[1].Status = engine.StatusCreating
+	rows[2].Status = engine.StatusDeleting
+	rows[4].ProjectedCost = nil
+	graph := engine.DependencyGraph{
+		Available: true,
+		Nodes: map[string]engine.DependencyNode{
+			rows[0].URN: {URN: rows[0].URN},
+			rows[1].URN: {URN: rows[1].URN, DependsOn: []string{rows[0].URN}},
+			rows[2].URN: {URN: rows[2].URN, DependsOn: []string{rows[0].URN}},
+			rows[3].URN: {URN: rows[3].URN, DependsOn: []string{rows[1].URN}},
+			rows[4].URN: {URN: rows[4].URN, DependsOn: []string{rows[1].URN}},
+			rows[5].URN: {URN: rows[5].URN, DependsOn: []string{rows[0].URN}, Component: true},
+		},
+	}
+	model := newGoldenModel(t, rows)
+	model.graph = graph
+	model.graphLoaded = true
+
+	testGolden(t, "detail_blast_radius_midchange", model.renderDetailViewForDay(goldenDayOfMonth))
+}
+
+// TestGolden_DetailView_BlastRadiusAfterPreview verifies that the section
+// follows the rows and the graph after a preview on a state-only run.
+func TestGolden_DetailView_BlastRadiusAfterPreview(t *testing.T) {
+	t.Parallel()
+
+	rows, graph := blastGoldenChain()
+	stateGraph := engine.DependencyGraph{
+		Available: true,
+		Nodes: map[string]engine.DependencyNode{
+			rows[0].URN: graph.Nodes[rows[0].URN],
+			rows[1].URN: graph.Nodes[rows[1].URN],
+			rows[2].URN: {URN: rows[2].URN},
+		},
+	}
+	model := newGoldenModel(t, rows)
+	model.state = ViewStateList
+	model.isStateOnly = true
+	model.graph = stateGraph
+	model.graphLoaded = true
+	before := model.renderDetailViewForDay(goldenDayOfMonth)
+	require.Contains(t, before, "1 dependent, $61.20/month")
+
+	updated, _ := model.Update(OverviewChangesReadyMsg{
+		StatusByURN: map[string]engine.ResourceStatus{rows[1].URN: engine.StatusReplacing},
+	})
+	updated, _ = updated.(OverviewModel).Update(OverviewGraphReadyMsg{Graph: graph})
+	model = updated.(OverviewModel)
+	model.state = ViewStateDetail
+	model.selected = 0
+
+	testGolden(t, "detail_blast_radius_preview", model.renderDetailViewForDay(goldenDayOfMonth))
+}
+
+func TestBlastRadiusCopy(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "nothing depends on this resource", strings.TrimSpace(blastEmptyMsg))
+	assert.Equal(t, "dependency information is not available", strings.TrimSpace(blastUnavailableMsg))
+}
+
+// TestDetailView_BlastRadiusScrollKeepsSummaryWithHeading checks that on a tall
+// tree the count and total sit on the line right under the heading, so
+// scrolling to the section always brings both into view together.
+func TestDetailView_BlastRadiusScrollKeepsSummaryWithHeading(t *testing.T) {
+	t.Parallel()
+
+	const dependents = 40
+	rows := []engine.OverviewRow{blastGoldenRow("aws:rds/instance:Instance", "orders-db", 100)}
+	nodes := map[string]engine.DependencyNode{rows[0].URN: {URN: rows[0].URN}}
+	for i := range dependents {
+		row := blastGoldenRow("aws:ecs/service:Service", fmt.Sprintf("svc-%02d", i), 2)
+		rows = append(rows, row)
+		nodes[row.URN] = engine.DependencyNode{URN: row.URN, DependsOn: []string{rows[0].URN}}
+	}
+	model := newGoldenModel(t, rows)
+	model.selected = 0
+	model.graph = engine.DependencyGraph{Available: true, Nodes: nodes}
+	model.graphLoaded = true
+
+	content := model.renderDetailViewForDay(goldenDayOfMonth)
+	lines := strings.Split(content, "\n")
+	heading := -1
+	for i, line := range lines {
+		if strings.Contains(line, "BLAST RADIUS") {
+			heading = i
+			break
+		}
+	}
+	require.GreaterOrEqual(t, heading, 0, "the section must be present")
+	require.Greater(t, len(lines), 24, "the tree must be taller than the window")
+
+	shown, offset := visibleDetail(content, heading, 12)
+	require.Equal(t, heading, offset)
+	shownLines := strings.Split(shown, "\n")
+	assert.Contains(t, shownLines[0], "BLAST RADIUS")
+	assert.Contains(t, shownLines[1], "40 dependents, $80.00/month")
+	assert.Contains(t, shown, "svc-")
 }

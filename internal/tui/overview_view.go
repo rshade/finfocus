@@ -309,6 +309,9 @@ func (m OverviewModel) renderDetailViewForDay(dayOfMonth int) string {
 	renderDetailCostDrift(&content, row)
 	renderDetailRecommendations(&content, row)
 	renderDetailError(&content, row)
+	if m.graphLoaded {
+		renderDetailBlastRadius(&content, m.blastRadiusFor(row))
+	}
 
 	// Budget status section (async-loaded, appears when budget data arrives)
 	if budgetSection := renderDetailBudgetStatus(m); budgetSection != "" {

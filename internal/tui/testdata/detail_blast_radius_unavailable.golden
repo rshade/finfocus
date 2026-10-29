@@ -1,0 +1,16 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:rds/instance:Instance::orders-db                           │
+│ Type:   aws:rds/instance:Instance                                                              │
+│ Status: active                                                                                 │
+│                                                                                                │
+│ PROJECTED COST (Monthly)                                                                       │
+│   Total: $182.50                                                                               │
+│                                                                                                │
+│ BLAST RADIUS                                                                                   │
+│   dependency information is not available                                                      │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

@@ -214,3 +214,35 @@ func resourceName(urn string) string {
 	}
 	return urn
 }
+
+func TestDeletedWithAndReplaceWithDecode(t *testing.T) {
+	t.Parallel()
+
+	const (
+		cluster  = "urn:pulumi:dev::demo::civo:index/kubernetesCluster:KubernetesCluster::cluster"
+		template = "urn:pulumi:dev::demo::aws:ec2/launchTemplate:LaunchTemplate::lt"
+	)
+
+	state, err := ingest.ParseStackExport([]byte(`{"version":3,"deployment":{"resources":[
+		{"urn":"urn:pulumi:dev::demo::kubernetes:core/v1:Namespace::ns","type":"kubernetes:core/v1:Namespace",
+		 "custom":true,"deletedWith":"` + cluster + `","replaceWith":["` + template + `"]},
+		{"urn":"urn:pulumi:dev::demo::aws:s3/bucket:Bucket::b","type":"aws:s3/bucket:Bucket","custom":true}
+	]}}`))
+	require.NoError(t, err)
+	require.Len(t, state.Deployment.Resources, 2)
+	assert.Equal(t, cluster, state.Deployment.Resources[0].DeletedWith)
+	assert.Equal(t, []string{template}, state.Deployment.Resources[0].ReplaceWith)
+	assert.Empty(t, state.Deployment.Resources[1].DeletedWith)
+	assert.Nil(t, state.Deployment.Resources[1].ReplaceWith)
+
+	plan, err := ingest.ParsePulumiPlan([]byte(`{"steps":[
+		{"op":"create","urn":"urn:pulumi:dev::demo::kubernetes:core/v1:Namespace::ns",
+		 "newState":{"type":"kubernetes:core/v1:Namespace","urn":"urn:pulumi:dev::demo::kubernetes:core/v1:Namespace::ns",
+		  "deletedWith":"` + cluster + `","replaceWith":["` + template + `"]}}
+	]}`))
+	require.NoError(t, err)
+	require.Len(t, plan.Steps, 1)
+	require.NotNil(t, plan.Steps[0].NewState)
+	assert.Equal(t, cluster, plan.Steps[0].NewState.DeletedWith)
+	assert.Equal(t, []string{template}, plan.Steps[0].NewState.ReplaceWith)
+}

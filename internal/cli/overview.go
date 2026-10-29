@@ -1038,6 +1038,7 @@ func overviewInitAndEnrich(
 	publishCleanup := newCleanupPublisher(pipe, cleanupChan)
 	var sourceWarning string
 	pipe.OnSourceWarning = func(message string) { sourceWarning = message }
+	pipe.OnGraph = func(graph engine.DependencyGraph) { p.Send(tui.OverviewGraphReadyMsg{Graph: graph}) }
 	pipe.OnDataReady = func(rows []engine.OverviewRow, totalCount int, stackName string) {
 		p.Send(tui.OverviewDataReadyMsg{
 			Rows: rows, TotalCount: totalCount, StackName: stackName, SourceWarning: sourceWarning,

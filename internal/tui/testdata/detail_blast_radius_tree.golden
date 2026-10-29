@@ -1,0 +1,18 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:rds/instance:Instance::orders-db                           │
+│ Type:   aws:rds/instance:Instance                                                              │
+│ Status: active                                                                                 │
+│                                                                                                │
+│ PROJECTED COST (Monthly)                                                                       │
+│   Total: $182.50                                                                               │
+│                                                                                                │
+│ BLAST RADIUS                                                                                   │
+│   2 dependents, $79.60/month                                                                   │
+│   └ orders-api (aws:ecs/service:Service)            $61.20                                     │
+│     └ public-lb (aws:lb/loadBalancer:LoadBalancer)  $18.40                                     │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

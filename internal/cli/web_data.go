@@ -31,6 +31,7 @@ type webData struct {
 	cache             cache.Cache
 	clients           []*pluginhost.Client
 	snapshot          *stackload.Snapshot
+	publishGraph      func(engine.DependencyGraph)
 	terraformDeployed []engine.ResourceDescriptor
 	terraformPlanned  []engine.ResourceDescriptor
 	terraformSource   bool
@@ -126,6 +127,9 @@ func (d *webData) setPipelineSource(ctx context.Context, result OverviewPipeline
 	}
 	defer unlock()
 	d.snapshot = result.Snapshot
+	if d.publishGraph != nil && result.Snapshot != nil {
+		d.publishGraph(result.Snapshot.Graph())
+	}
 	d.terraformSource = result.TerraformResources != nil
 	d.terraformPlanned = cloneWebResources(result.TerraformResources)
 	d.terraformDeployed = nil

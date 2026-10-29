@@ -716,6 +716,26 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   default, only warns on failure, and never dismisses or hides anything.
   Scorer-only plugins are dropped from cost features before `Supports`.
 
+- Blast radius (`specs/1736-dependency-blast-radius/`): the dependency graph
+  lives on `stackload.Snapshot` (`Graph()`, rebuilt by `WithPlan`), and
+  `engine.ComputeBlastRadius` feeds both the TUI and `GET
+  /api/overview/resource`. Edges are Pulumi's `DependingOn` link set without
+  `parent`: `dependencies`, `propertyDependencies`, `deletedWith`,
+  `replaceWith`, and `provider` (`resourceLinks` in `stackload/graph.go`). A
+  provider reference is `<urn>::<id>`, cut at the last `::`; without the
+  provider edge a cluster misses every workload deployed through it. Pulumi
+  records `dependsOn` a component as the component's members, so the graph
+  has no parent walk.
+  `OverviewRowResult.ParentURN` is cluster expansion, not dependencies. The
+  total is one basis: it leaves out deleting, unpriced, and component
+  dependents, and withholds itself on mixed currencies. Its copy (summary,
+  left-out note, cost cell, status label) is filled by `ComputeBlastRadius`
+  (`blast_radius_display.go`); the TUI and `overview.js` render those strings
+  and never format a number (FR-011b). A dependent with no row takes `Type`
+  and `Creating` from its graph node; a preview step's component flag reads
+  `PulumiState.Custom` before the `pulumi:` prefix, which excludes
+  `pulumi:providers:` (providers are custom resources).
+
 ### Overview Field Semantics (`internal/engine/overview_*.go`)
 
 | Field | Basis | Source |

@@ -37,6 +37,7 @@ type ResourceDetail struct {
 	ActiveRecommendations []viewmodel.OverviewDetailRecommendation `json:"activeRecommendations"`
 	Row                   engine.OverviewRowResult                 `json:"row"`
 	Budgets               []engine.BudgetHealthResult              `json:"budgets"`
+	BlastRadius           *engine.BlastRadius                      `json:"blastRadius"`
 }
 
 func (s *Server) registerOverview(mux *http.ServeMux) {
@@ -170,7 +171,8 @@ func (s *Server) handleBudget(w http.ResponseWriter, _ *http.Request) {
 }
 func (s *Server) handleOverviewResource(w http.ResponseWriter, r *http.Request) {
 	urn := r.URL.Query().Get("urn")
-	for _, row := range engine.ComputeOverviewResult(s.session.Rows(), s.session.opts.DayOfMonth).Rows {
+	rows := s.session.Rows()
+	for _, row := range engine.ComputeOverviewResult(rows, s.session.opts.DayOfMonth).Rows {
 		if row.URN == urn {
 			s.session.mu.Lock()
 			budget := cloneData(s.session.budget)
@@ -180,10 +182,12 @@ func (s *Server) handleOverviewResource(w http.ResponseWriter, r *http.Request) 
 			for _, rec := range active {
 				row.Recommendations = append(row.Recommendations, rec.Recommendation)
 			}
+			blast := engine.ComputeBlastRadius(s.session.DependencyGraph(), rows, urn)
 			s.WriteJSON(
 				w,
 				http.StatusOK,
 				ResourceDetail{
+					BlastRadius:           &blast,
 					Row:                   row,
 					Budgets:               budget.Budgets,
 					BudgetDisplay:         budget.Display,

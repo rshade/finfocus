@@ -93,6 +93,8 @@ func LoadState(ctx context.Context, src Source) (*Snapshot, error) {
 			result.ComponentURNs = append(result.ComponentURNs, r.URN)
 		}
 	}
+	result.stateGraph = BuildDependencyGraph(state.Deployment.Resources)
+	result.graph = result.stateGraph
 	result.State = convertStateResources(result.RawState)
 	result.ManifestTime = state.Deployment.Manifest.Time
 	result.StateStatus = Status{Loaded: true, Reason: ReasonNone}

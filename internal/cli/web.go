@@ -188,6 +188,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	session := webui.NewSession(pipeCtx, options)
 	defer session.Close()
 	bindWebPipeline(ctx, pipe, session, params, dateRange)
+	data.publishGraph = session.SetDependencyGraph
 	data.bindPipelineSource(pipeCtx, pipe)
 	webPipelineHook(pipe)
 	srv, err := listenAndPrintWeb(ctx, cmd, flags, session, audit)

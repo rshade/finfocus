@@ -1,0 +1,8 @@
+RESOURCE                            TYPE                      STATUS       ACTUAL(MTD)  PROJECTED*  DELTA      DRIFT%  RECS  WARN
+--------                            ----                      ------       -----------  ----------  -----      ------  ----  ----
+urn:pulumi:prod::myapp::aws:rds...  aws:rds/instance:Inst...  ✓ active     -            -           -          -       -     -
+urn:pulumi:prod::myapp::aws:ecs...  aws:ecs/service:Service   ✓ active     -            -           -          -       -     -
+urn:pulumi:prod::myapp::aws:lb/...  aws:lb/loadBalancer:L...  ✓ active     -            -           -          -       -     -
+                                                                                                                             
+SUMMARY                             blast_radius_state        3 resources  $0.00 USD    $0.00 USD   $0.00 USD                
+* projected at current state (730h/mo) — rerun with --yes to include pending changes

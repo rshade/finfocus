@@ -67,7 +67,7 @@ The header links to six views. Each has its own URL fragment, and a
 | **Sort** | Cycles the sort field: Cost, Name, Type, Delta. |
 | **Run preview** | Runs `pulumi preview` on demand and applies pending changes. One preview runs at a time; elapsed time is shown while it runs. |
 | Cluster expand/collapse | Expands or collapses a Kubernetes cluster row. |
-| Resource row | Opens details: actual and projected breakdowns, current and after-change cost impact, cost drift, property changes, recommendations, budget status. |
+| Resource row | Opens details: actual and projected breakdowns, current and after-change cost impact, cost drift, property changes, blast radius (dependents with count, monthly total and what the total leaves out; each dependent opens its own detail, with a **Back to** button), recommendations, budget status. |
 | **Previous** / **Next** | Pages through large tables. |
 
 When a stack mixes currencies, resource rows stay visible and the totals show
@@ -209,6 +209,7 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `Origin` other than the server's own | 403 | `forbidden` | `origin is not this server` |
 | `POST` without `Origin` | 403 | `forbidden` | `origin header required` |
 | `POST` whose `Content-Type` is not `application/json` | 415 | `unsupported_media_type` | `Content-Type must be application/json` |
+| `GET /api/overview/resource?urn=<urn>` | 200 | - | Row details plus `blastRadius`: `available`, `dependents` (each with `depth`, `via`, `status`, `monthlyCost`, `priced`, `component`), `count`, `monthlyTotal` (omitted when `mixedCurrency`), `currency` and `leftOut` (`deleting`, `unpriced`, `unresolved`). Check `available` first. |
 | `GET /api/config` | 200 | - | Effective configuration. Secret values are omitted. |
 | `POST /api/config/preview` | 200 | - | Before/after diff. Writes nothing. |
 | `POST /api/config` | 200 | - | Writes the selected `config.hujson` and returns the page plus a reload notice. |
