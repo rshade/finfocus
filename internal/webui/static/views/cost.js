@@ -35,6 +35,8 @@ export function mount(container, { api, stream }) {
 
   function closeDetails() {
     detailVersion += 1; detailAbort?.abort();
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
     if (launcher?.isConnected) launcher.focus();
     else {
       const replacement = [...body.querySelectorAll('.detail-button')].find(button => button.dataset.id === launcherID && button.dataset.type === launcherType);

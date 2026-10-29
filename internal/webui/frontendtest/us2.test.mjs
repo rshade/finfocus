@@ -61,6 +61,14 @@ test('recommendation detail restores focus and ignores late results after close'
 });
 
 for (const view of ['cost','recommendations']) {
+ test(`${view} detail close does not steal focus the user already moved`,async()=>{
+  const t=await setup(view);const makePage=view==='cost'?costPage:recPage;
+  t.calls[0].resolve(makePage('same'));await flush();const launcher=t.container.querySelector('.detail-button');launcher.focus();launcher.dispatch('click');
+  const elsewhere=t.document.createElement('a');t.document.append(elsewhere);elsewhere.focus();
+  t.container.querySelector('dialog').close();assert.equal(t.document.activeElement,elsewhere);t.mounted.unmount();
+ });
+}
+for (const view of ['cost','recommendations']) {
  test(`${view} detail close focuses the replacement launcher or filter`,async()=>{
   const t=await setup(view);const makePage=view==='cost'?costPage:recPage;
   t.calls[0].resolve(makePage('same'));await flush();const launcher=t.container.querySelector('.detail-button');launcher.dispatch('click');
