@@ -13,6 +13,7 @@ const ROUTES = {
   cost: () => import('./views/cost.js'),
   recommendations: () => import('./views/recommendations.js'),
   estimate: () => import('./views/estimate.js'),
+  carbon: () => import('./views/carbon.js'),
   plugins: () => import('./views/plugins.js'),
   config: () => import('./views/config.js'),
 };

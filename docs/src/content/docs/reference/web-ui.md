@@ -55,6 +55,7 @@ The header links to six views. Each has its own URL fragment, and a
 | Cost | `#/cost` | Actual costs, summary with provider shares and carbon equivalencies when plugins supply them, trends when history is available |
 | Recommendations | `#/recommendations` | Recommendation counts, savings, actions, descriptions, and scorer signals when scoring is configured |
 | Estimate | `#/estimate` | What-if comparison for one resource: baseline, modified monthly cost, total change, and per-property deltas |
+| Carbon | `#/carbon` | Provider-published monthly carbon emissions for complete UTC months, with source, provider, grouping, period, model version, and retrieval time per record |
 | Config | `#/config` | Effective configuration, the tier each value comes from, and edits to known settings in the project or global file |
 | Plugins | `#/plugins` | Built-in catalog, installed versions, install, update, remove, validate, and per-plugin settings |
 
@@ -99,6 +100,24 @@ creates. A resource present in both state and preview uses the preview version.
 
 Dismissed recommendations are hidden by default. The browser cannot dismiss,
 snooze, or undismiss a recommendation. Results are paged at 250 rows.
+
+### Carbon controls
+
+The Carbon view calls the same Go method as `finfocus carbon actual` and shows
+the same report as `--output json`. It sends nothing until you press **Run
+report**, because each query launches the `aws-ce` plugin and calls AWS.
+
+| Control | Effect |
+| --- | --- |
+| Start, End | First-of-month UTC dates in `YYYY-MM-DD`. The end date is exclusive. |
+| Accounting method, Scope | Market-based or location-based; total, scope 1, 2, or 3. |
+| Accounts, Regions, Services | Optional comma-separated filters. |
+
+The total is the sum of the returned available records, calculated by the
+server. A record with no value shows **Missing**, which differs from an
+explicit `0`. A report with no records keeps the query you ran and states that
+the total is unavailable, not zero. A failed query clears earlier results and
+shows a fixed message; a disabled provider names the setting that enables it.
 
 ### Estimate controls
 
