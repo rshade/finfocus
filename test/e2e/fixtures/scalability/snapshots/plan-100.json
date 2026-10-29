@@ -1,0 +1,4748 @@
+{
+  "steps": [
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+      "newState": {
+        "type": "pulumi:pulumi:Stack",
+        "urn": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "custom": false,
+        "inputs": {},
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::pulumi:providers:aws::default",
+      "newState": {
+        "type": "pulumi:providers:aws",
+        "urn": "urn:pulumi:dev::scalability::pulumi:providers:aws::default",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "inputs": {
+          "region": "us-east-1"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/vpc:Vpc::test-vpc",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/vpc:Vpc",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/vpc:Vpc::test-vpc",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "cidrBlock": "10.0.0.0/16",
+          "enableDnsHostnames": true,
+          "tags": {
+            "Environment": "test",
+            "Name": "test-vpc"
+          }
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/subnet:Subnet",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "cidrBlock": "10.0.0.0/24",
+          "tags": {
+            "Environment": "test",
+            "Name": "subnet-0"
+          },
+          "vpcId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "vpcId": [
+            "urn:pulumi:dev::scalability::aws:ec2/vpc:Vpc::test-vpc"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/subnet:Subnet",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "cidrBlock": "10.0.1.0/24",
+          "tags": {
+            "Environment": "test",
+            "Name": "subnet-1"
+          },
+          "vpcId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "vpcId": [
+            "urn:pulumi:dev::scalability::aws:ec2/vpc:Vpc::test-vpc"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/subnet:Subnet",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "cidrBlock": "10.0.2.0/24",
+          "tags": {
+            "Environment": "test",
+            "Name": "subnet-2"
+          },
+          "vpcId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "vpcId": [
+            "urn:pulumi:dev::scalability::aws:ec2/vpc:Vpc::test-vpc"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/securityGroup:SecurityGroup",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "description": "scalability fixture",
+          "tags": {
+            "Environment": "test",
+            "Name": "test-sg"
+          },
+          "vpcId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "vpcId": [
+            "urn:pulumi:dev::scalability::aws:ec2/vpc:Vpc::test-vpc"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/internetGateway:InternetGateway::test-igw",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/internetGateway:InternetGateway",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/internetGateway:InternetGateway::test-igw",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "tags": {
+            "Environment": "test",
+            "Name": "test-igw"
+          },
+          "vpcId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "vpcId": [
+            "urn:pulumi:dev::scalability::aws:ec2/vpc:Vpc::test-vpc"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/routeTable:RouteTable::test-rt",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/routeTable:RouteTable",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/routeTable:RouteTable::test-rt",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "tags": {
+            "Environment": "test",
+            "Name": "test-rt"
+          },
+          "vpcId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "vpcId": [
+            "urn:pulumi:dev::scalability::aws:ec2/vpc:Vpc::test-vpc"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/route:Route::test-route",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/route:Route",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/route:Route::test-route",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "destinationCidrBlock": "0.0.0.0/0",
+          "gatewayId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "routeTableId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "gatewayId": [
+            "urn:pulumi:dev::scalability::aws:ec2/internetGateway:InternetGateway::test-igw"
+          ],
+          "routeTableId": [
+            "urn:pulumi:dev::scalability::aws:ec2/routeTable:RouteTable::test-rt"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/routeTableAssociation:RouteTableAssociation::rta-0",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/routeTableAssociation:RouteTableAssociation",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/routeTableAssociation:RouteTableAssociation::rta-0",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "routeTableId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "routeTableId": [
+            "urn:pulumi:dev::scalability::aws:ec2/routeTable:RouteTable::test-rt"
+          ],
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/routeTableAssociation:RouteTableAssociation::rta-1",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/routeTableAssociation:RouteTableAssociation",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/routeTableAssociation:RouteTableAssociation::rta-1",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "routeTableId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "routeTableId": [
+            "urn:pulumi:dev::scalability::aws:ec2/routeTable:RouteTable::test-rt"
+          ],
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/routeTableAssociation:RouteTableAssociation::rta-2",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/routeTableAssociation:RouteTableAssociation",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/routeTableAssociation:RouteTableAssociation::rta-2",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "routeTableId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "routeTableId": [
+            "urn:pulumi:dev::scalability::aws:ec2/routeTable:RouteTable::test-rt"
+          ],
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:iam/role:Role::test-fn-role",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:iam/role:Role",
+        "urn": "urn:pulumi:dev::scalability::aws:iam/role:Role::test-fn-role",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "assumeRolePolicy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:iam/rolePolicyAttachment:RolePolicyAttachment::test-fn-basic-exec",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+        "urn": "urn:pulumi:dev::scalability::aws:iam/rolePolicyAttachment:RolePolicyAttachment::test-fn-basic-exec",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "policyArn": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          "role": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "role": [
+            "urn:pulumi:dev::scalability::aws:iam/role:Role::test-fn-role"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:lambda/function:Function::test-fn",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:lambda/function:Function",
+        "urn": "urn:pulumi:dev::scalability::aws:lambda/function:Function::test-fn",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "handler": "index.handler",
+          "memorySize": 128,
+          "role": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "runtime": "nodejs20.x",
+          "tags": {
+            "Environment": "test",
+            "Name": "test-fn"
+          },
+          "timeout": 3
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "role": [
+            "urn:pulumi:dev::scalability::aws:iam/role:Role::test-fn-role"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:s3/bucket:Bucket::test-bucket",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:s3/bucket:Bucket",
+        "urn": "urn:pulumi:dev::scalability::aws:s3/bucket:Bucket::test-bucket",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "forceDestroy": true,
+          "tags": {
+            "Environment": "test",
+            "Name": "test-bucket"
+          }
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:rds/subnetGroup:SubnetGroup::test-db-subnets",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:rds/subnetGroup:SubnetGroup",
+        "urn": "urn:pulumi:dev::scalability::aws:rds/subnetGroup:SubnetGroup::test-db-subnets",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "subnetIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ],
+          "tags": {
+            "Environment": "test",
+            "Name": "test-db-subnets"
+          }
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0",
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1",
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:rds/instance:Instance::test-db",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:rds/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:rds/instance:Instance::test-db",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "allocatedStorage": 20,
+          "dbSubnetGroupName": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "engine": "postgres",
+          "engineVersion": "16",
+          "instanceClass": "db.t3.micro",
+          "manageMasterUserPassword": true,
+          "skipFinalSnapshot": true,
+          "storageType": "gp3",
+          "tags": {
+            "Environment": "test",
+            "Name": "test-db"
+          },
+          "username": "scalability",
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "dbSubnetGroupName": [
+            "urn:pulumi:dev::scalability::aws:rds/subnetGroup:SubnetGroup::test-db-subnets"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-0",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-0",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-0"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-0",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-0",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-0"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-1",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-1",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-1"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-1",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-1",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-1"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-2",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-2",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-2"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-3",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-3",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-3"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-4",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-4",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-4"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-5",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-5",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-5"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-5",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-5",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-5"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-6",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-6",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-6"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-6",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-6",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-6"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-7",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-7",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-7"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-8",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-8",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-8"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-9",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-9",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-9"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-10",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-10",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-10"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-10",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-10",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-10"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-11",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-11",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-11"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-11",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-11",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-11"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-12",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-12",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-12"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-13",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-13",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-13"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-14",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-14",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-14"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-15",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-15",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-15"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-15",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-15",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-15"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-16",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-16",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-16"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-16",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-16",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-16"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-17",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-17",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-17"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-18",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-18",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-18"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-19",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-19",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-19"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-20",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-20",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-20"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-20",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-20",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-20"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-21",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-21",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-21"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-21",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-21",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-21"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-22",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-22",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-22"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-23",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-23",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-23"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-24",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-24",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-24"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-25",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-25",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-25"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-25",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-25",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-25"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-26",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-26",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-26"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-26",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-26",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-26"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-27",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-27",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-27"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-28",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-28",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-28"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-29",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-29",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-29"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-30",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-30",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-30"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-30",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-30",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-30"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-31",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-31",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-31"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-31",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-31",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-31"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-32",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-32",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-32"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-33",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-33",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-33"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-34",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-34",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-34"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-35",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-35",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-35"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-35",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-35",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-35"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-36",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-36",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-36"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-36",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-36",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-36"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-37",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-37",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-37"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-38",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-38",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-38"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-39",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-39",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-39"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-40",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-40",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-40"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-40",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-40",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-40"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-41",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-41",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-41"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-41",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-41",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-41"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-42",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-42",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-42"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-43",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-43",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-43"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-44",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-44",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-44"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-45",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-45",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-45"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-45",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-45",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-45"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-46",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-46",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-46"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-46",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-46",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-46"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-47",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-47",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-47"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-48",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-48",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-48"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-49",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-49",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-49"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-50",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-50",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-50"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-50",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-50",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-50"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-51",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-51",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-51"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-51",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-51",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-51"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-52",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-52",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-52"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-53",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-53",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-53"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-54",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-54",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-54"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-55",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-55",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-55"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-55",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-55",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-55"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-56",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-56",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-56"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-56",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-56",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-56"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-57",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-57",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-57"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-58",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-58",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-58"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-59",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-59",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-59"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-60",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-60",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-60"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-60",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-60",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-60"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-61",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-61",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-61"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-61",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-61",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-61"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-62",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-62",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-62"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-63",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-63",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-63"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-64",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-64",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-64"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-65",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-65",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-65"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-65",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-65",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-65"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-66",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-66",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-66"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-66",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-66",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-66"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-67",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-67",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-67"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-68",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-68",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-68"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-69",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-69",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-69"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-70",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-70",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-70"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-70",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-70",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-70"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-71",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-71",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-71"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-71",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-71",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-71"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-72",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-72",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-72"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-73",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-73",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-73"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-74",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-74",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-74"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-75",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-75",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-75"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-75",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-75",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-75"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-76",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-76",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-76"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-76",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-76",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-76"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-77",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-77",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-77"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-78",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-78",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-78"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-79",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-79",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-79"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-80",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-80",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-80"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-80",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-80",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-80"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-81",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-81",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-81"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-81",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-81",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-81"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-82",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-82",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-82"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-83",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-83",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-83"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-84",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-84",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-84"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-85",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-85",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-85"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-85",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-85",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-85"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-86",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-86",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-86"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-86",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-86",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-86"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-87",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-87",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-87"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-88",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-88",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-88"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-89",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-89",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-89"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-90",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-90",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-90"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-90",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-90",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-90"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-91",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-91",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-91"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-91",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-91",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1b",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-91"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-92",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-92",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-92"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-93",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-93",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-93"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-94",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-94",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-94"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-95",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-95",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-95"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-95",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-95",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1c",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-95"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-96",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-96",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-96"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-96",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ebs/volume:Volume",
+        "urn": "urn:pulumi:dev::scalability::aws:ebs/volume:Volume::volume-96",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "availabilityZone": "us-east-1a",
+          "size": 20,
+          "tags": {
+            "Environment": "test",
+            "Name": "volume-96"
+          },
+          "type": "gp3"
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-97",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-97",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1b",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-97"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-1"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-98",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-98",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1c",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-98"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-2"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-99",
+      "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::scalability::aws:ec2/instance:Instance::instance-99",
+        "custom": true,
+        "parent": "urn:pulumi:dev::scalability::pulumi:pulumi:Stack::scalability-dev",
+        "provider": "urn:pulumi:dev::scalability::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "availabilityZone": "us-east-1a",
+          "instanceType": "t3.micro",
+          "subnetId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "tags": {
+            "Environment": "test",
+            "Name": "instance-99"
+          },
+          "vpcSecurityGroupIds": [
+            "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+          ]
+        },
+        "outputs": {},
+        "propertyDependencies": {
+          "subnetId": [
+            "urn:pulumi:dev::scalability::aws:ec2/subnet:Subnet::subnet-0"
+          ],
+          "vpcSecurityGroupIds": [
+            "urn:pulumi:dev::scalability::aws:ec2/securityGroup:SecurityGroup::test-sg"
+          ]
+        }
+      }
+    }
+  ],
+  "changeSummary": {
+    "create": 159
+  }
+}
