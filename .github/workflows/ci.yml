@@ -613,6 +613,9 @@ jobs:
       - name: Check browser module tidy
         run: go -C test/e2e mod tidy -diff
 
+      - name: Check scalability snapshots are current
+        run: go -C test/e2e test ./fixtures/scalability/...
+
       - name: Run real browser acceptance
         run: make test-e2e-web PLAYWRIGHT_INSTALL_ARGS='--with-deps chromium'
 

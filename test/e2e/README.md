@@ -40,6 +40,9 @@ go test -v -tags e2e ./test/e2e -run Actual
 - `multi_region_actual_test.go`: Multi-region actual cost validation.
 - `multi_region_fallback_test.go`: Multi-region plugin fallback scenarios.
 - `multi_region_helpers.go`: Helper functions for multi-region testing.
+- `scalability_test.go`: Wall time and output structure of `cost projected`
+  on generated plans of 31 to 1417 resources. See
+  `fixtures/scalability/README.md`.
 - `terraform_state_readiness_test.go`: Prices the real Terraform state fixture
   with the installed aws-public plugin and compares each instance with an
   equivalent Pulumi plan. It skips until aws-public advertises
