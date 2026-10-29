@@ -54,11 +54,23 @@ func pricedResources(t *testing.T, planPath string) int {
 	return count
 }
 
-func runProjected(t *testing.T, binary, planPath, format string) []byte {
+// outputFormatTimeout bounds each output-format run, which only checks shape.
+const outputFormatTimeout = 60 * time.Second
+
+// runProjected runs cost projected with the cache disabled, so every run
+// prices each resource instead of reusing an earlier scale point's results,
+// and kills the CLI once timeout passes.
+func runProjected(t *testing.T, binary, planPath, format string, timeout time.Duration) []byte {
 	t.Helper()
-	cmd := newCommand(context.Background(), binary, "cost", "projected",
-		"--pulumi-json", planPath, "--output", format)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := newCommand(ctx, binary, "cost", "projected",
+		"--pulumi-json", planPath, "--output", format, "--cache-ttl", "0")
 	out, err := cmd.Output()
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		require.FailNow(t, fmt.Sprintf("cost projected did not finish within %v", timeout))
+	}
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
@@ -88,7 +100,7 @@ func TestScalability_ProjectedCost(t *testing.T) {
 			want := pricedResources(t, planPath)
 
 			start := time.Now()
-			out := runProjected(t, binary, planPath, "json")
+			out := runProjected(t, binary, planPath, "json", sp.maxWallTime)
 			elapsed := time.Since(start)
 
 			t.Logf("%d instances, %d resources: %v total, %v/instance, %v/resource",
@@ -129,13 +141,14 @@ func TestScalability_OutputFormats(t *testing.T) {
 				Resources []json.RawMessage `json:"resources"`
 			} `json:"finfocus"`
 		}
-		require.NoError(t, json.Unmarshal(runProjected(t, binary, planPath, "json"), &result))
+		require.NoError(t, json.Unmarshal(runProjected(t, binary, planPath, "json", outputFormatTimeout), &result))
 		assert.Len(t, result.FinFocus.Resources, want)
 	})
 
 	t.Run("ndjson", func(t *testing.T) {
 		t.Parallel()
-		lines := strings.Split(strings.TrimSpace(string(runProjected(t, binary, planPath, "ndjson"))), "\n")
+		out := runProjected(t, binary, planPath, "ndjson", outputFormatTimeout)
+		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 		require.Len(t, lines, want)
 		for _, line := range lines {
 			var row map[string]any
@@ -148,7 +161,7 @@ func TestScalability_OutputFormats(t *testing.T) {
 
 	t.Run("table", func(t *testing.T) {
 		t.Parallel()
-		out := string(runProjected(t, binary, planPath, "table"))
+		out := string(runProjected(t, binary, planPath, "table", outputFormatTimeout))
 		assert.Contains(t, out, "COST DIFF")
 		assert.Contains(t, out, fmt.Sprintf("Resources  %d (%d create,", want, want))
 		assert.Equal(t, sp.instances, strings.Count(out, "aws:ec2/instance:Instance"))

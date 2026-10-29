@@ -42,9 +42,10 @@ every snapshot in `make test`.
 ## Tests
 
 `test/e2e/scalability_test.go` (build tag `e2e`) runs `cost projected` on each
-snapshot, logs total and per-resource wall time, enforces a wall-time bound
-per size, and checks the JSON, NDJSON, and table output at N = 100. It needs
-no cloud credentials:
+snapshot with the projected-cost cache off (`--cache-ttl 0`), logs total,
+per-instance, and per-resource wall time, kills a run that exceeds its
+wall-time bound, and checks the JSON, NDJSON, and table output at N = 100. It
+needs no cloud credentials:
 
 ```bash
 make build
