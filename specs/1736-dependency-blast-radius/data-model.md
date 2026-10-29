@@ -21,8 +21,7 @@ The relationships of one stack load, converted from `ingest` types by
 | `Type` | string | Resource type, shown for a dependent with no overview row (a component, or a create the overview has not priced) |
 | `DependsOn` | list of string | Union of `dependencies`, every list in `propertyDependencies`, `deletedWith`, every `replaceWith` entry, and the provider URN from `provider` (research R12), de-duplicated and sorted |
 | `Component` | bool | True for a non-custom resource; a preview step uses its state's `custom` field, falling back to `pulumi:` types when absent |
-| `Deleting` | bool | True when the preview deletes it |
-| `Creating` | bool | True when the preview creates it; labels a dependent `new` when no overview row exists |
+| `Status` | `ResourceStatus` | Status from the preview step (`MapOperationToStatus`); Active when no step names it. A dependent with no overview row takes it |
 
 Derived once per graph, not stored in the snapshot: a reverse index from
 each URN to the URNs that list it in `DependsOn`.

@@ -435,12 +435,9 @@ func webSessionOptions(
 			if previewErr != nil {
 				return nil, previewErr
 			}
-			if sourceErr := data.setPipelineSource(previewCtx, pipe.Result()); sourceErr != nil {
-				return nil, sourceErr
-			}
-			merged, appendErr := data.appendPreviewRows(previewCtx, rows)
-			if appendErr != nil {
-				return nil, appendErr
+			merged, commitErr := data.commitPreview(previewCtx, pipe.Result(), rows)
+			if commitErr != nil {
+				return nil, commitErr
 			}
 			pipe.RefreshFallbackBudget(previewCtx, merged)
 			return merged, nil

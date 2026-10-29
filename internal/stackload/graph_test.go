@@ -154,7 +154,7 @@ func TestBuildDependencyGraph(t *testing.T) {
 				require.True(t, ok, "missing node %s", urn)
 				assert.Equal(t, urn, node.URN)
 				assert.Equal(t, want, node.DependsOn)
-				assert.False(t, node.Deleting)
+				assert.Equal(t, engine.StatusActive, node.Status)
 			}
 			for urn := range tt.wantNodes {
 				assert.Equal(t, slices.Contains(tt.wantComponent, urn), graph.Nodes[urn].Component, urn)
@@ -298,7 +298,7 @@ func TestWithPlanOverlaysGraph(t *testing.T) {
 
 			var deleting []string
 			for urn, node := range overlaid.Nodes {
-				if node.Deleting {
+				if node.Status == engine.StatusDeleting {
 					deleting = append(deleting, urn)
 				}
 			}
@@ -334,8 +334,33 @@ func TestOverlayPlanGraphDescribesPlanOnlyNodes(t *testing.T) {
 			node := OverlayPlanGraph(engine.DependencyGraph{}, &ingest.PulumiPlan{Steps: []ingest.PulumiStep{step}}).Nodes[urnCache]
 
 			assert.Equal(t, tt.resourceType, node.Type)
-			assert.True(t, node.Creating)
+			assert.Equal(t, engine.StatusCreating, node.Status)
 			assert.Equal(t, tt.wantComponent, node.Component)
+		})
+	}
+}
+
+func TestOverlayPlanGraphRecordsStepStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		op   string
+		want engine.ResourceStatus
+	}{
+		{"create", engine.StatusCreating},
+		{"update", engine.StatusUpdating},
+		{"replace", engine.StatusReplacing},
+		{"create-replacement", engine.StatusReplacing},
+		{"delete", engine.StatusDeleting},
+	}
+	for _, tt := range tests {
+		t.Run(tt.op, func(t *testing.T) {
+			t.Parallel()
+			plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{stepWithDeps(tt.op, urnCache, urnDB)}}
+
+			node := OverlayPlanGraph(engine.DependencyGraph{}, plan).Nodes[urnCache]
+
+			assert.Equal(t, tt.want, node.Status)
 		})
 	}
 }

@@ -23,15 +23,16 @@ type DependencyNode struct {
 	// component, or a create the overview has not priced) still shows one.
 	Type string
 	// DependsOn lists the URNs this resource depends on: the union of Pulumi's
-	// dependencies and every propertyDependencies list, sorted and without
-	// duplicates. Pulumi records a dependency on a component as its members.
+	// dependencies, every propertyDependencies list, deletedWith, replaceWith,
+	// and the provider URN, sorted and without duplicates. Pulumi records a
+	// dependency on a component as its members.
 	DependsOn []string
 	// Component is true for a resource that is not a custom resource.
 	Component bool
-	// Deleting is true when a preview deletes the resource.
-	Deleting bool
-	// Creating is true when a preview creates the resource.
-	Creating bool
+	// Status is the lifecycle status a preview gives the resource, so a
+	// dependent with no overview row (filtered out, or a create the overview has
+	// not priced) still shows it. StatusActive when no preview step names it.
+	Status ResourceStatus
 }
 
 // BlastRadius is the set of resources that depend, directly or through other
@@ -233,11 +234,8 @@ func blastDependent(node DependencyNode, row *OverviewRow, depth int, via string
 		}
 		entry.Status = row.Status
 	}
-	switch {
-	case node.Deleting:
-		entry.Status = StatusDeleting
-	case row == nil && node.Creating:
-		entry.Status = StatusCreating
+	if node.Status == StatusDeleting || row == nil {
+		entry.Status = node.Status
 	}
 	if row == nil || entry.Status == StatusDeleting {
 		return entry

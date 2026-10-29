@@ -38,7 +38,12 @@ func renderDetailBlastRadius(content *strings.Builder, radius engine.BlastRadius
 		return
 	case len(radius.Dependents) == 0:
 		content.WriteString(SubtleStyle.Render(blastEmptyMsg))
-		content.WriteString("\n\n")
+		content.WriteString("\n")
+		if radius.NoteDisplay != "" {
+			content.WriteString(SubtleStyle.Render("  " + radius.NoteDisplay))
+			content.WriteString("\n")
+		}
+		content.WriteString("\n")
 		return
 	}
 

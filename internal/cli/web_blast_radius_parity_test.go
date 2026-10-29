@@ -128,6 +128,7 @@ func TestWebBlastRadiusRecomputesAfterPreview(t *testing.T) {
 	data := newWebData(nil, overviewParams{}, engine.DateRange{}, nil)
 	data.publishGraph = session.SetDependencyGraph
 	require.NoError(t, data.setPipelineSource(ctx, OverviewPipelineResult{Snapshot: state}))
+	data.publishSnapshotGraph(state)
 
 	srv, err := webui.New(webui.Options{Session: session})
 	require.NoError(t, err)
@@ -150,7 +151,8 @@ func TestWebBlastRadiusRecomputesAfterPreview(t *testing.T) {
 		URN: cacheURN, Type: "aws:elasticache/cluster:Cluster", Dependencies: []string{blastDBURN},
 	}
 	previewed := state.WithPlan(&ingest.PulumiPlan{Steps: []ingest.PulumiStep{step}})
-	require.NoError(t, data.setPipelineSource(ctx, OverviewPipelineResult{Snapshot: previewed}))
+	_, err = data.commitPreview(ctx, OverviewPipelineResult{Snapshot: previewed}, stateRows)
+	require.NoError(t, err)
 	created := engine.OverviewRow{
 		URN: cacheURN, Type: "aws:elasticache/cluster:Cluster", Status: engine.StatusCreating,
 		ProjectedCost: &engine.ProjectedCostData{MonthlyCost: 40, Currency: "USD"},

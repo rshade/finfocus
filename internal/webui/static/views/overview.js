@@ -624,16 +624,17 @@ export function mount(container, ctx) {
       return [heading, el('p', { class: 'detail-note', text: 'Dependency information is not available' })];
     }
     const dependents = radius.dependents ?? [];
+    // The note sits outside the sticky caption so it can wrap and stay readable
+    // on a narrow screen, after the tree as in the terminal.
+    const note = radius.noteDisplay ? [el('p', { class: 'detail-note blast-note', text: radius.noteDisplay })] : [];
     if (dependents.length === 0) {
-      return [heading, el('p', { class: 'detail-note', text: 'Nothing depends on this resource' })];
+      return [heading, el('p', { class: 'detail-note', text: 'Nothing depends on this resource' }), ...note];
     }
     const summary = radius.summaryDisplay ?? '';
-    const note = radius.noteDisplay ?? '';
-    const caption = el('caption', {}, el('span', { class: 'blast-summary', title: summary, text: summary }),
-      note ? el('span', { class: 'blast-note', title: note, text: note }) : null);
+    const caption = el('caption', {}, el('span', { class: 'blast-summary', title: summary, text: summary }));
     return [
       heading,
-      el('div', { class: `table-wrap blast-scroll${note ? ' blast-has-note' : ''}`, tabindex: '0', role: 'region', 'aria-label': 'Blast radius dependents' },
+      el('div', { class: 'table-wrap blast-scroll', tabindex: '0', role: 'region', 'aria-label': 'Blast radius dependents' },
         el('table', { class: 'detail-table blast-table' },
           caption,
           el('thead', {},
@@ -653,7 +654,8 @@ export function mount(container, ctx) {
                   el('span', { class: 'visually-hidden', text: `Level ${d.depth}` })),
                 el('td', { class: 'blast-type', title: d.type ?? '', text: d.type ?? '' }),
                 el('td', { class: `blast-status blast-status-${d.statusLabel || 'active'}`, text: d.statusLabel ?? '' }),
-                el('td', { class: 'col-num', text: d.monthlyDisplay ?? '' }))))))
+                el('td', { class: 'col-num', text: d.monthlyDisplay ?? '' })))))),
+      ...note,
     ];
   }
 

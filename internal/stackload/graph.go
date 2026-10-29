@@ -78,9 +78,9 @@ func providerURN(reference string) string {
 
 // OverlayPlanGraph returns base with the preview's changes applied: a create,
 // update or replace step sets the node's edges from the step's new state, and
-// a delete step keeps the node and flags it Deleting, and a create step flags
-// it Creating. Unchanged and omitted resources keep their state edges. base is
-// not modified, and a nil plan returns base.
+// every step sets the node's Status from its operation, and a delete step keeps
+// the node. Unchanged and omitted resources keep their state edges. base is not
+// modified, and a nil plan returns base.
 func OverlayPlanGraph(base engine.DependencyGraph, plan *ingest.PulumiPlan) engine.DependencyGraph {
 	if plan == nil {
 		return base
@@ -100,8 +100,7 @@ func OverlayPlanGraph(base engine.DependencyGraph, plan *ingest.PulumiPlan) engi
 			node.URN = step.URN
 			node.Type = step.ResourceType()
 			node.DependsOn = stepDependencies(step, step.NewState)
-			node.Deleting = false
-			node.Creating = step.Op == engine.DiffOperationCreate
+			node.Status = engine.MapOperationToStatus(step.Op)
 			if _, known := base.Nodes[step.URN]; !known {
 				node.Component = isStepComponent(step, step.NewState)
 			}
@@ -114,7 +113,7 @@ func OverlayPlanGraph(base engine.DependencyGraph, plan *ingest.PulumiPlan) engi
 				node.DependsOn = stepDependencies(step, step.OldState)
 				node.Component = isStepComponent(step, step.OldState)
 			}
-			node.Deleting = true
+			node.Status = engine.StatusDeleting
 			graph.Nodes[step.URN] = node
 		}
 	}

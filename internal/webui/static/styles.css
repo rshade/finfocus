@@ -357,13 +357,9 @@ button:disabled {
 }
 
 .blast-scroll {
-  --blast-caption-lines: 1;
+  --blast-caption-height: 1.9rem;
   max-height: 20rem;
   overflow: auto;
-}
-
-.blast-scroll.blast-has-note {
-  --blast-caption-lines: 2;
 }
 
 .blast-table caption {
@@ -374,7 +370,7 @@ button:disabled {
   box-sizing: border-box;
   width: 0;
   min-width: 100%;
-  height: calc(var(--blast-caption-lines, 1) * 1.4rem + 0.5rem);
+  height: var(--blast-caption-height);
   padding: 0.25rem 0.75rem;
   background: var(--bg-subtle);
   line-height: 1.4rem;
@@ -392,14 +388,9 @@ button:disabled {
   font-weight: 700;
 }
 
-.blast-table caption .blast-note {
-  font-weight: 400;
-  color: var(--fg-muted);
-}
-
 .blast-table thead th {
   position: sticky;
-  top: calc(var(--blast-caption-lines, 1) * 1.4rem + 0.5rem);
+  top: var(--blast-caption-height);
   z-index: 1;
   background: var(--bg-subtle);
 }

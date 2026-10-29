@@ -732,9 +732,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   left-out note, cost cell, status label) is filled by `ComputeBlastRadius`
   (`blast_radius_display.go`); the TUI and `overview.js` render those strings
   and never format a number (FR-011b). A dependent with no row takes `Type`
-  and `Creating` from its graph node; a preview step's component flag reads
+  and `Status` from its graph node; a preview step's component flag reads
   `PulumiState.Custom` before the `pulumi:` prefix, which excludes
-  `pulumi:providers:` (providers are custom resources).
+  `pulumi:providers:` (providers are custom resources). The web publishes a
+  preview's graph only after `webData.commitPreview` prices its rows, so a
+  failed preview keeps the earlier graph with the rows the session keeps.
 
 ### Overview Field Semantics (`internal/engine/overview_*.go`)
 

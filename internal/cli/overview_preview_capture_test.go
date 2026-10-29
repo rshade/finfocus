@@ -382,3 +382,58 @@ func TestAppendPreviewRowsReportsPricingFailure(t *testing.T) {
 	assert.InDelta(t, 7, rows[0].ProjectedCost.MonthlyCost, 0.001)
 	assert.Nil(t, rows[1].ProjectedCost)
 }
+
+// TestCommitPreviewPublishesGraphOnlyWithPricedRows checks that a preview
+// whose rows fail to price leaves the session's dependency graph alone, since
+// the session also keeps its earlier rows.
+func TestCommitPreviewPublishesGraphOnlyWithPricedRows(t *testing.T) {
+	t.Parallel()
+
+	const (
+		dbURN = "urn:pulumi:dev::proj::aws:rds/instance:Instance::db"
+		api   = "urn:pulumi:dev::proj::aws:ec2/instance:Instance::"
+	)
+	create := func(name string) ingest.PulumiStep {
+		urn := api + name
+		return ingest.PulumiStep{
+			Op: "create", URN: urn,
+			NewState: &ingest.PulumiState{
+				URN: urn, Type: "aws:ec2/instance:Instance", Dependencies: []string{dbURN},
+				Inputs: map[string]any{"instanceType": "t3.micro"},
+			},
+		}
+	}
+	tests := []struct {
+		name        string
+		step        string
+		wantErr     error
+		wantGraphed bool
+	}{
+		{"priced rows publish the graph", "good", nil, true},
+		{"a pricing failure keeps the earlier graph", "bad", errPreviewPricing, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
+			data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: &partialPricingClient{}}}, nil).
+				WithDismissalStore(isolatedDismissalStore(t))
+			data.loadDismissals = nil
+			var published []engine.DependencyGraph
+			data.publishGraph = func(graph engine.DependencyGraph) { published = append(published, graph) }
+			base := &stackload.Snapshot{StateStatus: stackload.Status{Loaded: true}}
+			previewed := base.WithPlan(&ingest.PulumiPlan{Steps: []ingest.PulumiStep{create(tt.step)}})
+
+			_, err := data.commitPreview(context.Background(), OverviewPipelineResult{Snapshot: previewed}, nil)
+
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				assert.Empty(t, published)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, published, 1)
+			assert.Contains(t, published[0].Nodes, api+tt.step)
+		})
+	}
+}

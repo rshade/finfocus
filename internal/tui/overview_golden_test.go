@@ -438,6 +438,38 @@ func TestBlastRadiusCopy(t *testing.T) {
 	assert.Equal(t, "dependency information is not available", strings.TrimSpace(blastUnavailableMsg))
 }
 
+// TestRenderDetailBlastRadius_EmptyKeepsNote checks that a resource with no
+// dependents still reports its own unresolved references (FR-007).
+func TestRenderDetailBlastRadius_EmptyKeepsNote(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		note string
+	}{
+		{"no note", ""},
+		{"unresolved note", "1 unresolved reference"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var content strings.Builder
+
+			renderDetailBlastRadius(&content, engine.BlastRadius{Available: true, NoteDisplay: tt.note})
+
+			out := content.String()
+			assert.Contains(t, out, "nothing depends on this resource")
+			assert.True(t, strings.HasSuffix(out, "\n\n"), "the section ends with one blank line")
+			if tt.note == "" {
+				assert.Equal(t, 1, strings.Count(out, "\n\n"))
+				return
+			}
+			assert.Contains(t, out, tt.note)
+			assert.Less(t, strings.Index(out, "nothing depends"), strings.Index(out, tt.note))
+		})
+	}
+}
+
 // TestDetailView_BlastRadiusScrollKeepsSummaryWithHeading checks that on a tall
 // tree the count and total sit on the line right under the heading, so
 // scrolling to the section always brings both into view together.

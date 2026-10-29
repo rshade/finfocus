@@ -714,12 +714,19 @@ test('blast radius copy is the server text and the contract messages', async () 
   }));
   const caption = t.container.querySelector('caption');
   assert.equal(caption.querySelector('.blast-summary').textContent, '1 dependent');
-  assert.equal(caption.querySelector('.blast-note').textContent, note);
+  assert.ok(caption.querySelector('.blast-note') === null, 'the note wraps outside the fixed-height caption');
+  assert.equal(t.container.querySelector('.blast-note').textContent, note);
+  assert.ok(t.container.querySelector('.blast-scroll').querySelector('.blast-note') === null, 'the note is outside the scroll region');
   assert.doesNotMatch(caption.textContent, /9999|9,999/);
   t.mounted.unmount();
   const empty = await openBlast(radius([]));
   assert.equal(empty.container.querySelector('.detail-note').textContent, 'Nothing depends on this resource');
+  assert.ok(empty.container.querySelector('.blast-note') === null, 'element is absent');
   empty.mounted.unmount();
+  const leaf = await openBlast(radius([], { leftOut: { deleting: 0, unpriced: 0, unresolved: 1 }, noteDisplay: '1 unresolved reference' }));
+  assert.deepEqual(leaf.container.querySelectorAll('.detail-note').map((n) => n.textContent),
+    ['Nothing depends on this resource', '1 unresolved reference']);
+  leaf.mounted.unmount();
   const unavailable = await openBlast({ urn: 'urn:root', available: false });
   assert.equal(unavailable.container.querySelector('.detail-note').textContent, 'Dependency information is not available');
   unavailable.mounted.unmount();
@@ -731,7 +738,6 @@ test('blast radius lists sit in a bounded scroll container', async () => {
   assert.ok(scroll.querySelector('table'));
   assert.equal(scroll.attrs.tabindex, '0');
   assert.equal(scroll.attrs.role, 'region');
-  assert.ok(!scroll.className.includes('blast-has-note'), 'no note, one caption line');
   assert.ok(scroll.attrs.style === undefined, 'inline style is blocked by the dashboard CSP');
   assert.equal(scroll.attrs['aria-label'], 'Blast radius dependents');
   t.mounted.unmount();
@@ -778,8 +784,11 @@ test('a dependent that no longer exists keeps Back available', async () => {
   t.mounted.unmount();
 });
 
-test('a left-out note marks the scroll container for the two-line caption', async () => {
+test('a left-out note follows the scroll container so it can wrap', async () => {
   const t = await openBlast(radius([dependent('a', 1, 'root')], { noteDisplay: '1 deleted dependent is not in the total' }));
-  assert.ok(t.container.querySelector('.blast-scroll').className.includes('blast-has-note'));
+  const scroll = t.container.querySelector('.blast-scroll');
+  const siblings = scroll.parent.children.filter((n) => typeof n !== 'string');
+  assert.equal(siblings[siblings.indexOf(scroll) + 1].className, 'detail-note blast-note');
+  assert.equal(scroll.className, 'table-wrap blast-scroll');
   t.mounted.unmount();
 });

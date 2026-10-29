@@ -58,7 +58,11 @@ func blastSummaryDisplay(result BlastRadius) string {
 	if result.MonthlyTotal == nil {
 		return fmt.Sprintf("%d %s", result.Count, noun)
 	}
-	return fmt.Sprintf("%d %s, %s/month", result.Count, noun, FormatOverviewCurrency(*result.MonthlyTotal))
+	total := FormatOverviewCurrency(*result.MonthlyTotal)
+	if result.Currency != "" && result.Currency != "USD" {
+		total += " " + result.Currency
+	}
+	return fmt.Sprintf("%d %s, %s/month", result.Count, noun, total)
 }
 
 // blastNoteDisplay says what the total leaves out, so a reader never takes it
@@ -80,7 +84,11 @@ func blastNoteDisplay(result BlastRadius) string {
 		notes = append(notes, strings.Join(parts, " and ")+" "+noun+" not in the total")
 	}
 	if result.LeftOut.Unresolved > 0 {
-		notes = append(notes, fmt.Sprintf("%d unresolved references", result.LeftOut.Unresolved))
+		noun := "references"
+		if result.LeftOut.Unresolved == 1 {
+			noun = "reference"
+		}
+		notes = append(notes, fmt.Sprintf("%d unresolved %s", result.LeftOut.Unresolved, noun))
 	}
 	if result.MixedCurrency {
 		notes = append(notes, blastMixedCurrency)

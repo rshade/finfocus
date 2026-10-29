@@ -345,7 +345,7 @@ func TestComputeBlastRadius_MidChangeStatuses(t *testing.T) {
 		dep := blastURN("t:m:D", "dep")
 		graph := graphOf(dep)
 		node := graph.Nodes[dep]
-		node.Deleting = true
+		node.Status = StatusDeleting
 		graph.Nodes[dep] = node
 
 		radius := ComputeBlastRadius(graph, []OverviewRow{blastRow(dep, "t:m:D", 30)}, root)
@@ -353,6 +353,24 @@ func TestComputeBlastRadius_MidChangeStatuses(t *testing.T) {
 		assert.Equal(t, 1, radius.LeftOut.Deleting)
 		assert.Nil(t, radius.MonthlyTotal)
 	})
+
+	for _, status := range []ResourceStatus{StatusCreating, StatusUpdating, StatusReplacing} {
+		t.Run("a dependent with no row takes the preview status "+status.String(), func(t *testing.T) {
+			t.Parallel()
+			dep := blastURN("t:m:D", "dep")
+			graph := graphOf(dep)
+			node := graph.Nodes[dep]
+			node.Status = status
+			graph.Nodes[dep] = node
+
+			radius := ComputeBlastRadius(graph, nil, root)
+
+			require.Len(t, radius.Dependents, 1)
+			assert.Equal(t, status, radius.Dependents[0].Status)
+			assert.NotEmpty(t, radius.Dependents[0].StatusLabel)
+			assert.Equal(t, 1, radius.LeftOut.Unpriced)
+		})
+	}
 }
 
 func TestComputeBlastRadius_Pricing(t *testing.T) {

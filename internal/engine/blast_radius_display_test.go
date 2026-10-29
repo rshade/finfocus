@@ -23,6 +23,18 @@ func TestBlastRadiusCopy(t *testing.T) {
 			"2 dependents, $10.00/month",
 			blastSummaryDisplay,
 		},
+		{
+			"summary usd",
+			BlastRadius{Count: 2, MonthlyTotal: &total, Currency: "USD"},
+			"2 dependents, $10.00/month",
+			blastSummaryDisplay,
+		},
+		{
+			"summary other currency",
+			BlastRadius{Count: 2, MonthlyTotal: &total, Currency: "EUR"},
+			"2 dependents, $10.00 EUR/month",
+			blastSummaryDisplay,
+		},
 		{"summary withheld", BlastRadius{Count: 2}, "2 dependents", blastSummaryDisplay},
 		{
 			"left out one",
@@ -34,6 +46,12 @@ func TestBlastRadiusCopy(t *testing.T) {
 			"left out both",
 			BlastRadius{LeftOut: BlastLeftOut{Deleting: 1, Unpriced: 2}},
 			"1 deleted and 2 unpriced dependents are not in the total",
+			blastNoteDisplay,
+		},
+		{
+			"unresolved one",
+			BlastRadius{LeftOut: BlastLeftOut{Unresolved: 1}},
+			"1 unresolved reference",
 			blastNoteDisplay,
 		},
 		{"unresolved", BlastRadius{LeftOut: BlastLeftOut{Unresolved: 3}}, "3 unresolved references", blastNoteDisplay},
@@ -89,7 +107,9 @@ func TestComputeBlastRadius_DependentWithoutRow(t *testing.T) {
 	group := blastURN("my:index:Group", "group")
 	graph := blastGraph(
 		DependencyNode{URN: root, Type: "aws:rds/instance:Instance"},
-		DependencyNode{URN: created, Type: "aws:ecs/service:Service", DependsOn: []string{root}, Creating: true},
+		DependencyNode{
+			URN: created, Type: "aws:ecs/service:Service", DependsOn: []string{root}, Status: StatusCreating,
+		},
 		DependencyNode{URN: group, Type: "my:index:Group", DependsOn: []string{root}, Component: true},
 	)
 
