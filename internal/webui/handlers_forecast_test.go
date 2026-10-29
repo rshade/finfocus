@@ -65,12 +65,49 @@ func TestForecastQuery_ReturnsDocumentAndDisplay(t *testing.T) {
 
 	assert.Equal(t, forecastFixture(), body.Document)
 	assert.Equal(t, "$500.00 USD", body.Display.Budget)
+	assert.Equal(t, "Plugin growth", body.Display.Model)
 	require.Len(t, body.Display.Series, 2)
 	assert.Equal(t, forecast.SeriesHistory, body.Display.Series[0].Name)
 	assert.Equal(t, []ForecastPointDisplay{
 		{Month: "Oct 2026", Value: "$130.00 USD"},
 		{Month: "Nov 2026", Value: "$1,234.50 USD"},
 	}, body.Display.Series[1].Points)
+}
+
+func TestForecastQuery_StatisticalFieldsRoundTrip(t *testing.T) {
+	t.Parallel()
+	var got ForecastQuery
+	s := newForecastServer(t, func(_ context.Context, q ForecastQuery) (forecast.Document, error) {
+		got = q
+		doc := forecastFixture()
+		doc.Model, doc.ModelOrder = forecast.ModelARIMA, "ARIMA(1,1,0)"
+		return doc, nil
+	})
+	resp := overviewRequest(t, s, http.MethodPost, "/api/forecast/query", `{"model":"arima",`+
+		`"spendHistory":"2026-04-01,1\n","confidence":0.8,"growthCap":1.25,`+
+		`"steps":["2027-06-01=500"],"exclude":["2025-12-01:2025-12-31"]}`)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "arima", got.Model)
+	assert.Equal(t, "2026-04-01,1\n", got.SpendHistory)
+	require.NotNil(t, got.Confidence)
+	assert.InDelta(t, 0.8, *got.Confidence, 1e-12)
+	require.NotNil(t, got.GrowthCap)
+	assert.InDelta(t, 1.25, *got.GrowthCap, 1e-12)
+	assert.Equal(t, []string{"2027-06-01=500"}, got.Steps)
+	assert.Equal(t, []string{"2025-12-01:2025-12-31"}, got.Exclude)
+	var body ForecastResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+	assert.Equal(t, "ARIMA(1,1,0)", body.ModelOrder)
+	assert.Equal(t, "ARIMA(1,1,0)", body.Display.Model, "no confidence in the fixture")
+}
+
+func TestForecastModelDisplay(t *testing.T) {
+	t.Parallel()
+	confidence := 0.8
+	assert.Equal(t, "SARIMA(1,1,1)(0,1,1)[7], bounds at 80% confidence", forecastModelDisplay(forecast.Document{
+		Model: forecast.ModelARIMA, ModelOrder: "SARIMA(1,1,1)(0,1,1)[7]", Confidence: &confidence,
+	}))
+	assert.Equal(t, "Plugin growth", forecastModelDisplay(forecast.Document{}))
 }
 
 func TestForecastQuery_OmittedFieldsPassThroughEmpty(t *testing.T) {

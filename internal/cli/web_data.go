@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -569,13 +570,27 @@ func webForecastSettings(query webui.ForecastQuery, cfg *config.Config) (forecas
 	if err = forecast.ValidateMonths(months); err != nil {
 		return forecastSettings{}, err
 	}
-	return forecastSettings{
+	settings := forecastSettings{
 		months:     months,
 		growthType: growthType,
 		rate:       rate,
 		noHistory:  query.NoHistory,
 		cfg:        cfg,
-	}, nil
+	}
+	inputs := forecastModelInputs{
+		model:      query.Model,
+		confidence: query.Confidence,
+		growthCap:  query.GrowthCap,
+		steps:      query.Steps,
+		excludes:   query.Exclude,
+	}
+	if query.SpendHistory != "" {
+		inputs.spendCSV = strings.NewReader(query.SpendHistory)
+	}
+	if err = parseForecastModel(inputs, &settings); err != nil {
+		return forecastSettings{}, err
+	}
+	return settings, nil
 }
 
 // sessionForecastCosts prices sessionForecastResources with the session query

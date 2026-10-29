@@ -68,3 +68,27 @@ func TestRender_NoProviderSplitOmitsProvider(t *testing.T) {
 	assert.NotContains(t, out, "AWS")
 	assert.NotContains(t, out, "GCP")
 }
+
+func TestRender_StatisticalGolden(t *testing.T) {
+	t.Parallel()
+	history, _ := weeklySpend(day(2026, 4, 4), 180)
+	projection, err := ProjectStatistical(history, Drivers{}, 6, day(2026, 10, 15), 0.8, "USD")
+	require.NoError(t, err)
+	projection.Baseline = Series{
+		Name:   SeriesBaseline,
+		Points: stamp(day(2026, 10, 1), []float64{1900, 1900, 1900, 1900, 1900, 1900, 1900}),
+	}
+	Drivers{}.Apply(&projection)
+
+	out := Render(projection, ChartOptions{Height: 10, Width: 50, SplitProviders: true, Budget: 2600, NoColor: true})
+	path := filepath.Join("testdata", "chart_statistical.golden")
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		require.NoError(t, os.WriteFile(path, []byte(out), 0o644))
+	}
+	want, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, string(want), out)
+	assert.Contains(t, out, "Forecast monthly cost (USD, "+projection.ModelOrder+")")
+	assert.Contains(t, out, "Legend: Forecast  Lower  Upper  Baseline  Budget")
+	assert.NotContains(t, out, "\x1b[")
+}

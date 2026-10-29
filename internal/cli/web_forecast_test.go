@@ -307,3 +307,68 @@ func TestWebForecast_NoSource(t *testing.T) {
 	_, err := data.forecast(t.Context(), webui.ForecastQuery{})
 	require.EqualError(t, err, "stack source unavailable")
 }
+
+func TestWebForecast_ArimaMatchesCLIJSON(t *testing.T) {
+	t.Parallel()
+	csv := spendCSV()
+	path := writeSpendCSV(t, csv)
+	confidence, growthCap := 0.8, 1.3
+	cliOut, err := runArimaForecast(t, arimaCosts(),
+		"--model", "arima", "--spend-history", path, "--months", "4", "--confidence", "0.8",
+		"--growth-cap", "1.3", "--step", "2026-12-01=200", "--exclude", "2026-06-01:2026-06-07",
+		"--no-history", "--output", "json")
+	require.NoError(t, err)
+	var want forecastJSON
+	require.NoError(t, json.Unmarshal([]byte(cliOut), &want))
+
+	data, _ := newForecastWebData(arimaCosts(), nil, nil)
+	data.params.cfg = &config.Config{}
+	data.forecastNow = arimaNow()
+	doc, err := data.forecast(t.Context(), webui.ForecastQuery{
+		Months: intPtr(4), Model: "arima", SpendHistory: csv, Confidence: &confidence, GrowthCap: &growthCap,
+		Steps: []string{"2026-12-01=200"}, Exclude: []string{"2026-06-01:2026-06-07"}, NoHistory: true,
+	})
+	require.NoError(t, err)
+	raw, err := json.Marshal(doc)
+	require.NoError(t, err)
+	var got forecastJSON
+	require.NoError(t, json.Unmarshal(raw, &got))
+	assert.Equal(t, want, got)
+	assert.Equal(t, forecast.ModelARIMA, got.Model)
+}
+
+func TestWebForecast_ArimaInputErrorsMatchCLI(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		args  []string
+		query webui.ForecastQuery
+	}{
+		{name: "arima without history", args: []string{"--model", "arima"},
+			query: webui.ForecastQuery{Model: "arima"}},
+		{name: "history without arima", args: []string{"--spend-history", "PATH"},
+			query: webui.ForecastQuery{SpendHistory: "2026-04-01,1\n"}},
+		{name: "bad row", args: []string{"--model", "arima", "--spend-history", "PATH"},
+			query: webui.ForecastQuery{Model: "arima", SpendHistory: "2026-04-01,1\n2026-04-02,x\n"}},
+		{name: "bad step", args: []string{"--step", "x"}, query: webui.ForecastQuery{Steps: []string{"x"}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			args := append([]string(nil), tc.args...)
+			for i, arg := range args {
+				if arg == "PATH" {
+					args[i] = writeSpendCSV(t, tc.query.SpendHistory)
+				}
+			}
+			var buf bytes.Buffer
+			cliErr := runForecast(forecastTestCmd(t, &buf, args...), forecastDeps{skipPrice: true, skipHistory: true})
+			require.Error(t, cliErr)
+			data, _ := newForecastWebData(nil, nil, nil)
+			_, webErr := data.forecast(t.Context(), tc.query)
+			require.Error(t, webErr)
+			assert.True(t, forecast.IsInputError(webErr))
+			assert.Equal(t, cliErr.Error(), webErr.Error())
+		})
+	}
+}

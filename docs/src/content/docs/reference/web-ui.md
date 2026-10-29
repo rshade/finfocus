@@ -46,7 +46,7 @@ start the opener is logged as a warning; the server keeps running.
 
 ## Views
 
-The header links to six views. Each has its own URL fragment, and a
+The header links to eight views. Each has its own URL fragment, and a
 **Skip to main content** link comes first in the tab order.
 
 | View | Fragment | Shows |
@@ -55,6 +55,7 @@ The header links to six views. Each has its own URL fragment, and a
 | Cost | `#/cost` | Actual costs, summary with provider shares and carbon equivalencies when plugins supply them, trends when history is available |
 | Recommendations | `#/recommendations` | Recommendation counts, savings, actions, descriptions, and scorer signals when scoring is configured |
 | Estimate | `#/estimate` | What-if comparison for one resource: baseline, modified monthly cost, total change, and per-property deltas |
+| Forecast | `#/forecast` | Monthly cost projected from the current month, with the growth model or a statistical model fitted to a spend CSV, its bounds, the plan baseline, budget, and warnings |
 | Carbon | `#/carbon` | Provider-published monthly carbon emissions for complete UTC months, with source, provider, grouping, period, model version, and retrieval time per record |
 | Config | `#/config` | Effective configuration, the tier each value comes from, and edits to known settings in the project or global file |
 | Plugins | `#/plugins` | Built-in catalog, installed versions, install, update, remove, validate, and per-plugin settings |
@@ -122,6 +123,28 @@ server. A record with no value shows **Missing**, which differs from an
 explicit `0`. A report with no records keeps the query you ran and states that
 the total is unavailable, not zero. A failed query clears earlier results and
 shows a fixed message; a disabled provider names the setting that enables it.
+
+### Forecast controls
+
+The Forecast view calls the same Go method as `finfocus cost forecast` and
+shows the values of `--output json` for the same settings, with money and
+month labels formatted by the server. It sends nothing until you press **Run
+forecast**.
+
+| Control | Effect |
+| --- | --- |
+| Months ahead | 1 to 36. The table starts at the current month. |
+| Model | Plugin growth (`--model growth`) or Statistical (`--model arima`). |
+| Growth type, Growth rate | The same as `--growth-type` and `--growth-rate`. |
+| Growth cap, Steps | The same as `--growth-cap` and `--step`; steps are comma-separated `DATE=AMOUNT`. |
+| Spend CSV, Confidence, Exclude ranges | Shown for the statistical model. The browser reads the chosen file and sends its text; the server never opens a path from the page. Ranges are comma-separated `FROM:TO`. |
+| Include cost history | Off is `--no-history`. |
+
+The table has one column per monthly series: the forecast, its lower and upper
+bounds and the plan baseline for the statistical model, or one column per
+provider for the growth model. Stored cost history and the spend CSV are
+summarized below it, with their date range. A failed query clears earlier
+results and shows the message `cost forecast` prints for the same settings.
 
 ### Estimate controls
 
@@ -238,8 +261,8 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `GET /api/recommendations/history` with no id | 400 | `invalid_query` | `recommendation id required` |
 | `GET /api/recommendations/history` for an id that is not in the latest list | 404 | `not_found` | `recommendation not found` |
 | Recommendation history lookup failed | 502 | `history_unavailable` | `recommendation history unavailable` |
-| `POST /api/forecast/query` | 200 | - | The `cost forecast --output json` document for the session stack, plus `display` strings. The body takes `months`, `growthType`, `growthRate` (text), and `noHistory`; omitted fields use the CLI defaults. |
-| `POST /api/forecast/query` with invalid months, growth type, or rate | 400 | `invalid_forecast` | The message `cost forecast` prints for the same flags. |
+| `POST /api/forecast/query` | 200 | - | The `cost forecast --output json` document for the session stack, plus `display` strings. The body takes `months`, `growthType`, `growthRate` (text), `noHistory`, `model`, `spendHistory` (the CSV text, not a path), `confidence`, `growthCap`, `steps`, and `exclude` (each in the flag's syntax); omitted fields use the CLI defaults. |
+| `POST /api/forecast/query` with invalid months, growth, model, spend CSV, or driver | 400 | `invalid_forecast` | The message `cost forecast` prints for the same flags. |
 | `POST /api/forecast/query` when no resource was priced, or priced resources use two currencies | 422 | `no_forecast` | The message `cost forecast` prints, such as `no cost data available`. |
 | `POST /api/forecast/query` before the session has loaded | 503 | `not_ready` | `forecast data is loading` |
 | `POST /api/forecast/query` whose pricing fails | 502 | `forecast_unavailable` | `forecast data unavailable` |

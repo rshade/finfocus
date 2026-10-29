@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -26,6 +28,103 @@ type forecastSettings struct {
 	noBudget   bool
 	now        time.Time
 	cfg        *config.Config
+	model      string
+	spend      *forecast.SpendHistory
+	confidence float64
+	drivers    forecast.Drivers
+}
+
+// forecastModelInputs are the model and driver settings as text, the way the
+// flags and the web query both carry them. spendCSV is nil when no spend
+// history was given.
+type forecastModelInputs struct {
+	model      string
+	spendCSV   io.Reader
+	confidence *float64
+	growthCap  *float64
+	steps      []string
+	excludes   []string
+}
+
+// parseForecastModel validates the model and drivers into settings. Every
+// error is a forecast.InputError, raised before any plugin starts.
+func parseForecastModel(in forecastModelInputs, settings *forecastSettings) error {
+	model := strings.ToLower(strings.TrimSpace(in.model))
+	if model == "" {
+		model = forecast.ModelGrowth
+	}
+	if err := checkForecastModelInputs(model, in); err != nil {
+		return err
+	}
+	settings.model = model
+	settings.confidence = forecast.DefaultConfidence
+	if in.confidence != nil {
+		if err := forecast.ValidateConfidence(*in.confidence); err != nil {
+			return err
+		}
+		settings.confidence = *in.confidence
+	}
+	drivers, err := parseForecastDrivers(in)
+	if err != nil {
+		return err
+	}
+	settings.drivers = drivers
+	if model == forecast.ModelARIMA {
+		spend, spendErr := forecast.ParseSpendCSV(in.spendCSV)
+		if spendErr != nil {
+			return spendErr
+		}
+		settings.spend = &spend
+	}
+	return nil
+}
+
+// checkForecastModelInputs rejects an unknown model and inputs that belong to
+// the other model.
+func checkForecastModelInputs(model string, in forecastModelInputs) error {
+	statistical := model == forecast.ModelARIMA
+	var err error
+	switch {
+	case model != forecast.ModelGrowth && !statistical:
+		err = fmt.Errorf("invalid model %q (supported: growth, arima)", in.model)
+	case statistical && in.spendCSV == nil:
+		err = errors.New("--model arima requires --spend-history")
+	case !statistical && in.spendCSV != nil:
+		err = errors.New("--spend-history requires --model arima")
+	case !statistical && in.confidence != nil:
+		err = errors.New("--confidence requires --model arima")
+	case !statistical && len(in.excludes) > 0:
+		err = errors.New("--exclude requires --model arima")
+	}
+	if err != nil {
+		return &forecast.InputError{Err: err}
+	}
+	return nil
+}
+
+func parseForecastDrivers(in forecastModelInputs) (forecast.Drivers, error) {
+	var drivers forecast.Drivers
+	if in.growthCap != nil {
+		if err := forecast.ValidateGrowthCap(*in.growthCap); err != nil {
+			return forecast.Drivers{}, err
+		}
+		drivers.GrowthCap = *in.growthCap
+	}
+	for _, raw := range in.steps {
+		step, err := forecast.ParseStep(raw)
+		if err != nil {
+			return forecast.Drivers{}, err
+		}
+		drivers.Steps = append(drivers.Steps, step)
+	}
+	for _, raw := range in.excludes {
+		excluded, err := forecast.ParseExclude(raw)
+		if err != nil {
+			return forecast.Drivers{}, err
+		}
+		drivers.Excludes = append(drivers.Excludes, excluded)
+	}
+	return drivers, nil
 }
 
 // forecastBuild is a projection with the history and budget beside it.
@@ -55,11 +154,20 @@ func buildForecast(
 	if now.IsZero() {
 		now = time.Now()
 	}
-	projection, err := forecast.Project(resources, settings.months, now)
+	var projection forecast.Projection
+	var err error
+	if settings.model == forecast.ModelARIMA {
+		var notes []string
+		projection, notes, err = statisticalForecast(resources, settings, now)
+		warnings = append(warnings, notes...)
+	} else {
+		projection, err = forecast.Project(resources, settings.months, now)
+		warnings = append(warnings, projection.Warnings...)
+	}
 	if err != nil {
 		return forecastBuild{}, err
 	}
-	warnings = append(warnings, projection.Warnings...)
+	warnings = append(warnings, settings.drivers.Apply(&projection)...)
 	var historySeries forecast.Series
 	if !settings.noHistory && readHistory != nil {
 		var note string
@@ -75,6 +183,36 @@ func buildForecast(
 	sort.Strings(warnings)
 	projection.Warnings = warnings
 	return forecastBuild{projection: projection, history: historySeries, budget: budget}, nil
+}
+
+// statisticalForecast fits the spend history and attaches the plan's growth
+// projection as the baseline. A plan with nothing to project leaves the
+// baseline out with a warning; the forecast does not need it.
+func statisticalForecast(
+	resources []forecast.Resource,
+	settings forecastSettings,
+	now time.Time,
+) (forecast.Projection, []string, error) {
+	var notes []string
+	baseline, err := forecast.Project(resources, settings.months, now)
+	switch {
+	case err == nil:
+		notes = append(notes, baseline.Warnings...)
+	case forecast.IsUnprojectable(err):
+		notes = append(notes, "baseline: "+err.Error())
+	default:
+		return forecast.Projection{}, nil, err
+	}
+	projection, err := forecast.ProjectStatistical(
+		*settings.spend, settings.drivers, settings.months, now, settings.confidence, baseline.Currency)
+	if err != nil {
+		return forecast.Projection{}, nil, err
+	}
+	notes = append(notes, projection.Warnings...)
+	if len(baseline.Forecast.Points) > 0 {
+		projection.Baseline = forecast.Series{Name: forecast.SeriesBaseline, Points: baseline.Forecast.Points}
+	}
+	return projection, notes, nil
 }
 
 // forecastHistoryFrom turns stored snapshots into the history series. A read

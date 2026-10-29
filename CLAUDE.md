@@ -893,6 +893,20 @@ Specs 613-623 hold the details. Invariants:
 ## Recent Changes
 
 - 1921-recommendation-history-web: `GET /api/recommendations/history` returns `GetRecommendationHistory` for an id in the session's last recommendations list. Plugin failures other than `Unimplemented` are fixed warnings. The detail panel does not render them yet (`specs/1921-recommendation-history-web/`).
+- 1738-arima-forecast: `cost forecast --model arima --spend-history <csv>`
+  fits `github.com/rshade/goarima` (our fork; upstream returned nil results
+  with nil errors and kept a constant after two orders of differencing) to
+  daily or monthly spend and sums daily forecasts into
+  calendar months; bounds are summed daily bounds. The plan growth projection
+  becomes the `baseline` series. Drivers (`--exclude`, `--step`,
+  `--growth-cap`, zero floor) live in `forecast.Drivers`; steps and the cap
+  also apply to the growth model's total. Spend comes from a CSV, not the
+  cost-history DB: that DB holds deployment run-rate steps, which ARIMA
+  mean-reverts. The web query takes the CSV text (`spendHistory`), never a
+  path. CLI and web parse through `parseForecastModel`. The dashboard
+  Forecast view (`views/forecast.js`, `#/forecast`) renders only the
+  response's `display` strings; `display.model` and the CLI's plain output
+  share `forecast.ModelLabel`. `TestWebUIForecast` drives the real endpoint.
 - 1737-forecast-web-hook: `POST /api/forecast/query` (`webData.forecast`)
   returns the `cost forecast --output json` document plus `display` strings.
   `runForecast` and the web callback share `buildForecast`, and
@@ -933,4 +947,4 @@ Specs 613-623 hold the details. Invariants:
 
 ## Active Technologies
 
-- Go 1.27.3 (`go.mod`), finfocus-spec v0.7.10 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only; `github.com/pulumi/esc-sdk/sdk` v0.14.0
+- Go 1.27.3 (`go.mod`), finfocus-spec v0.7.10 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only; `github.com/pulumi/esc-sdk/sdk` v0.14.0; `github.com/rshade/goarima` (statistical forecast; never tag the fork, pin a commit)

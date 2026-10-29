@@ -10,11 +10,14 @@ import (
 // Document is the forecast as `cost forecast --output json` prints it and as
 // the web dashboard receives it.
 type Document struct {
-	Currency string   `json:"currency"`
-	Months   int      `json:"months"`
-	Budget   *float64 `json:"budget,omitempty"`
-	Series   []Series `json:"series"`
-	Warnings []string `json:"warnings,omitempty"`
+	Currency   string   `json:"currency"`
+	Months     int      `json:"months"`
+	Model      string   `json:"model,omitempty"`
+	ModelOrder string   `json:"modelOrder,omitempty"`
+	Confidence *float64 `json:"confidence,omitempty"`
+	Budget     *float64 `json:"budget,omitempty"`
+	Series     []Series `json:"series"`
+	Warnings   []string `json:"warnings,omitempty"`
 }
 
 // InputError marks a forecast setting the caller got wrong. Its message is the
@@ -82,13 +85,20 @@ func ParseGrowth(kind, rawRate string) (string, *float64, error) {
 }
 
 // SeriesList orders the document series: history when present, the total
-// forecast, then one series per provider.
+// forecast, the statistical bounds, baseline, and spend when present, then
+// one series per provider.
 func SeriesList(projection Projection, history Series) []Series {
-	series := make([]Series, 0, 1+len(projection.ByProvider)+1)
+	optional := []Series{projection.Lower, projection.Upper, projection.Baseline, projection.Spend}
+	series := make([]Series, 0, 2+len(optional)+len(projection.ByProvider))
 	if len(history.Points) > 0 {
 		series = append(series, history)
 	}
 	series = append(series, projection.Forecast)
+	for _, extra := range optional {
+		if len(extra.Points) > 0 {
+			series = append(series, extra)
+		}
+	}
 	series = append(series, projection.ByProvider...)
 	return series
 }
@@ -97,13 +107,27 @@ func SeriesList(projection Projection, history Series) []Series {
 // omitted.
 func NewDocument(projection Projection, series []Series, budget float64) Document {
 	doc := Document{
-		Currency: projection.Currency,
-		Months:   projection.Months,
-		Series:   series,
-		Warnings: projection.Warnings,
+		Currency:   projection.Currency,
+		Months:     projection.Months,
+		Model:      projection.Model,
+		ModelOrder: projection.ModelOrder,
+		Series:     series,
+		Warnings:   projection.Warnings,
+	}
+	if projection.Confidence > 0 {
+		confidence := projection.Confidence
+		doc.Confidence = &confidence
 	}
 	if budget > 0 {
 		doc.Budget = &budget
 	}
 	return doc
+}
+
+const percent = 100
+
+// ModelLabel names a statistical model and its bound level, the same in the
+// CLI and the dashboard: "SARIMA(1,1,1)(0,1,1)[7], bounds at 95% confidence".
+func ModelLabel(order string, confidence float64) string {
+	return fmt.Sprintf("%s, bounds at %g%% confidence", order, confidence*percent)
 }

@@ -8,13 +8,20 @@ import (
 )
 
 // ForecastQuery is the dashboard's `cost forecast` request. Omitted fields take
-// the CLI defaults. GrowthRate is text, like the --growth-rate flag, so a bad
-// value gets the CLI's message.
+// the CLI defaults. GrowthRate, Steps, and Exclude are text in the flags'
+// syntax, so a bad value gets the CLI's message. SpendHistory is the CSV text
+// the browser read; the server never opens a path from the page.
 type ForecastQuery struct {
-	Months     *int   `json:"months,omitempty"`
-	GrowthType string `json:"growthType,omitempty"`
-	GrowthRate string `json:"growthRate,omitempty"`
-	NoHistory  bool   `json:"noHistory,omitempty"`
+	Months       *int     `json:"months,omitempty"`
+	GrowthType   string   `json:"growthType,omitempty"`
+	GrowthRate   string   `json:"growthRate,omitempty"`
+	NoHistory    bool     `json:"noHistory,omitempty"`
+	Model        string   `json:"model,omitempty"`
+	SpendHistory string   `json:"spendHistory,omitempty"`
+	Confidence   *float64 `json:"confidence,omitempty"`
+	GrowthCap    *float64 `json:"growthCap,omitempty"`
+	Steps        []string `json:"steps,omitempty"`
+	Exclude      []string `json:"exclude,omitempty"`
 }
 
 // ForecastResponse is the CLI JSON document plus display strings, so the page
@@ -25,8 +32,10 @@ type ForecastResponse struct {
 	Display ForecastDisplay `json:"display"`
 }
 
-// ForecastDisplay holds the formatted budget and series, in Document.Series order.
+// ForecastDisplay holds the formatted model, budget, and series, in
+// Document.Series order.
 type ForecastDisplay struct {
+	Model  string                  `json:"model"`
 	Budget string                  `json:"budget,omitempty"`
 	Series []ForecastSeriesDisplay `json:"series"`
 }
@@ -81,7 +90,7 @@ func (s *Server) handleForecastQuery(w http.ResponseWriter, r *http.Request) {
 }
 
 func forecastDisplay(doc forecast.Document) ForecastDisplay {
-	display := ForecastDisplay{Series: make([]ForecastSeriesDisplay, len(doc.Series))}
+	display := ForecastDisplay{Model: forecastModelDisplay(doc), Series: make([]ForecastSeriesDisplay, len(doc.Series))}
 	if doc.Budget != nil {
 		display.Budget = viewmodel.FormatMoney(*doc.Budget, doc.Currency)
 	}
@@ -96,4 +105,15 @@ func forecastDisplay(doc forecast.Document) ForecastDisplay {
 		display.Series[i] = ForecastSeriesDisplay{Name: series.Name, Points: points}
 	}
 	return display
+}
+
+// forecastModelDisplay names the model the way the CLI's plain output does.
+func forecastModelDisplay(doc forecast.Document) string {
+	if doc.Model != forecast.ModelARIMA {
+		return "Plugin growth"
+	}
+	if doc.Confidence == nil {
+		return doc.ModelOrder
+	}
+	return forecast.ModelLabel(doc.ModelOrder, *doc.Confidence)
 }

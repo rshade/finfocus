@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -93,6 +94,18 @@ uses the same currency. A missing history file does not fail the command.`,
 	cmd.Flags().String("growth-type", "", "Override every resource: none, linear, or exponential")
 	cmd.Flags().
 		String("growth-rate", "", "Growth per month as a decimal (0.10 is 10%). Required with linear or exponential")
+	cmd.Flags().
+		String("model", forecast.ModelGrowth, "Forecast model: growth (plugin growth) or arima (fit --spend-history)")
+	cmd.Flags().
+		String("spend-history", "", "CSV of date,value spend rows, one per day or month (required with --model arima)")
+	cmd.Flags().
+		Float64("confidence", forecast.DefaultConfidence, "Bound level for --model arima, between 0 and 1")
+	cmd.Flags().
+		Float64("growth-cap", 0, "Cap every month at this factor of the current month (1.25 is +25%)")
+	cmd.Flags().
+		StringArray("step", nil, "Add AMOUNT per month from DATE's month on, as DATE=AMOUNT (repeatable)")
+	cmd.Flags().
+		StringArray("exclude", nil, "Ignore spend history from FROM to TO, as FROM:TO (repeatable, --model arima)")
 	cmd.Flags().Bool("split-providers", false, "Draw one series per provider on the chart")
 	cmd.Flags().Bool("no-budget", false, "Hide the global budget line")
 	cmd.Flags().Bool("no-history", false, "Do not read cost history for --stack")
@@ -124,7 +137,7 @@ func runForecast(cmd *cobra.Command, deps forecastDeps) error {
 		audit.logFailure(ctx, err)
 		return err
 	}
-	if len(costs) == 0 && terraformProjectionSelected(cmd) {
+	if len(costs) == 0 && settings.model != forecast.ModelARIMA && terraformProjectionSelected(cmd) {
 		return projectedUnchanged(ctx, cmd, audit)
 	}
 	built, err := buildForecast(costs, settings, func() ([]history.CostSnapshot, error) {
@@ -133,6 +146,11 @@ func runForecast(cmd *cobra.Command, deps forecastDeps) error {
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return err
+	}
+	if split, _ := cmd.Flags().GetBool("split-providers"); split && settings.model == forecast.ModelARIMA {
+		built.projection.Warnings = append(built.projection.Warnings,
+			"--split-providers is ignored: spend history has no providers")
+		sort.Strings(built.projection.Warnings)
 	}
 	if err = writeForecast(cmd, format, built, deps); err != nil {
 		audit.logFailure(ctx, err)
@@ -176,7 +194,7 @@ func forecastFlagSettings(cmd *cobra.Command, deps forecastDeps) (forecastSettin
 	if err != nil {
 		return forecastSettings{}, err
 	}
-	return forecastSettings{
+	settings := forecastSettings{
 		months:     months,
 		growthType: growthType,
 		rate:       rate,
@@ -184,7 +202,59 @@ func forecastFlagSettings(cmd *cobra.Command, deps forecastDeps) (forecastSettin
 		noBudget:   noBudget,
 		now:        deps.now,
 		cfg:        deps.cfg,
-	}, nil
+	}
+	inputs, closeSpend, err := forecastModelFlags(cmd)
+	if err != nil {
+		return forecastSettings{}, err
+	}
+	defer closeSpend()
+	if err = parseForecastModel(inputs, &settings); err != nil {
+		return forecastSettings{}, err
+	}
+	return settings, nil
+}
+
+// forecastModelFlags reads the model and driver flags. The returned function
+// closes the spend history file.
+func forecastModelFlags(cmd *cobra.Command) (forecastModelInputs, func(), error) {
+	noop := func() {}
+	model, err := cmd.Flags().GetString("model")
+	if err != nil {
+		return forecastModelInputs{}, noop, err
+	}
+	steps, err := cmd.Flags().GetStringArray("step")
+	if err != nil {
+		return forecastModelInputs{}, noop, err
+	}
+	excludes, err := cmd.Flags().GetStringArray("exclude")
+	if err != nil {
+		return forecastModelInputs{}, noop, err
+	}
+	inputs := forecastModelInputs{model: model, steps: steps, excludes: excludes}
+	if cmd.Flags().Changed("confidence") {
+		confidence, confErr := cmd.Flags().GetFloat64("confidence")
+		if confErr != nil {
+			return forecastModelInputs{}, noop, confErr
+		}
+		inputs.confidence = &confidence
+	}
+	if cmd.Flags().Changed("growth-cap") {
+		growthCap, capErr := cmd.Flags().GetFloat64("growth-cap")
+		if capErr != nil {
+			return forecastModelInputs{}, noop, capErr
+		}
+		inputs.growthCap = &growthCap
+	}
+	path, err := cmd.Flags().GetString("spend-history")
+	if err != nil || strings.TrimSpace(path) == "" {
+		return inputs, noop, err
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return forecastModelInputs{}, noop, &forecast.InputError{Err: fmt.Errorf("reading --spend-history: %w", err)}
+	}
+	inputs.spendCSV = file
+	return inputs, func() { _ = file.Close() }, nil
 }
 
 func forecastOutputFormat(cmd *cobra.Command) (string, error) {
@@ -444,11 +514,18 @@ type forecastLine struct {
 	Months   int        `json:"months,omitempty"`
 	Budget   *float64   `json:"budget,omitempty"`
 	Message  string     `json:"message,omitempty"`
+
+	Model      string   `json:"model,omitempty"`
+	ModelOrder string   `json:"modelOrder,omitempty"`
+	Confidence *float64 `json:"confidence,omitempty"`
 }
 
 func writeForecastNDJSON(cmd *cobra.Command, doc forecast.Document) error {
 	enc := json.NewEncoder(cmd.OutOrStdout())
-	meta := forecastLine{Kind: "meta", Currency: doc.Currency, Months: doc.Months, Budget: doc.Budget}
+	meta := forecastLine{
+		Kind: "meta", Currency: doc.Currency, Months: doc.Months, Budget: doc.Budget,
+		Model: doc.Model, ModelOrder: doc.ModelOrder, Confidence: doc.Confidence,
+	}
 	if err := enc.Encode(meta); err != nil {
 		return err
 	}
@@ -507,6 +584,13 @@ func writeForecastPlain(
 		last := historySeries.Points[len(historySeries.Points)-1].Time.UTC().Format("2006-01-02")
 		cmd.Printf("History: %d snapshots, %s – %s (%s).\n",
 			len(historySeries.Points), first, last, projection.Currency)
+	}
+	if projection.Model == forecast.ModelARIMA {
+		cmd.Printf("Model: %s.\n", forecast.ModelLabel(projection.ModelOrder, projection.Confidence))
+		if spend := projection.Spend.Points; len(spend) > 0 {
+			cmd.Printf("Spend history: %d points, %s – %s.\n", len(spend),
+				spend[0].Time.Format("2006-01-02"), spend[len(spend)-1].Time.Format("2006-01-02"))
+		}
 	}
 	if len(projection.Warnings) > 0 {
 		cmd.Println("Warnings:")

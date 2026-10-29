@@ -63,7 +63,7 @@ the CLI; with `noHistory` or no database there is no history series.
 - [X] T016 Confirm contracts/http-api.md names `handleForecastQuery`, `webData.forecast`, `buildForecast`, `GetProjectedCostDiff`, and the forecast helpers as implemented in specs/1737-forecast-web-hook/contracts/http-api.md
 - [X] T017 Render the Overview budget panel (nearest view) against a populated stack with Playwright, call the endpoint, compare with the Web UI Fit section, and record the result in specs/1737-forecast-web-hook/quickstart.md
 - [X] T018 [P] Document `POST /api/forecast/query` in docs/src/content/docs/reference/web-ui.md
-- [ ] T019 File one UX-only `web-ui` follow-up issue for the Forecast view (layout, rendering, interaction, copy, accessibility only)
+- [X] T019 No follow-up issue: the Forecast view ships in `specs/1738-arima-forecast/` (T022-T027)
 
 ## Phase 7: Polish
 

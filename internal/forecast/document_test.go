@@ -50,6 +50,48 @@ func TestNewDocument_OmitsBudgetAndEmptyHistory(t *testing.T) {
 	assert.Equal(t, SeriesForecast, doc.Series[0].Name)
 }
 
+func TestNewDocument_StatisticalFieldsAndOrder(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	one := func(name string, v float64) Series {
+		return Series{Name: name, Points: []Point{{Time: start, Value: v}}}
+	}
+	projection := Projection{
+		Currency:   "USD",
+		Months:     1,
+		Model:      ModelARIMA,
+		ModelOrder: "ARIMA(1,1,0)",
+		Confidence: 0.9,
+		Forecast:   one(SeriesForecast, 10),
+		Lower:      one(SeriesLower, 8),
+		Upper:      one(SeriesUpper, 12),
+		Baseline:   one(SeriesBaseline, 9),
+		Spend:      one(SeriesSpend, 7),
+	}
+	doc := NewDocument(projection, SeriesList(projection, one(SeriesHistory, 6)), 0)
+	assert.Equal(t, ModelARIMA, doc.Model)
+	assert.Equal(t, "ARIMA(1,1,0)", doc.ModelOrder)
+	require.NotNil(t, doc.Confidence)
+	assert.InDelta(t, 0.9, *doc.Confidence, 1e-12)
+	names := make([]string, len(doc.Series))
+	for i, s := range doc.Series {
+		names[i] = s.Name
+	}
+	assert.Equal(
+		t,
+		[]string{SeriesHistory, SeriesForecast, SeriesLower, SeriesUpper, SeriesBaseline, SeriesSpend},
+		names,
+	)
+}
+
+func TestNewDocument_GrowthOmitsStatisticalFields(t *testing.T) {
+	t.Parallel()
+	projection := Projection{Currency: "USD", Months: 1, Forecast: Series{Name: SeriesForecast}}
+	raw, err := json.Marshal(NewDocument(projection, SeriesList(projection, Series{}), 0))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"currency":"USD","months":1,"series":[{"name":"forecast","points":null}]}`, string(raw))
+}
+
 func TestValidateMonths(t *testing.T) {
 	t.Parallel()
 	for _, months := range []int{MinMonths, DefaultMonths, MaxMonths} {

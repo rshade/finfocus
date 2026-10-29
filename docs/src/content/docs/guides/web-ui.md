@@ -164,6 +164,20 @@ still apply. Interactive plan estimation uses the same default eligibility
 policy; explicit `cost estimate --provider ... --resource-type ...` remains
 available for inspecting a specific type.
 
+## Forecast from past spend
+
+Open **Forecast** to project monthly cost. The default is the plugins' growth
+models, the same as `finfocus cost forecast`. To fit past spend instead,
+choose **Statistical (ARIMA)** and pick a CSV of `date,value` rows, one per
+consecutive day or month, exported from your billing console. The file stays
+on your machine; the page reads it and sends the text to the local server.
+
+Add a **Growth cap** such as `1.25` to keep every month within 25% of the
+current one, or **Steps** such as `2027-06-01=500` for a known change. For a
+spike that will not repeat, add an **Exclude range** such as
+`2025-12-01:2025-12-31`. The model order and confidence appear in the summary,
+and any warning the CLI would print appears under the table.
+
 ## Open another tab or reconnect
 
 Open the printed URL again to start another tab or browser profile. The URL
