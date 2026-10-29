@@ -61,6 +61,10 @@ type StackExportResource struct {
 	Parent               string              `json:"parent,omitempty"`
 	Dependencies         []string            `json:"dependencies,omitempty"`
 	PropertyDependencies map[string][]string `json:"propertyDependencies,omitempty"`
+	// DeletedWith names the resource whose deletion also deletes this one.
+	DeletedWith string `json:"deletedWith,omitempty"`
+	// ReplaceWith names the resources whose replacement also replaces this one.
+	ReplaceWith []string `json:"replaceWith,omitempty"`
 	// Created tracks when the remote resource was first added to state.
 	// Available since Pulumi v3.60.0 (March 2023).
 	Created *time.Time `json:"created,omitempty"`

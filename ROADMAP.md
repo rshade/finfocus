@@ -114,9 +114,11 @@ Completed Milestones, 2026-Q4).
       *Follow-up to #1765*
 - [ ] **Dependency Visualization ("Blast Radius")**
       ([#366](https://github.com/rshade/finfocus/issues/366)) [L]
-  - [ ] TUI: Interactive Dependency Tree view (consuming Lineage Metadata)
-  - *Cross-Repo:* Consumes `CostAllocationLineage`/`ParentResourceID` from
-    [finfocus-spec](https://github.com/rshade/finfocus-spec)
+  - [ ] Overview detail view: dependency tree of everything that depends on
+        a resource, built from the Pulumi dependencies in the shared stack
+        snapshot (`specs/1736-dependency-blast-radius/`)
+  - *No cross-repo change:* the graph comes from Pulumi state, not from
+    `finfocus-spec` lineage metadata
 - [ ] **Spot Market Advisor**
       ([#367](https://github.com/rshade/finfocus/issues/367)) [L]
   - [ ] Spot badge: show spot pricing and interruption risk on every cost

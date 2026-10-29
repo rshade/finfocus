@@ -67,6 +67,8 @@ export function mount(container, ctx) {
   let previewBase = { at: 0 };
   let lastFocus = null;
   let detailLauncher = null;
+  const detailTrail = [];
+  let currentDetail = null;
   let queryVersion = 0;
   let detailVersion = 0;
   let queryTimer = null;
@@ -533,10 +535,15 @@ export function mount(container, ctx) {
     }
   }
 
-  function openDetail(urn) {
+  function openDetail(urn, { from, back } = {}) {
     const version = ++detailVersion;
-    lastFocus = document.activeElement;
-    detailLauncher = captureRowFocus();
+    if (from) {
+      detailTrail.push(from);
+    } else if (!back) {
+      detailTrail.length = 0;
+      lastFocus = document.activeElement;
+      detailLauncher = captureRowFocus();
+    }
     detailPanel.replaceChildren(el('p', { class: 'view-loading', role: 'status', text: 'Loading detail…' }));
     detailPanel.hidden = false;
     api
@@ -548,6 +555,7 @@ export function mount(container, ctx) {
         if (err.name === 'AbortError' || aborter.signal.aborted || version !== detailVersion) return;
         detailPanel.replaceChildren(
           el('p', { class: 'error-banner', role: 'alert', text: err.message }),
+          detailBackButton(),
           closeDetailButton(),
         );
       });
@@ -562,8 +570,23 @@ export function mount(container, ctx) {
     });
   }
 
+  function detailBackButton() {
+    const previous = detailTrail.at(-1);
+    if (!previous) return null;
+    return el('button', {
+      type: 'button',
+      class: 'detail-back',
+      text: `Back to ${previous.name}`,
+      onclick: () => {
+        detailTrail.pop();
+        openDetail(previous.urn, { back: true });
+      },
+    });
+  }
+
   function closeDetail() {
     detailVersion += 1;
+    detailTrail.length = 0;
     detailPanel.hidden = true;
     detailPanel.replaceChildren();
     if (detailLauncher) restoreRowFocus(detailLauncher);
@@ -571,15 +594,82 @@ export function mount(container, ctx) {
     else filterInput.focus();
   }
 
+  // The server lists dependents by distance; order them so each follows its
+  // tree parent (via) and the indent reads as nesting. Each entry carries the
+  // connector text: a guide per ancestor level that has later siblings, then
+  // a branch for the entry itself.
+  function blastTreeOrder(radius) {
+    const children = new Map();
+    for (const d of radius.dependents) {
+      if (!children.has(d.via)) children.set(d.via, []);
+      children.get(d.via).push(d);
+    }
+    const ordered = [];
+    const walk = (parent, guides) => {
+      const siblings = children.get(parent) ?? [];
+      siblings.forEach((d, index) => {
+        const last = index === siblings.length - 1;
+        ordered.push({ dependent: d, guides: guides + (last ? '\u2514 ' : '\u251c ') });
+        walk(d.urn, guides + (last ? '  ' : '\u2502 '));
+      });
+    };
+    walk(radius.urn, '');
+    return ordered;
+  }
+
+  function blastRadiusSection(radius, onOpen) {
+    if (!radius) return [];
+    const heading = el('h4', { text: 'Blast radius' });
+    if (!radius.available) {
+      return [heading, el('p', { class: 'detail-note', text: 'Dependency information is not available' })];
+    }
+    const dependents = radius.dependents ?? [];
+    // The note sits outside the sticky caption so it can wrap and stay readable
+    // on a narrow screen, after the tree as in the terminal.
+    const note = radius.noteDisplay ? [el('p', { class: 'detail-note blast-note', text: radius.noteDisplay })] : [];
+    if (dependents.length === 0) {
+      return [heading, el('p', { class: 'detail-note', text: 'Nothing depends on this resource' }), ...note];
+    }
+    const summary = radius.summaryDisplay ?? '';
+    const caption = el('caption', {}, el('span', { class: 'blast-summary', title: summary, text: summary }));
+    return [
+      heading,
+      el('div', { class: 'table-wrap blast-scroll', tabindex: '0', role: 'region', 'aria-label': 'Blast radius dependents' },
+        el('table', { class: 'detail-table blast-table' },
+          caption,
+          el('thead', {},
+            el('tr', {},
+              el('th', { scope: 'col', text: 'Resource' }),
+              el('th', { scope: 'col', class: 'blast-type', text: 'Type' }),
+              el('th', { scope: 'col', text: 'Status' }),
+              el('th', { scope: 'col', class: 'col-num', text: 'Monthly' }))),
+          el('tbody', {},
+            blastTreeOrder(radius).map(({ dependent: d, guides }) =>
+              el('tr', {},
+                el('th', { scope: 'row', class: 'blast-name' },
+                  el('span', { class: 'blast-guides', 'aria-hidden': 'true', text: guides }),
+                  d.component
+                    ? el('span', { class: 'blast-component', text: d.displayName })
+                    : el('button', { type: 'button', class: 'blast-link', text: d.displayName, onclick: () => onOpen(d.urn) }),
+                  el('span', { class: 'visually-hidden', text: `Level ${d.depth}` })),
+                el('td', { class: 'blast-type', title: d.type ?? '', text: d.type ?? '' }),
+                el('td', { class: `blast-status blast-status-${d.statusLabel || 'active'}`, text: d.statusLabel ?? '' }),
+                el('td', { class: 'col-num', text: d.monthlyDisplay ?? '' })))))),
+      ...note,
+    ];
+  }
+
   function renderDetail(resp, urn) {
     const row =
       resp && typeof resp === 'object' && resp.urn !== undefined
         ? resp
         : pick(resp, 'row', 'resource') ?? {};
+    const title = pick(row, 'displayName') ?? urn;
+    currentDetail = { urn, name: title };
     const children = [
       el('div', { class: 'detail-header' },
-        el('h3', { tabindex: '-1', text: pick(row, 'displayName') ?? urn }),
-        closeDetailButton()),
+        el('h3', { tabindex: '-1', text: title }),
+        el('div', { class: 'detail-actions' }, detailBackButton(), closeDetailButton())),
       el('dl', { class: 'detail-list' },
         ...[
           [urn.startsWith('urn:') ? 'URN' : 'Address', urn],
@@ -659,6 +749,8 @@ export function mount(container, ctx) {
       }
       children.push(el('h4', { text: 'Recommendations' }), list);
     }
+
+    children.push(...blastRadiusSection(resp.blastRadius, (dependentUrn) => openDetail(dependentUrn, { from: currentDetail })));
 
     if (resp.budgetDisplay?.details?.length) children.push(el('h4', { text: 'Budget status' }), budgetList(resp.budgetDisplay.details));
 

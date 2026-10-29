@@ -188,6 +188,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	session := webui.NewSession(pipeCtx, options)
 	defer session.Close()
 	bindWebPipeline(ctx, pipe, session, params, dateRange)
+	data.publishGraph = session.SetDependencyGraph
 	data.bindPipelineSource(pipeCtx, pipe)
 	webPipelineHook(pipe)
 	srv, err := listenAndPrintWeb(ctx, cmd, flags, session, audit)
@@ -434,12 +435,9 @@ func webSessionOptions(
 			if previewErr != nil {
 				return nil, previewErr
 			}
-			if sourceErr := data.setPipelineSource(previewCtx, pipe.Result()); sourceErr != nil {
-				return nil, sourceErr
-			}
-			merged, appendErr := data.appendPreviewRows(previewCtx, rows)
-			if appendErr != nil {
-				return nil, appendErr
+			merged, commitErr := data.commitPreview(previewCtx, pipe.Result(), rows)
+			if commitErr != nil {
+				return nil, commitErr
 			}
 			pipe.RefreshFallbackBudget(previewCtx, merged)
 			return merged, nil

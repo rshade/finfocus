@@ -234,6 +234,43 @@ Press Enter on a resource to see a detailed breakdown including:
   section out. A read failure stays in the detail view; press `r` to try
   again. On a short terminal, Up and Down scroll the detail view so the
   history section and the retry hint stay reachable.
+- Blast radius: the resources that depend on this one, directly or through
+  other resources, as an indented tree with a count and a monthly total at the
+  top. See [Blast radius](#blast-radius).
+
+### Blast radius
+
+The BLAST RADIUS section answers "what else is affected if this resource
+changes?" It reads the dependencies Pulumi records for each resource in the
+stack state and, after a preview, in the plan. It makes no plugin calls and
+needs no network.
+
+- **What counts as a dependent**: any resource that depends on this one
+  directly or through a chain of other resources. Each is listed once, under
+  the shortest path. A resource also depends on the provider it was created
+  with and on the resources named in its `deletedWith` and `replaceWith`
+  options, so a Kubernetes cluster lists the workloads deployed through the
+  provider built from it, and a default provider lists every resource it
+  manages. Pulumi records a dependency on a component as a dependency on its
+  children, so a resource that depends on a component appears under each
+  child.
+- **The total**: the summed projected monthly cost of the priced dependents
+  that will exist. It leaves out dependents a preview deletes, dependents with
+  no price, and components, which are listed so the tree stays connected but
+  are not counted. A note under the total says how many were left out. When
+  dependents use different currencies, the total is withheld.
+- **Markers**: `[new]`, `[updating]`, `[replacing]`, `[deleting]` and
+  `[component]` follow the cost. `no price` means the plugin returned none;
+  `$0.00` is a price.
+- **Empty and unavailable**: "nothing depends on this resource" means the
+  resource is a leaf. "dependency information is not available" appears for
+  Terraform and OpenTofu sources and for an empty state, which carry no
+  dependency data.
+- **State-only runs**: press `p` to run a preview. Dependents that the plan
+  creates, changes or deletes appear in the tree after it finishes.
+
+`finfocus --web` shows the same section in the resource detail panel from the
+same computation.
 
 ## Kubernetes cluster expansion
 

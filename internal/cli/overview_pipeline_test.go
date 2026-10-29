@@ -1383,3 +1383,37 @@ func TestOverviewPipeline_IndependentLoadErrorWins(t *testing.T) {
 	require.ErrorIs(t, err, loadErr)
 	assert.NotErrorIs(t, err, pluginErr)
 }
+
+// TestOverviewPipeline_RunPreviewResendsGraph verifies the dependency graph
+// is delivered again after a preview replaces the snapshot, so the TUI's
+// blast radius follows the preview.
+func TestOverviewPipeline_RunPreviewResendsGraph(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	ctx := context.Background()
+
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{
+			pulumiJSON: overviewFixture(t, "plan-no-changes.json"),
+			cfg:        &config.Config{},
+		},
+		audit: newAuditContext(ctx, "overview", nil),
+		loader: func(_ context.Context, _ *OverviewPipeline) (*OverviewPipelineData, error) {
+			return &OverviewPipelineData{
+				Rows: fakePipelineRows(), StackName: "dev", ProjectDir: t.TempDir(), IsStateOnly: true,
+			}, nil
+		},
+		openPlugins: fakeOpenPlugins,
+		newEngine:   fakeNewEngine,
+		enrichRows:  passThroughEnrichment,
+	})
+	var graphs int
+	pipe.OnGraph = func(engine.DependencyGraph) { graphs++ }
+
+	require.NoError(t, pipe.Run(ctx))
+	require.Equal(t, 1, graphs, "the graph is sent when rows are published")
+
+	pipe.RunPreview(ctx)
+
+	assert.Equal(t, 2, graphs, "the graph is sent again after the preview")
+}

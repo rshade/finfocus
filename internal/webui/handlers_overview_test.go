@@ -446,3 +446,125 @@ func TestDetectFailureSendsOnlyABoolean(t *testing.T) {
 		assert.NotContains(t, string(payload), "sk-")
 	}
 }
+
+func blastWebRows() []engine.OverviewRow {
+	priced := func(urn, kind string, monthly float64) engine.OverviewRow {
+		return engine.OverviewRow{
+			URN:    urn,
+			Type:   kind,
+			Status: engine.StatusActive,
+			Properties: map[string]any{
+				"password": "never-visible",
+			},
+			ProjectedCost: &engine.ProjectedCostData{MonthlyCost: monthly, Currency: "USD"},
+		}
+	}
+	return []engine.OverviewRow{
+		priced("urn::db", "aws:rds/instance:Instance", 100),
+		priced("urn::svc", "aws:ecs/service:Service", 40),
+		priced("urn::lb", "aws:lb/loadBalancer:LoadBalancer", 20),
+	}
+}
+
+func blastWebGraph() engine.DependencyGraph {
+	return engine.DependencyGraph{
+		Available: true,
+		Nodes: map[string]engine.DependencyNode{
+			"urn::db":  {URN: "urn::db"},
+			"urn::svc": {URN: "urn::svc", DependsOn: []string{"urn::db"}},
+			"urn::lb":  {URN: "urn::lb", DependsOn: []string{"urn::svc"}},
+		},
+	}
+}
+
+func decodeResourceDetail(t *testing.T, response *http.Response) (ResourceDetail, string) {
+	t.Helper()
+	require.Equal(t, 200, response.StatusCode)
+	raw, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	var detail ResourceDetail
+	require.NoError(t, json.Unmarshal(raw, &detail))
+	return detail, string(raw)
+}
+
+func TestOverviewResourceBlastRadius(t *testing.T) {
+	t.Parallel()
+
+	t.Run("matches the shared computation", func(t *testing.T) {
+		t.Parallel()
+		rows := blastWebRows()
+		session := NewSession(context.Background(), SessionOptions{DayOfMonth: 7})
+		session.SetData(nil, rows, engine.DateRange{}, "dev")
+		session.SetDependencyGraph(blastWebGraph())
+		s := newRunningServer(t, Options{Session: session})
+
+		detail, raw := decodeResourceDetail(t, overviewRequest(t, s, "GET", "/api/overview/resource?urn=urn::db", ""))
+
+		require.NotNil(t, detail.BlastRadius)
+		want := engine.ComputeBlastRadius(blastWebGraph(), rows, "urn::db")
+		assert.Equal(t, want, *detail.BlastRadius)
+		assert.Equal(t, 2, detail.BlastRadius.Count)
+		assert.Contains(t, raw, `"blastRadius"`)
+		assert.NotContains(t, raw, "never-visible")
+	})
+
+	t.Run("unknown URN is still 404", func(t *testing.T) {
+		t.Parallel()
+		session := NewSession(context.Background(), SessionOptions{DayOfMonth: 7})
+		session.SetData(nil, blastWebRows(), engine.DateRange{}, "dev")
+		session.SetDependencyGraph(blastWebGraph())
+		s := newRunningServer(t, Options{Session: session})
+
+		assert.Equal(t, 404, overviewRequest(t, s, "GET", "/api/overview/resource?urn=missing", "").StatusCode)
+	})
+
+	t.Run("unavailable graph carries only urn and available", func(t *testing.T) {
+		t.Parallel()
+		session := NewSession(context.Background(), SessionOptions{DayOfMonth: 7})
+		session.SetData(nil, blastWebRows(), engine.DateRange{}, "dev")
+		s := newRunningServer(t, Options{Session: session})
+
+		detail, _ := decodeResourceDetail(t, overviewRequest(t, s, "GET", "/api/overview/resource?urn=urn::db", ""))
+
+		require.NotNil(t, detail.BlastRadius)
+		assert.Equal(t, engine.BlastRadius{URN: "urn::db", Dependents: nil}, *detail.BlastRadius)
+		assert.False(t, detail.BlastRadius.Available)
+	})
+
+	t.Run("payload carries only the documented fields", func(t *testing.T) {
+		t.Parallel()
+		rows := blastWebRows()
+		session := NewSession(context.Background(), SessionOptions{DayOfMonth: 7})
+		session.SetData(nil, rows, engine.DateRange{}, "dev")
+		session.SetDependencyGraph(blastWebGraph())
+		s := newRunningServer(t, Options{Session: session})
+
+		_, raw := decodeResourceDetail(t, overviewRequest(t, s, "GET", "/api/overview/resource?urn=urn::db", ""))
+
+		var body struct {
+			BlastRadius map[string]json.RawMessage `json:"blastRadius"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(raw), &body))
+		require.NotNil(t, body.BlastRadius)
+		allowedRadius := []string{
+			"urn", "available", "count", "monthlyTotal", "currency", "mixedCurrency", "leftOut", "dependents",
+			"summaryDisplay", "noteDisplay",
+		}
+		for key := range body.BlastRadius {
+			assert.Contains(t, allowedRadius, key)
+		}
+
+		var dependents []map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(body.BlastRadius["dependents"], &dependents))
+		require.NotEmpty(t, dependents)
+		allowedDependent := []string{
+			"urn", "type", "displayName", "status", "depth", "via", "monthlyCost", "priced", "component",
+			"monthlyDisplay", "statusLabel",
+		}
+		for _, dependent := range dependents {
+			for key := range dependent {
+				assert.Contains(t, allowedDependent, key)
+			}
+		}
+	})
+}

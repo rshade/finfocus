@@ -66,6 +66,7 @@ type Session struct {
 	opts               SessionOptions
 	eng                *engine.Engine
 	rows               []engine.OverviewRow
+	graph              engine.DependencyGraph
 	dateRange          engine.DateRange
 	stack              string
 	phases             []PhaseEvent
@@ -249,6 +250,21 @@ func (s *Session) Rows() []engine.OverviewRow {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return cloneData(s.rows)
+}
+
+// SetDependencyGraph stores the stack's dependency graph for the detail view.
+// It replaces any earlier graph, as an on-demand preview does.
+func (s *Session) SetDependencyGraph(graph engine.DependencyGraph) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.graph = cloneData(graph)
+}
+
+// DependencyGraph returns an independent copy of the stored graph.
+func (s *Session) DependencyGraph() engine.DependencyGraph {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return cloneData(s.graph)
 }
 
 // Resources returns descriptors equivalent to the engine overview enrichment

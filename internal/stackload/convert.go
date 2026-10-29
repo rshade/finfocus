@@ -35,6 +35,11 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 	return result
 }
 
+const (
+	opReplace           = "replace"
+	opCreateReplacement = "create-replacement"
+)
+
 // convertPlanSteps converts ingest.PulumiStep to engine.PlanStep.
 // For update/replace operations, it also extracts property diffs
 // by comparing OldState.Inputs to NewState.Inputs.
@@ -47,11 +52,11 @@ func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 			Type: s.ResourceType(),
 		}
 		switch s.Op {
-		case engine.DiffOperationCreate, engine.DiffOperationUpdate, "replace", "create-replacement":
+		case engine.DiffOperationCreate, engine.DiffOperationUpdate, opReplace, opCreateReplacement:
 			result[i].ProjectedProperties = projectedPropertiesFromStep(s)
 		}
 		switch s.Op {
-		case engine.DiffOperationUpdate, "replace", "create-replacement":
+		case engine.DiffOperationUpdate, opReplace, opCreateReplacement:
 			result[i].PropertyDiffs = diffInputs(s.OldState, s.NewState)
 		}
 		if s.OldState != nil {

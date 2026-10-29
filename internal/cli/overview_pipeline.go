@@ -161,6 +161,10 @@ type OverviewPipeline struct {
 	// OnPhase fires when a phase starts: phase is 1-based (1..6), name is the
 	// user-facing phase label.
 	OnPhase func(phase int, name string)
+	// OnGraph fires just before OnDataReady with the snapshot's dependency
+	// graph, and again after an on-demand preview replaces the snapshot; a run
+	// with no snapshot (Terraform) delivers the zero graph.
+	OnGraph func(graph engine.DependencyGraph)
 	// OnDataReady fires once the engine exists: rows are a copy of the
 	// merged, pre-enrichment rows.
 	OnDataReady func(rows []engine.OverviewRow, totalCount int, stackName string)
@@ -529,6 +533,13 @@ func (p *OverviewPipeline) startEngine(
 		} else if p.cfg.cmd != nil {
 			fmt.Fprintln(p.cfg.cmd.ErrOrStderr(), "Warning: "+data.SourceWarning)
 		}
+	}
+	if p.OnGraph != nil {
+		var graph engine.DependencyGraph
+		if data.Snapshot != nil {
+			graph = data.Snapshot.Graph()
+		}
+		p.OnGraph(graph)
 	}
 	if p.OnDataReady != nil {
 		p.OnDataReady(slices.Clone(data.Rows), len(data.Rows), data.StackName)
@@ -1115,6 +1126,9 @@ func (p *OverviewPipeline) previewAttempt(
 	p.mu.Lock()
 	p.result.Snapshot = snapshot
 	p.mu.Unlock()
+	if p.OnGraph != nil {
+		p.OnGraph(snapshot.Graph())
+	}
 	historyStore, historyCleanup := initHistoryFromConfig(ctx, p.cfg.params.cfg, config.GetResolvedProjectDir())
 	recordHistoryPlanLineage(ctx, historyStore, snapshot.Steps)
 	historyCleanup()

@@ -637,3 +637,158 @@ test('authoritative snapshots recover inline failures and clear resolved failure
 for(const event of ['snapshot','ready']) test(`mixed currency ${event} keeps rows and suppresses money`,async()=>{
  const t=await setup();t.calls[0].resolve(page([row('alpha')]));await flush();t.stream.emit(event,{rows:[row('alpha')],phases:[],ready:false,totals:{mixedCurrencies:true,totalActualDisplay:'$999.00',unavailableReason:'Totals unavailable: resources use different currencies.'}});await flush();assert.match(t.container.textContent,/Totals unavailable/);assert.doesNotMatch(t.container.querySelector('.totals-bar').textContent,/999/);t.mounted.unmount();
 });
+
+const dependent = (name, depth, via, extra = {}) => ({
+  urn: `urn:${name}`, type: 'aws:ec2/instance:Instance', displayName: name, status: 'active',
+  depth, via: via === 'root' ? 'urn:root' : `urn:${via}`, monthlyCost: 10, priced: true, component: false,
+  monthlyDisplay: '$10.00', statusLabel: '', ...extra,
+});
+const radius = (dependents, extra = {}) => ({
+  urn: 'urn:root', available: true, count: dependents.length, monthlyTotal: 10 * dependents.length,
+  currency: 'USD', mixedCurrency: false, leftOut: { deleting: 0, unpriced: 0, unresolved: 0 }, dependents,
+  summaryDisplay: `${dependents.length} dependents, $${10 * dependents.length}.00/month`, noteDisplay: '', ...extra,
+});
+const walk = (node, found = []) => {
+  for (const child of node.children) {
+    if (typeof child === 'string') continue;
+    found.push(child); walk(child, found);
+  }
+  return found;
+};
+async function openBlast(blastRadius, { name = 'Root' } = {}) {
+  const t = await setup(); t.calls[0].resolve(page([row('urn:root')])); await flush();
+  t.container.querySelector('.resource-link').dispatch('click');
+  t.calls.at(-1).resolve({ row: row('urn:root', { displayName: name }), blastRadius }); await flush();
+  return t;
+}
+
+test('blast radius tree draws connectors from sibling position', async () => {
+  const t = await openBlast(radius([
+    dependent('a', 1, 'root'), dependent('c', 2, 'a'), dependent('b', 1, 'root'),
+  ]));
+  const names = t.container.querySelectorAll('.blast-name');
+  assert.deepEqual(names.map((n) => n.querySelector('.blast-guides').textContent), ['├ ', '│ └ ', '└ ']);
+  assert.deepEqual(names.map((n) => n.querySelector('.blast-link').textContent), ['a', 'c', 'b']);
+  t.mounted.unmount();
+});
+
+test('blast radius names are row headers with hidden level text', async () => {
+  const t = await openBlast(radius([dependent('a', 1, 'root'), dependent('c', 2, 'a')]));
+  const headers = walk(t.container).filter((n) => n.tagName === 'th' && n.attrs.scope === 'row');
+  assert.equal(headers.length, 2);
+  assert.deepEqual(headers.map((h) => h.querySelector('.visually-hidden').textContent), ['Level 1', 'Level 2']);
+  assert.ok(walk(t.container).some((n) => n.tagName === 'th' && n.attrs.scope === 'col'));
+  assert.ok(t.container.querySelector('caption'));
+  t.mounted.unmount();
+});
+
+test('blast radius renders the server status label and cost text in their own cells', async () => {
+  const t = await openBlast(radius([
+    dependent('n', 1, 'root', { status: 'creating', statusLabel: 'new' }),
+    dependent('d', 1, 'root', { status: 'deleting', monthlyCost: null, statusLabel: 'deleting', monthlyDisplay: '-' }),
+    dependent('k', 1, 'root', { component: true, monthlyCost: null, statusLabel: 'component', monthlyDisplay: '-' }),
+    dependent('p', 1, 'root', { priced: false, monthlyCost: 1234.5, monthlyDisplay: 'no price' }),
+  ]));
+  assert.deepEqual(t.container.querySelectorAll('.blast-status').map((n) => n.textContent),
+    ['new', 'deleting', 'component', '']);
+  assert.deepEqual(t.container.querySelectorAll('.blast-status').map((n) => n.className),
+    ['blast-status blast-status-new', 'blast-status blast-status-deleting', 'blast-status blast-status-component', 'blast-status blast-status-active']);
+  assert.deepEqual(t.container.querySelector('.blast-scroll').querySelectorAll('.col-num').map((n) => n.textContent).filter((x) => x !== 'Monthly'),
+    ['$10.00', '-', '-', 'no price']);
+  t.mounted.unmount();
+});
+
+test('a component dependent is plain text, not a link to a detail it does not have', async () => {
+  const t = await openBlast(radius([
+    dependent('k', 1, 'root', { component: true, statusLabel: 'component', monthlyDisplay: '-' }), dependent('a', 2, 'k'),
+  ]));
+  assert.equal(t.container.querySelector('.blast-component').textContent, 'k');
+  assert.deepEqual(t.container.querySelectorAll('.blast-link').map((n) => n.textContent), ['a']);
+  t.mounted.unmount();
+});
+
+test('blast radius copy is the server text and the contract messages', async () => {
+  const note = '1 deleted and 2 unpriced dependents are not in the total; 3 unresolved references';
+  const t = await openBlast(radius([dependent('a', 1, 'root')], {
+    leftOut: { deleting: 1, unpriced: 2, unresolved: 3 }, monthlyTotal: 9999, summaryDisplay: '1 dependent', noteDisplay: note,
+  }));
+  const caption = t.container.querySelector('caption');
+  assert.equal(caption.querySelector('.blast-summary').textContent, '1 dependent');
+  assert.ok(caption.querySelector('.blast-note') === null, 'the note wraps outside the fixed-height caption');
+  assert.equal(t.container.querySelector('.blast-note').textContent, note);
+  assert.ok(t.container.querySelector('.blast-scroll').querySelector('.blast-note') === null, 'the note is outside the scroll region');
+  assert.doesNotMatch(caption.textContent, /9999|9,999/);
+  t.mounted.unmount();
+  const empty = await openBlast(radius([]));
+  assert.equal(empty.container.querySelector('.detail-note').textContent, 'Nothing depends on this resource');
+  assert.ok(empty.container.querySelector('.blast-note') === null, 'element is absent');
+  empty.mounted.unmount();
+  const leaf = await openBlast(radius([], { leftOut: { deleting: 0, unpriced: 0, unresolved: 1 }, noteDisplay: '1 unresolved reference' }));
+  assert.deepEqual(leaf.container.querySelectorAll('.detail-note').map((n) => n.textContent),
+    ['Nothing depends on this resource', '1 unresolved reference']);
+  leaf.mounted.unmount();
+  const unavailable = await openBlast({ urn: 'urn:root', available: false });
+  assert.equal(unavailable.container.querySelector('.detail-note').textContent, 'Dependency information is not available');
+  unavailable.mounted.unmount();
+});
+
+test('blast radius lists sit in a bounded scroll container', async () => {
+  const t = await openBlast(radius([dependent('a', 1, 'root')]));
+  const scroll = t.container.querySelector('.blast-scroll');
+  assert.ok(scroll.querySelector('table'));
+  assert.equal(scroll.attrs.tabindex, '0');
+  assert.equal(scroll.attrs.role, 'region');
+  assert.ok(scroll.attrs.style === undefined, 'inline style is blocked by the dashboard CSP');
+  assert.equal(scroll.attrs['aria-label'], 'Blast radius dependents');
+  t.mounted.unmount();
+});
+
+test('selecting a dependent opens its detail and Back returns to the earlier resource', async () => {
+  const t = await openBlast(radius([dependent('a', 1, 'root')]), { name: 'Root' });
+  assert.ok(t.container.querySelector('.detail-back') === null, 'element is absent');
+  t.container.querySelector('.blast-link').dispatch('click');
+  const request = t.calls.at(-1);
+  assert.equal(request.path, `/api/overview/resource?urn=${encodeURIComponent('urn:a')}`);
+  request.resolve({ row: row('urn:a', { displayName: 'A' }), blastRadius: radius([]) }); await flush();
+  assert.equal(t.container.querySelector('.detail-panel').querySelector('h3').textContent, 'A');
+  const back = t.container.querySelector('.detail-back');
+  assert.equal(back.textContent, 'Back to Root');
+  back.dispatch('click');
+  assert.equal(t.calls.at(-1).path, `/api/overview/resource?urn=${encodeURIComponent('urn:root')}`);
+  t.calls.at(-1).resolve({ row: row('urn:root', { displayName: 'Root' }), blastRadius: radius([dependent('a', 1, 'root')]) }); await flush();
+  assert.ok(t.container.querySelector('.detail-back') === null, 'element is absent');
+  assert.equal(t.container.querySelector('.detail-panel').querySelector('h3').textContent, 'Root');
+  t.mounted.unmount();
+});
+
+test('closing detail after following a dependent returns focus to the originating row', async () => {
+  const t = await setup(); t.calls[0].resolve(page([row('urn:root')])); await flush();
+  const launcher = t.container.querySelector('.resource-link');
+  launcher.focus(); launcher.dispatch('click');
+  t.calls.at(-1).resolve({ row: row('urn:root', { displayName: 'Root' }), blastRadius: radius([dependent('a', 1, 'root')]) }); await flush();
+  t.container.querySelector('.blast-link').focus();
+  t.container.querySelector('.blast-link').dispatch('click');
+  t.calls.at(-1).resolve({ row: row('urn:a', { displayName: 'A' }), blastRadius: radius([]) }); await flush();
+  t.container.querySelector('.detail-close').dispatch('click');
+  assert.equal(t.container.querySelector('.detail-panel').hidden, true);
+  assert.ok(t.container.querySelector('.detail-back') === null, 'element is absent');
+  assert.ok(t.document.activeElement === launcher, 'focus returns to the originating row link');
+  t.mounted.unmount();
+});
+
+test('a dependent that no longer exists keeps Back available', async () => {
+  const t = await openBlast(radius([dependent('gone', 1, 'root')]), { name: 'Root' });
+  t.container.querySelector('.blast-link').dispatch('click');
+  t.calls.at(-1).reject(new Error('not found')); await flush();
+  assert.equal(t.container.querySelector('.detail-back').textContent, 'Back to Root');
+  t.mounted.unmount();
+});
+
+test('a left-out note follows the scroll container so it can wrap', async () => {
+  const t = await openBlast(radius([dependent('a', 1, 'root')], { noteDisplay: '1 deleted dependent is not in the total' }));
+  const scroll = t.container.querySelector('.blast-scroll');
+  const siblings = scroll.parent.children.filter((n) => typeof n !== 'string');
+  assert.equal(siblings[siblings.indexOf(scroll) + 1].className, 'detail-note blast-note');
+  assert.equal(scroll.className, 'table-wrap blast-scroll');
+  t.mounted.unmount();
+});

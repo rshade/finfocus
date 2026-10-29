@@ -56,3 +56,10 @@ type OverviewExpansionReadyMsg struct {
 	Rows  []engine.OverviewRow
 	Notes []string
 }
+
+// OverviewGraphReadyMsg delivers the stack's dependency graph to the model.
+// It is sent when the pipeline publishes rows and again after a preview
+// replaces the snapshot, so the BLAST RADIUS section follows the rows.
+type OverviewGraphReadyMsg struct {
+	Graph engine.DependencyGraph
+}

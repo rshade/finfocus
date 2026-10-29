@@ -356,6 +356,112 @@ button:disabled {
   background: var(--row-hover);
 }
 
+.blast-scroll {
+  --blast-caption-height: 1.9rem;
+  max-height: 20rem;
+  overflow: auto;
+}
+
+.blast-table caption {
+  caption-side: top;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 0;
+  min-width: 100%;
+  height: var(--blast-caption-height);
+  padding: 0.25rem 0.75rem;
+  background: var(--bg-subtle);
+  line-height: 1.4rem;
+  text-align: left;
+}
+
+.blast-table caption span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blast-table caption .blast-summary {
+  font-weight: 700;
+}
+
+.blast-table thead th {
+  position: sticky;
+  top: var(--blast-caption-height);
+  z-index: 1;
+  background: var(--bg-subtle);
+}
+
+.blast-table {
+  min-width: 0;
+}
+
+.blast-table th,
+.blast-table td {
+  padding: 0.4rem 0.5rem;
+}
+
+.blast-table .blast-name {
+  font-weight: 400;
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.blast-guides {
+  color: var(--fg-muted);
+  font-family: ui-monospace, monospace;
+  white-space: pre;
+}
+
+.blast-table .blast-type {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blast-status-deleting,
+.blast-status-replacing {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.blast-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 40rem) {
+  .blast-table {
+    font-size: 0.875rem;
+  }
+
+  .blast-table .blast-type {
+    max-width: 4.5rem;
+  }
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.detail-note {
+  color: var(--fg-muted);
+  margin: 0.25rem 0 0.75rem;
+}
+
 .col-num {
   text-align: right;
   font-variant-numeric: tabular-nums;

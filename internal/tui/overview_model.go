@@ -170,6 +170,12 @@ type OverviewModel struct {
 	budgetErr    error                // Budget fetch error (nil on success)
 	budgetLoaded bool                 // True after BudgetDataReadyMsg received
 
+	// graph holds the stack's dependency edges for the BLAST RADIUS section.
+	// graphLoaded is false until the first OverviewGraphReadyMsg, so the
+	// section stays out of the detail view while the pipeline is loading.
+	graph       engine.DependencyGraph
+	graphLoaded bool
+
 	// Cluster expansion state (spec 624).
 	expanded       map[string]bool // parent URN → expanded
 	displayToRows  []int           // display row index → index into m.rows
@@ -418,11 +424,8 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Handle budget data ready (from background fetch goroutine)
-	if budgetMsg, ok := msg.(BudgetDataReadyMsg); ok {
-		m.budgetResult = budgetMsg.Result
-		m.budgetErr = budgetMsg.Error
-		m.budgetLoaded = true
+	// Handle data delivered by background goroutines (budget fetch, dependency graph).
+	if m.applyBackgroundData(msg) {
 		return m, nil
 	}
 
@@ -940,6 +943,23 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 	t.SetStyles(s)
 
 	return t
+}
+
+// applyBackgroundData stores budget and dependency-graph messages and reports
+// whether msg was one of them.
+func (m *OverviewModel) applyBackgroundData(msg tea.Msg) bool {
+	switch typed := msg.(type) {
+	case BudgetDataReadyMsg:
+		m.budgetResult = typed.Result
+		m.budgetErr = typed.Error
+		m.budgetLoaded = true
+	case OverviewGraphReadyMsg:
+		m.graph = typed.Graph
+		m.graphLoaded = true
+	default:
+		return false
+	}
+	return true
 }
 
 // applyPreviewChanges applies preview statuses, property diffs, and projected

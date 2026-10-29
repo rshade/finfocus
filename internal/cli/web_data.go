@@ -31,6 +31,7 @@ type webData struct {
 	cache             cache.Cache
 	clients           []*pluginhost.Client
 	snapshot          *stackload.Snapshot
+	publishGraph      func(engine.DependencyGraph)
 	terraformDeployed []engine.ResourceDescriptor
 	terraformPlanned  []engine.ResourceDescriptor
 	terraformSource   bool
@@ -111,10 +112,39 @@ func (d *webData) freshESC(ctx context.Context) context.Context {
 func (d *webData) bindPipelineSource(ctx context.Context, pipe *OverviewPipeline) {
 	onDataReady := pipe.OnDataReady
 	pipe.OnDataReady = func(rows []engine.OverviewRow, total int, stack string) {
-		if err := d.setPipelineSource(ctx, pipe.Result()); err != nil {
+		result := pipe.Result()
+		if err := d.setPipelineSource(ctx, result); err != nil {
 			return
 		}
+		d.publishSnapshotGraph(result.Snapshot)
 		onDataReady(rows, total, stack)
+	}
+}
+
+// commitPreview publishes a preview's source, then appends and prices its
+// plan-only rows. The dependency graph is published only when those rows
+// priced, so a failed preview never pairs the new graph with the rows the
+// session keeps.
+func (d *webData) commitPreview(
+	ctx context.Context,
+	result OverviewPipelineResult,
+	rows []engine.OverviewRow,
+) ([]engine.OverviewRow, error) {
+	if err := d.setPipelineSource(ctx, result); err != nil {
+		return nil, err
+	}
+	merged, err := d.appendPreviewRows(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+	d.publishSnapshotGraph(result.Snapshot)
+	return merged, nil
+}
+
+// publishSnapshotGraph hands the snapshot's dependency graph to the session.
+func (d *webData) publishSnapshotGraph(snapshot *stackload.Snapshot) {
+	if d.publishGraph != nil && snapshot != nil {
+		d.publishGraph(snapshot.Graph())
 	}
 }
 

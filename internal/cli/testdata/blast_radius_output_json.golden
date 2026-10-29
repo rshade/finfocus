@@ -1,0 +1,42 @@
+{
+  "metadata": {
+    "stackName": "blast_radius_state",
+    "timeWindow": {
+      "start": "<time>",
+      "end": "<time>"
+    },
+    "hasChanges": false,
+    "totalResources": 3,
+    "pendingChanges": 0,
+    "generatedAt": "<time>",
+    "isStateOnly": true
+  },
+  "resources": [
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:rds/instance:Instance::orders-db",
+      "type": "aws:rds/instance:Instance",
+      "resourceId": "orders-db",
+      "status": "active"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:ecs/service:Service::orders-api",
+      "type": "aws:ecs/service:Service",
+      "resourceId": "orders-api",
+      "status": "active"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:lb/loadBalancer:LoadBalancer::public-lb",
+      "type": "aws:lb/loadBalancer:LoadBalancer",
+      "resourceId": "public-lb",
+      "status": "active"
+    }
+  ],
+  "summary": {
+    "totalActualMTD": 0,
+    "projectedMonthly": 0,
+    "projectedDelta": 0,
+    "potentialSavings": 0,
+    "currency": "USD"
+  },
+  "errors": []
+}

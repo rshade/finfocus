@@ -57,12 +57,17 @@ type PulumiState struct {
 	ID                   string              `json:"id,omitempty"`
 	Type                 string              `json:"type"`
 	URN                  string              `json:"urn"`
+	Custom               *bool               `json:"custom,omitempty"`
 	Inputs               map[string]any      `json:"inputs"`
 	Outputs              map[string]any      `json:"outputs"`
 	Provider             string              `json:"provider"`
 	Parent               string              `json:"parent,omitempty"`
 	Dependencies         []string            `json:"dependencies,omitempty"`
 	PropertyDependencies map[string][]string `json:"propertyDependencies,omitempty"`
+	// DeletedWith names the resource whose deletion also deletes this one.
+	DeletedWith string `json:"deletedWith,omitempty"`
+	// ReplaceWith names the resources whose replacement also replaces this one.
+	ReplaceWith []string `json:"replaceWith,omitempty"`
 }
 
 // PulumiResource contains the detailed information about a resource in a Pulumi step.
