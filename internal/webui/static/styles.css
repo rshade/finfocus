@@ -561,6 +561,7 @@ button:disabled {
   background: var(--error-bg);
   color: var(--error);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 /* --- Passphrase dialog ------------------------------------------------------------- */
