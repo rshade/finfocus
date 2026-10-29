@@ -94,7 +94,9 @@ operation as the CLI. It accepts a JSON body with `start`, `end`, `method`,
 The endpoint requires the existing active web session and session authentication.
 The response has the same JSON request, records, and optional total as CLI JSON.
 No separate browser calculation is used. A browser query form and provenance
-table are tracked as a local UX-only follow-up; this change adds the domain hook.
+table are tracked as the UX-only follow-up
+[#1921](https://github.com/rshade/finfocus/issues/1921); this change adds the
+domain hook.
 
 The endpoint returns stable error codes and fixed safe messages rather than raw
 provider diagnostics:
