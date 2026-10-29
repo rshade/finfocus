@@ -50,16 +50,16 @@ func newCarbonActualCmd(query carbonQuery) *cobra.Command {
 				values []string
 			}{{"account", selectors.Accounts}, {"region", selectors.Regions}, {"service", selectors.Services}} {
 				if cmd.Flags().Changed(filter.name) && len(filter.values) == 0 {
-					return fmt.Errorf("--%s must not be empty", filter.name)
+					return toValidationError(cmd.Context(), fmt.Errorf("--%s must not be empty", filter.name))
 				}
 			}
 			req, err := selectors.Request()
 			if err != nil {
-				return err
+				return toValidationError(cmd.Context(), err)
 			}
 			format := resolveOutputFormat(cmd, "output", output)
 			if format != "table" && format != "json" {
-				return errors.New("output must be table or json")
+				return toValidationError(cmd.Context(), errors.New("output must be table or json"))
 			}
 			report, err := query(cmd.Context(), req)
 			if err != nil {
