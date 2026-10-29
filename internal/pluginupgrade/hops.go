@@ -159,6 +159,15 @@ var hops = []Hop{
 		},
 		Guide: "to-v0.7.9.md",
 	},
+	{
+		To:      "v0.7.10",
+		Summary: "Additive release; optional historical carbon inventory via GetCarbonEmissions",
+		Manual: []string{
+			"Plugins that report provider monthly carbon inventory: implement pluginsdk.HistoricalCarbonProvider " +
+				"and advertise PLUGIN_CAPABILITY_HISTORICAL_CARBON explicitly, because the SDK never infers it",
+		},
+		Guide: "to-v0.7.10.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.
