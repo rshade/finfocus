@@ -22,7 +22,7 @@ export function mount(container, { api }) {
   const intro = el('p', { class: 'carbon-intro', text: 'Provider-published monthly emissions for complete UTC months. The end date is exclusive.' });
   const error = el('p', { id: 'carbon-error', class: 'error-banner', role: 'alert' }); error.hidden = true;
   const status = el('p', { role: 'status', text: 'Choose a period and run the report.' });
-  const dateAttrs = { type: 'text', class: 'filter-input', required: '', pattern: '\\d{4}-\\d{2}-01', placeholder: 'YYYY-MM-01', inputmode: 'numeric', autocomplete: 'off' };
+  const dateAttrs = { type: 'text', class: 'filter-input', required: '', pattern: '\\d{4}-\\d{2}-01', placeholder: 'YYYY-MM-01', autocomplete: 'off' };
   const start = el('input', { ...dateAttrs, id: 'carbon-start' });
   const end = el('input', { ...dateAttrs, id: 'carbon-end' });
   const method = el('select', { id: 'carbon-method' });

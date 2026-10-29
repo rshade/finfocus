@@ -52,6 +52,12 @@ async function setup() {
 const request = { start: '2026-01-01T00:00:00Z', end: '2026-04-01T00:00:00Z', method: 'CARBON_ACCOUNTING_METHOD_MARKET_BASED', scope: 'CARBON_EMISSIONS_SCOPE_TOTAL', regions: ['us-east-1'] };
 const record = (overrides = {}) => ({ id: 'r1', provider: 'aws', source: 'aws-customer-carbon-footprint-tool', accountId: '111122223333', region: 'us-east-1', service: 'EC2', start: '2026-01-01T00:00:00Z', end: '2026-02-01T00:00:00Z', method: request.method, scope: request.scope, modelVersion: 'v3.0.0', value: 12.5, unit: 'gCO2e', retrievedAt: '2026-03-02T10:00:00Z', ...overrides });
 
+test('carbon date fields keep the default keyboard so hyphens can be typed', async () => {
+  const t = await setup();
+  for (const id of ['carbon-start', 'carbon-end']) assert.equal(t.field(id).attrs.inputmode, undefined);
+  t.mounted.unmount();
+});
+
 test('carbon form posts the selectors and shows the server total without client arithmetic', async () => {
   const t = await setup();
   assert.equal(t.calls.length, 0);
