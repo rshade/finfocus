@@ -14,6 +14,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/forecast"
 	"github.com/rshade/finfocus/internal/history"
+	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
@@ -587,6 +588,12 @@ func (s *Session) runPreview() {
 	rows, err := s.opts.Preview(s.ctx)
 	close(done)
 	<-tickerDone
+	// The browser gets only "Preview failed"; the reason stays in the
+	// terminal log.
+	if err != nil && s.ctx.Err() == nil {
+		logging.FromContext(s.ctx).Warn().Err(err).Str("component", "webui").
+			Str("operation", "preview").Msg("pulumi preview failed")
+	}
 	s.mu.Lock()
 	s.previewRunning = false
 	s.preview = PreviewEvent{Status: phaseDone, ElapsedMs: time.Since(start).Milliseconds()}
