@@ -21,52 +21,35 @@ targets the next release.*
 The 2026-10-02 Overnight Queue finished: all 22 items closed 2026-10-03 (see
 Completed Milestones, 2026-Q4).
 
-- [ ] **Overview Performance Pipeline** *(deferred from v0.3.2)*
-  - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
-        ([#658](https://github.com/rshade/finfocus/issues/658)) [M]
-  - *Promoted by /roadmap sync on 2026-10-05 — builds on the #853
-    compute-once refactor; #658 comes first so the speed-ups can be
-    measured against a baseline.*
-- *Recommendation Lifecycle Enhancements finished: #1816 shipped 2026-10-19
-  (PR #1854) on the `GetRecommendationHistory` RPC from finfocus-spec v0.7.7
-  ([finfocus-spec issue 640](https://github.com/rshade/finfocus-spec/issues/640)).
-  Its web API hook is #1858 in Near-Term Vision, the first gap under
-  Constitution Principle VII (Web Parity, v1.8.0).*
-
-## Near-Term Vision (Forecasting & Profiles)
-
-- [ ] **Shared Stack Loader Follow-ups** *(from #1733)*
+- [ ] **Shared Stack Loader Correctness** *(from #1733)*
   - [ ] Count a Pulumi replacement once in the estimate and recommendations
         inventory ([#1910](https://github.com/rshade/finfocus/issues/1910)) [S]
   - [ ] Fix Terraform no-change output in JSON and NDJSON modes
         ([#1904](https://github.com/rshade/finfocus/issues/1904)) [S]
+  - *Promoted by /roadmap sync on 2026-10-30 — two small correctness bugs
+    in the same loader, batched as quick wins.*
+- *Closed 2026-10-30: the recommendation lifecycle detail panel (#1934, PR
+  #1936) and the cost history web API hooks (#1860, PR #1938).*
+- *Closed 2026-10-29: the Overview Performance Pipeline (#658 scalability
+  fixture), the recommendation lifecycle and forecast web API hooks (#1858,
+  #1859), and historical carbon (#1920, #1921). See Completed Milestones,
+  2026-Q4.*
+
+## Near-Term Vision (Forecasting & Profiles)
+
+- [ ] **Web Parity — Cost History UX** *(Constitution Principle VII)*
+  - [ ] Draw cost history in the detail panels and Cost view
+        ([#1939](https://github.com/rshade/finfocus/issues/1939)) [L]
+  - *The UX-only `web-ui` issue filed when the #1860 API hook shipped
+    2026-10-30.*
+- [ ] **Shared Stack Loader Follow-ups** *(from #1733)*
   - [ ] Decide whether cost forecast includes unchanged stack resources
         ([#1903](https://github.com/rshade/finfocus/issues/1903)) [M]
   - [ ] Run a real policy pack preview on Windows in CI
         ([#1918](https://github.com/rshade/finfocus/issues/1918)) [S]
-- [ ] **Historical Carbon Emissions** *(finfocus-spec v0.7.10)*
-  - [ ] Report provider-published historical carbon emissions
-        ([#1920](https://github.com/rshade/finfocus/issues/1920)) [L]
-  - [ ] Web UI: historical carbon report form
-        ([#1921](https://github.com/rshade/finfocus/issues/1921)) [M]
-- [ ] **Web Parity — Base API Hooks** *(Constitution Principle VII, v1.8.0:
-      a user-facing CLI feature ships its `internal/webui` hook; the later
-      `web-ui` issue is UX only)*
-  - [ ] Recommendation lifecycle history through a web API hook
-        ([#1858](https://github.com/rshade/finfocus/issues/1858)) [M]
-  - [ ] Cost forecast through a web API hook
-        ([#1859](https://github.com/rshade/finfocus/issues/1859)) [M]
-  - *#1859 is the base hook the web side of #539 would extend; with it in
-    place, #539 only adds to the payload.*
 - [ ] **Estimate What-If Usability** *(#1731 shipped 2026-10-18)*
   - [ ] Show cost-affecting properties by default in What-If
         ([#1732](https://github.com/rshade/finfocus/issues/1732)) [M]
-- [ ] **Overview TUI Quality** *(deferred from v0.3.2)*
-  - [ ] Show phase progress lines sequentially and add preview phase
-        ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
-- [ ] **Time-Series Forecasting Enhancement**
-  - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
-        ([#539](https://github.com/rshade/finfocus/issues/539)) [L]
 - [ ] **Kubernetes Cost Allocation — Usage & Pricing**
   - *Cross-Repo:* spot pricing for EC2 nodes was tracked in
     [finfocus-plugin-aws-ce issue 56](https://github.com/rshade/finfocus-plugin-aws-ce/issues/56)
@@ -90,9 +73,6 @@ Completed Milestones, 2026-Q4).
 - [ ] Refine web resource labels and table layout for shared stack inventory
       ([#1905](https://github.com/rshade/finfocus/issues/1905)) [M]
 - [ ] **Web Parity — Base API Hooks (later)** *(Constitution Principle VII)*
-  - [ ] Cost history view, diff, and resource series through web API hooks
-        ([#1860](https://github.com/rshade/finfocus/issues/1860)) [L]
-        *The base hook a web view of #550's history chart would extend*
   - [ ] Cost cluster allocation through a web API hook
         ([#1861](https://github.com/rshade/finfocus/issues/1861)) [L]
         *The base hook a web view of #1840 or Jev idea 8 would extend*
@@ -112,13 +92,6 @@ Completed Milestones, 2026-Q4).
 - [ ] Custom plugin registry sources for the web UI and CLI
       ([#1766](https://github.com/rshade/finfocus/issues/1766)) [L]
       *Follow-up to #1765*
-- [ ] **Dependency Visualization ("Blast Radius")**
-      ([#366](https://github.com/rshade/finfocus/issues/366)) [L]
-  - [ ] Overview detail view: dependency tree of everything that depends on
-        a resource, built from the Pulumi dependencies in the shared stack
-        snapshot (`specs/1736-dependency-blast-radius/`)
-  - *No cross-repo change:* the graph comes from Pulumi state, not from
-    `finfocus-spec` lineage metadata
 - [ ] **Spot Market Advisor**
       ([#367](https://github.com/rshade/finfocus/issues/367)) [L]
   - [ ] Spot badge: show spot pricing and interruption risk on every cost
@@ -300,6 +273,26 @@ Completed Milestones, 2026-Q4).
 
 ### 2026-Q4
 
+- [x] #1860 `webui`: expose cost history view, diff, and series hooks.
+      Closed 2026-10-30. [L]
+- [x] #1934 `webui`: show recommendation lifecycle in the detail panel.
+      Closed 2026-10-30. [M]
+- [x] #714 `tui`: show overview phases in order, with a preview phase.
+      Closed 2026-10-30. [M]
+- [x] #539 `forecast`: ARIMA spend forecast with drivers.
+      Closed 2026-10-29. [L]
+- [x] #1859 `webui`: expose cost forecast through a web API hook.
+      Closed 2026-10-29. [M]
+- [x] #1858 `webui`: expose recommendation lifecycle history through an API hook.
+      Closed 2026-10-29. [M]
+- [x] #658 `testing`: Pulumi TypeScript scalability fixture for E2E.
+      Closed 2026-10-29. [M]
+- [x] #366 `overview`: dependency blast radius in the detail views.
+      Closed 2026-10-29. [L]
+- [x] #1921 `webui`: historical carbon report form.
+      Closed 2026-10-29. [M]
+- [x] #1920 `carbon`: report provider-published historical carbon emissions.
+      Closed 2026-10-29. [L]
 - [x] #365 `governance`: add the `--yolo` governance bypass flag.
       Closed 2026-10-28. [M]
 - [x] #517 `ci`: install plugins from the registry in cross-repo integration tests.
