@@ -65,7 +65,7 @@ writes its tests first, then the code that makes them pass.
 - [X] T020 Confirm `specs/1922-cost-history-web/contracts/http-api.md` names the Go methods each handler calls (`readHistoryView`, `readHistoryDiff`, `loadDetailHistory`, and the history functions under them)
 - [X] T021 Document the three endpoints and their statuses in `docs/src/content/docs/reference/web-ui.md`
 - [X] T022 Render the Overview and Cost detail panels with Playwright against a populated stack with collected history, query the three endpoints from that session, and record the result in the spec's Web UI Fit `Render evidence`
-- [ ] T023 File one UX-only `web-ui` issue for the detail-panel history section and the Cost-view history chart (layout, rendering, interaction, copy, accessibility; no engine, API, redaction, or data-shape work)
+- [X] T023 Filed #1939, the UX-only `web-ui` issue for the detail-panel history section and the Cost-view history chart (layout, rendering, interaction, copy, accessibility; no engine, API, redaction, or data-shape work)
 
 ## Phase 7: Polish and Verification
 

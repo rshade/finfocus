@@ -232,7 +232,8 @@ with a failure that has no path in it.
   room for a `Cost history` section after their last block, and the Cost
   view has the slot-7 area below its table for the chart.
 - **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
-  accessibility). No engine, API, redaction, or data-shape work.
+  accessibility). No engine, API, redaction, or data-shape work. Filed as
+  #1939.
 
 ## Success Criteria *(mandatory)*
 
