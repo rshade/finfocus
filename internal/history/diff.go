@@ -81,7 +81,7 @@ func DiffSnapshots(from, to CostSnapshot, threshold float64) (CostDiff, error) {
 // is empty.
 func ResolveCostSnapshot(snaps []CostSnapshot, spec string) (CostSnapshot, error) {
 	if len(snaps) == 0 {
-		return CostSnapshot{}, errors.New("no cost history snapshots")
+		return CostSnapshot{}, ErrNoSnapshots
 	}
 	spec = strings.TrimSpace(spec)
 	if spec == "" {

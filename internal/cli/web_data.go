@@ -54,11 +54,17 @@ type webData struct {
 	loadDismissals func(context.Context) map[string]*config.DismissalRecord
 	priceForecast  func(context.Context) ([]engine.CostResult, error)
 	readHistory    func(string) ([]history.CostSnapshot, error)
-	forecastNow    time.Time
-	reloadCleanup  func()
-	replaced       bool
-	escMu          sync.Mutex
-	escSource      *esc.Source
+	// historyDirOverride replaces the cost history directory; empty uses the
+	// CLI's resolution (environment, config with the project-tier gate, default).
+	historyDirOverride string
+	// mergedCfg is the project-merged config the CLI history commands read.
+	// params.cfg is config.New(), which has no project overlay.
+	mergedCfg     *config.Config
+	forecastNow   time.Time
+	reloadCleanup func()
+	replaced      bool
+	escMu         sync.Mutex
+	escSource     *esc.Source
 }
 
 func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRange, audit *auditContext) *webData {

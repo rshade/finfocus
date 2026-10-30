@@ -269,6 +269,15 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST /api/forecast/query` when no resource was priced, or priced resources use two currencies | 422 | `no_forecast` | The message `cost forecast` prints, such as `no cost data available`. |
 | `POST /api/forecast/query` before the session has loaded | 503 | `not_ready` | `forecast data is loading` |
 | `POST /api/forecast/query` whose pricing fails | 502 | `forecast_unavailable` | `forecast data unavailable` |
+| `GET /api/history/view` | 200 | - | The `cost history view --output json` document for the session stack (`stack`, `snapshots`, `annotations`, `currency_warning`), plus `status: "ok"`, `budget` when a global budget is set, and `display` strings. Optional `from` and `to` (`YYYY-MM-DD` or RFC 3339), `currency`, and `strict` (`true` or `false`) work like the flags. |
+| `GET /api/history/diff?from=<selector>` | 200 | - | The `cost history diff --output json` document, plus `status: "ok"` and `display` strings. `from` and `to` take `v35` or `YYYY-MM-DD`; an empty `to` is the newest snapshot. `threshold` hides changes at or below that monthly amount. |
+| `GET /api/history/resource?id=<id>` | 200 | - | One resource's stored series, the points the terminal detail view loads: `status: "ok"`, `id`, `points` (`timestamp`, `amount`, `currency`), and `display.points`. |
+| A history request for a stack that was never collected, a session with no stack, or a diff over a database with no snapshots | 200 | - | `{"status": "no_history"}`, plus `id` for `/api/history/resource`. Run `finfocus cost history collect` to record history. |
+| A history request with a bad date, reversed range, missing `from`, negative threshold, unknown or malformed selector, or `strict=true` over mixed currencies | 400 | `invalid_history_query` | The message `cost history view` or `diff` prints for the same flags. |
+| A history request with a `strict` value that is not `true` or `false`, or a `threshold` that is not a number | 400 | `invalid_history_query` | `invalid strict value "<value>" (use true or false)` or `invalid threshold "<value>"` |
+| `GET /api/history/resource` with no `id` | 400 | `invalid_query` | `resource id required` |
+| A history request before the session has loaded | 503 | `not_ready` | `cost history is loading` |
+| A history database that cannot be read or belongs to another stack | 502 | `history_unavailable` | `cost history unavailable` |
 
 The session cookie is `finfocus_session_<port>`, with `HttpOnly`,
 `SameSite=Strict`, and `Path=/`, and without `Secure`. The token stays valid
@@ -289,6 +298,8 @@ until the server stops.
   launched. The dashboard opens its plugins again after a successful install,
   update, remove, or settings save.
 - The existing dismissal store is read so earlier decisions are honored.
+- The cost history store is read only. The dashboard does not collect,
+  prune, or export history; run `finfocus cost history collect` for that.
 - No browser-specific store is added. Missing local stores do not prevent
   launch.
 - Pages load only from the local server; nothing comes from a CDN.

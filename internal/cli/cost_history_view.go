@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -58,54 +56,39 @@ func runView(cmd *cobra.Command, deps viewDeps) error {
 	if err != nil {
 		return err
 	}
-	stack, path := target.Stack, target.Path
-	if _, statErr := os.Stat(path); statErr != nil {
-		if os.IsNotExist(statErr) {
-			return fmt.Errorf("no cost history for stack '%s'", stack)
-		}
-		return fmt.Errorf("reading cost history: %w", statErr)
+	stack := target.Stack
+	if err = requireHistoryFile(target); err != nil {
+		return err
 	}
 	db, err := openHistoryTargetRead(target)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = db.Close() }()
-	stats, err := db.Stats()
-	if err != nil {
+	if err = diffStackMatches(db, stack); err != nil {
 		return err
-	}
-	if stats.Stack != "" && stats.Stack != stack {
-		return fmt.Errorf("cost history database stack %q does not match %q", stats.Stack, stack)
 	}
 	from, to, err := viewBounds(cmd)
 	if err != nil {
 		return err
 	}
-	snapshots, err := db.Snapshots(from, to)
+	choice, err := viewCurrencyChoice(cmd)
 	if err != nil {
 		return err
 	}
-	annotations, err := db.Annotations(from, to)
+	doc, err := readHistoryView(db, stack, from, to, choice)
 	if err != nil {
 		return err
 	}
-	snapshots, annotations, warning, err := applyViewCurrency(cmd, snapshots, annotations)
-	if err != nil {
-		return err
-	}
+	snapshots, annotations := doc.Snapshots, doc.Annotations
 	if err = requireKnownProvider(cmd, snapshots); err != nil {
 		return err
 	}
 	if format == historyOutputJSON {
-		return writeJSON(cmd, costHistoryView{
-			Stack:           stack,
-			Snapshots:       snapshots,
-			Annotations:     annotations,
-			CurrencyWarning: warning,
-		})
+		return writeJSON(cmd, doc)
 	}
-	if warning != "" {
-		cmd.Println(warning)
+	if doc.CurrencyWarning != "" {
+		cmd.Println(doc.CurrencyWarning)
 	}
 	opt, err := viewChartOptions(cmd, deps, stack, from, to)
 	if err != nil {
@@ -115,37 +98,17 @@ func runView(cmd *cobra.Command, deps viewDeps) error {
 	return nil
 }
 
-type costHistoryView struct {
-	Stack           string                   `json:"stack"`
-	Snapshots       []history.CostSnapshot   `json:"snapshots"`
-	Annotations     []history.CostAnnotation `json:"annotations"`
-	CurrencyWarning string                   `json:"currency_warning,omitempty"`
-}
-
-func applyViewCurrency(
-	cmd *cobra.Command,
-	snapshots []history.CostSnapshot,
-	annotations []history.CostAnnotation,
-) ([]history.CostSnapshot, []history.CostAnnotation, string, error) {
+// viewCurrencyChoice reads --currency and --strict.
+func viewCurrencyChoice(cmd *cobra.Command) (history.CurrencyChoice, error) {
 	currency, err := cmd.Flags().GetString("currency")
 	if err != nil {
-		return nil, nil, "", err
+		return history.CurrencyChoice{}, err
 	}
 	strict, err := cmd.Flags().GetBool("strict")
 	if err != nil {
-		return nil, nil, "", err
+		return history.CurrencyChoice{}, err
 	}
-	selected, err := history.SelectCurrency(
-		snapshots,
-		history.CurrencyChoice{Currency: currency, Strict: strict},
-	)
-	if err != nil {
-		return nil, nil, "", err
-	}
-	return selected.Snapshots, annotationsForSnapshots(
-		selected.Snapshots,
-		annotations,
-	), selected.Warning, nil
+	return history.CurrencyChoice{Currency: currency, Strict: strict}, nil
 }
 
 func annotationsForSnapshots(
@@ -233,18 +196,7 @@ func viewBounds(cmd *cobra.Command) (time.Time, time.Time, error) {
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
-	from, err := parseDateFlag(fromRaw, false)
-	if err != nil {
-		return time.Time{}, time.Time{}, err
-	}
-	to, err := parseDateFlag(toRaw, true)
-	if err != nil {
-		return time.Time{}, time.Time{}, err
-	}
-	if !from.IsZero() && !to.IsZero() && to.Before(from) {
-		return time.Time{}, time.Time{}, errors.New("invalid date range: --to is before --from")
-	}
-	return from, to, nil
+	return historyViewBounds(fromRaw, toRaw)
 }
 
 func viewChartOptions(

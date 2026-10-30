@@ -123,15 +123,17 @@ func historyPath(dir, stack string) (string, error) {
 // in the working directory, which is the project `pulumi stack export` resolves
 // the stack against.
 func resolveHistoryTarget(dir, stack string) (historyTarget, error) {
-	if target, ok, err := terraformHistoryTarget(dir, terraformWorkspaceFromConfig()); ok ||
+	return resolveHistoryTargetContext(context.Background(), dir, stack)
+}
+
+// resolveHistoryTargetContext is resolveHistoryTarget with a context for the
+// Terraform identity lookup, which runs git and the workspace command.
+func resolveHistoryTargetContext(ctx context.Context, dir, stack string) (historyTarget, error) {
+	if target, ok, err := terraformHistoryTargetContext(ctx, dir, terraformWorkspaceFromConfig()); ok ||
 		err != nil {
 		return target, err
 	}
 	return resolveHistoryTargetFor(dir, stack, currentProjectName())
-}
-
-func terraformHistoryTarget(dir string, includeWorkspace bool) (historyTarget, bool, error) {
-	return terraformHistoryTargetContext(context.Background(), dir, includeWorkspace)
 }
 
 func terraformHistoryTargetContext(

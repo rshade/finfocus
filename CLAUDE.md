@@ -908,6 +908,15 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 1922-cost-history-web: `GET /api/history/view`, `/api/history/diff`, and
+  `/api/history/resource` serve the session stack's cost history through
+  `readHistoryView`, `readHistoryDiff` (shared with `runView`/`runDiff`), and
+  `loadDetailHistory`. The JSON documents are `history.ViewDocument` and
+  `history.DiffDocument`; their breakdown maps carry `datakey:"true"`. The web
+  opens with `openHistoryTargetReadOnly`, never the CLI's Terraform-labeling
+  opener. `history.IsNoHistory` is a 200 `no_history` status,
+  `history.IsQueryError` a 400 with the CLI text, anything else a fixed 502
+  (`specs/1922-cost-history-web/`).
 - 1921-recommendation-history-web: `GET /api/recommendations/history` returns `GetRecommendationHistory` for an id in the session's last recommendations list. Plugin failures other than `Unimplemented` are fixed warnings. The detail panel renders them in a `Lifecycle` section (`specs/1921-recommendation-history-web/`).
 - 1738-arima-forecast: `cost forecast --model arima --spend-history <csv>`
   fits `github.com/rshade/goarima` (our fork; upstream returned nil results

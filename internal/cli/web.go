@@ -175,7 +175,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	pipeCtx, pipeCancel := context.WithCancel(ctx)
 	defer pipeCancel()
 	passphrases := make(chan string)
-	data := newWebData(cmd, params, dateRange, audit)
+	data := newWebData(cmd, params, dateRange, audit).withMergedConfig(config.InitializedGlobalConfig())
 	pipe := newOverviewPipeline(overviewPipelineConfig{
 		cmd: cmd, params: data.params, dateRange: dateRange, audit: audit, loader: autoDetectOverviewLoader,
 		passphrases: passphrases, wantBudget: true, budgetLive: true, budgetFallback: true, dismissalRows: true,
@@ -434,6 +434,9 @@ func webSessionOptions(
 		RecommendationHistory: data.recommendationHistory,
 		Trends:                data.tableTrends,
 		Forecast:              data.forecast,
+		HistoryView:           data.historyView,
+		HistoryDiff:           data.historyDiff,
+		HistoryResource:       data.historyResource,
 		Preview: func(previewCtx context.Context) ([]engine.OverviewRow, error) {
 			pipe.emitPhase(OverviewPhaseRunPreview, overviewPhaseRunPreviewName)
 			rows, previewErr := previewWebRows(previewCtx, pipe, pipeDone)

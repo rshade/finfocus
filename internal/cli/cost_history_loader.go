@@ -29,7 +29,7 @@ func loadDetailHistory(ctx context.Context, dir, stack, resourceID string) ([]de
 	if resourceID == "" {
 		return nil, detail.ErrHistorySkipped
 	}
-	target, err := detailHistoryTarget(dir, stack, resourceID)
+	target, err := detailHistoryTarget(ctx, dir, stack, resourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func loadDetailHistory(ctx context.Context, dir, stack, resourceID string) ([]de
 // URN identity wins over fallbackStack. fallbackStack is resolved the same way
 // collect resolves --stack, and the returned Stack is the short name stored
 // in the database.
-func detailHistoryTarget(dir, fallbackStack, resourceID string) (historyTarget, error) {
+func detailHistoryTarget(ctx context.Context, dir, fallbackStack, resourceID string) (historyTarget, error) {
 	project := history.ProjectFromURN(resourceID)
 	urnStack := history.StackFromURN(resourceID)
 	if project != "" && urnStack != "" {
@@ -79,7 +79,7 @@ func detailHistoryTarget(dir, fallbackStack, resourceID string) (historyTarget, 
 	if fallbackStack == "" {
 		return historyTarget{}, nil
 	}
-	return resolveHistoryTarget(dir, fallbackStack)
+	return resolveHistoryTargetContext(ctx, dir, fallbackStack)
 }
 
 func detailPoints(points []history.ResourcePoint) []detail.Point {
