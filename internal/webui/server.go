@@ -275,6 +275,7 @@ func (s *Server) handler() http.Handler {
 		s.registerEstimate(mux)
 		s.registerRecommendations(mux)
 		s.registerForecast(mux)
+		s.registerHistory(mux)
 		s.registerConfig(mux)
 		s.registerPlugins(mux)
 		mux.HandleFunc("/", s.handleRoot)

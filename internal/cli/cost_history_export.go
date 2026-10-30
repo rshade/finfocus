@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -172,11 +171,8 @@ func openHistoryRead(dir, stack string) (*history.CostDB, error) {
 }
 
 func openHistoryTargetReadExisting(target historyTarget) (*history.CostDB, error) {
-	if _, err := os.Stat(target.Path); err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("no cost history for stack '%s'", target.Stack)
-		}
-		return nil, fmt.Errorf("reading cost history: %w", err)
+	if err := requireHistoryFile(target); err != nil {
+		return nil, err
 	}
 	db, err := openHistoryTargetRead(target)
 	if err != nil {

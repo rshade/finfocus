@@ -13,6 +13,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/forecast"
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
@@ -47,7 +48,14 @@ type SessionOptions struct {
 	// Forecast runs `cost forecast` for the session stack. A forecast.InputError
 	// is the caller's mistake and forecast.IsUnprojectable is a stack with
 	// nothing to project; any other error means the data is unavailable.
-	Forecast              func(context.Context, ForecastQuery) (forecast.Document, error)
+	Forecast func(context.Context, ForecastQuery) (forecast.Document, error)
+	// HistoryView, HistoryDiff, and HistoryResource read the session stack's
+	// stored cost history read-only. history.IsNoHistory errors mean nothing
+	// is stored yet, history.IsQueryError is the caller's mistake, and any
+	// other error means the store could not be read.
+	HistoryView           func(context.Context, HistoryViewQuery) (HistoryViewResult, error)
+	HistoryDiff           func(context.Context, HistoryDiffQuery) (history.DiffDocument, error)
+	HistoryResource       func(context.Context, string) ([]HistoryPoint, error)
 	Trends                func() (map[string]string, string)
 	DayOfMonth            int
 	Preview               func(context.Context) ([]engine.OverviewRow, error)

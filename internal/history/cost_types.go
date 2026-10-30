@@ -9,8 +9,8 @@ type CostSnapshot struct {
 	TotalMonthly  float64            `json:"total_monthly"`
 	Currency      string             `json:"currency"`
 	ResourceCount int                `json:"resource_count"`
-	ByProvider    map[string]float64 `json:"by_provider"`
-	ByType        map[string]float64 `json:"by_type"`
+	ByProvider    map[string]float64 `json:"by_provider"    datakey:"true"`
+	ByType        map[string]float64 `json:"by_type"        datakey:"true"`
 	Resources     []CostResource     `json:"resources"`
 }
 
@@ -29,7 +29,7 @@ type CostAnnotation struct {
 	Version         int            `json:"version"`
 	Message         string         `json:"message"`
 	Kind            string         `json:"kind"`
-	ResourceChanges map[string]int `json:"resource_changes"`
+	ResourceChanges map[string]int `json:"resource_changes" datakey:"true"`
 }
 
 // StackUpdate is one row from `pulumi stack history --json`.

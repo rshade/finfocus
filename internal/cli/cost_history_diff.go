@@ -1,10 +1,7 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -39,7 +36,7 @@ func runDiff(cmd *cobra.Command, dir string) error {
 	if err != nil {
 		return err
 	}
-	fromSpec, toSpec, threshold, err := readDiffFlags(cmd)
+	query, err := readDiffFlags(cmd)
 	if err != nil {
 		return err
 	}
@@ -49,27 +46,12 @@ func runDiff(cmd *cobra.Command, dir string) error {
 		return err
 	}
 	defer func() { _ = db.Close() }()
-	if err = diffStackMatches(db, stack); err != nil {
-		return err
-	}
-	snaps, err := db.Snapshots(time.Time{}, time.Time{})
-	if err != nil {
-		return err
-	}
-	fromSnap, err := history.ResolveCostSnapshot(snaps, fromSpec)
-	if err != nil {
-		return err
-	}
-	toSnap, err := history.ResolveCostSnapshot(snaps, toSpec)
-	if err != nil {
-		return err
-	}
-	diff, err := history.DiffSnapshots(fromSnap, toSnap, threshold)
+	diff, err := readHistoryDiff(db, query)
 	if err != nil {
 		return err
 	}
 	if format == outputFormatJSON {
-		return writeJSON(cmd, newCostDiffJSON(stack, diff))
+		return writeJSON(cmd, history.NewDiffDocument(stack, diff))
 	}
 	cmd.Print(history.RenderCostDiff(stack, diff))
 	return nil
@@ -87,26 +69,24 @@ func diffOutputFormat(cmd *cobra.Command) (string, error) {
 	return format, nil
 }
 
-func readDiffFlags(cmd *cobra.Command) (string, string, float64, error) {
+func readDiffFlags(cmd *cobra.Command) (historyDiffQuery, error) {
 	fromSpec, err := cmd.Flags().GetString("from")
 	if err != nil {
-		return "", "", 0, err
-	}
-	if strings.TrimSpace(fromSpec) == "" {
-		return "", "", 0, errors.New("--from is required")
+		return historyDiffQuery{}, err
 	}
 	toSpec, err := cmd.Flags().GetString("to")
 	if err != nil {
-		return "", "", 0, err
+		return historyDiffQuery{}, err
 	}
 	threshold, err := cmd.Flags().GetFloat64("threshold")
 	if err != nil {
-		return "", "", 0, err
+		return historyDiffQuery{}, err
 	}
-	if threshold < 0 {
-		return "", "", 0, errors.New("--threshold must be >= 0")
+	query := historyDiffQuery{From: fromSpec, To: toSpec, Threshold: threshold}
+	if err = checkDiffInputs(query); err != nil {
+		return historyDiffQuery{}, err
 	}
-	return fromSpec, toSpec, threshold, nil
+	return query, nil
 }
 
 func diffStackMatches(db *history.CostDB, stack string) error {
@@ -118,74 +98,4 @@ func diffStackMatches(db *history.CostDB, stack string) error {
 		return fmt.Errorf("cost history database stack %q does not match %q", stats.Stack, stack)
 	}
 	return nil
-}
-
-type costDiffPointJSON struct {
-	Version      int     `json:"version"`
-	Timestamp    string  `json:"timestamp"`
-	TotalMonthly float64 `json:"total_monthly"`
-}
-
-type costDiffItemJSON struct {
-	URN         string  `json:"urn"`
-	Type        string  `json:"type,omitempty"`
-	MonthlyCost float64 `json:"monthly_cost"`
-	Delta       float64 `json:"delta"`
-	SKU         string  `json:"sku,omitempty"`
-	Region      string  `json:"region,omitempty"`
-}
-
-type costDiffJSON struct {
-	Stack          string             `json:"stack"`
-	From           costDiffPointJSON  `json:"from"`
-	To             costDiffPointJSON  `json:"to"`
-	Delta          float64            `json:"delta"`
-	Currency       string             `json:"currency"`
-	Added          []costDiffItemJSON `json:"added"`
-	Removed        []costDiffItemJSON `json:"removed"`
-	Changed        []costDiffItemJSON `json:"changed"`
-	UnchangedCount int                `json:"unchanged_count"`
-	UnchangedTotal float64            `json:"unchanged_total"`
-}
-
-func newCostDiffJSON(stack string, diff history.CostDiff) costDiffJSON {
-	return costDiffJSON{
-		Stack:          stack,
-		From:           pointJSON(diff.From),
-		To:             pointJSON(diff.To),
-		Delta:          diff.Delta,
-		Currency:       diff.Currency,
-		Added:          itemsJSON(diff.Added),
-		Removed:        itemsJSON(diff.Removed),
-		Changed:        itemsJSON(diff.Changed),
-		UnchangedCount: diff.UnchangedCount,
-		UnchangedTotal: diff.UnchangedTotal,
-	}
-}
-
-func pointJSON(point history.CostDiffPoint) costDiffPointJSON {
-	stamp := ""
-	if !point.Timestamp.IsZero() {
-		stamp = point.Timestamp.UTC().Format(time.RFC3339)
-	}
-	return costDiffPointJSON{
-		Version:      point.Version,
-		Timestamp:    stamp,
-		TotalMonthly: point.TotalMonthly,
-	}
-}
-
-func itemsJSON(items []history.CostDiffItem) []costDiffItemJSON {
-	out := make([]costDiffItemJSON, 0, len(items))
-	for _, item := range items {
-		out = append(out, costDiffItemJSON{
-			URN:         item.URN,
-			Type:        item.Type,
-			MonthlyCost: item.MonthlyCost,
-			Delta:       item.Delta,
-			SKU:         item.SKU,
-			Region:      item.Region,
-		})
-	}
-	return out
 }

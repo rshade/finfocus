@@ -165,7 +165,8 @@ func TestDiff_DateLookup(t *testing.T) {
 	_, err = ResolveCostSnapshot(snaps, "v9")
 	require.ErrorContains(t, err, "snapshot version 9 not found")
 	_, err = ResolveCostSnapshot(nil, "v1")
-	require.ErrorContains(t, err, "no cost history snapshots")
+	require.ErrorIs(t, err, ErrNoSnapshots)
+	require.EqualError(t, err, "no cost history snapshots")
 }
 
 func TestDiff_MixedCurrency(t *testing.T) {
