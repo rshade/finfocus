@@ -227,6 +227,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   prefixes must not start with `v`.
 - Nested modules must pin the same `finfocus-spec` as the root `go.mod`; CI
   compares them.
+- `make install-<plugin>` stamps the version from
+  `.release-please-manifest.json`. A test that installs a plugin reads that
+  file too; a hardcoded version fails only on the release PR, once the bump lands
+  (`TestCarbonPlugin`, release 0.5.4).
 
 ## Pulumi Integration
 
