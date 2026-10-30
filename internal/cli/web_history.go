@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/tui/detail"
 	"github.com/rshade/finfocus/internal/webui"
@@ -33,7 +34,7 @@ func (d *webData) historyView(ctx context.Context, query webui.HistoryViewQuery)
 		return webui.HistoryViewResult{}, err
 	}
 	result := webui.HistoryViewResult{Document: doc}
-	if cfg := d.params.cfg; cfg != nil {
+	if cfg := d.historyConfig(); cfg != nil {
 		if amount, ok := globalBudget(cfg); ok {
 			result.Budget = &amount
 			result.BudgetCurrency = cfg.Cost.Budgets.Global.Currency
@@ -97,14 +98,15 @@ func (d *webData) historyStack(ctx context.Context) (string, error) {
 }
 
 // openSessionHistory resolves the session stack's database the way
-// resolveHistoryCommandTarget does, with the session config's workspace
+// resolveHistoryCommandTarget does, with the merged config's workspace
 // setting in place of the flag, and opens it read-only.
 func (d *webData) openSessionHistory(ctx context.Context) (*history.CostDB, string, error) {
 	stack, err := d.historyStack(ctx)
 	if err != nil {
 		return nil, "", err
 	}
-	includeWorkspace := d.params.cfg != nil && d.params.cfg.Cost.Terraform.IncludeWorkspace
+	cfg := d.historyConfig()
+	includeWorkspace := cfg != nil && cfg.Cost.Terraform.IncludeWorkspace
 	target, ok, err := terraformHistoryTargetContext(ctx, d.historyDirOverride, includeWorkspace)
 	if err != nil {
 		return nil, "", err
@@ -122,4 +124,19 @@ func (d *webData) openSessionHistory(ctx context.Context) (*history.CostDB, stri
 		return nil, "", err
 	}
 	return db, target.Stack, nil
+}
+
+// withMergedConfig records the project-merged config the root command built.
+func (d *webData) withMergedConfig(cfg *config.Config) *webData {
+	d.mergedCfg = cfg
+	return d
+}
+
+// historyConfig is the config the CLI history commands read: the merged project
+// and global config when the root command initialized it, else the session's.
+func (d *webData) historyConfig() *config.Config {
+	if d.mergedCfg != nil {
+		return d.mergedCfg
+	}
+	return d.params.cfg
 }

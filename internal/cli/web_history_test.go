@@ -341,3 +341,28 @@ func TestWebHistoryView_NoHistoryBeforeDateErrorsLikeCLI(t *testing.T) {
 	require.ErrorIs(t, err, history.ErrNoCostHistory)
 	assert.Equal(t, cliErr.Error(), err.Error())
 }
+
+func TestWebHistoryView_PrefersMergedProjectConfig(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	seedParityHistory(t, dir)
+	global := &config.Config{Cost: config.CostConfig{Budgets: &config.BudgetsConfig{
+		Global: &config.ScopedBudget{Amount: 100, Currency: "USD"},
+	}}}
+	merged := &config.Config{Cost: config.CostConfig{Budgets: &config.BudgetsConfig{
+		Global: &config.ScopedBudget{Amount: 250, Currency: "EUR"},
+	}}}
+	data := historyWebData(dir, "dev", global)
+	data.mergedCfg = merged
+
+	result, err := data.historyView(context.Background(), webui.HistoryViewQuery{})
+
+	require.NoError(t, err)
+	require.NotNil(t, result.Budget)
+	assert.InDelta(t, 250, *result.Budget, 0)
+	assert.Equal(t, "EUR", result.BudgetCurrency)
+	assert.Same(t, merged, data.historyConfig())
+
+	data.mergedCfg = nil
+	assert.Same(t, global, data.historyConfig())
+}

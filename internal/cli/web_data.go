@@ -57,11 +57,14 @@ type webData struct {
 	// historyDirOverride replaces the cost history directory; empty uses the
 	// CLI's resolution (environment, config with the project-tier gate, default).
 	historyDirOverride string
-	forecastNow        time.Time
-	reloadCleanup      func()
-	replaced           bool
-	escMu              sync.Mutex
-	escSource          *esc.Source
+	// mergedCfg is the project-merged config the CLI history commands read.
+	// params.cfg is config.New(), which has no project overlay.
+	mergedCfg     *config.Config
+	forecastNow   time.Time
+	reloadCleanup func()
+	replaced      bool
+	escMu         sync.Mutex
+	escSource     *esc.Source
 }
 
 func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRange, audit *auditContext) *webData {
