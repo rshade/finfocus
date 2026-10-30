@@ -97,9 +97,17 @@ func (e *Engine) actualFromPlugin(
 	from, to time.Time,
 	perAttempt time.Duration,
 ) (*CostResult, error) {
-	return retryRateLimited(ctx, perAttempt, func(attemptCtx context.Context) (*CostResult, error) {
-		return e.getActualCostFromPlugin(attemptCtx, client, resource, from, to)
+	billedFrom := resourceActualStart(resource, from, to)
+	result, err := retryRateLimited(ctx, perAttempt, func(attemptCtx context.Context) (*CostResult, error) {
+		return e.getActualCostFromPlugin(attemptCtx, client, resource, billedFrom, to)
 	})
+	// The result keeps the requested window, so rows and groups share one
+	// period even when a resource was billed from its creation time.
+	if result != nil && !billedFrom.Equal(from) {
+		result.StartDate = from
+		result.CostPeriod = FormatPeriod(from, to)
+	}
+	return result, err
 }
 
 // isRateLimited reports whether err is a gRPC ResourceExhausted status.

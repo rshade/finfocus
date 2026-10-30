@@ -179,6 +179,25 @@ func IsExternalResource(resource ResourceDescriptor) bool {
 	}
 }
 
+// resourceActualStart returns the start to send a plugin for one resource.
+// Plugins trust an explicit start over pulumi:created, so a resource created
+// inside (from, to] starts at its creation time; otherwise it is charged for
+// hours before it existed. An imported resource keeps from, because its
+// pulumi:created is the import time.
+func resourceActualStart(resource ResourceDescriptor, from, to time.Time) time.Time {
+	if IsExternalResource(resource) {
+		return from
+	}
+	created, err := ExtractCreatedTimestamp(resource)
+	if err != nil || created.IsZero() {
+		return from
+	}
+	if created.After(from) && !created.After(to) {
+		return created
+	}
+	return from
+}
+
 // UptimeAssumptionNote is the standard note documenting the 100% uptime assumption.
 // Per spec T023a, this should be included in all state-based cost estimates.
 const UptimeAssumptionNote = "Note: Estimate assumes 100% uptime. Stopped/restarted resources are not tracked."

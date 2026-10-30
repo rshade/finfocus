@@ -1242,19 +1242,21 @@ func (e *Engine) GetActualCostWithOptions(
 				continue
 			}
 
-			// Apply tag filter: only include resources matching request tags
-			batchResources := pb.resources
-			if len(request.Tags) > 0 {
-				var filtered []indexedResource
-				for _, ir := range pb.resources {
-					if MatchesTags(ir.resource, request.Tags) {
-						filtered = append(filtered, ir)
-					}
-				}
-				if len(filtered) == 0 {
+			// A batch carries one start, so a resource created inside the
+			// window goes to the per-resource pool, which starts it at its
+			// creation time. The tag filter applies here too.
+			var batchResources []indexedResource
+			for _, ir := range pb.resources {
+				if len(request.Tags) > 0 && !MatchesTags(ir.resource, request.Tags) {
 					continue
 				}
-				batchResources = filtered
+				if !resourceActualStart(ir.resource, request.From, request.To).Equal(request.From) {
+					continue
+				}
+				batchResources = append(batchResources, ir)
+			}
+			if len(batchResources) == 0 {
+				continue
 			}
 
 			log.Debug().
