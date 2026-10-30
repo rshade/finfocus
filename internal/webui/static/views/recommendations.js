@@ -27,7 +27,7 @@ export function mount(container, { api, stream }) {
   const pagination = el('nav', { class: 'pager', 'aria-label': 'Recommendation pages' }, previous, pageLabel, next);
   const detailContent = el('div');
   const close = el('button', { type: 'button', text: 'Close details' });
-  const dialog = el('dialog', { class: 'detail-panel passphrase-dialog', 'aria-labelledby': 'recommendation-detail-title' },
+  const dialog = el('dialog', { class: 'detail-panel passphrase-dialog recommendation-detail', 'aria-labelledby': 'recommendation-detail-title' },
     el('h3', { id: 'recommendation-detail-title', text: 'Recommendation details' }), close, detailContent);
   container.append(heading, form, error, status, summary, el('div', { class: 'table-wrap', tabindex: '0', 'aria-label': 'Scrollable recommendations' }, table), pagination, dialog);
 
@@ -64,6 +64,34 @@ export function mount(container, { api, stream }) {
       detailContent.append(el('h4', { text: 'Resource and recommendation details' }), metadata);
     } catch (err) {
       if (alive && current === detailVersion && err.name !== 'AbortError') detailContent.replaceChildren(el('p', { role: 'alert', text: err.message }));
+      return;
+    }
+    showLifecycle(item, key, current);
+  }
+  async function showLifecycle(item, key, current) {
+    const alertLine = el('p', { class: 'error-banner', role: 'alert' }); alertLine.hidden = true;
+    const lifecycleStatus = el('p', { role: 'status', text: 'Loading lifecycle…' });
+    const lifecycleBody = el('div');
+    detailContent.append(el('section', { 'aria-labelledby': 'recommendation-lifecycle-title' },
+      el('h4', { id: 'recommendation-lifecycle-title', text: 'Lifecycle' }), alertLine, lifecycleStatus, lifecycleBody));
+    const empty = 'No lifecycle has been recorded for this recommendation.';
+    if (!item.id) { lifecycleStatus.textContent = empty; return; }
+    const params = new URLSearchParams({ id: item.id, key: key || '', type: item.type || '', description: item.description || '' });
+    try {
+      const history = await api.get(`/api/recommendations/history?${params}`, { signal: detailAbort.signal });
+      if (!alive || current !== detailVersion || !dialog.open) return;
+      if (history.warnings?.length) { alertLine.textContent = history.warnings.join('; '); alertLine.hidden = false; }
+      if (!history.events?.length) { lifecycleStatus.textContent = empty; return; }
+      lifecycleStatus.textContent = '';
+      const rows = history.events.map(event => el('tr', {}, el('td', { text: event.timestamp }), el('td', { text: event.action }), el('td', { text: event.actor || '' }),
+        el('td', { text: [event.reason, event.custom_reason].filter(Boolean).join(': ') }), el('td', { text: event.expires_at || '' })));
+      const events = el('table', { class: 'overview-table lifecycle-table' }, el('caption', { text: 'Recommendation lifecycle' }),
+        el('thead', {}, el('tr', {}, ...['Time', 'Action', 'Actor', 'Reason', 'Expiry'].map(text => el('th', { scope: 'col', text })))), el('tbody', {}, ...rows));
+      lifecycleBody.append(el('div', { class: 'table-wrap', tabindex: '0', 'aria-label': 'Scrollable recommendation lifecycle' }, events));
+    } catch (err) {
+      if (!alive || current !== detailVersion || err.name === 'AbortError') return;
+      lifecycleStatus.textContent = '';
+      alertLine.textContent = err.message; alertLine.hidden = false;
     }
   }
   function render(result) {

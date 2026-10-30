@@ -104,7 +104,10 @@ snooze, or undismiss a recommendation. Results are paged at 250 rows.
 
 The session can return the same lifecycle events as
 `finfocus cost recommendations history` for a recommendation in the latest
-list. The detail panel does not show that lifecycle yet.
+list. The detail panel shows it under **Lifecycle**: time, action, actor,
+reason (with the note), and expiry, in the same order as the command. A
+plugin that could not answer adds a warning above the table. A
+recommendation with no history, or with no recommendation ID, says so.
 
 ### Carbon controls
 

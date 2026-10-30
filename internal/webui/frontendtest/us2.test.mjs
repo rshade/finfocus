@@ -22,7 +22,7 @@ class Node {
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 async function setup(view) {
  const document=new Node('document'); document.doc=document; document.createElement=tag=>new Node(tag,document); document.createElementNS=(_ns,tag)=>new Node(tag,document);
- const context=vm.createContext({document,AbortController,console,setTimeout,clearTimeout});
+ const context=vm.createContext({document,AbortController,URLSearchParams,console,setTimeout,clearTimeout});
  const app=new vm.SyntheticModule(['el'],function(){this.setExport('el',(tag,attrs={},...children)=>{const node=document.createElement(tag);for(const [k,v]of Object.entries(attrs)){if(k==='text')node.textContent=v;else if(k==='class')node.className=v;else if(k==='dataset')Object.assign(node.dataset,v);else node.setAttribute(k,v);}node.append(...children.flat());return node;});},{context});await app.link(()=>{});await app.evaluate();
  const mod=new vm.SourceTextModule(await readFile(new URL(`../static/views/${view}.js`,import.meta.url),'utf8'),{context});await mod.link(()=>app);await mod.evaluate();
  const calls=[];const api={post(path,body,options){return request(path,body,options);},get(path,options){return request(path,null,options);}};
@@ -99,4 +99,56 @@ test('cost renders shared summary, provider subtotals and complete formatted det
 test('recommendations render shared action labels and exact scorer strings',async()=>{
  const t=await setup('recommendations');t.calls[0].resolve({...recPage('rec'),itemActions:['Rightsize'],actions:[{action:'RAW_ENUM',actionDisplay:'Rightsize',count:1,savingsDisplay:'$2.00 USD'}]});await flush();assert.match(t.container.textContent,/Rightsize/);assert.doesNotMatch(t.container.textContent,/RAW_ENUM/);
  t.container.querySelector('.detail-button').dispatch('click');t.calls.at(-1).resolve({item:{description:'Smaller',scores:{risk:0.2}},actionDisplay:'Rightsize',savingsDisplay:'$2.00 USD',scoreDisplay:[{name:'Risk',value:'0.20'},{name:'False positive',value:'-'}]});await flush();assert.match(t.container.querySelector('dialog').textContent,/Risk0.20False positive-/);t.mounted.unmount();
+});
+
+async function openRecommendation(){
+ const t=await setup('recommendations');t.calls[0].resolve(recPage('rec'));await flush();
+ t.container.querySelector('.detail-button').dispatch('click');t.calls.at(-1).resolve({item:{description:'Smaller'},actionDisplay:'Rightsize',savingsDisplay:'$2.00 USD'});await flush();
+ return t;
+}
+
+test('recommendation lifecycle renders events in returned order with warnings',async()=>{
+ const t=await openRecommendation();const call=t.calls.at(-1);
+ assert.match(call.path,/^\/api\/recommendations\/history\?id=rec&/);
+ call.resolve({events:[{timestamp:'2026-10-02T00:00:00Z',action:'snoozed',reason:'later',custom_reason:'after launch',expires_at:'2026-11-01T00:00:00Z',actor:'ana'},{timestamp:'2026-10-01T00:00:00Z',action:'dismissed',reason:'n/a'}],warnings:['aws: recommendation history unavailable']});await flush();
+ const dialog=t.container.querySelector('dialog');
+ const rows=dialog.querySelectorAll('tbody')[0].children.map(r=>r.children.map(c=>c.textContent));
+ assert.deepEqual(rows,[['2026-10-02T00:00:00Z','snoozed','ana','later: after launch','2026-11-01T00:00:00Z'],['2026-10-01T00:00:00Z','dismissed','','n/a','']]);
+ assert.match(dialog.textContent,/Recommendation lifecycle/);
+ const alert=dialog.querySelectorAll('.error-banner')[0];assert.equal(alert.hidden,false);assert.equal(alert.textContent,'aws: recommendation history unavailable');
+ assert.equal(dialog.querySelector('section').attrs['aria-labelledby'],'recommendation-lifecycle-title');
+ assert.equal(dialog.querySelectorAll('.table-wrap')[0].attrs.tabindex,'0');
+ t.mounted.unmount();
+});
+
+test('recommendation lifecycle shows a plain empty state',async()=>{
+ const t=await openRecommendation();t.calls.at(-1).resolve({events:[],warnings:[]});await flush();
+ const dialog=t.container.querySelector('dialog');
+ assert.match(dialog.textContent,/No lifecycle has been recorded/);assert.equal(dialog.querySelectorAll('table').length,0);assert.equal(dialog.querySelectorAll('.error-banner')[0].hidden,true);
+ t.mounted.unmount();
+});
+
+test('a recommendation without an id shows the empty lifecycle without a history request',async()=>{
+ const t=await setup('recommendations');const page=recPage('res');page.items[0].id='';t.calls[0].resolve(page);await flush();
+ t.container.querySelector('.detail-button').dispatch('click');t.calls.at(-1).resolve({item:{description:'Smaller'},actionDisplay:'Rightsize',savingsDisplay:'$2.00 USD'});await flush();
+ assert.equal(t.calls.some(c=>c.path.startsWith('/api/recommendations/history')),false);
+ const dialog=t.container.querySelector('dialog');
+ assert.match(dialog.textContent,/No lifecycle has been recorded/);assert.equal(dialog.querySelectorAll('.error-banner')[0].hidden,true);
+ t.mounted.unmount();
+});
+
+for (const [status,message] of [[404,'recommendation not found'],[502,'recommendation history unavailable']]) {
+ test(`recommendation lifecycle ${status} shows the fixed error and no rows`,async()=>{
+  const t=await openRecommendation();t.calls.at(-1).reject(Object.assign(new Error(message),{status}));await flush();
+  const dialog=t.container.querySelector('dialog');
+  assert.equal(dialog.querySelectorAll('.error-banner')[0].textContent,message);assert.equal(dialog.querySelectorAll('table').length,0);
+  t.mounted.unmount();
+ });
+}
+
+test('closing the detail returns focus to the launcher and drops a late lifecycle reply',async()=>{
+ const t=await openRecommendation();const call=t.calls.at(-1);const launcher=t.container.querySelector('.detail-button');
+ t.container.querySelector('dialog').close();assert.ok(t.document.activeElement===launcher);
+ call.resolve({events:[{timestamp:'x',action:'dismissed',reason:'r'}],warnings:[]});await flush();
+ assert.equal(t.container.querySelector('dialog').querySelectorAll('table').length,0);t.mounted.unmount();
 });
