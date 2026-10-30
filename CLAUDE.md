@@ -510,8 +510,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   set. A missing id is 400. An id outside the cache, or a row with an empty
   recommendation id, is 404 and is not sent to plugins. Warnings from the
   engine are returned with the events. A lookup error is 502
-  `history_unavailable` with a fixed message. The detail panel does not
-  render the events (`specs/1921-recommendation-history-web/`).
+  `history_unavailable` with a fixed message. The detail panel renders the
+  events under a `Lifecycle` section after the detail loads, in the returned
+  order, with raw timestamps and reason enums, and shows a warning, 404, or
+  502 in an in-panel alert line. A row with no recommendation id shows the
+  empty state without a request, since the API would 404. Row ids change on every plugin call, and the
+  page queries on both `ready` and `snapshot`, so a detail click can 404 on a
+  stale row; the next query fixes it. Real events need a dismissal recorded
+  for the cached id (`specs/1921-recommendation-history-web/`).
   The overview EventSource checks `GET /api/overview/budget` (same-origin
   cookie, no bearer token) after a connection failure. A 401 stops retries
   and tells the user to open the link printed in the terminal. `close`
@@ -898,7 +904,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
-- 1921-recommendation-history-web: `GET /api/recommendations/history` returns `GetRecommendationHistory` for an id in the session's last recommendations list. Plugin failures other than `Unimplemented` are fixed warnings. The detail panel does not render them yet (`specs/1921-recommendation-history-web/`).
+- 1921-recommendation-history-web: `GET /api/recommendations/history` returns `GetRecommendationHistory` for an id in the session's last recommendations list. Plugin failures other than `Unimplemented` are fixed warnings. The detail panel renders them in a `Lifecycle` section (`specs/1921-recommendation-history-web/`).
 - 1738-arima-forecast: `cost forecast --model arima --spend-history <csv>`
   fits `github.com/rshade/goarima` (our fork; upstream returned nil results
   with nil errors and kept a constant after two orders of differencing) to

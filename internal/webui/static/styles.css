@@ -682,6 +682,26 @@ button:disabled {
   box-shadow: 0 8px 30px var(--shadow);
 }
 
+.recommendation-detail {
+  max-width: min(64rem, 92vw);
+}
+
+.lifecycle-table {
+  min-width: 0;
+}
+
+.lifecycle-table caption {
+  padding: 0.4rem 0.75rem;
+  text-align: left;
+  font-weight: 700;
+}
+
+.lifecycle-table td:nth-child(4) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 12rem;
+}
+
 .passphrase-dialog::backdrop {
   background: rgba(0, 0, 0, 0.5);
 }
