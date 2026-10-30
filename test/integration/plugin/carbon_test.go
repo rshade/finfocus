@@ -3,6 +3,7 @@ package plugin_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,7 +27,12 @@ func TestCarbonPlugin(t *testing.T) {
 	root, err := filepath.Abs("../../..")
 	require.NoError(t, err)
 	home := t.TempDir()
-	const version = "0.1.0"
+	releaseManifest, err := os.ReadFile(filepath.Join(root, ".release-please-manifest.json"))
+	require.NoError(t, err)
+	var versions map[string]string
+	require.NoError(t, json.Unmarshal(releaseManifest, &versions))
+	version := versions["plugins/carbon"]
+	require.NotEmpty(t, version)
 	install := filepath.Join(home, "plugins", "carbon", "v"+version)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
