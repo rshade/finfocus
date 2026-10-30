@@ -1002,6 +1002,40 @@ func TestOverviewModel_PhaseMsg(t *testing.T) {
 	assert.Equal(t, ViewStateInitializing, model.state) // state unchanged
 }
 
+func TestWithPhaseLabel(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		index int
+		label string
+		want  []string
+	}{
+		{name: "sets the label without the trailing ellipsis", index: 2,
+			label: "Skipping preview (current state only)...",
+			want:  []string{"", "", "Skipping preview (current state only)"}},
+		{name: "empty label keeps the default", index: 2, label: "", want: nil},
+		{name: "negative index is ignored", index: -1, label: "Bogus...", want: nil},
+		{name: "index past the checklist is ignored", index: len(phaseNames), label: "Bogus...", want: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, withPhaseLabel(nil, tt.index, tt.label))
+		})
+	}
+}
+
+func TestWithPhaseLabel_DoesNotMutateInput(t *testing.T) {
+	t.Parallel()
+
+	original := []string{"Reading plan", "", ""}
+	updated := withPhaseLabel(original, 0, "Loading stack state...")
+
+	assert.Equal(t, []string{"Reading plan", "", ""}, original, "earlier models share the slice")
+	assert.Equal(t, "Loading stack state", updated[0])
+}
+
 // TestOverviewModel_DataReadyMsg verifies transition from Initializing to Loading.
 func TestOverviewModel_DataReadyMsg(t *testing.T) {
 	t.Parallel()

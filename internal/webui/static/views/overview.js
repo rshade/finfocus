@@ -17,7 +17,7 @@ import { el, mergeRunStatus } from '../app.js';
 // the wire names used by the contract examples ({"sort":"cost"}).
 const SORT_CYCLE = ['cost', 'name', 'type', 'delta'];
 const SORT_LABELS = { cost: 'Cost', name: 'Name', type: 'Type', delta: 'Delta' };
-const PHASE_COUNT = 6;
+const PHASE_COUNT = 7;
 const FILTER_DEBOUNCE_MS = 300;
 
 const COLUMNS = [

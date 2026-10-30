@@ -101,7 +101,7 @@ recovers the current state without restarting the load.
 
 | event | data | Meaning |
 |-------|------|---------|
-| `phase` | `{ phase: 1..6, name: string, status: "active"\|"done"\|"error" }` | Loading checklist progress (mirrors TUI phase names) |
+| `phase` | `{ phase: 1..7, name: string, status: "active"\|"done"\|"error" }` | Loading checklist progress (mirrors TUI phase names) |
 | `row` | `OverviewRowResult` | One enriched row (progressive enrichment) |
 | `progress` | `{ loaded: n, total: m }` | Aggregate progress |
 | `budget` | `{ budgets: BudgetHealthResult[], display: BudgetDisplay }` | Budget footer data ready; notification destinations omitted |

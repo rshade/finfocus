@@ -96,12 +96,13 @@ func writePulumiProject(t *testing.T, dir string, encrypted bool) {
 	}
 }
 
-// fakePipelineLoader emits phases 1-3 through the pipeline and returns the
+// fakePipelineLoader emits phases 1-4 through the pipeline and returns the
 // given rows, mimicking a completed stack load.
 func fakePipelineLoader(rows []engine.OverviewRow) OverviewPipelineLoader {
 	return func(_ context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
 		p.emitPhase(OverviewPhaseLoadStackState, overviewPhaseLoadStackStateName)
 		p.emitPhase(OverviewPhaseDetectChanges, overviewPhaseDetectChangesName)
+		p.emitPhase(OverviewPhaseRunPreview, overviewPhaseRunPreviewName)
 		p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
 		return &OverviewPipelineData{
 			Rows:       rows,
@@ -167,7 +168,7 @@ func TestOverviewPipelineCarriesESCSource(t *testing.T) {
 	pipe.OnPhase = func(phase int, _ string) { phases = append(phases, phase) }
 	require.NoError(t, pipe.Run(ctx))
 	assert.True(t, saw)
-	assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, phases)
+	assert.Equal(t, []int{1, 2, 3, 4, 5, 6, 7}, phases)
 }
 
 func TestOverviewPipeline_EngineAvailableBeforeDataReady(t *testing.T) {
@@ -189,7 +190,7 @@ func TestOverviewPipeline_EngineAvailableBeforeDataReady(t *testing.T) {
 }
 
 // TestOverviewPipeline_PhasesInOrder runs the real TUI loader against a
-// state-only fixture and asserts phase events 1..6 arrive in order.
+// state-only fixture and asserts phase events 1..7 arrive in order.
 func TestOverviewPipeline_PhasesInOrder(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	t.Setenv(config.HistoryEnvEnabled, "false")
@@ -217,12 +218,15 @@ func TestOverviewPipeline_PhasesInOrder(t *testing.T) {
 	require.Empty(t, events.errors, "no error events expected: %v", events.errs)
 	assert.Equal(t,
 		[]int{
-			OverviewPhaseLoadStackState, OverviewPhaseDetectChanges, OverviewPhaseMergeResources,
-			OverviewPhaseStartPlugins, OverviewPhasePrepareEngine, OverviewPhaseEnrichResources,
+			OverviewPhaseLoadStackState, OverviewPhaseDetectChanges, OverviewPhaseRunPreview,
+			OverviewPhaseMergeResources, OverviewPhaseStartPlugins, OverviewPhasePrepareEngine,
+			OverviewPhaseEnrichResources,
 		},
 		events.phases,
-		"phase events must be emitted 1..6 in order",
+		"phase events must be emitted 1..7 in order",
 	)
+	assert.Equal(t, overviewPhaseSkipPreviewName, events.phaseNames[OverviewPhaseRunPreview-1],
+		"a state-only run reports the preview phase as skipped")
 	assert.Equal(t, 1, events.allLoaded)
 	require.Len(t, events.ready, 1)
 	assert.NotEmpty(t, events.ready[0].Rows)
@@ -450,6 +454,7 @@ func TestOverviewPipeline_PluginOpenOverlapsLoad(t *testing.T) {
 			}
 			p.emitPhase(OverviewPhaseLoadStackState, overviewPhaseLoadStackStateName)
 			p.emitPhase(OverviewPhaseDetectChanges, overviewPhaseDetectChangesName)
+			p.emitPhase(OverviewPhaseRunPreview, overviewPhaseRunPreviewName)
 			p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
 			return &OverviewPipelineData{Rows: fakePipelineRows(), StackName: "dev", ProjectDir: "."}, nil
 		},
@@ -485,8 +490,9 @@ func TestOverviewPipeline_PluginOpenOverlapsLoad(t *testing.T) {
 
 	require.NoError(t, <-done)
 	assert.Equal(t, []int{
-		OverviewPhaseLoadStackState, OverviewPhaseDetectChanges, OverviewPhaseMergeResources,
-		OverviewPhaseStartPlugins, OverviewPhasePrepareEngine, OverviewPhaseEnrichResources,
+		OverviewPhaseLoadStackState, OverviewPhaseDetectChanges, OverviewPhaseRunPreview,
+		OverviewPhaseMergeResources, OverviewPhaseStartPlugins, OverviewPhasePrepareEngine,
+		OverviewPhaseEnrichResources,
 	}, events.phases)
 	assert.Equal(t, int32(0), cleaned.Load(), "successful startup stays open until the owner releases it")
 	require.NotNil(t, pipe.Cleanup())
@@ -1125,7 +1131,7 @@ func TestWebPreviewRetriesRejectedPassphrase(t *testing.T) {
 	var events []string
 	p.OnPassphraseRequired = func() { events = append(events, "passphrase_required") }
 	p.OnError = func(phase int, err error) {
-		assert.Equal(t, OverviewPhaseDetectChanges, phase)
+		assert.Equal(t, OverviewPhaseRunPreview, phase)
 		assert.NotContains(t, err.Error(), "bad-preview-secret")
 		events = append(events, "error")
 	}
@@ -1172,6 +1178,47 @@ func TestOverviewPipeline_ExplicitStateAndPlanIsNotStateOnly(t *testing.T) {
 	events.attach(pipe)
 	require.NoError(t, pipe.Run(context.Background()))
 	assert.Empty(t, events.stateOnly)
+	require.Len(t, events.phaseNames, OverviewPhaseEnrichResources)
+	assert.Equal(t, overviewPhasePlanLoadedName, events.phaseNames[OverviewPhaseRunPreview-1])
+}
+
+// TestOverviewPipeline_PreviewPhaseLabelForPlanFiles pins the phase 3 label for
+// supplied plans: the TUI loader reads the file during phase 3, while a plan
+// without state is loaded with the source in phase 1.
+func TestOverviewPipeline_PreviewPhaseLabelForPlanFiles(t *testing.T) {
+	tests := []struct {
+		name      string
+		withState bool
+		want      string
+	}{
+		{name: "state and plan read the plan in phase 3", withState: true, want: overviewPhaseReadPlanName},
+		{name: "plan alone is loaded with the source", withState: false, want: overviewPhasePlanLoadedName},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("FINFOCUS_HOME", t.TempDir())
+			t.Setenv(config.HistoryEnvEnabled, "false")
+			t.Chdir(t.TempDir())
+			params := overviewParams{
+				pulumiJSON: overviewFixture(t, "plan-no-changes.json"), yes: true, cfg: &config.Config{},
+			}
+			if tt.withState {
+				params.pulumiState = overviewFixture(t, "state-no-changes.json")
+			}
+			pipe := newOverviewPipeline(overviewPipelineConfig{
+				params:      params,
+				loader:      tuiOverviewLoader,
+				openPlugins: fakeOpenPlugins,
+				newEngine:   fakeNewEngine,
+				enrichRows:  passThroughEnrichment,
+			})
+			events := &pipelineEvents{}
+			events.attach(pipe)
+			require.NoError(t, pipe.Run(context.Background()))
+			require.Len(t, events.phaseNames, OverviewPhaseEnrichResources)
+			assert.Equal(t, tt.want, events.phaseNames[OverviewPhaseRunPreview-1])
+		})
+	}
 }
 
 func TestOverviewPipeline_RefreshFallbackBudgetTracksAddedRows(t *testing.T) {
@@ -1266,9 +1313,14 @@ func TestOverviewPipeline_TUIInitialPreviewHonorsStackFlag(t *testing.T) {
 		newEngine:   fakeNewEngine,
 		enrichRows:  passThroughEnrichment,
 	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
 	require.NoError(t, pipe.Run(context.Background()))
 	require.NotEmpty(t, previewArgs, "--yes runs the initial preview")
 	assert.Equal(t, []string{"--stack", "dev"}, previewArgs[len(previewArgs)-2:])
+	require.Len(t, events.phases, OverviewPhaseEnrichResources)
+	assert.Equal(t, OverviewPhaseRunPreview, events.phases[OverviewPhaseRunPreview-1])
+	assert.Equal(t, overviewPhaseRunPreviewName, events.phaseNames[OverviewPhaseRunPreview-1])
 }
 
 func TestOverviewPipeline_DeliverBudgetResetsFallbackFlag(t *testing.T) {

@@ -24,20 +24,23 @@ import (
 // Pipeline phase numbers emitted via [OverviewPipeline.OnPhase]. They are
 // 1-based so they line up with the phase checklist shown to users (the TUI
 // adapter subtracts 1 for its 0-based phase indices, and the web SSE contract
-// uses 1..6 directly).
+// uses 1..7 directly).
 const (
 	// OverviewPhaseLoadStackState loads the Pulumi stack state (export or file).
 	OverviewPhaseLoadStackState = 1
 	// OverviewPhaseDetectChanges runs lightweight change detection.
 	OverviewPhaseDetectChanges = 2
+	// OverviewPhaseRunPreview runs pulumi preview, reads a supplied plan, or
+	// reports that the run stays on current state.
+	OverviewPhaseRunPreview = 3
 	// OverviewPhaseMergeResources merges state and plan into overview rows.
-	OverviewPhaseMergeResources = 3
+	OverviewPhaseMergeResources = 4
 	// OverviewPhaseStartPlugins opens the cost plugin clients.
-	OverviewPhaseStartPlugins = 4
+	OverviewPhaseStartPlugins = 5
 	// OverviewPhasePrepareEngine constructs the cost engine.
-	OverviewPhasePrepareEngine = 5
+	OverviewPhasePrepareEngine = 6
 	// OverviewPhaseEnrichResources enriches each row with cost data.
-	OverviewPhaseEnrichResources = 6
+	OverviewPhaseEnrichResources = 7
 )
 
 // Phase names emitted with the phase events. They are the exact strings the
@@ -46,6 +49,10 @@ const (
 	overviewPhaseLoadStackStateName  = "Loading stack state..."
 	overviewPhaseDetectChangesName   = "Detecting changes..."
 	overviewPhaseSkipDetectionName   = "Skipping change detection (--state-only)..."
+	overviewPhaseRunPreviewName      = "Running pulumi preview..."
+	overviewPhaseReadPlanName        = "Reading plan..."
+	overviewPhasePlanLoadedName      = "Plan already loaded..."
+	overviewPhaseSkipPreviewName     = "Skipping preview (current state only)..."
 	overviewPhaseMergeResourcesName  = "Merging resources..."
 	overviewPhaseStartPluginsName    = "Starting cost plugins..."
 	overviewPhasePrepareEngineName   = "Preparing cost engine..."
@@ -149,16 +156,17 @@ type overviewPipelineConfig struct {
 }
 
 // OverviewPipeline is the event-driven overview orchestration shared by the
-// TUI, the plain CLI, and the web UI (research Decision 2). It runs the six
-// overview phases — load stack state, detect changes, merge resources, start
-// plugins, prepare the engine, enrich resources (with cluster expansion and
-// budget fetch) — and reports every step through the callback fields below.
-// Plugin processes start before stack loading so startup overlaps that work.
-// Phase events stay in order: phase 4 is reported when the open is joined.
+// TUI, the plain CLI, and the web UI (research Decision 2). It runs the seven
+// overview phases — load stack state, detect changes, run preview, merge
+// resources, start plugins, prepare the engine, enrich resources (with cluster
+// expansion and budget fetch) — and reports every step through the callback
+// fields below. Plugin processes start before stack loading so startup
+// overlaps that work. Phase events stay in order: phase 5 is reported when the
+// open is joined.
 // All callbacks are optional; nil callbacks are skipped. Callbacks run on the
 // goroutine that called [OverviewPipeline.Run] and must not block.
 type OverviewPipeline struct {
-	// OnPhase fires when a phase starts: phase is 1-based (1..6), name is the
+	// OnPhase fires when a phase starts: phase is 1-based (1..7), name is the
 	// user-facing phase label.
 	OnPhase func(phase int, name string)
 	// OnGraph fires just before OnDataReady with the snapshot's dependency
@@ -199,8 +207,8 @@ type OverviewPipeline struct {
 	// OnPreviewReady fires from RunPreview with the on-demand preview result
 	// (the TUI's OverviewChangesReadyMsg payload).
 	OnPreviewReady func(msg tui.OverviewChangesReadyMsg)
-	// ConfirmEnrichment, when set, runs after plugins open (phase 4) and
-	// before the engine is created (phase 5): the plain CLI's pre-flight
+	// ConfirmEnrichment, when set, runs after plugins open (phase 5) and
+	// before the engine is created (phase 6): the plain CLI's pre-flight
 	// confirmation. proceed=false stops the pipeline without error.
 	ConfirmEnrichment func(ctx context.Context, data OverviewPipelineData, clientCount int) (proceed bool, err error)
 
@@ -867,17 +875,25 @@ func pulumiTUIOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvie
 		isStateOnly = resolveIsStateOnly(params, signal, detectErr)
 	}
 
-	p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
-	if !isStateOnly {
+	if isStateOnly {
+		p.emitPhase(OverviewPhaseRunPreview, overviewPhaseSkipPreviewName)
+	} else {
+		previewName := overviewPhaseRunPreviewName
+		if params.pulumiJSON != "" {
+			previewName = overviewPhaseReadPlanName
+		}
+		p.emitPhase(OverviewPhaseRunPreview, previewName)
 		snapshot, stateErr = loadTUIOverviewPreview(ctx, p, snapshot, pw)
 		if stateErr != nil {
-			return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: stateErr}
+			return nil, &PhaseError{Phase: OverviewPhaseRunPreview, Err: stateErr}
 		}
 		isStateOnly = !snapshot.PlanStatus.Loaded
 		if isStateOnly {
 			detectErr = errors.New("preview unavailable; showing current state")
 		}
 	}
+
+	p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
 	rows, mergeErr := snapshot.Rows(ctx)
 	if mergeErr != nil {
 		return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: mergeErr}
@@ -932,7 +948,7 @@ func loadTUIOverviewPreview(
 		return nil, err
 	}
 	if p.OnError != nil {
-		p.OnError(OverviewPhaseDetectChanges, errors.New("preview unavailable; showing current state"))
+		p.OnError(OverviewPhaseRunPreview, errors.New("preview unavailable; showing current state"))
 	}
 	return base, nil
 }
@@ -964,6 +980,12 @@ func plainOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPip
 
 	p.emitPhase(OverviewPhaseDetectChanges, overviewPhaseDetectChangesName)
 	hasChanges, changeCount := snapshot.PendingChanges(ctx)
+	// The plan, if any, was already obtained while loading the source.
+	previewName := overviewPhasePlanLoadedName
+	if isStateOnly {
+		previewName = overviewPhaseSkipPreviewName
+	}
+	p.emitPhase(OverviewPhaseRunPreview, previewName)
 	p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
 	rows, err := snapshot.Rows(ctx)
 	if err != nil {
@@ -1075,7 +1097,7 @@ func (p *OverviewPipeline) RunPreviewWithError(ctx context.Context) (tui.Overvie
 		}
 		p.emitError(
 			&PhaseError{
-				Phase: OverviewPhaseDetectChanges,
+				Phase: OverviewPhaseRunPreview,
 				Err:   errors.New("unable to decrypt stack; try the passphrase again"),
 			},
 		)

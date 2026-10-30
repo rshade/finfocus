@@ -69,10 +69,25 @@ type OverviewAllResourcesLoadedMsg struct{}
 var phaseNames = []string{
 	"Loading stack state",
 	"Detecting changes",
+	"Running pulumi preview",
 	"Merging resources",
 	"Starting cost plugins",
 	"Preparing cost engine",
 	"Enriching resources",
+}
+
+// withPhaseLabel returns the label overrides with index set to label, so the
+// checklist can show the variant a loader reported (for example "Skipping
+// preview (current state only)") instead of the default phase name.
+func withPhaseLabel(labels []string, index int, label string) []string {
+	label = strings.TrimSuffix(label, "...")
+	if index < 0 || index >= len(phaseNames) || label == "" {
+		return labels
+	}
+	updated := make([]string, max(len(labels), index+1))
+	copy(updated, labels)
+	updated[index] = label
+	return updated
 }
 
 // GetPhaseNames returns a defensive copy of the phaseNames slice.
@@ -146,6 +161,7 @@ type OverviewModel struct {
 
 	// Phase checklist tracking
 	currentPhaseIndex int
+	phaseLabels       []string // per-phase label overrides from OverviewPhaseMsg; "" keeps the default
 
 	// Passphrase prompt (inline TUI input when stack is encrypted)
 	showPassphraseInput bool
@@ -404,6 +420,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if phaseMsg, ok := msg.(OverviewPhaseMsg); ok {
 		m.progressMsg = phaseMsg.Phase
 		m.currentPhaseIndex = phaseMsg.Index
+		m.phaseLabels = withPhaseLabel(m.phaseLabels, phaseMsg.Index, phaseMsg.Phase)
 		return m, nil
 	}
 

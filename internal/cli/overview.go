@@ -967,20 +967,9 @@ func completeInteractiveOverview(
 	return nil
 }
 
-// Phase index constants correspond to tui.PhaseNames (0-based).
-// They are declared here to avoid mnd warnings for the magic numbers 2-5.
-const (
-	phaseLoadStackState  = 0
-	phaseDetectChanges   = 1
-	phaseMergeResources  = 2
-	phaseStartPlugins    = 3
-	phasePrepareEngine   = 4
-	phaseEnrichResources = 5
-
-	// progressReportInterval controls how often enrichment progress is
-	// reported to the TUI (every N rows).
-	progressReportInterval = 10
-)
+// progressReportInterval controls how often enrichment progress is
+// reported to the TUI (every N rows).
+const progressReportInterval = 10
 
 // resolveIsStateOnly determines whether to operate in state-only mode (no pulumi preview).
 //

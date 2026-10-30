@@ -20,8 +20,8 @@ const (
 	phaseActive     = "active"
 	phaseDone       = "done"
 	phaseFailed     = "error"
-	previewPhase    = 2
-	enrichmentPhase = 6
+	previewPhase    = 3
+	enrichmentPhase = 7
 )
 
 // ErrorEvent carries a safe user-facing error with its source phase.
@@ -586,6 +586,7 @@ func (s *Session) runPreview() {
 		s.preview.Status = "error"
 		failure := ErrorEvent{Message: "Preview failed", Phase: previewPhase}
 		s.failures[previewPhase] = failure
+		s.failPhaseLocked(previewPhase)
 		s.publishLocked("error", failure)
 	} else {
 		s.rows = cloneData(rows)
@@ -657,6 +658,16 @@ func cloneStruct(v reflect.Value) reflect.Value {
 		}
 	}
 	return out
+}
+
+func (s *Session) failPhaseLocked(phase int) {
+	for i := range s.phases {
+		if s.phases[i].Phase == phase && s.phases[i].Status == phaseActive {
+			s.phases[i].Status = phaseFailed
+			s.publishLocked("phase", s.phases[i])
+			return
+		}
+	}
 }
 
 func (s *Session) completePhaseLocked(phase int) {
