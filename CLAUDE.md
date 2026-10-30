@@ -543,7 +543,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   boolean; the error text stays in the terminal log and never reaches the
   browser). `POST /api/overview/preview`
   is 409 unless the run is state-only and a preview has not been applied. A
-  successful preview clears that status. A preview whose added rows fail to
+  successful preview clears that status. A failed preview sends the browser
+  only "Preview failed"; `runPreview` logs the reason as a warning in the
+  terminal. A preview whose added rows fail to
   price (`appendPreviewRows` returns `errPreviewPricing`; a row has `Error` or
   `ProjectedPricingFailed`) is an error, not loaded, so Run preview can retry;
   an unpriced type that only reports `NO_COST_DATA` is not a failure. Do not keep a second store beside

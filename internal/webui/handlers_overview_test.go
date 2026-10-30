@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -352,6 +354,32 @@ func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T)
 	assert.NotEmpty(t, snapshot.Rows)
 	assert.Equal(t, PhaseEvent{Phase: previewPhase, Name: "Running pulumi preview...", Status: phaseDone},
 		previewEntry(snapshot))
+}
+
+func TestPreviewFailureLogsReason(t *testing.T) {
+	t.Parallel()
+	var logs bytes.Buffer
+	ctx := zerolog.New(&logs).WithContext(context.Background())
+	session := NewSession(ctx, SessionOptions{
+		Preview: func(context.Context) ([]engine.OverviewRow, error) {
+			return nil, errors.New("no AWS credentials")
+		},
+	})
+	t.Cleanup(session.Close)
+	session.SetStateOnly(true)
+
+	require.NoError(t, session.startPreview())
+	require.Eventually(t, func() bool {
+		session.mu.Lock()
+		defer session.mu.Unlock()
+		return session.preview.Status == "error"
+	}, time.Second, time.Millisecond)
+
+	session.mu.Lock()
+	logged := logs.String()
+	session.mu.Unlock()
+	assert.Contains(t, logged, "pulumi preview failed")
+	assert.Contains(t, logged, "no AWS credentials")
 }
 
 func TestStateOnlyGatesPreviewAndClearsAfterSuccess(t *testing.T) {
