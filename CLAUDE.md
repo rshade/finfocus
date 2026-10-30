@@ -41,8 +41,8 @@ the contract names it, and completion files one UX-only `web-ui` issue.
 Engine, API, or data-shape work never goes in that issue. Layout:
 `docs/src/content/docs/architecture/web-ui.md`.
 
-- To check a fit, run the server from a populated project (`initial-30` or
-  `../finfocus-demo`) and render it with playwright-mcp. Both use an empty
+- To check a fit, run the server from a populated project such as
+  `../finfocus-demo` and render it with playwright-mcp. It uses an empty
   passphrase:
   `PULUMI_CONFIG_PASSPHRASE='' finfocus --web --no-browser --port <port>`.
   The MCP can write screenshots only under the repo (`.playwright-mcp/`),
