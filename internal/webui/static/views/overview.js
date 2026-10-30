@@ -17,7 +17,7 @@ import { el, mergeRunStatus } from '../app.js';
 // the wire names used by the contract examples ({"sort":"cost"}).
 const SORT_CYCLE = ['cost', 'name', 'type', 'delta'];
 const SORT_LABELS = { cost: 'Cost', name: 'Name', type: 'Type', delta: 'Delta' };
-const PHASE_COUNT = 6;
+const PHASE_COUNT = 7;
 const FILTER_DEBOUNCE_MS = 300;
 
 const COLUMNS = [
@@ -940,7 +940,9 @@ export function mount(container, ctx) {
     const num = pick(data, 'phase');
     if (typeof num !== 'number') return;
     state.phases.set(num, { name: pick(data, 'name'), status: pick(data, 'status') });
-    state.loading = true;
+    // An on-demand preview re-emits its phase after ready; that must not
+    // reopen the initial load, which only ready or a query clears.
+    state.loading = !state.ready;
     if ((data.status === 'active' || data.status === 'done') && state.errorPhase === num) {
       state.errorPhase = null;
       errorBanner.hidden = true;

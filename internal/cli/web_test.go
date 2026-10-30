@@ -540,7 +540,7 @@ func TestWebPipelineStreamsFixtureAndStopsWithOpenStream(t *testing.T) {
 			break
 		}
 	}
-	assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, phases)
+	assert.Equal(t, []int{1, 2, 3, 4, 5, 6, 7}, phases)
 	assert.Positive(t, rows)
 	query := webAPI(t, origin, cookie, "/api/overview/query", `{}`)
 	require.Equal(t, http.StatusOK, query.StatusCode)

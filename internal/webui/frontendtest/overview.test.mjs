@@ -344,6 +344,25 @@ test('preview is offered only for a ready state-only run and clears after a prev
   t.mounted.unmount();
 });
 
+test('a failed on-demand preview leaves Run preview available for a retry', async () => {
+  const t = await setup();
+  const button = t.container.querySelector('.preview-button');
+  t.stream.emit('snapshot', {
+    phases: [], rows: [], ready: true, stateOnly: true, previewLoaded: false, detectFailed: false, footnote: '',
+  });
+  await flush();
+  assert.equal(button.disabled, false);
+  t.stream.emit('preview', { status: 'running', elapsedMs: 0 });
+  t.stream.emit('phase', { phase: 3, name: 'Running pulumi preview...', status: 'active' });
+  t.stream.emit('phase', { phase: 3, name: 'Running pulumi preview...', status: 'error' });
+  t.stream.emit('error', { message: 'Preview failed', phase: 3 });
+  t.stream.emit('preview', { status: 'error', elapsedMs: 1200 });
+  await flush();
+  assert.equal(button.disabled, false);
+  assert.doesNotMatch(button.attrs.title ?? '', /loading finishes/);
+  t.mounted.unmount();
+});
+
 test('a disabled preview button says why for a session that already planned', async () => {
   const t = await setup();
   const button = t.container.querySelector('.preview-button');

@@ -16,7 +16,7 @@ The feature's central rule is that every cost behavior has exactly one
 implementation. Filtering, sorting, grouping, pagination, money formatting,
 budget health, and estimate arithmetic live in Go, in `internal/engine` and
 `internal/viewmodel`, and the terminal UI uses the same functions. The overview
-load runs through the same six-phase pipeline as `finfocus overview`.
+load runs through the same seven-phase pipeline as `finfocus overview`.
 
 The web layer (`internal/webui`) is transport only. Its handlers call the
 shared code and return JSON that already contains display strings, and the

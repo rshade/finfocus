@@ -299,8 +299,11 @@ func TestPreviewCancellationJoinsWorkersAndReportsError(t *testing.T) {
 func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T) {
 	t.Parallel()
 	var attempts atomic.Int32
-	session := NewSession(context.Background(), SessionOptions{
+	var session *Session
+	session = NewSession(context.Background(), SessionOptions{
 		Preview: func(context.Context) ([]engine.OverviewRow, error) {
+			// The CLI callback announces the preview through the pipeline's OnPhase.
+			session.Phase(previewPhase, "Running pulumi preview...")
 			if attempts.Add(1) == 1 {
 				return nil, errors.New("private subprocess output")
 			}
@@ -309,7 +312,17 @@ func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T)
 	})
 	t.Cleanup(session.Close)
 	session.SetStateOnly(true)
-	session.Phase(previewPhase, "Detecting changes...")
+	session.Phase(previewPhase, "Skipping preview (current state only)...")
+	session.Phase(previewPhase+1, "Merging resources...")
+	previewEntry := func(snapshot OverviewSnapshot) PhaseEvent {
+		for _, phase := range snapshot.Phases {
+			if phase.Phase == previewPhase {
+				return phase
+			}
+		}
+		require.Fail(t, "preview phase missing from snapshot")
+		return PhaseEvent{}
+	}
 	require.NoError(t, session.startPreview())
 	require.Eventually(t, func() bool {
 		session.mu.Lock()
@@ -322,6 +335,8 @@ func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T)
 	require.NoError(t, json.Unmarshal(first.data, &snapshot))
 	require.Equal(t, []ErrorEvent{{Message: "Preview failed", Phase: previewPhase}}, snapshot.Errors)
 	assert.NotContains(t, string(first.data), "private subprocess output")
+	assert.Equal(t, PhaseEvent{Phase: previewPhase, Name: "Running pulumi preview...", Status: phaseFailed},
+		previewEntry(snapshot))
 
 	session.SetStateOnly(false)
 	require.NoError(t, session.startPreview())
@@ -335,6 +350,8 @@ func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T)
 	require.NoError(t, json.Unmarshal(next.data, &snapshot))
 	assert.Empty(t, snapshot.Errors)
 	assert.NotEmpty(t, snapshot.Rows)
+	assert.Equal(t, PhaseEvent{Phase: previewPhase, Name: "Running pulumi preview...", Status: phaseDone},
+		previewEntry(snapshot))
 }
 
 func TestStateOnlyGatesPreviewAndClearsAfterSuccess(t *testing.T) {

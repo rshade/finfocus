@@ -70,7 +70,8 @@ func (m OverviewModel) renderInitializingView() string {
 		spinnerView = m.loadingState.spinner.View()
 	}
 	lines := make([]string, 0, len(phaseNames))
-	for i, name := range phaseNames {
+	for i := range phaseNames {
+		name := m.phaseLabel(i)
 		switch {
 		case i < m.currentPhaseIndex:
 			lines = append(lines, OKStyle.Render("  ✓ "+name))
@@ -86,6 +87,15 @@ func (m OverviewModel) renderInitializingView() string {
 		Padding(1, 2). //nolint:mnd // View padding.
 		Render(strings.Join(lines, "\n"))
 	return lipgloss.JoinVertical(lipgloss.Center, banner, "", checklist, "")
+}
+
+// phaseLabel returns the checklist label for phase i: the reported override
+// when one exists, otherwise the default from phaseNames.
+func (m OverviewModel) phaseLabel(i int) string {
+	if i < len(m.phaseLabels) && m.phaseLabels[i] != "" {
+		return m.phaseLabels[i]
+	}
+	return phaseNames[i]
 }
 
 // renderLoadingView renders the loading spinner with progress banner.

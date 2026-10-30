@@ -460,7 +460,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   enrichment, so this overlap does not use it. A plugin error cancels the
   load; a load error cancels the launch. Cleanup runs before `Run` returns
   when either side fails, and stays on the pipeline only when both succeed.
-  Phase events stay 1..6; phase 4 is emitted when the open is joined.
+  Phase events stay 1..7; phase 5 is emitted when the open is joined.
+  Phase 3 is the preview (run, plan read, or skipped) and is always emitted,
+  so the TUI `phaseNames`, web `PHASE_COUNT`, and `webui` `previewPhase` /
+  `enrichmentPhase` move with the `OverviewPhase*` numbers. The TUI shows the
+  label each event carries, not only the default name. The web on-demand
+  preview re-emits phase 3 as "Running pulumi preview..." and the session
+  marks it done or failed.
   `GetCurrentStack` wraps `ctx.Err()` when `pulumi stack ls` fails after that
   context is canceled. The process error is `signal: killed` and does not
   wrap `context.Canceled`, so overview would otherwise report the kill

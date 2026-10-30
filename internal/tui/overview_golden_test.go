@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -507,4 +508,24 @@ func TestDetailView_BlastRadiusScrollKeepsSummaryWithHeading(t *testing.T) {
 	assert.Contains(t, shownLines[0], "BLAST RADIUS")
 	assert.Contains(t, shownLines[1], "40 dependents, $80.00/month")
 	assert.Contains(t, shown, "svc-")
+}
+
+// TestGolden_InitializingChecklist pins the loading checklist mid-load: done
+// phases keep the label their event reported, the active phase spins, and
+// pending phases show their default names.
+func TestGolden_InitializingChecklist(t *testing.T) {
+	t.Parallel()
+
+	model, _ := NewOverviewModel(t.Context(), nil, 0, nil, nil)
+	sized, _ := model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	for i, phase := range []string{
+		"Loading stack state...",
+		"Skipping change detection (--state-only)...",
+		"Skipping preview (current state only)...",
+		"Merging resources...",
+	} {
+		sized, _ = sized.Update(OverviewPhaseMsg{Index: i, Phase: phase})
+	}
+
+	testGolden(t, "overview_initializing_checklist", sized.View().Content)
 }
