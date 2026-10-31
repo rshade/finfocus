@@ -872,6 +872,28 @@ Complete documentation is available in the [docs/](docs/) directory:
 - [🏗️ System Architecture](docs/src/content/docs/architecture/system-overview.md)
 - [💬 FAQ & Support](docs/src/content/docs/support/faq.md)
 
+## Support
+
+Open bugs and feature requests for FinFocus in this repository's
+[issue tracker](https://github.com/rshade/finfocus/issues). That covers the
+CLI, the `--web` dashboard, the Pulumi Analyzer, and the plugins kept in
+[`plugins/`](plugins/): kubernetes, prometheus, scorer, and carbon.
+
+A plugin with its own repository takes its bugs and feature requests there.
+Open the issue in the plugin's repository, then open one here that links to
+it, so the FinFocus side of the change is tracked as well.
+
+| Plugin | Issues |
+|--------|--------|
+| `aws-public` | [rshade/finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public/issues) |
+| `aws-ce` | [rshade/finfocus-plugin-aws-ce](https://github.com/rshade/finfocus-plugin-aws-ce/issues) |
+| `azure-public` | [rshade/finfocus-plugin-azure-public](https://github.com/rshade/finfocus-plugin-azure-public/issues) |
+| `opencost` | [rshade/finfocus-plugin-opencost](https://github.com/rshade/finfocus-plugin-opencost/issues) |
+| `flexera` | [rshade/finfocus-plugin-flexera](https://github.com/rshade/finfocus-plugin-flexera/issues) |
+| `vantage` | [rshade/finfocus-plugin-vantage](https://github.com/rshade/finfocus-plugin-vantage/issues) |
+
+If you are not sure which repository a problem belongs to, open it here.
+
 ## Contributing
 
 We welcome contributions! See our development documentation:
