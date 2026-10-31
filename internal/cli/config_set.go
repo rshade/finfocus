@@ -63,7 +63,7 @@ For sensitive values like API keys or credentials, use environment variables ins
 					return err
 				}
 				cmd.Printf("Configuration updated: %s = %s\n", key, shown)
-				warnIfProjectShadows(cmd, key)
+				warnIfProjectShadows(cmd, path, key)
 				return nil
 			}
 			if err := ax.Perform(ctx, rehearse, commit); err != nil {
@@ -85,8 +85,8 @@ For sensitive values like API keys or credentials, use environment variables ins
 // warnIfProjectShadows tells the user when a value written to the global file
 // will not apply in the current project: the project config defines the key's
 // section and replaces the whole global section.
-func warnIfProjectShadows(cmd *cobra.Command, key string) {
-	if path, shadowed := config.ProjectShadowsKey(config.GetResolvedProjectDir(), key); shadowed {
+func warnIfProjectShadows(cmd *cobra.Command, globalPath, key string) {
+	if path, shadowed := config.ProjectShadowsKey(globalPath, config.GetResolvedProjectDir(), key); shadowed {
 		cmd.PrintErrf(
 			"Warning: %s is defined by the project config %s, which replaces the global %s section; "+
 				"the value just written does not apply in this project.\n",

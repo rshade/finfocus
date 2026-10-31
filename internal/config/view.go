@@ -212,20 +212,38 @@ func SectionOf(key string) string {
 
 // ProjectShadowsKey reports whether the project config in projectDir defines
 // the top-level section of key. A project section replaces the whole global
-// section (see ShallowMergeYAML), so a value written to the global file for a
-// key in that section does not apply in the project. It returns the project
-// config file that decides this. A missing or unreadable file shadows nothing.
-func ProjectShadowsKey(projectDir, key string) (string, bool) {
+// section (see ShallowMergeYAML), so a value written to the global file at
+// globalPath for a key in that section does not apply in the project. It
+// returns the project config file that decides this.
+//
+// Nothing is shadowed when the project file is missing, unreadable, or rejected
+// as a whole (NewWithProjectDir then uses the global config), or when it is the
+// same file as the global one (FINFOCUS_HOME inside the project).
+func ProjectShadowsKey(globalPath, projectDir, key string) (string, bool) {
 	if projectDir == "" {
 		return "", false
 	}
 	path := ProjectConfigPath(projectDir)
+	if sameFile(globalPath, path) {
+		return "", false
+	}
 	doc, _, err := loadDocument(path)
 	if err != nil {
 		return "", false
 	}
-	_, shadowed := doc[sectionName(CanonicalKey(key))]
-	return path, shadowed
+	if _, defined := doc[sectionName(CanonicalKey(key))]; !defined {
+		return "", false
+	}
+	if err = ShallowMergeYAML(&Config{}, path); err != nil {
+		return "", false
+	}
+	return path, true
+}
+
+func sameFile(a, b string) bool {
+	infoA, errA := os.Stat(a)
+	infoB, errB := os.Stat(b)
+	return errA == nil && errB == nil && os.SameFile(infoA, infoB)
 }
 
 func effective(key string, projectDoc map[string]any, tiers map[string]TierValue) (string, any, bool) {

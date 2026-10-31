@@ -229,11 +229,38 @@ func TestProjectShadowsKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			path, got := ProjectShadowsKey(tt.dir, tt.key)
+			path, got := ProjectShadowsKey(filepath.Join(t.TempDir(), "config.hujson"), tt.dir, tt.key)
 			assert.Equal(t, tt.wantHit, got)
 			if tt.wantHit {
 				assert.Equal(t, ProjectConfigPath(tt.dir), path)
 			}
 		})
 	}
+}
+
+func TestProjectShadowsKeyIgnoresOverlaysThatDoNotApply(t *testing.T) {
+	t.Parallel()
+
+	t.Run("overlay with an incorrectly typed section is not merged", func(t *testing.T) {
+		t.Parallel()
+		project := t.TempDir()
+		require.NoError(t, os.WriteFile(ProjectConfigPath(project),
+			[]byte(`{"cost": {}, "output": {"precision": "oops"}}`), 0o600))
+		_, shadowed := ProjectShadowsKey(filepath.Join(t.TempDir(), "config.hujson"), project, "cost.budgets.global.amount")
+		assert.False(t, shadowed, "NewWithProjectDir rejects the whole overlay and uses the global config")
+	})
+
+	t.Run("global and project are the same file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := ProjectConfigPath(dir)
+		require.NoError(t, os.WriteFile(path, []byte(`{"cost": {"budgets": {"global": {"amount": 200}}}}`), 0o600))
+		_, shadowed := ProjectShadowsKey(path, dir, "cost.budgets.global.amount")
+		assert.False(t, shadowed, "the project reads the file config set just wrote")
+
+		link := filepath.Join(t.TempDir(), "link.hujson")
+		require.NoError(t, os.Symlink(path, link))
+		_, shadowed = ProjectShadowsKey(link, dir, "cost.budgets.global.amount")
+		assert.False(t, shadowed, "a symlink alias is the same file")
+	})
 }

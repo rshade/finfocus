@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -44,7 +45,8 @@ and will not appear in configuration files.`,
 			// Get the value
 			value, err := cfg.Get(key)
 			if err != nil {
-				if path, shadowed := config.ProjectShadowsKey(config.GetResolvedProjectDir(), key); shadowed {
+				globalPath := filepath.Join(config.ResolveConfigDir(), "config.hujson")
+				if path, shadowed := config.ProjectShadowsKey(globalPath, config.GetResolvedProjectDir(), key); shadowed {
 					section := config.SectionOf(key)
 					return fmt.Errorf(
 						"failed to get config value: %w (project config %s defines %s, "+
