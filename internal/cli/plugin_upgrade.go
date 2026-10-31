@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
@@ -81,7 +80,7 @@ later. Use --no-skill to skip it.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			opts.format = resolveOutputFormat(cmd, "output", output)
 			if opts.format != outputFormatTable && opts.format != outputFormatJSON {
-				return fmt.Errorf("unsupported output format: %s (supported: table, json)", opts.format)
+				return unsupportedOutputError(cmd.Context(), opts.format, "table, json")
 			}
 			return runPluginUpgrade(cmd, opts)
 		},

@@ -64,7 +64,7 @@ func diffOutputFormat(cmd *cobra.Command) (string, error) {
 	}
 	format := resolveOutputFormat(cmd, "output", output)
 	if format != outputFormatTable && format != outputFormatJSON {
-		return "", fmt.Errorf("unsupported output format: %s (supported: table, json)", format)
+		return "", unsupportedOutputError(cmd.Context(), format, "table, json")
 	}
 	return format, nil
 }

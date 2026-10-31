@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rshade/ax-go"
 	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -120,6 +121,7 @@ func TestCostCluster_Window(t *testing.T) {
 		args           []string
 		wantErr        string
 		reachedPlugins bool
+		validation     bool
 	}{
 		{
 			name:           "date-only window",
@@ -165,9 +167,10 @@ func TestCostCluster_Window(t *testing.T) {
 			wantErr: "date too far in past",
 		},
 		{
-			name:    "output still validated before plugins",
-			args:    []string{"cost", "cluster", "--output", "xml", "--from", day, "--to", later},
-			wantErr: "unsupported output format: xml",
+			name:       "output still validated before plugins",
+			args:       []string{"cost", "cluster", "--output", "xml", "--from", day, "--to", later},
+			wantErr:    "unsupported output format: xml",
+			validation: true,
 		},
 		{
 			name:    "group-by still validated before plugins",
@@ -180,7 +183,11 @@ func TestCostCluster_Window(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res := axtest.Run(context.Background(), t, NewRootCmd("test"), tt.args)
 			stderr := string(res.Stderr)
-			require.Equal(t, 1, res.ExitCode)
+			wantCode := 1
+			if tt.validation {
+				wantCode = ax.ExitValidation
+			}
+			require.Equal(t, wantCode, res.ExitCode)
 			if tt.reachedPlugins {
 				assert.Contains(t, stderr, reachedPlugins)
 				assert.NotContains(t, stderr, "parsing")

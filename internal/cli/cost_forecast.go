@@ -274,10 +274,7 @@ func forecastOutputFormat(cmd *cobra.Command) (string, error) {
 	case forecastOutputPlain, forecastOutputJSON, forecastOutputNDJSON:
 		return format, nil
 	default:
-		return "", fmt.Errorf(
-			"unsupported output format: %s (supported: plain, json, ndjson)",
-			format,
-		)
+		return "", unsupportedOutputError(cmd.Context(), format, "plain, json, ndjson")
 	}
 }
 

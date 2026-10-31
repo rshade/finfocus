@@ -154,7 +154,7 @@ func checkOverviewInputs(cmd *cobra.Command, output string) error {
 	switch output {
 	case outputFormatTable, outputFormatJSON, outputFormatNDJSON:
 	default:
-		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", output)
+		return unsupportedOutputError(cmd.Context(), output, "table, json, ndjson")
 	}
 	return validateNotifyConfig(cmd)
 }
