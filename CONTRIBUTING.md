@@ -385,7 +385,13 @@ type(scope): description
 [optional footer]
 ```
 
-**Types:** `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`
+**Types:** `feat`, `fix`, `deps`, `docs`, `test`, `refactor`, `perf`, `chore`
+
+Use `deps` for a change that only updates dependencies, such as
+`deps: bump finfocus-spec to v0.7.10`. It appears under Dependencies in the
+release notes of every module it touches. Land a `finfocus-spec` bump this way
+before the feature that needs it, so the feature does not show up in each
+plugin's release notes.
 
 **Examples:**
 
