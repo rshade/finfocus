@@ -64,3 +64,15 @@ func TestRecommendationsInventoryCountsReplacementOnce(t *testing.T) {
 	require.NoError(t, err)
 	assertOneDescriptorPerURN(t, resources)
 }
+
+func TestCollapseLiveReplacementsDropsUnpairedDeleteReplaced(t *testing.T) {
+	t.Parallel()
+
+	resources := []engine.ResourceDescriptor{
+		{ID: "urn:orphan", Operation: "delete-replaced", Properties: map[string]any{"instanceType": "t3.small"}},
+		{ID: "urn:kept", Operation: "create", Properties: map[string]any{"instanceType": "t3.micro"}},
+	}
+	got := collapseLiveReplacements(resources)
+	require.Len(t, got, 1)
+	assert.Equal(t, "urn:kept", got[0].ID)
+}
