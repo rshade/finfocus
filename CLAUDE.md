@@ -639,8 +639,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `cost actual` and the web Cost page get the same clamp per resource in
   `actualFromPlugin` (`resourceActualStart`, from `pulumi:created` and
   `pulumi:external`); the result keeps the requested `StartDate` and
-  `CostPeriod`. A batch has one start, so a resource created inside the
-  window skips the batch and goes to the per-resource path.
+  `CostPeriod`, and `windowDailyCosts` rebuilds `DailyCosts` over that window
+  (zero before the creation day), because `distributeDailyCosts` and
+  `AggregateResultsInternal` index the series from `StartDate`. A resource
+  created at or after `to` gets a local $0 result and no plugin call
+  (`Start == End` fails SDK validation). A batch has one start, so a
+  resource created inside the window skips the batch and goes to the
+  per-resource path.
 - Projected diff (`cost projected`): replacement steps sharing a URN are
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`
