@@ -116,6 +116,7 @@ func (e *Engine) actualFromPlugin(
 	// The result keeps the requested window, so rows and groups share one
 	// period even when a resource was billed from its creation time. The daily
 	// series is rebuilt over that window so its indices still start at from.
+	// DailyObservations stay the plugin buckets; this does not fill gaps with zero.
 	if result != nil && !billedFrom.Equal(from) {
 		result.StartDate = from
 		result.CostPeriod = FormatPeriod(from, to)

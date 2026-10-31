@@ -716,6 +716,7 @@ func mapProtoActualCostResultToEngine(
 	}
 
 	engineResult.ExpiresAt = result.ExpiresAt
+	engineResult.DailyObservations = observationsFromProto(result.Observations)
 
 	if !from.IsZero() && !to.IsZero() {
 		monthly, hourly, dailyCosts, notes := deriveActualCostWindow(result.TotalCost, from, to)

@@ -434,6 +434,31 @@ The database is `~/.finfocus/history/<stack>.history.db`. Slashes in the
 stack name become dashes. `FINFOCUS_HOME` changes the root. CI recipes are
 in [CI/CD cost tracking](../guides/ci-cd-cost-tracking.md).
 
+### Usage (cost history collect-daily)
+
+```bash
+finfocus cost history collect-daily --stack <name> [options]
+```
+
+### Options (cost history collect-daily)
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--stack` | Pulumi stack name. This is the parent `cost` flag | required |
+| `--from` | Window start (`YYYY-MM-DD` or RFC3339) | 30 complete UTC days ago |
+| `--to` | Window end (`YYYY-MM-DD` or RFC3339) | start of the current UTC day |
+| `--pulumi-json` | Pulumi preview JSON. Mutually exclusive with the state flags | none |
+| `--pulumi-state` | Pulumi state JSON | none |
+| `--terraform-state` | Terraform state JSON. Requires `--from` | none |
+| `--output` | `table` or `json` | `table` |
+
+The file is `<project>@<stack>.daily.db` in the same history directory. A
+re-run replaces days the plugin sent and leaves every other day in place. A
+missing daily series stores nothing for that resource. The command is not an
+MCP tool. With `cost.history.retention.auto_prune` and `max_age_days` set,
+points older than that many days are deleted. `max_snapshots` does not apply
+to this file.
+
 ### Usage (cost history export)
 
 ```bash

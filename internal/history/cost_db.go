@@ -81,6 +81,10 @@ func newCostDB(db *bolt.DB, path string) *CostDB {
 
 func (d *CostDB) init(project, stack string) error {
 	return d.db.Update(func(tx *bolt.Tx) error {
+		if meta := tx.Bucket([]byte(costBucketMeta)); meta != nil &&
+			len(meta.Get([]byte(metaKeyDailySchema))) > 0 {
+			return ErrDailyFileAsTimeline
+		}
 		meta, err := tx.CreateBucketIfNotExists([]byte(costBucketMeta))
 		if err != nil {
 			return fmt.Errorf("creating meta bucket: %w", err)

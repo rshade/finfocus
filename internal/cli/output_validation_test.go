@@ -33,6 +33,7 @@ func outputFormatCases() []struct {
 		{[]string{"cost", "anomalies"}, unsupportedXML},
 		{[]string{"cost", "recommendations"}, unsupportedXML},
 		{[]string{"cost", "recommendations", "history", "rec-1"}, unsupportedXML},
+		{[]string{"cost", "history", "collect-daily"}, unsupportedXML},
 		{[]string{"cost", "history", "view"}, unsupportedXML},
 		{[]string{"cost", "history", "diff"}, unsupportedXML},
 		{[]string{"overview"}, unsupportedXML},

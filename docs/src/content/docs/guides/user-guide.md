@@ -224,7 +224,10 @@ a date such as `2025-03-15`. `--to` defaults to the latest snapshot.
 snapshots. `--older-than` takes a duration such as `365d`, `6m`, or `2y`.
 `--dry-run` prints the plan. `--force` skips the confirmation. After a
 delete, the database is compacted. Set `cost.history.retention.auto_prune`
-to apply `max_snapshots` and `max_age_days` after `collect`.
+to apply `max_snapshots` and `max_age_days` after `collect`. The same
+`auto_prune` and `max_age_days` settings delete daily actual points older
+than that many days after `collect-daily`. `max_snapshots` applies only to
+projected checkpoints.
 
 `export` writes the same database as JSON, CSV, or NDJSON. `--from` and
 `--to` limit the dates. `--provider` keeps one provider's monthly cost.
@@ -234,6 +237,7 @@ that column.
 
 ```bash
 finfocus cost history collect --stack dev
+finfocus cost history collect-daily --stack dev
 finfocus cost history view --stack dev
 finfocus cost history view --stack dev --currency USD
 finfocus cost history list
@@ -241,6 +245,14 @@ finfocus cost history diff --stack dev --from v35 --to v42
 finfocus cost history export --stack dev --format json
 finfocus cost history prune --stack dev --older-than 365d --dry-run
 ```
+
+`collect-daily` stores one actual-cost amount per resource, per UTC day, and
+per currency in `<project>@<stack>.daily.db`. It does not change the projected
+timeline. With no dates, the window is the last 30 complete UTC days. A plugin
+that omits daily amounts is skipped, and a day it does not send is left as it
+was. Run it beside `collect` after a deploy when you want a baseline that is
+not tied to checkpoints. `--output json` prints the stored, skipped, and
+failed counts.
 
 Databases live under the FinFocus config directory in `history/`, one file per
 stack of each project: `<project>@<stack>.history.db`. Two projects that both

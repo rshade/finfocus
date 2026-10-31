@@ -548,14 +548,25 @@ type GetActualCostRequest struct {
 	Resource *ResourceDescriptor
 }
 
+// ActualCostPoint is one plugin-reported actual-cost bucket.
+// A nil plugin timestamp is not a point. Callers must not invent days for it.
+type ActualCostPoint struct {
+	Timestamp time.Time
+	Cost      float64
+	Currency  string
+}
+
 // ActualCostResult represents the calculated actual cost data retrieved from cloud providers.
 // It includes the total cost and detailed breakdowns by service or resource.
+// Observations are the timestamped buckets the plugin returned. They are not
+// an even split of TotalCost.
 type ActualCostResult struct {
 	Currency       string
 	TotalCost      float64
 	CostBreakdown  map[string]float64
 	Sustainability map[string]SustainabilityMetric
 	ExpiresAt      *time.Time
+	Observations   []ActualCostPoint
 }
 
 // GetActualCostResponse contains the results of actual cost queries.
@@ -1179,6 +1190,7 @@ func MapBatchActualResults(resp *pbc.BatchCostResponse) []BatchMappedResult {
 			CostBreakdown:  breakdown,
 			Sustainability: make(map[string]SustainabilityMetric),
 			ExpiresAt:      earliestExpiresAt(pbcResults),
+			Observations:   actualCostObservations(pbcResults),
 		}
 
 		aggregateImpactMetrics(result, pbcResults)
@@ -1601,6 +1613,7 @@ func (c *clientAdapter) GetActualCost(
 			TotalCost:      totalCost,
 			CostBreakdown:  breakdown,
 			Sustainability: make(map[string]SustainabilityMetric),
+			Observations:   actualCostObservations(resp.GetResults()),
 		}
 
 		result.ExpiresAt = earliestExpiresAt(resp.GetResults())
@@ -1646,6 +1659,40 @@ func totalActualCost(pbcResults []*pbc.ActualCostResult) (float64, map[string]fl
 		}
 	}
 	return totalCost, breakdown
+}
+
+// actualCostObservations keeps each plugin bucket that has a timestamp.
+// Buckets with no timestamp stay in the summed total and do not become days.
+func actualCostObservations(pbcResults []*pbc.ActualCostResult) []ActualCostPoint {
+	fallback := actualCostCurrency(pbcResults)
+	points := make([]ActualCostPoint, 0, len(pbcResults))
+	for _, result := range pbcResults {
+		if result.GetTimestamp() == nil {
+			continue
+		}
+		points = append(points, ActualCostPoint{
+			Timestamp: result.GetTimestamp().AsTime().UTC(),
+			Cost:      result.GetCost(),
+			Currency:  pointCurrency(result, fallback),
+		})
+	}
+	if len(points) == 0 {
+		return nil
+	}
+	return points
+}
+
+func pointCurrency(result *pbc.ActualCostResult, fallback string) string {
+	focus := result.GetFocusRecord()
+	if focus != nil {
+		if currency := strings.TrimSpace(focus.GetBillingCurrency()); currency != "" {
+			return currency
+		}
+		if currency := strings.TrimSpace(focus.GetPricingCurrency()); currency != "" {
+			return currency
+		}
+	}
+	return fallback
 }
 
 func actualCostCurrency(pbcResults []*pbc.ActualCostResult) string {

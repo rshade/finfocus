@@ -21,10 +21,11 @@ func isTerminal(f *os.File) bool {
 
 // Application and command names shared across the cli package.
 const (
-	appName       = "finfocus"
-	cmdNameCost   = "cost"
-	cmdNamePlugin = "plugin"
-	cmdNameList   = "list"
+	appName        = "finfocus"
+	cmdNameCost    = "cost"
+	cmdNameHistory = "history"
+	cmdNamePlugin  = "plugin"
+	cmdNameList    = "list"
 )
 
 // NewRootCmd creates the root Cobra command for the finfocus CLI.
