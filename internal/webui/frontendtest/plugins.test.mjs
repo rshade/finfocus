@@ -143,7 +143,8 @@ test('confirm dialog names the plan before install is posted', async () => {
   assert.equal(t.container.querySelector('h2').textContent, 'Plugins');
   assert.match(t.container.textContent, /Update available/);
   assert.match(t.container.textContent, /Outside catalog/);
-  assert.match(t.container.textContent, /Deprecated\. Use scorer\./);
+  assert.match(t.container.textContent, /Deprecated\. Use scorer\. /);
+  assert.doesNotMatch(t.container.textContent, /scorer\.\./);
   assert.match(t.container.textContent, /1\.0\.0/);
   assert.match(t.container.textContent, /community/);
   assert.equal(t.container.querySelector('#plugin-install-local'), undefined);

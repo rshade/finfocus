@@ -98,7 +98,7 @@ func TestBudgetPresentationEvent(t *testing.T) {
 	assert.Contains(
 		t,
 		string(event.data),
-		`"footerDisplay":"Budget: WARNING $75.68 / $100.12 (76%)"`,
+		`"footerDisplay":"Budget: WARNING $75.68 / $100.12 (75.6%)"`,
 	)
 	assert.Contains(t, string(event.data), `75% threshold triggered`)
 }

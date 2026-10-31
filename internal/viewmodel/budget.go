@@ -61,7 +61,7 @@ func BuildBudgetDisplay(result *engine.BudgetResult) BudgetDisplay {
 	mixed := result.Summary != nil && len(result.Summary.ByCurrency) > 1
 	if !mixed && limit > 0 {
 		display.AmountsDisplay = fmt.Sprintf(
-			"%s / %s (%.0f%%)",
+			"%s / %s (%.1f%%)",
 			engine.FormatOverviewCurrency(spend),
 			engine.FormatOverviewCurrency(limit),
 			spend/limit*percentScale,

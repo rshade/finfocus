@@ -135,7 +135,7 @@ function statusFlags(plugin, installed) {
   if (plugin.updateAvailable) flags.push('Update available');
   if (installed.length === 0) flags.push('Not installed');
   else if (!plugin.updateAvailable) flags.push('Installed');
-  return flags.join('. ');
+  return flags.map((flag) => flag.replace(/\.$/, '')).join('. ');
 }
 
 function operationSummary(plan) {
