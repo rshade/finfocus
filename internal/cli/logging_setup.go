@@ -151,3 +151,25 @@ func (s *loggingSession) Close() error {
 	})
 	return s.closeErr
 }
+
+// closeLoggingOnFailure closes the logging session when a command returns an
+// error. Cobra runs PersistentPostRunE only after a successful RunE, so a
+// failing command otherwise left its log file and audit logger open until the
+// process exited. That was harmless for a one-shot process, but it kept the log
+// file locked on Windows (a test could not remove its temp directory) and
+// skipped the audit logger's flush on failed commands. stopLogging is a no-op
+// while an MCP server hosts dispatched calls, and closing is idempotent.
+func closeLoggingOnFailure(root *cobra.Command, lifecycle *commandLifecycle) {
+	if run := root.RunE; run != nil {
+		root.RunE = func(cmd *cobra.Command, args []string) error {
+			err := run(cmd, args)
+			if err != nil {
+				_ = lifecycle.stopLogging()
+			}
+			return err
+		}
+	}
+	for _, child := range root.Commands() {
+		closeLoggingOnFailure(child, lifecycle)
+	}
+}
