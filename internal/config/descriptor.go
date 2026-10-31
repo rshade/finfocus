@@ -224,11 +224,29 @@ func splitPluginKey(key string) (string, string, bool) {
 	return name, configKey, true
 }
 
+// unsettableKeyError explains why key cannot be written. A section with
+// settable keys lists them, because the key may be a real field that is
+// edited in config.hujson by hand (cost.history.enabled, for example).
+func unsettableKeyError(key string) error {
+	section := sectionName(key)
+	var settable []string
+	for _, setting := range KnownSettings() {
+		if sectionName(setting.Key) == section {
+			settable = append(settable, setting.Key)
+		}
+	}
+	if len(settable) == 0 {
+		return invalidChange("unknown configuration section: %s", section)
+	}
+	return invalidChange("%s cannot be set here; edit config.hujson directly. Settable %s keys: %s",
+		key, section, strings.Join(settable, ", "))
+}
+
 // pointerFor returns the RFC 6901 pointer for a setting key.
 func pointerFor(key string) (string, error) {
 	setting, ok := LookupSetting(key)
 	if !ok {
-		return "", invalidChange("unknown configuration section: %s", strings.Split(key, ".")[0])
+		return "", unsettableKeyError(key)
 	}
 	var segments []string
 	switch {

@@ -87,6 +87,20 @@ func TestPatchRejectsInvalidAndStaleVersions(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown configuration section")
 }
 
+func TestPatchRejectsUnsettableKeyInKnownSection(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "config.hujson")
+
+	_, err := PatchFile(path, TierGlobal, "", []Change{{Key: "cost.history.enabled", Value: strPtr("true")}}, false)
+	var invalid *InvalidChangeError
+	require.ErrorAs(t, err, &invalid)
+	assert.NotContains(t, invalid.Message, "unknown configuration section")
+	assert.Contains(t, invalid.Message, "cost.history.enabled cannot be set here")
+	assert.Contains(t, invalid.Message, "cost.history.pulumi_cloud.enabled")
+	assert.NotContains(t, invalid.Message, "output.precision", "only keys from the same section are listed")
+	assert.NoFileExists(t, path)
+}
+
 func TestPatchSecretsAndNoop(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "config.hujson")

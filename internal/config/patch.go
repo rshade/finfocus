@@ -262,7 +262,7 @@ func applyChange(value *hujson.Value, change Change) (DiffEntry, bool, error) {
 	key := CanonicalKey(change.Key)
 	setting, ok := LookupSetting(key)
 	if !ok {
-		return DiffEntry{}, false, invalidChange("unknown configuration section: %s", sectionName(key))
+		return DiffEntry{}, false, unsettableKeyError(key)
 	}
 	pointer, err := pointerFor(key)
 	if err != nil {
