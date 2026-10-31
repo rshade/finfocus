@@ -39,6 +39,41 @@ func TestResolveIdentitySharedOrigin(t *testing.T) {
 	assert.NotEqual(t, httpsID.Project, nestedID.Project)
 }
 
+func TestResolveIdentityThroughSymlink(t *testing.T) {
+	t.Parallel()
+
+	repo := gitRepo(t, "https://github.com/org/repo.git")
+	require.NoError(t, os.Mkdir(filepath.Join(repo, "stack"), 0o700))
+	rootID, err := ResolveIdentity(context.Background(), repo, false)
+	require.NoError(t, err)
+	stackID, err := ResolveIdentity(context.Background(), filepath.Join(repo, "stack"), false)
+	require.NoError(t, err)
+	require.Equal(t, "stack", stackID.Label)
+
+	link := filepath.Join(t.TempDir(), "checkout")
+	require.NoError(t, os.Symlink(repo, link))
+	outerLink := filepath.Join(t.TempDir(), "outer")
+	require.NoError(t, os.Symlink(filepath.Dir(repo), outerLink))
+
+	tests := []struct {
+		name string
+		dir  string
+		want Identity
+	}{
+		{"symlink to the repository", filepath.Join(link, "stack"), stackID},
+		{"symlink to the repository root", link, rootID},
+		{"symlink above the repository", filepath.Join(outerLink, filepath.Base(repo), "stack"), stackID},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, idErr := ResolveIdentity(context.Background(), tt.dir, false)
+			require.NoError(t, idErr)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestResolveIdentityAbsolutePath(t *testing.T) {
 	t.Parallel()
 

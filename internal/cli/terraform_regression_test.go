@@ -40,6 +40,9 @@ func TestPulumiProjectionDoesNotRunTerraform(t *testing.T) {
 			0o700,
 		),
 	)
+	// detectPulumiProject looks the binary up on PATH before the scripted runner
+	// is used; a macOS image has no Pulumi CLI.
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "pulumi"), []byte("#!/bin/sh\nexit 0\n"), 0o700))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("PULUMI_HOME", t.TempDir())
 	t.Cleanup(pulumidetect.SetRunnerForTest(scriptedPulumi{preview: []byte(`{"steps":[]}`)}))

@@ -49,7 +49,7 @@ func ResolveIdentity(ctx context.Context, dir string, includeWorkspace bool) (Id
 	if !ok {
 		return absoluteIdentity(abs, workspace), nil
 	}
-	rel, relErr := filepath.Rel(root, abs)
+	rel, relErr := filepath.Rel(resolveSymlinks(root), resolveSymlinks(abs))
 	outside := rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))
 	if relErr != nil || outside {
 		// A directory that is not inside the git root uses the absolute-path identity.
@@ -83,6 +83,18 @@ func absoluteIdentity(abs, workspace string) Identity {
 		stack = workspace
 	}
 	return Identity{Project: hashLines(lines), Stack: stack, Label: label}
+}
+
+// resolveSymlinks returns path with symbolic links resolved. git reports the
+// repository root with links resolved, so a directory reached through a link
+// (a symlinked checkout, or /var on macOS) must be resolved the same way
+// before it is compared with the root. An unresolvable path is returned as is.
+func resolveSymlinks(path string) string {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return path
+	}
+	return resolved
 }
 
 func hashLines(lines []string) string {
