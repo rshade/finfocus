@@ -215,7 +215,10 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	}
 
 	if unchanged {
-		return projectedUnchanged(ctx, cmd, audit)
+		return projectedUnchanged(ctx, cmd, audit, params.output, func() error {
+			empty := &engine.RecommendationsResult{Currency: defaultCurrency}
+			return RenderRecommendationsOutput(ctx, cmd, params.output, empty, params.verbose, nil)
+		})
 	}
 
 	// Open plugin connections

@@ -288,6 +288,19 @@ Pulumi project only in a parent loses to Terraform files in the working
 directory. A plan with no creates, updates, deletes, or replaces prints
 `No changes. Projected monthly cost is zero.` and exits 0.
 
+With `--output json` or `--output ndjson` (or `--format json`), stdout carries
+only the command's usual document with no resources. The sentence moves to
+stderr, and the exit code stays 0. Nothing is priced for a plan with no
+changes, whether it was planned automatically or read with `--terraform-plan`.
+
+| Command | JSON on stdout | NDJSON on stdout |
+| --- | --- | --- |
+| `cost projected` | `finfocus` document with `emptyPlan: true`, `resources: []`, and zero `summary` and `diff` totals; no `stack` object | No lines |
+| `cost recommendations` | Zero `summary`, `recommendations: []` | One `summary` line |
+| `cost forecast` | `currency`, `months`, and `series: []` | One `meta` line |
+| `cost estimate` | `results: []`, `totalChange: 0` | No lines |
+| `overview` | `metadata` with `hasChanges: false`, `resources: []`, zero `summary` | No lines |
+
 `--terraform-plan` reads a saved `show -json` file and does not start a binary.
 A missing file, a `format_version` whose major is not 1, or a file over 32 MiB
 is a user-input error (exit 2).
