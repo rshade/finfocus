@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -562,6 +563,9 @@ func TestGetProjectName_PermissionError(t *testing.T) {
 
 	if os.Geteuid() == 0 {
 		t.Skip("running as root; permission checks are not enforced")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not enforce POSIX file modes")
 	}
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte("name: secret\n"), 0000))
