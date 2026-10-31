@@ -42,7 +42,7 @@ func TestBudgetDisplaySafeSections(t *testing.T) {
 		},
 	}
 	display := BuildBudgetDisplay(result)
-	assert.Equal(t, "Budget: OK $75.68 / $100.12 (76%)", display.FooterDisplay)
+	assert.Equal(t, "Budget: OK $75.68 / $100.12 (75.6%)", display.FooterDisplay)
 	require.Len(t, display.Details, 2)
 	assert.Equal(t, "fallback", display.Details[0].Name)
 	assert.Equal(t, "$90.12", display.Details[0].ForecastedDisplay)
