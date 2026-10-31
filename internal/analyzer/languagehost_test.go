@@ -326,7 +326,7 @@ func TestLanguageHost_RunPluginReportsChild(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(rest), &payload))
 	assert.Equal(t, analyzerName(), payload.Args0)
 	assert.Equal(t, []string{analyzerName(), engine, "."}, payload.Args)
-	assert.Equal(t, dir, payload.WD)
+	assert.Equal(t, resolvedPath(t, dir), resolvedPath(t, payload.WD))
 	assert.Equal(t, sentinel, payload.Sentinel)
 }
 
@@ -435,7 +435,7 @@ func TestLanguageHost_RunPluginWorkingDirectory(t *testing.T) {
 				WD string `json:"wd"`
 			}
 			require.NoError(t, json.Unmarshal([]byte(rest), &payload))
-			assert.Equal(t, tt.want(pack), payload.WD)
+			assert.Equal(t, resolvedPath(t, tt.want(pack)), resolvedPath(t, payload.WD))
 		})
 	}
 }
@@ -506,4 +506,14 @@ func TestLanguageHost_RunPluginMissingExecutable(t *testing.T) {
 	require.NoError(t, err)
 	_, err = stream.Recv()
 	require.Error(t, err)
+}
+
+// resolvedPath resolves symbolic links so a path compares equal to the working
+// directory a child reports: macOS temp directories sit under /var, a link to
+// /private/var, and the child sees the resolved path.
+func resolvedPath(t *testing.T, path string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(path)
+	require.NoError(t, err)
+	return resolved
 }
