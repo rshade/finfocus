@@ -206,7 +206,7 @@ tools map to built-in tools as follows:
 | `validate_plugin` / `health_check`   | `finfocus-plugin-validate`                                                        |
 | `get_recommendations`                | `finfocus-cost-recommendations`                                                   |
 | `track_budget`                       | `budgets` in `finfocus-overview` JSON; `finfocus-cost-projected` with `exit-on-threshold` |
-| `detect_anomalies`                   | Partial: `CostDrift` in `finfocus-overview` JSON                                  |
+| `detect_anomalies`                   | `finfocus-cost-anomalies` (drift rows; no robust-median method yet)               |
 | `forecast_costs`                     | Partial: `ExtrapolatedMonthly` in `finfocus-overview` JSON                        |
 
 ## Troubleshooting

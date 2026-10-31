@@ -11,6 +11,7 @@
 const ROUTES = {
   overview: () => import('./views/overview.js'),
   cost: () => import('./views/cost.js'),
+  anomalies: () => import('./views/anomalies.js'),
   recommendations: () => import('./views/recommendations.js'),
   estimate: () => import('./views/estimate.js'),
   forecast: () => import('./views/forecast.js'),

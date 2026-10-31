@@ -46,13 +46,14 @@ start the opener is logged as a warning; the server keeps running.
 
 ## Views
 
-The header links to eight views. Each has its own URL fragment, and a
+The header links to nine views. Each has its own URL fragment, and a
 **Skip to main content** link comes first in the tab order.
 
 | View | Fragment | Shows |
 | --- | --- | --- |
 | Overview | `#/overview` | Loading checklist; resource table (Resource, Type, Status, Actual MTD, Projected, Delta, Drift%, Recs, Warn); totals; budget health; resource details |
 | Cost | `#/cost` | Actual costs, summary with provider shares and carbon equivalencies when plugins supply them, trends when history is available |
+| Anomalies | `#/anomalies` | Resources whose month-to-date run-rate has diverged from the projected month: resource, type, period, baseline, observed, deviation, drift %, and currency, with the count of resources considered |
 | Recommendations | `#/recommendations` | Recommendation counts, savings, actions, descriptions, and scorer signals when scoring is configured |
 | Estimate | `#/estimate` | What-if comparison for one resource: baseline, modified monthly cost, total change, and per-property deltas |
 | Forecast | `#/forecast` | Monthly cost projected from the current month, with the growth model or a statistical model fitted to a spend CSV, its bounds, the plan baseline, budget, and warnings |
@@ -126,6 +127,18 @@ server. A record with no value shows **Missing**, which differs from an
 explicit `0`. A report with no records keeps the query you ran and states that
 the total is unavailable, not zero. A failed query clears earlier results and
 shows a fixed message; a disabled provider names the setting that enables it.
+
+### Anomalies
+
+The Anomalies view calls the same Go function as `finfocus cost anomalies`
+and lists the same resources in the same order, for the rows the Overview
+already holds. It starts no pricing run and has no controls: the list has no
+filter, sort, or run button. A status line reads `N of M resources`, or
+`No anomalies found (0 of M resources).` when nothing drifted. While the
+Overview is still pricing, the view shows `Waiting for stack data…` and loads
+the list when the session is ready. It refreshes when the Overview does, for
+example after **Run preview**. The server formats every amount, percentage, and
+period. A failed request shows an alert and clears the table.
 
 ### Forecast controls
 
@@ -240,6 +253,7 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST` without `Origin` | 403 | `forbidden` | `origin header required` |
 | `POST` whose `Content-Type` is not `application/json` | 415 | `unsupported_media_type` | `Content-Type must be application/json` |
 | `GET /api/overview/resource?urn=<urn>` | 200 | - | Row details plus `blastRadius`: `available`, `dependents` (each with `depth`, `via`, `status`, `monthlyCost`, `priced`, `component`), `count`, `monthlyTotal` (omitted when `mixedCurrency`), `currency` and `leftOut` (`deleting`, `unpriced`, `unresolved`). Check `available` first. |
+| `GET /api/overview/anomalies` | 200 | - | The same list as `finfocus cost anomalies --output json`, read from the session's overview rows with no new pricing run: `considered` and `anomalies` (`resource`, `type`, `period`, `baseline`, `observed`, `deviation`, `percentDrift`, `severity`, `method`, `currency`). An empty `anomalies` array with a nonzero `considered` means nothing drifted. Until enrichment finishes the answer is 503 `not_ready`. Each item also carries a `display` object (`baseline`, `observed`, `deviation`, `drift`, `period`) and the body a `summary` count line; the page shows those strings. |
 | `GET /api/config` | 200 | - | Effective configuration. Secret values are omitted. |
 | `POST /api/config/preview` | 200 | - | Before/after diff. Writes nothing. |
 | `POST /api/config` | 200 | - | Writes the selected `config.hujson` and returns the page plus a reload notice. |

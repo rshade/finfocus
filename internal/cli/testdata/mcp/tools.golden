@@ -7,6 +7,7 @@ finfocus-config-list
 finfocus-config-routes-list
 finfocus-config-validate
 finfocus-cost-actual
+finfocus-cost-anomalies
 finfocus-cost-cluster
 finfocus-cost-estimate
 finfocus-cost-forecast

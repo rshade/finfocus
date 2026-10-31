@@ -26,7 +26,8 @@ func TestDetect(t *testing.T) {
 				w.WriteHeader(tc.code)
 			}))
 			t.Cleanup(server.Close)
-			got := Detect(context.Background(), esc.Session{Backend: server.URL, Token: "t"}, StackRef{"o", "p", "s"})
+			session := esc.Session{Backend: server.URL, Token: "t"}
+			got := DetectWithClient(context.Background(), session, StackRef{"o", "p", "s"}, server.Client())
 			assert.Equal(t, tc.want, got.Reason)
 			assert.Equal(t, tc.want == "", got.Available)
 		})
@@ -50,6 +51,7 @@ func TestDetect(t *testing.T) {
 	}
 	assert.Zero(t, count.Load())
 	server.Close()
-	got := Detect(context.Background(), esc.Session{Backend: server.URL, Token: "t"}, StackRef{"o", "p", "s"})
+	closed := esc.Session{Backend: server.URL, Token: "t"}
+	got := DetectWithClient(context.Background(), closed, StackRef{"o", "p", "s"}, server.Client())
 	require.Equal(t, Unreachable, got.Reason)
 }

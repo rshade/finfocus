@@ -1065,3 +1065,13 @@ button:disabled {
     align-items: stretch;
   }
 }
+
+.anomalies-table .col-resource {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
+.anomalies-table .col-num {
+  text-align: right;
+}
