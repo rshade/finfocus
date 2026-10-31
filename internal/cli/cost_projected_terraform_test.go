@@ -79,12 +79,15 @@ func TestCostProjectedTerraformNoChanges(t *testing.T) {
 // and the exit code stays 0.
 func assertNoChangeMachineOutput(t *testing.T, input ...string) {
 	t.Helper()
-	commands := [][]string{
-		{"cost", "projected"},
-		{"cost", "recommendations"},
-		{"cost", "forecast"},
-		{"cost", "estimate"},
-		{"overview"},
+	commands := []struct {
+		args        []string
+		ndjsonLines int
+	}{
+		{args: []string{"cost", "projected"}},
+		{args: []string{"cost", "recommendations"}, ndjsonLines: 1},
+		{args: []string{"cost", "forecast"}, ndjsonLines: 1},
+		{args: []string{"cost", "estimate"}},
+		{args: []string{"overview"}},
 	}
 	formats := [][]string{
 		{"--output", "json"},
@@ -93,20 +96,22 @@ func assertNoChangeMachineOutput(t *testing.T, input ...string) {
 	}
 	for _, command := range commands {
 		for _, format := range formats {
-			t.Run(strings.Join(append(slices.Clone(command), format...), " "), func(t *testing.T) {
-				args := slices.Concat(command, input, format)
+			t.Run(strings.Join(slices.Concat(command.args, format), " "), func(t *testing.T) {
+				args := slices.Concat(command.args, input, format)
 				result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), args)
 				assert.Equal(t, 0, result.ExitCode, string(result.Stderr))
 				assert.NotContains(t, string(result.Stdout), noChangesSentence)
 				assert.Contains(t, string(result.Stderr), noChangesSentence)
 				if format[1] == "ndjson" {
-					for line := range strings.Lines(string(result.Stdout)) {
+					lines := slices.Collect(strings.Lines(string(result.Stdout)))
+					assert.Len(t, lines, command.ndjsonLines, string(result.Stdout))
+					for _, line := range lines {
 						assert.True(t, json.Valid([]byte(line)), line)
 					}
 					return
 				}
 				require.True(t, json.Valid(result.Stdout), string(result.Stdout))
-				if command[len(command)-1] == "projected" {
+				if command.args[len(command.args)-1] == "projected" {
 					assertUnchangedProjectedJSON(t, result.Stdout)
 				}
 			})

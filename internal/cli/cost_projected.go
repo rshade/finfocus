@@ -277,7 +277,7 @@ func projectedUnchanged(
 // NDJSON instead write the command's own empty document through renderEmpty,
 // so stdout stays parseable, and the sentence moves to stderr.
 func writeUnchanged(cmd *cobra.Command, format string, renderEmpty func() error) error {
-	if format != outputFormatJSON && format != outputFormatNDJSON {
+	if !isStructuredOutputFormat(format) {
 		cmd.Println(noChangesMessage)
 		return nil
 	}
