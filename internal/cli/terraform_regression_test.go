@@ -16,6 +16,7 @@ import (
 
 //nolint:paralleltest,nolintlint // Changes process environment and executes a fake binary.
 func TestPulumiProjectionDoesNotRunTerraform(t *testing.T) {
+	requirePOSIXShell(t)
 	dir := t.TempDir()
 	require.NoError(
 		t,

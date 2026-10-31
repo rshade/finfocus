@@ -52,6 +52,7 @@ func TestCostHistoryCollectTerraformRefuses(t *testing.T) {
 }
 
 func installTerraformRefusalSentinel(t *testing.T) string {
+	requirePOSIXShell(t)
 	t.Helper()
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "binary-was-run")

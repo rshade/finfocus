@@ -1,3 +1,9 @@
+# Check out text as LF on every platform. Tests compare checked-out files with
+# LF zips and templates, and a Windows checkout otherwise converts them to CRLF.
+* text=auto eol=lf
+*.skill binary
+*.zip binary
+
 *.golden text eol=lf
 testdata/overview/golden/** text eol=lf
 

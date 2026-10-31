@@ -20,6 +20,7 @@ const noChangesSentence = "No changes. Projected monthly cost is zero."
 
 // useNoChangeTofu enters a Terraform project whose tofu reports a plan with no changes.
 func useNoChangeTofu(t *testing.T) {
+	requirePOSIXShell(t)
 	t.Helper()
 	project := t.TempDir()
 	require.NoError(
@@ -159,6 +160,7 @@ func assertUnchangedProjectedJSON(t *testing.T, stdout []byte) {
 }
 
 func TestCostProjectedTerraformPlanFile(t *testing.T) {
+	requirePOSIXShell(t)
 	home := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", home)
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
