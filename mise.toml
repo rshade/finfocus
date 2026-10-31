@@ -31,7 +31,7 @@ node = "24"
 # `make docs-lint` invokes markdownlint-cli2 against docs/**/*.md with
 # docs/.markdownlint-cli2.jsonc. The Makefile's ensure-markdownlint-cli2
 # installs latest; this pin is what agents and editors should resolve.
-"npm:markdownlint-cli2" = "0.23.3"
+"npm:markdownlint-cli2" = "0.24.0"
 
 # `make lint-actions` runs actionlint on the GitHub workflows.
 actionlint = "1.7.12"
