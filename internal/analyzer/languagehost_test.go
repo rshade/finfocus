@@ -50,6 +50,16 @@ func runIsolated(m *testing.M) int {
 		fmt.Fprintf(os.Stderr, "isolated home: %v\n", setErr)
 		return 1
 	}
+	// Install copies the executable on Windows; install a stub, not the test binary.
+	stub := filepath.Join(home, "finfocus-install-stub")
+	if runtime.GOOS == "windows" {
+		stub += ".exe"
+	}
+	if writeErr := os.WriteFile(stub, []byte("stub"), 0o755); writeErr != nil {
+		fmt.Fprintf(os.Stderr, "install stub: %v\n", writeErr)
+		return 1
+	}
+	currentExecutable = func() (string, error) { return stub, nil }
 	return m.Run()
 }
 
