@@ -261,10 +261,18 @@ func TestProjectShadowsKeyIgnoresOverlaysThatDoNotApply(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte(`{"cost": {"budgets": {"global": {"amount": 200}}}}`), 0o600))
 		_, shadowed := ProjectShadowsKey(path, dir, "cost.budgets.global.amount")
 		assert.False(t, shadowed, "the project reads the file config set just wrote")
+	})
 
+	t.Run("a symlink to the project file is the same file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := ProjectConfigPath(dir)
+		require.NoError(t, os.WriteFile(path, []byte(`{"cost": {"budgets": {"global": {"amount": 200}}}}`), 0o600))
 		link := filepath.Join(t.TempDir(), "link.hujson")
-		require.NoError(t, os.Symlink(path, link))
-		_, shadowed = ProjectShadowsKey(link, dir, "cost.budgets.global.amount")
-		assert.False(t, shadowed, "a symlink alias is the same file")
+		if err := os.Symlink(path, link); err != nil {
+			t.Skipf("symlinks are unavailable: %v", err)
+		}
+		_, shadowed := ProjectShadowsKey(link, dir, "cost.budgets.global.amount")
+		assert.False(t, shadowed)
 	})
 }
