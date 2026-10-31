@@ -254,8 +254,9 @@ func TestMultiRegion_Plugin_VersionValidation(t *testing.T) {
 			assert.NoError(t, err, "Plugin binary should exist: %s", plugin.Path)
 
 			// Validate that version format is reasonable (semantic versioning)
-			// Expected format: X.Y.Z or X.Y.Z-suffix
-			assert.Regexp(t, `^\d+\.\d+\.\d+`, plugin.Version,
+			// Expected format: X.Y.Z or X.Y.Z-suffix, with an optional leading v:
+			// plugin list reports the install directory name (v0.2.4) since #1834.
+			assert.Regexp(t, `^v?\d+\.\d+\.\d+`, plugin.Version,
 				"Plugin version should follow semantic versioning: %s", plugin.Version)
 
 			t.Logf("Plugin %s version %s validated", plugin.Name, plugin.Version)
