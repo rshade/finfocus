@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/rshade/ax-go/axtest"
@@ -77,8 +78,8 @@ func TestMCPDispatchedCallsShareLoggingSession(t *testing.T) {
 	logDir := filepath.Join(home, "logs")
 	require.NoError(t, os.WriteFile(filepath.Join(home, "config.hujson"), []byte(`{"logging": {
 		"level": "info",
-		"file": "`+filepath.Join(logDir, "finfocus.log")+`",
-		"audit": {"enabled": true, "file": "`+filepath.Join(logDir, "audit.log")+`"}
+		"file": `+strconv.Quote(filepath.Join(logDir, "finfocus.log"))+`,
+		"audit": {"enabled": true, "file": `+strconv.Quote(filepath.Join(logDir, "audit.log"))+`}
 	}}`), 0o600))
 
 	var dispatched []dispatchedCall
