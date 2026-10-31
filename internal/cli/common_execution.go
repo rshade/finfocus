@@ -35,8 +35,9 @@ type auditContext struct {
 
 // Audit parameter keys shared by the cost and overview commands.
 const (
-	auditKeyOutput     = "output"
-	auditKeyPulumiJSON = "pulumi_json"
+	auditKeyOutput      = "output"
+	auditKeyPulumiJSON  = "pulumi_json"
+	auditKeyPulumiState = "pulumi_state"
 )
 
 // newAuditContext creates a new audit context.

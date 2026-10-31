@@ -179,9 +179,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		return err
 	}
 	audit := newAuditContext(ctx, "overview", map[string]string{
-		"pulumi_state":     params.pulumiState,
-		auditKeyPulumiJSON: params.pulumiJSON,
-		auditKeyOutput:     params.output,
+		auditKeyPulumiState: params.pulumiState,
+		auditKeyPulumiJSON:  params.pulumiJSON,
+		auditKeyOutput:      params.output,
 	})
 
 	// Load config once and share across all history operations.

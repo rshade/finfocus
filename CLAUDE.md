@@ -462,6 +462,15 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
 - The overview docs page is `docs/src/content/docs/commands/overview.md`.
+- `cost anomalies` (`specs/1923-cost-anomalies/`) runs the overview pipeline
+  and lists rows whose `CostDrift` is set through `engine.SelectAnomalies`,
+  the one selector the CLI, MCP tool, and web handler share. It adds no rule
+  of its own: the 10% threshold and the early, new, and deleted skips live in
+  `CalculateCostDrift`. It reads state only unless `--pulumi-json` is given,
+  and takes the overview's `--filter` keys (`type`, `status`, `provider`; no
+  `tag:`). `validateInfrastructureInputs` exempts `overview` and `anomalies`
+  by name so a state and a preview can be combined; a new command on the same
+  pipeline needs the same exemption.
 - Overview plugin startup overlaps stack loading (`OverviewPipeline.Run`, #692).
   The launch context is a child of the caller context. `errgroup.WithContext`
   cancels on `Wait` and would kill plugins (`exec.CommandContext`) before
@@ -480,6 +489,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   wrap `context.Canceled`, so overview would otherwise report the kill
   instead of the plugin failure that canceled the load. A load error whose
   context is still active stays a load error.
+- Web rows are installed by `Session.SetData` before enrichment, and drift is
+  set only during enrichment. A handler that reads drift or actual cost from
+  `Session.Rows()` must wait for `Session.IsReady()` and answer `503
+  not_ready` before that, or it reports an empty result for a stack that is
+  still pricing (`GET /api/overview/anomalies`). The browser formats nothing:
+  amounts and periods are display text from `viewmodel.BuildAnomalyDisplay`.
 - `internal/webui` must not import `cli`, `registry`, or `pluginhost`. Plugin
   page callbacks live in `internal/cli/web_plugins.go` and
   `plugin_settings_web.go`. Install progress is a per-operation SSE stream

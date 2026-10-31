@@ -163,6 +163,22 @@ finfocus cost forecast --stack prod --months 6 --growth-rate 0.05 --output json
 
 Full page: [cost forecast](../commands/forecast.md)
 
+## Cost Anomalies
+
+`cost anomalies` lists the resources whose month-to-date run-rate has
+diverged from the projected month by more than 10%, using the overview's own
+drift calculation. Each row has a baseline and an observed monthly figure,
+the deviation, and the percent drift. JSON output also reports how many rows
+were considered, so an empty list is not mistaken for a failed run. It is also
+available to MCP clients as `finfocus-cost-anomalies`.
+
+```bash
+finfocus cost anomalies --stack prod
+finfocus cost anomalies --pulumi-state state.json --output json
+```
+
+Full page: [cost anomalies](../commands/cost-anomalies.md)
+
 ## Cost History
 
 `cost history` stores a projected-cost snapshot for each successful Pulumi

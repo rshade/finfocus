@@ -418,6 +418,13 @@ func (s *Session) Ready(rows []engine.OverviewRow) {
 	s.publishLocked("ready", map[string]any{"totals": totalsPayload(s.resultLocked().Summary)})
 }
 
+// IsReady reports whether enrichment finished and Rows holds final priced rows.
+func (s *Session) IsReady() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ready
+}
+
 // RequirePassphrase prompts all clients to unlock the selected stack.
 func (s *Session) RequirePassphrase(stack string) {
 	s.mu.Lock()

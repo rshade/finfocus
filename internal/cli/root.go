@@ -344,7 +344,7 @@ func newCostCmd() *cobra.Command {
 	cmd.PersistentFlags().String("profile", "", usageProfileFlagHelp)
 
 	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd(), NewCostEstimateCmd(),
-		NewCostForecastCmd(), NewCostClusterCmd(), NewCostHistoryCmd())
+		NewCostForecastCmd(), NewCostClusterCmd(), NewCostHistoryCmd(), NewCostAnomaliesCmd())
 	return cmd
 }
 

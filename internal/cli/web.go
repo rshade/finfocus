@@ -146,8 +146,8 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	}
 	log := logging.FromContext(ctx)
 	audit := newAuditContext(ctx, "web", map[string]string{
-		"pulumi_state":     flags.pulumiState,
-		auditKeyPulumiJSON: flags.pulumiJSON,
+		auditKeyPulumiState: flags.pulumiState,
+		auditKeyPulumiJSON:  flags.pulumiJSON,
 	})
 
 	params := overviewParams{

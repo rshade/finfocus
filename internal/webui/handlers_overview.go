@@ -47,6 +47,7 @@ func (s *Server) registerOverview(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/overview/preview", s.handlePreview)
 	mux.HandleFunc("GET /api/overview/budget", s.handleBudget)
 	mux.HandleFunc("GET /api/overview/resource", s.handleOverviewResource)
+	mux.HandleFunc("GET /api/overview/anomalies", s.handleAnomalies)
 	mux.HandleFunc("POST /api/passphrase", s.handlePassphrase)
 }
 
