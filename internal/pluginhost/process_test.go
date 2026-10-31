@@ -848,7 +848,9 @@ func TestProcessLauncher_StartPluginEnvironment(t *testing.T) {
 		close(exited)
 	}()
 	defer func() {
-		_ = killProcessGroup(cmd)
+		// The test command is not a process-group leader, so killProcessGroup
+		// would find no group; kill the process itself before joining the waiter.
+		_ = cmd.Process.Kill()
 		<-exited
 	}()
 
