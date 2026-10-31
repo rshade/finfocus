@@ -249,6 +249,33 @@ func TestWebForecast_NoPricedResourceMatchesCLI(t *testing.T) {
 	assert.Equal(t, cliErr.Error(), webErr.Error())
 }
 
+// After a preview, unchanged resources leave the forecast (#1903). When the
+// preview's own changes have no price that leaves nothing to forecast, and the
+// error must say why instead of a bare "no cost data available".
+func TestWebForecast_NoPricedChangeNamesTheExcludedUnchangedResources(t *testing.T) {
+	t.Parallel()
+	const (
+		changed   = "urn:pulumi:dev::test::command:local:Command::changed"
+		unchanged = "urn:pulumi:dev::test::aws:ec2/instance:Instance::unchanged"
+	)
+	costs := []engine.CostResult{{ResourceID: changed, Notes: "VALIDATION: missing sku"}}
+	data, _ := newForecastWebData(costs, nil, nil)
+	publishWebTestState(t, data, []ingest.StackExportResource{
+		{URN: changed, Type: "command:local:Command", Inputs: map[string]any{}},
+		{URN: unchanged, Type: "aws:ec2/instance:Instance", Inputs: map[string]any{"instanceType": "t3.micro"}},
+	})
+	publishWebTestPlan(t.Context(), t, data, &ingest.PulumiPlan{Steps: []ingest.PulumiStep{{
+		Op: "update", URN: changed,
+		OldState: &ingest.PulumiState{Type: "command:local:Command", Inputs: map[string]any{}},
+		NewState: &ingest.PulumiState{Type: "command:local:Command", Inputs: map[string]any{}},
+	}}})
+
+	_, err := data.forecast(t.Context(), webui.ForecastQuery{Months: intPtr(1)})
+	require.ErrorIs(t, err, forecast.ErrNoCostData)
+	assert.True(t, forecast.IsUnprojectable(err), "still a 422, not a server error")
+	assert.Contains(t, err.Error(), "1 unchanged resource")
+}
+
 func TestWebForecast_SessionStackPrefersSnapshot(t *testing.T) {
 	t.Parallel()
 	data, stacks := newForecastWebData(forecastWebCosts(), nil, nil)
