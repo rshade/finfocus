@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4](https://github.com/rshade/finfocus/compare/v0.5.3...v0.5.4) (2026-10-31)
+
+
+### Added
+
+* **carbon:** report provider-published historical carbon emissions ([#1922](https://github.com/rshade/finfocus/issues/1922)) ([f3d09f5](https://github.com/rshade/finfocus/commit/f3d09f5e50f5f4e6fc724201eb2502b3321f593d)), closes [#1920](https://github.com/rshade/finfocus/issues/1920)
+* **cli:** add cost anomalies command and Anomalies dashboard page ([#1965](https://github.com/rshade/finfocus/issues/1965)) ([5ff467d](https://github.com/rshade/finfocus/commit/5ff467d9a37f6b20c5e979bdf4068c51052a8f00))
+* **forecast:** ARIMA spend forecast with drivers, web hook, and Forecast view ([#1931](https://github.com/rshade/finfocus/issues/1931)) ([3111da2](https://github.com/rshade/finfocus/commit/3111da24c0a85d7924895973e3611d61befdb468))
+* **history:** import Pulumi Cloud update history into cost actual ([#1913](https://github.com/rshade/finfocus/issues/1913)) ([670daba](https://github.com/rshade/finfocus/commit/670daba92204f82a5669914e337c4bf49f70b62c))
+* **overview:** give pulumi preview its own loading phase ([#1935](https://github.com/rshade/finfocus/issues/1935)) ([5d39d05](https://github.com/rshade/finfocus/commit/5d39d055b48f5f73f760bdcd954bc001106deb14))
+* **overview:** show dependency blast radius in detail views ([#1926](https://github.com/rshade/finfocus/issues/1926)) ([bd38e54](https://github.com/rshade/finfocus/commit/bd38e5497780c3a7c00b586c101bee232e9272ce))
+* **web-ui:** add historical carbon report view ([#1925](https://github.com/rshade/finfocus/issues/1925)) ([d77ae24](https://github.com/rshade/finfocus/commit/d77ae246b57d81a42788c40334c456a76920da48))
+* **webui:** explain Pulumi Cloud history modes on the Config page ([#1914](https://github.com/rshade/finfocus/issues/1914)) ([277b6ff](https://github.com/rshade/finfocus/commit/277b6ffb077b2f5924a18c369f2be82e393fccf2))
+* **webui:** expose cost history view, diff, and resource series ([#1938](https://github.com/rshade/finfocus/issues/1938)) ([b2457e0](https://github.com/rshade/finfocus/commit/b2457e0f5fdc69c5c9c2c16fc3d3c46c51278de6))
+* **webui:** expose recommendation lifecycle history ([#1933](https://github.com/rshade/finfocus/issues/1933)) ([9896f36](https://github.com/rshade/finfocus/commit/9896f36ba271e23e669846f2e85fa9350116e957))
+* **webui:** show recommendation lifecycle in the detail panel ([#1936](https://github.com/rshade/finfocus/issues/1936)) ([ac87b09](https://github.com/rshade/finfocus/commit/ac87b09adc5eadf1b79c380822303d98cbc8154a)), closes [#1934](https://github.com/rshade/finfocus/issues/1934)
+
+
+### Fixed
+
+* **analyzer:** serve policy packs through a pulumi-language-finfocus host ([#1917](https://github.com/rshade/finfocus/issues/1917)) ([a89a46b](https://github.com/rshade/finfocus/commit/a89a46b1b9215955dca6694602e85db74e78bb66))
+* **cli:** describe --cache-ttl 0 as disabling the cache ([#1930](https://github.com/rshade/finfocus/issues/1930)) ([4c538dc](https://github.com/rshade/finfocus/commit/4c538dc2affaded9dca88de6a37c50173ff8b336)), closes [#1929](https://github.com/rshade/finfocus/issues/1929)
+* **cli:** emit valid JSON and NDJSON for a Terraform plan with no changes ([#1960](https://github.com/rshade/finfocus/issues/1960)) ([5704638](https://github.com/rshade/finfocus/commit/5704638bd884bdb0e806f6af997780a05aad9301))
+* **cli:** exit 2 for a bad --output on config validate and conformance ([#1964](https://github.com/rshade/finfocus/issues/1964)) ([68fb231](https://github.com/rshade/finfocus/commit/68fb23104982bcdca315978005ef4663fce79027))
+* **cli:** exit 2 for an unsupported --output on every command ([#1946](https://github.com/rshade/finfocus/issues/1946)) ([4db6330](https://github.com/rshade/finfocus/commit/4db6330115c634d4e6470756c88f3b1cabad09f5))
+* **cli:** exit 2 for invalid cost cluster dates and flags ([#1966](https://github.com/rshade/finfocus/issues/1966)) ([8c78fa9](https://github.com/rshade/finfocus/commit/8c78fa99234c30ae910c85e2e94e66cd7fe62825))
+* **config:** name the key when config set cannot write it ([#1947](https://github.com/rshade/finfocus/issues/1947)) ([601c385](https://github.com/rshade/finfocus/commit/601c385c5f118ddfc2815c762e30f144a6d43cdf))
+* **engine:** align clamped daily costs and skip later resources ([4d8b69f](https://github.com/rshade/finfocus/commit/4d8b69fe11980913acaee57bc3f3c72000a2ae41))
+* **engine:** start actual cost at the resource's creation time ([d5aa446](https://github.com/rshade/finfocus/commit/d5aa44604671dfd32c723a3a1d54fa4542777909))
+* **webui:** keep focus the user moved when a detail dialog closes ([#1932](https://github.com/rshade/finfocus/issues/1932)) ([907b720](https://github.com/rshade/finfocus/commit/907b72023df86c498efbcb84fdf4495432c72a8a))
+* **webui:** log why a web preview failed ([30d6c53](https://github.com/rshade/finfocus/commit/30d6c5306c61ef9250a8586e476dcc92e42734f5))
+* **webui:** wrap long tokens in the error banner ([#1928](https://github.com/rshade/finfocus/issues/1928)) ([40ca8c5](https://github.com/rshade/finfocus/commit/40ca8c56aa41d4524edec1dd04d63b52cc404bf3))
+
+
+### Documentation
+
+* drop private test project from CLAUDE.md ([#1940](https://github.com/rshade/finfocus/issues/1940)) ([91a156f](https://github.com/rshade/finfocus/commit/91a156f9baf693d27d14273c2d84f8d973c4c89c))
+* **roadmap:** sync ROADMAP.md with GitHub issues ([ff81ca0](https://github.com/rshade/finfocus/commit/ff81ca04cb2e4a455a8901b3c1be494f78e908cd))
+* trim CLAUDE.md recent changes and sync the roadmap ([#1942](https://github.com/rshade/finfocus/issues/1942)) ([08fdb53](https://github.com/rshade/finfocus/commit/08fdb534cd8c09ae8158a5ffed942e5f9f5bf7e0))
+
 ## [0.5.3](https://github.com/rshade/finfocus/compare/v0.5.2...v0.5.3) (2026-10-27)
 
 
