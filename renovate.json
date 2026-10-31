@@ -60,7 +60,9 @@
         "patch"
       ],
       "groupName": "go dependencies",
-      "groupSlug": "go-deps"
+      "groupSlug": "go-deps",
+      "semanticCommitType": "deps",
+      "semanticCommitScope": null
     },
     {
       "description": "Direct Go major bumps are one PR per dependency, opened only when approved on the Dependency Dashboard, and never automerged. A major changes the import path and usually the API, so each needs a human to fix call sites and confirm CI is green.",
@@ -74,7 +76,7 @@
       "automerge": false
     },
     {
-      "description": "Direct Go dependency updates use the deps commit type, which release-please lists under Dependencies (release-please-config.json) rather than Fixed. The preset would make them fix(deps). Indirect and digest updates keep chore(deps), stay out of the release notes, and do not release the plugins.",
+      "description": "Direct Go dependency updates use the deps commit type, which release-please lists under Dependencies (release-please-config.json) rather than Fixed. The preset would make them fix(deps). The grouped go dependencies rule above sets the same type for every update in the group: Renovate picks a group's type from chore, ci, build, fix, and feat only, so a group with any chore (indirect) update ignores deps and falls back to chore. Digest updates keep chore(deps), stay out of the release notes, and do not release the plugins.",
       "matchManagers": [
         "gomod"
       ],
