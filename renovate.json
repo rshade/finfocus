@@ -72,6 +72,17 @@
       ],
       "dependencyDashboardApproval": true,
       "automerge": false
+    },
+    {
+      "description": "Direct Go dependency updates use the deps commit type, which release-please lists under Dependencies (release-please-config.json) rather than Fixed. The preset would make them fix(deps). Indirect and digest updates keep chore(deps), stay out of the release notes, and do not release the plugins.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "require"
+      ],
+      "semanticCommitType": "deps",
+      "semanticCommitScope": null
     }
   ],
   "postUpdateOptions": [
