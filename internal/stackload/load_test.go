@@ -3,6 +3,7 @@ package stackload
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/rshade/finfocus/internal/pulumi"
 
@@ -226,13 +227,13 @@ func TestExplicitInputErrorsRemainUsefulAndRedacted(t *testing.T) {
 			}
 			_, err := load(context.Background(), source(missing))
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), missing)
+			assert.Contains(t, err.Error(), strconv.Quote(missing), "the message quotes the path")
 			assert.Contains(t, err.Error(), "no such file")
 			missingErr := err
 			require.NoError(t, errors.Unwrap(err))
 			_, err = load(context.Background(), source(invalid))
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), invalid)
+			assert.Contains(t, err.Error(), strconv.Quote(invalid), "the message quotes the path")
 			assert.Contains(t, err.Error(), "invalid JSON")
 			assert.NotContains(t, err.Error(), "token=abc")
 			assert.NotContains(t, err.Error(), "https://")

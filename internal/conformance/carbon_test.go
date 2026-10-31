@@ -4,6 +4,7 @@ import (
 	"context"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -22,6 +23,9 @@ func TestCarbonPluginConformance(t *testing.T) {
 	}
 	t.Setenv("FINFOCUS_CARBON_UTILIZATION", "0.5")
 	binary := filepath.Join(t.TempDir(), "finfocus-plugin-carbon")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	t.Cleanup(cancel)
 	cmd := exec.CommandContext(ctx, "go", "-C", "../../plugins/carbon", "build", "-o", binary, "./cmd")

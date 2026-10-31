@@ -16,6 +16,7 @@ import (
 
 //nolint:paralleltest // changes the working directory and executes a fake Terraform binary.
 func TestCostEstimateTerraformSources(t *testing.T) {
+	requirePOSIXShell(t)
 	plan, err := filepath.Abs("../ingest/testdata/terraform/plan/show.json")
 	require.NoError(t, err)
 	project := t.TempDir()

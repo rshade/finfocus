@@ -14,6 +14,7 @@ import (
 
 //nolint:paralleltest // changes the working directory and executes a fake Terraform binary.
 func TestCostRecommendationsTerraformSources(t *testing.T) {
+	requirePOSIXShell(t)
 	project := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(project, "main.tf"), []byte("# Terraform root\n"), 0o600))
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
@@ -57,6 +58,7 @@ esac
 
 //nolint:paralleltest // changes the working directory and PATH to detect accidental plan execution.
 func TestRecommendationLifecycleTerraformDoesNotPlan(t *testing.T) {
+	requirePOSIXShell(t)
 	project := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(project, "main.tf"), []byte("# Terraform root\n"), 0o600))
 	t.Setenv("FINFOCUS_HOME", t.TempDir())

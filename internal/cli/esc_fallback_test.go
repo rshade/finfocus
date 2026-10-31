@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -114,7 +115,7 @@ func assertESCFallback(t *testing.T, tc escFallbackCase) {
 	home := t.TempDir()
 	logPath := filepath.Join(home, "finfocus.log")
 	require.NoError(t, os.WriteFile(filepath.Join(home, "config.hujson"),
-		[]byte(`{"logging":{"level":"debug","format":"json","file":"`+logPath+`"}}`), 0o600))
+		[]byte(`{"logging":{"level":"debug","format":"json","file":`+strconv.Quote(logPath)+`}}`), 0o600))
 	t.Setenv("FINFOCUS_HOME", home)
 	t.Setenv("PULUMI_HOME", t.TempDir())
 	t.Setenv("FINFOCUS_PROJECT_DIR", "")

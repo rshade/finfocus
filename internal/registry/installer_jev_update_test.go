@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -71,7 +72,7 @@ func (s *jevReleaseServer) handle(t *testing.T, w http.ResponseWriter, r *http.R
 			}
 		}
 		http.NotFound(w, r)
-	case filepath.Dir(r.URL.Path) == "/download":
+	case path.Dir(r.URL.Path) == "/download":
 		_, _ = w.Write(createMockArchive(t, "finfocus-plugin-jev"))
 	default:
 		t.Errorf("unexpected request %s", r.URL.Path)

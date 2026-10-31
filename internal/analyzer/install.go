@@ -228,7 +228,7 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 		}
 
 		// Ensure policy pack is bootstrapped even on no-op installs
-		execPath, execErr := os.Executable()
+		execPath, execErr := currentExecutable()
 		if execErr == nil {
 			if resolved, resolveErr := filepath.EvalSymlinks(execPath); resolveErr == nil {
 				execPath = resolved
@@ -240,7 +240,7 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 	}
 
 	// Resolve the current binary path
-	execPath, err := os.Executable()
+	execPath, err := currentExecutable()
 	if err != nil {
 		return nil, fmt.Errorf("resolving executable path: %w", err)
 	}
@@ -373,6 +373,14 @@ func removeAnalyzerDirs(dir string) error {
 
 	return nil
 }
+
+// currentExecutable resolves the binary that Install installs. Tests replace it
+// with a small stub: Windows has no symlinks, so Install copies this binary
+// three times per call, and copying the test binary made each Install test take
+// minutes on the Windows runner.
+//
+//nolint:gochecknoglobals // test seam
+var currentExecutable = os.Executable
 
 // linkOrCopy creates a symlink from src to dst on Unix, or copies the file on Windows.
 // On Unix, if the symlink fails (e.g., cross-device), it falls back to a copy.
