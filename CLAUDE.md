@@ -227,6 +227,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   prefixes must not start with `v`.
 - Nested modules must pin the same `finfocus-spec` as the root `go.mod`; CI
   compares them.
+- release-please gives a commit to every package whose files it touches, and
+  `BEGIN_COMMIT_OVERRIDE` rewrites it for all of them. Land a `finfocus-spec`
+  bump on its own as `deps: bump finfocus-spec to vX.Y.Z` before the feature
+  that needs it. A `feat` that also edits `plugins/*/go.mod` becomes a feature
+  of every plugin (0.5.4: #1922 listed historical carbon in four plugins that
+  only changed `go.mod`). `deps` renders under Dependencies; the plugins take
+  the top-level `changelog-sections`, which hide `docs` and `refactor`.
 - `make install-<plugin>` stamps the version from
   `.release-please-manifest.json`. A test that installs a plugin reads that
   file too; a hardcoded version fails only on the release PR, once the bump lands
