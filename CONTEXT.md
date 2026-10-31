@@ -24,6 +24,7 @@ To maintain its role as a lightweight orchestrator, the following are explicitly
         `pulumi_cloud_snapshots` inside `history.db`): Caches update metadata
         and extracted resource identity only; never raw exports or resource
         properties. Safe to delete; an enabled import rebuilds the cache.
+    *   **Daily actuals** (`<project>@<stack>.daily.db` in the history directory): One actual-cost amount per resource, UTC day, and currency, written by `cost history collect-daily`. Safe to delete; the next collect rebuilds the window it prices. It is not the projected timeline.
     *   **Recommendation dismissals** (`dismissed.json`): Persists user dismissal decisions.
     *   **Configuration files** (`config.hujson`, legacy `config.yaml`): Optional user settings. Editing them does not modify cloud infrastructure.
     *   The distinction: finfocus **functions correctly** without any persisted state, just with **degraded performance** (no cache) or **reduced accuracy** (no history for replaced/destroyed resources). No persistent state is a hard prerequisite for any command to succeed.

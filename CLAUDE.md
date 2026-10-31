@@ -716,14 +716,25 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   is absolute, has `..`, or resolves (symlinks followed on the deepest existing
   ancestor, against the working directory) outside the project root, or when
   an entry named `history.db*` or containing `.history.db` (including the
-  `.compact-*` compaction temp) is a symlink or not a regular file
+  `.compact-*` compaction temp) or named `daily.db*` / containing `.daily.db`
+  is a symlink or not a regular file
   (rechecked after `MkdirAll`; a swap after the check is not covered). The gate
   takes the project dir that built the config (`initHistoryFromConfig`'s
   `projectDir`; the analyzer passes its own, never the process-global one) and
   judges the overlay value from `config.ProjectHistoryDirectory`; global tier and the
   env var are trusted. The working-dir fallback is made absolute.
   `collect` fails a checkpoint rather than store an inaccurate
-  total (#549). `internal/history` must not import `engine` or `ingest`.
+  total (#549). `cost history collect-daily` (`specs/1924-daily-actuals/`)
+  writes `<project>@<stack>.daily.db` and does not bump `costSchemaVersion`.
+  It stores plugin buckets that have a timestamp, grouped by UTC day and
+  currency. `DailyCosts` stays the even split of `TotalCost` for `cost actual`
+  and is not written. A bucket with no timestamp stores nothing and does not
+  split `TotalCost`. Re-collect replaces only days in the new response.
+  `auto_prune` plus `max_age_days` drops older daily points except for a
+  resource that failed this run; `max_snapshots` does not apply.
+  `RetainDailyObservations` keeps that cache entry off the total-only key.
+  Opening either file as the other store fails. The command is MCP-excluded
+  and has no web handler. `internal/history` must not import `engine` or `ingest`.
   The overview and `cost actual` interactive detail views load one resource's
   series from that database only after Enter (`internal/tui/detail`). An empty
   stack or a missing database returns `detail.ErrHistorySkipped` and the

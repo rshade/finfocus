@@ -1,6 +1,6 @@
 ---
 title: CI/CD Cost Tracking
-description: Run finfocus cost history collect after each pulumi up in CI to save a projected-cost snapshot, then view, diff and list cost history across deploys.
+description: Record a projected snapshot and daily actuals after each pulumi up.
 ---
 
 Run `finfocus cost history collect` as a post-deploy step so each successful
@@ -23,7 +23,15 @@ prints `No new versions to collect.` and does not call the pricer again.
 
 ```bash
 finfocus cost history collect --stack dev --versions 1
+finfocus cost history collect-daily --stack dev
 ```
+
+`collect-daily` is a separate step. It prices actual cost and stores one
+point per resource per UTC day. It does not read checkpoints and it does not
+modify the projected database. The default window is the last 30 complete
+UTC days. Pass `--from` and `--to` to correct a shorter range; days outside
+that response stay stored. `--output json` prints how many resources were
+stored, how many had no daily series, and which ones failed.
 
 The parent `cost --stack` flag is required. History subcommands do not
 declare a second copy.
@@ -92,7 +100,9 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 
       - name: Record cost snapshot
-        run: finfocus cost history collect --stack dev --versions 1
+        run: |
+          finfocus cost history collect --stack dev --versions 1
+          finfocus cost history collect-daily --stack dev
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -123,6 +133,7 @@ deploy:
   script:
     - pulumi up -y --stack "$CI_ENVIRONMENT_NAME"
     - finfocus cost history collect --stack "$CI_ENVIRONMENT_NAME" --versions 1
+    - finfocus cost history collect-daily --stack "$CI_ENVIRONMENT_NAME"
   cache:
     key: cost-history-$CI_ENVIRONMENT_NAME
     paths:
@@ -139,7 +150,7 @@ can download from this pipeline.
 
 ```bash
 #!/bin/bash
-# Deploy one stack and record only the checkpoint that just succeeded.
+# Deploy one stack, record that checkpoint, and store daily actuals.
 set -euo pipefail
 
 STACK="${1:?Usage: deploy-and-track.sh <stack-name>}"
@@ -149,6 +160,7 @@ pulumi up -y --stack "$STACK"
 
 echo "Recording cost snapshot..."
 finfocus cost history collect --stack "$STACK" --versions 1
+finfocus cost history collect-daily --stack "$STACK"
 
 echo "Done. View cost history with:"
 echo "  finfocus cost history view --stack $STACK"
