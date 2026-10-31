@@ -35,7 +35,7 @@ func TestE2E_Errors_MissingFile(t *testing.T) {
 	require.Error(t, err)
 	var exitErr *exec.ExitError
 	require.ErrorAs(t, err, &exitErr, "expected exec.ExitError")
-	assert.Equal(t, 1, exitErr.ExitCode(), "expected exit code 1 for missing file")
+	assert.Equal(t, 2, exitErr.ExitCode(), "expected exit code 2 (validation) for missing file")
 	assert.Contains(t, string(output), "no such file")
 }
 
@@ -58,6 +58,6 @@ func TestE2E_Errors_InvalidFormat(t *testing.T) {
 	require.Error(t, err)
 	var exitErr *exec.ExitError
 	require.ErrorAs(t, err, &exitErr, "expected exec.ExitError")
-	assert.Equal(t, 1, exitErr.ExitCode(), "expected exit code 1 for invalid format")
+	assert.Equal(t, 2, exitErr.ExitCode(), "expected exit code 2 (validation) for invalid format")
 	assert.Contains(t, string(output), "invalid")
 }

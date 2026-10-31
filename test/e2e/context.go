@@ -222,14 +222,16 @@ func (tc *TestContext) RunFinFocus(ctx context.Context) (float64, error) {
 
 	// Parse the JSON output to extract total cost
 	var result struct {
-		Summary struct {
-			TotalMonthly float64 `json:"totalMonthly"`
-			TotalHourly  float64 `json:"totalHourly"`
-		} `json:"summary"`
-		Resources []struct {
-			ResourceType string  `json:"resourceType"`
-			Monthly      float64 `json:"monthly"`
-		} `json:"resources"`
+		Finfocus struct {
+			Summary struct {
+				TotalMonthly float64 `json:"totalMonthly"`
+				TotalHourly  float64 `json:"totalHourly"`
+			} `json:"summary"`
+			Resources []struct {
+				ResourceType string  `json:"resourceType"`
+				Monthly      float64 `json:"monthly"`
+			} `json:"resources"`
+		} `json:"finfocus"`
 	}
 
 	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
@@ -252,7 +254,7 @@ func (tc *TestContext) RunFinFocus(ctx context.Context) (float64, error) {
 		return 0, fmt.Errorf("failed to parse finfocus output: %w", err)
 	}
 
-	return result.Summary.TotalMonthly, nil
+	return result.Finfocus.Summary.TotalMonthly, nil
 }
 
 // Teardown ensures resources are cleaned up.

@@ -94,9 +94,16 @@ func writeEquivalentPulumiPlan(t *testing.T) (string, map[string]string) {
 			"type": "aws:ec2/instance:Instance",
 			"newState": map[string]interface{}{
 				"type": "aws:ec2/instance:Instance",
+				// aws-public prices an aws_instance with no root_block_device in
+				// state with a default 8 GB gp2 root volume, so the reference
+				// plan states the same volume.
 				"inputs": map[string]interface{}{
 					"instanceType":     instanceType,
 					"availabilityZone": "us-east-1a",
+					"rootBlockDevice": map[string]interface{}{
+						"volumeSize": 8,
+						"volumeType": "gp2",
+					},
 				},
 			},
 		})

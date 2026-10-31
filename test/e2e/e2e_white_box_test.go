@@ -79,9 +79,7 @@ func TestProjectedCost_EC2_WithPlugin(t *testing.T) {
 	require.NoError(t, err, "Failed to setup project")
 	defer tc.Teardown(ctx)
 
-	// Get expected cost from our pricing reference
-	expectedCost, ok := GetExpectedCost("t3.micro")
-	require.True(t, ok, "Missing pricing reference for t3.micro")
+	expectedCost := FixtureMonthlyCost(t, "fixtures/ec2")
 
 	// Run finfocus CLI to get the actual calculated cost
 	// This is the REAL test - we're calling the actual finfocus binary WITH the plugin
@@ -115,9 +113,7 @@ func TestProjectedCost_EC2(t *testing.T) {
 	require.NoError(t, err, "Failed to setup project")
 	defer tc.Teardown(ctx)
 
-	// Get expected cost from our pricing reference
-	expectedCost, ok := GetExpectedCost("t3.micro")
-	require.True(t, ok, "Missing pricing reference for t3.micro")
+	expectedCost := FixtureMonthlyCost(t, "fixtures/ec2")
 
 	// Run finfocus CLI to get the actual calculated cost
 	// This is the REAL test - we're calling the actual finfocus binary
