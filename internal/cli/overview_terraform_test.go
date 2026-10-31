@@ -28,6 +28,7 @@ import (
 
 //nolint:paralleltest,nolintlint // Writes and executes a fake Terraform binary and changes the working directory.
 func TestOverviewTerraformDirectoryAlwaysPlans(t *testing.T) {
+	requirePOSIXShell(t)
 	fixture, err := filepath.Abs("../ingest/testdata/terraform/plan/show.json")
 	require.NoError(t, err)
 	project := t.TempDir()

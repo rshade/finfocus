@@ -836,19 +836,28 @@ func TestProcessLauncher_StartPluginEnvironment(t *testing.T) {
 	if startErr := cmd.Start(); startErr != nil {
 		t.Fatalf("failed to start plugin: %v", startErr)
 	}
-	defer launcher.killProcess(cmd)
+
+	// One goroutine owns cmd.Wait. killProcess also waits, so calling it from a
+	// defer while this goroutine is still waiting raced on the timeout path and
+	// could hang the test until the package timeout. Receiving from the closed
+	// exited channel returns at once on every path.
+	var waitErr error
+	exited := make(chan struct{})
+	go func() {
+		waitErr = cmd.Wait()
+		close(exited)
+	}()
+	defer func() {
+		_ = killProcessGroup(cmd)
+		<-exited
+	}()
 
 	// Wait for the process to complete with a timeout
 	waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-
 	select {
-	case waitErr := <-done:
+	case <-exited:
 		// Process completed
 		var exitErr *exec.ExitError
 		if errors.As(waitErr, &exitErr) {

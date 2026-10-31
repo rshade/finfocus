@@ -156,7 +156,7 @@ func TestStdinIsTerminal_NonFile(t *testing.T) {
 
 func TestStdinIsTerminal_DevNull(t *testing.T) {
 	t.Parallel()
-	f, err := os.Open("/dev/null")
+	f, err := os.Open(os.DevNull)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, f.Close()) })
 	assert.False(t, stdinIsTerminal(f))

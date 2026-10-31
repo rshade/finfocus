@@ -109,6 +109,7 @@ func TestHistoryDir_ProjectTierTrust(t *testing.T) {
 	home := t.TempDir()
 	finfocusHome := t.TempDir()
 	absDir := filepath.Join(t.TempDir(), "abs")
+	envDir := filepath.Join(t.TempDir(), "from-env")
 	defaultDir := filepath.Join(finfocusHome, "history")
 
 	tests := []struct {
@@ -125,7 +126,7 @@ func TestHistoryDir_ProjectTierTrust(t *testing.T) {
 		{name: "project symlink out of project ignored", projectDir: "link/sub", symlink: true, want: defaultDir},
 		{name: "project relative accepted", projectDir: "hist/sub", wantRel: "hist/sub"},
 		{name: "global absolute accepted", globalDir: absDir, want: absDir},
-		{name: "env accepted over project", projectDir: absDir, historyEnv: "/tmp/from-env", want: "/tmp/from-env"},
+		{name: "env accepted over project", projectDir: absDir, historyEnv: envDir, want: envDir},
 	}
 
 	for _, tt := range tests {

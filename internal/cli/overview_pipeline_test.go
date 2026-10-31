@@ -1365,6 +1365,7 @@ func fallbackBudgetResult(t *testing.T) *engine.BudgetResult {
 //
 // Not parallel: changes the working directory, PATH, and runs a subprocess.
 func TestOverviewPipeline_PluginErrorBeatsKilledStackList(t *testing.T) {
+	requirePOSIXShell(t)
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	t.Setenv(config.HistoryEnvEnabled, "false")
 	project := t.TempDir()

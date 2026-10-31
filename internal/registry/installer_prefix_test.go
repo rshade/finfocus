@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -48,7 +49,7 @@ func prefixedServer(t *testing.T, pluginTags ...string) *httptest.Server {
 				}
 			}
 			http.NotFound(w, r)
-		case filepath.Dir(r.URL.Path) == "/download":
+		case path.Dir(r.URL.Path) == "/download":
 			_, _ = w.Write(createMockArchive(t, "finfocus-plugin-kubernetes"))
 		default:
 			t.Errorf("unexpected request %s", r.URL.Path)

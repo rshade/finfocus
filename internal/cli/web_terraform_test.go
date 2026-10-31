@@ -25,6 +25,7 @@ import (
 
 //nolint:paralleltest,nolintlint // Changes cwd/environment and executes a fake tofu binary for a real web session.
 func TestWebTerraformPlansAndServesPricedRows(t *testing.T) {
+	requirePOSIXShell(t)
 	unsetPassphraseEnv(t)
 	fixture, err := filepath.Abs("../ingest/testdata/terraform/plan/show.json")
 	require.NoError(t, err)

@@ -45,6 +45,9 @@ jobs:
   cross-platform-tests:
     name: Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Linux and macOS finish in 3-6 minutes and Windows in 10-50. A Windows run
+    # that runs out of memory otherwise hangs until GitHub's 6-hour cap.
+    timeout-minutes: 60
     if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
     strategy:
       fail-fast: false
@@ -61,7 +64,15 @@ jobs:
           cache: true
 
       - name: Run tests
-        run: go test -v -race ./internal/... ./pkg/...
+        shell: bash
+        run: |
+          # Linking internal/cli with -race exhausts the Windows runner's paging
+          # file when several packages build at once (errno=1455).
+          parallel=()
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            parallel=(-p 2)
+          fi
+          go test -v -race "${parallel[@]}" ./internal/... ./pkg/...
 
       - name: Run go vet
         run: go vet ./...
