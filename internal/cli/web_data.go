@@ -542,9 +542,35 @@ func (d *webData) forecast(ctx context.Context, query webui.ForecastQuery) (fore
 		return d.readHistory(stack)
 	})
 	if err != nil {
-		return forecast.Document{}, err
+		return forecast.Document{}, d.explainNoCostData(err)
 	}
 	return built.document(), nil
+}
+
+// explainNoCostData says why a forecast with nothing to project came up empty
+// when unchanged resources were left out of it. The forecast covers the
+// resources a preview changes, so a preview whose changes have no price leaves
+// nothing, while the Overview still totals the whole stack. The CLI message is
+// not changed, and the error still matches forecast.ErrNoCostData.
+func (d *webData) explainNoCostData(err error) error {
+	if !errors.Is(err, forecast.ErrNoCostData) || d.snapshot == nil {
+		return err
+	}
+	unchanged := 0
+	for _, resource := range d.snapshot.Descriptors() {
+		if resource.Origin == engine.OriginState {
+			unchanged++
+		}
+	}
+	if unchanged == 0 {
+		return err
+	}
+	noun := "resources are"
+	if unchanged == 1 {
+		noun = "resource is"
+	}
+	return fmt.Errorf("%w (the preview's changes have no price, and %d unchanged %s not part of the forecast)",
+		err, unchanged, noun)
 }
 
 // forecastInputs prices the forecast and captures the stack under the query
