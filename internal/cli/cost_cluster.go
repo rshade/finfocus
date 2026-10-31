@@ -79,20 +79,22 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	if !isValidOutputFormat(engine.OutputFormat(format)) {
 		return unsupportedOutputError(ctx, format, "table, json, ndjson")
 	}
+	// Every check before openPlugins is user input, so each exits 2. A
+	// policy file is the user's, whether named by --policy or discovered.
 	if err := engine.ValidateClusterGroupBy(params.groupBy); err != nil {
-		return err
+		return toValidationError(ctx, err)
 	}
 	selector, err := parseSelectors(params.selectors)
 	if err != nil {
-		return err
+		return toValidationError(ctx, err)
 	}
 	from, to, err := resolveClusterWindow(params.fromStr, params.toStr)
 	if err != nil {
-		return err
+		return toValidationError(ctx, err)
 	}
 	policy, err := config.ResolveAllocationPolicy(ctx, params.policyPath)
 	if err != nil {
-		return err
+		return toValidationError(ctx, err)
 	}
 
 	clients, cleanup, err := openPlugins(ctx, "", nil)

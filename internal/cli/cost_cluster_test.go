@@ -64,6 +64,8 @@ func TestSelectCapablePlugin(t *testing.T) {
 //nolint:paralleltest // builds a root command, which sets the process-wide resolved project dir
 func TestCostCluster_ValidatesFlagsBeforeLoadingPlugins(t *testing.T) {
 	isolateClusterTestConfig(t)
+	malformed := filepath.Join(t.TempDir(), "policy.hujson")
+	require.NoError(t, os.WriteFile(malformed, []byte("{ not json"), 0o600))
 	tests := []struct {
 		args    []string
 		wantErr string
@@ -72,11 +74,12 @@ func TestCostCluster_ValidatesFlagsBeforeLoadingPlugins(t *testing.T) {
 		{[]string{"cost", "cluster", "--group-by", "daily"}, "invalid --group-by"},
 		{[]string{"cost", "cluster", "--selector", "novalue"}, "invalid --selector"},
 		{[]string{"cost", "cluster", "--policy", "/nonexistent/p.hujson"}, "/nonexistent/p.hujson"},
+		{[]string{"cost", "cluster", "--policy", malformed}, "config_invalid"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.wantErr, func(t *testing.T) {
 			res := axtest.Run(context.Background(), t, NewRootCmd("test"), tt.args)
-			require.NotEqual(t, 0, res.ExitCode)
+			require.Equal(t, ax.ExitValidation, res.ExitCode, "%s", res.Stderr)
 			assert.Contains(t, string(res.Stderr), tt.wantErr)
 		})
 	}
@@ -121,7 +124,6 @@ func TestCostCluster_Window(t *testing.T) {
 		args           []string
 		wantErr        string
 		reachedPlugins bool
-		validation     bool
 	}{
 		{
 			name:           "date-only window",
@@ -167,10 +169,14 @@ func TestCostCluster_Window(t *testing.T) {
 			wantErr: "date too far in past",
 		},
 		{
-			name:       "output still validated before plugins",
-			args:       []string{"cost", "cluster", "--output", "xml", "--from", day, "--to", later},
-			wantErr:    "unsupported output format: xml",
-			validation: true,
+			name:    "unparseable date",
+			args:    []string{"cost", "cluster", "--from", "notadate"},
+			wantErr: "unable to parse date",
+		},
+		{
+			name:    "output still validated before plugins",
+			args:    []string{"cost", "cluster", "--output", "xml", "--from", day, "--to", later},
+			wantErr: "unsupported output format: xml",
 		},
 		{
 			name:    "group-by still validated before plugins",
@@ -183,11 +189,13 @@ func TestCostCluster_Window(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res := axtest.Run(context.Background(), t, NewRootCmd("test"), tt.args)
 			stderr := string(res.Stderr)
-			wantCode := 1
-			if tt.validation {
-				wantCode = ax.ExitValidation
+			// Input errors exit 2. A valid window reaches plugin discovery,
+			// which fails with no usage_stats plugin installed (exit 1).
+			wantCode := ax.ExitValidation
+			if tt.reachedPlugins {
+				wantCode = 1
 			}
-			require.Equal(t, wantCode, res.ExitCode)
+			require.Equal(t, wantCode, res.ExitCode, "%s", stderr)
 			if tt.reachedPlugins {
 				assert.Contains(t, stderr, reachedPlugins)
 				assert.NotContains(t, stderr, "parsing")

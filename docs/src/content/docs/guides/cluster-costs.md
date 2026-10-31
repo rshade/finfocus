@@ -171,6 +171,9 @@ cluster. The variables, the decline reasons, and the request rules are in the
 
 `--from` and `--to` price actual spend over that window. Both accept
 `2006-01-02` and RFC3339. `--to` defaults to now when only `--from` is set.
+An invalid window, `--group-by`, `--selector`, or `--output`, and a policy
+file that cannot be read or parsed, exit 2 before any plugin starts. Plugin,
+allocation, and conservation failures exit 1.
 Select Prometheus when more than one usage source is installed:
 
 ```bash
