@@ -106,12 +106,12 @@ func TestSourceBudget(t *testing.T) {
 		t.Parallel()
 		srv := esctest.New("tok", map[string]*esctest.Environment{
 			"acme/billing/slow1": {
-				Delay:     200 * time.Millisecond,
+				Delay:     150 * time.Millisecond,
 				ETag:      "e",
 				Variables: map[string]esctest.Variable{"A": {Value: "1"}},
 			},
 			"acme/billing/slow2": {
-				Delay:     200 * time.Millisecond,
+				Delay:     150 * time.Millisecond,
 				ETag:      "e",
 				Variables: map[string]esctest.Variable{"B": {Value: "2"}},
 			},
@@ -124,14 +124,15 @@ func TestSourceBudget(t *testing.T) {
 				Imports: []string{"acme/billing/slow1", "acme/billing/slow2"},
 			}},
 			Getenv: testGetenv(srv.URL),
-			Budget: time.Second,
+			Budget: 900 * time.Millisecond,
 		})
 		start := time.Now()
 		got := src.Delivery(context.Background(), "recorder")
-		// Open is a POST plus a GET, so one reference takes about 600ms.
-		// Sequential opens would take about 1.2s and exhaust the budget. The
-		// delays are large so scheduler jitter under -race cannot decide it.
-		assert.Less(t, time.Since(start), time.Second)
+		// Open is a HEAD, a POST, a GET, and a HEAD, and the test server delays
+		// each, so one reference takes about 600ms and sequential opens about
+		// 1.2s. The budget and ceiling sit between them with 300ms to spare on
+		// each side, so scheduler jitter under -race cannot decide the outcome.
+		assert.Less(t, time.Since(start), 900*time.Millisecond)
 		assert.Equal(t, "1", got.Values["A"])
 		assert.Equal(t, "2", got.Values["B"])
 	})
