@@ -314,7 +314,9 @@ func loadRecommendationsResources(
 	if err != nil && params.terraformPlan != "" {
 		return nil, false, toValidationError(ctx, err)
 	}
-	return resources, unchanged, err
+	// Recommend for each URN once, from the replacement's new state, never for
+	// the resource a replacement removes.
+	return collapseLiveReplacements(resources), unchanged, err
 }
 
 // newCostRecommendationsAudit records the selected input and recommendation filters.
