@@ -534,7 +534,7 @@ func (d *webData) forecast(ctx context.Context, query webui.ForecastQuery) (fore
 		return forecast.Document{}, err
 	}
 	settings.now = d.forecastNow
-	costs, stack, err := d.forecastInputs(ctx)
+	costs, stack, unchanged, err := d.forecastInputs(ctx)
 	if err != nil {
 		return forecast.Document{}, err
 	}
@@ -542,7 +542,7 @@ func (d *webData) forecast(ctx context.Context, query webui.ForecastQuery) (fore
 		return d.readHistory(stack)
 	})
 	if err != nil {
-		return forecast.Document{}, d.explainNoCostData(err)
+		return forecast.Document{}, explainNoCostData(err, unchanged)
 	}
 	return built.document(), nil
 }
@@ -552,17 +552,8 @@ func (d *webData) forecast(ctx context.Context, query webui.ForecastQuery) (fore
 // resources a preview changes, so a preview whose changes have no price leaves
 // nothing, while the Overview still totals the whole stack. The CLI message is
 // not changed, and the error still matches forecast.ErrNoCostData.
-func (d *webData) explainNoCostData(err error) error {
-	if !errors.Is(err, forecast.ErrNoCostData) || d.snapshot == nil {
-		return err
-	}
-	unchanged := 0
-	for _, resource := range d.snapshot.Descriptors() {
-		if resource.Origin == engine.OriginState {
-			unchanged++
-		}
-	}
-	if unchanged == 0 {
+func explainNoCostData(err error, unchanged int) error {
+	if !errors.Is(err, forecast.ErrNoCostData) || unchanged == 0 {
 		return err
 	}
 	noun := "resources are"
@@ -576,17 +567,34 @@ func (d *webData) explainNoCostData(err error) error {
 // forecastInputs prices the forecast and captures the stack under the query
 // gate, then releases it: the model fit and the history read need neither
 // the session engine nor its clients.
-func (d *webData) forecastInputs(ctx context.Context) ([]engine.CostResult, string, error) {
+//
+// The count of unchanged resources the forecast leaves out is read here, with
+// the priced inputs, so an error explanation describes the same snapshot even
+// if a preview replaces it afterwards.
+func (d *webData) forecastInputs(ctx context.Context) ([]engine.CostResult, string, int, error) {
 	unlock, err := d.lock(ctx)
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
 	defer unlock()
 	costs, err := d.priceForecast(ctx)
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
-	return costs, d.forecastStack(), nil
+	return costs, d.forecastStack(), d.unchangedExcludedFromForecast(), nil
+}
+
+func (d *webData) unchangedExcludedFromForecast() int {
+	if d.snapshot == nil {
+		return 0
+	}
+	unchanged := 0
+	for _, resource := range d.snapshot.Descriptors() {
+		if resource.Origin == engine.OriginState {
+			unchanged++
+		}
+	}
+	return unchanged
 }
 
 // webForecastSettings validates a dashboard query with the CLI's rules and
