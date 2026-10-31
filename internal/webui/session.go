@@ -591,7 +591,7 @@ func (s *Session) runPreview() {
 	// The browser gets only "Preview failed"; the reason stays in the
 	// terminal log.
 	if err != nil && s.ctx.Err() == nil {
-		logging.FromContext(s.ctx).Warn().Err(err).Str("component", "webui").
+		logging.FromContext(s.ctx).Warn().Ctx(s.ctx).Err(err).Str("component", "webui").
 			Str("operation", "preview").Msg("pulumi preview failed")
 	}
 	s.mu.Lock()
