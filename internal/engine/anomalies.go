@@ -39,14 +39,17 @@ type AnomalyReport struct {
 // SelectAnomalies projects overview rows onto the rows that carry drift data.
 // It applies no threshold of its own: CalculateCostDrift has already skipped
 // drift within the warning threshold, the first two days, new resources, and
-// deleted resources. A row with an error is never an anomaly. The result is
+// deleted resources. A row with an error is never an anomaly, and neither is a
+// row a preview marks for deletion: it has no forward projection, but
+// enrichment still prices it and a web preview can change a row's status after
+// its drift was set, so the status is checked here. The result is
 // ordered by absolute deviation, largest first, then by resource URN. The
 // input slice is not modified.
 func SelectAnomalies(rows []OverviewRow) AnomalyReport {
 	report := AnomalyReport{Considered: len(rows), Anomalies: []Anomaly{}}
 	for i := range rows {
 		row := &rows[i]
-		if row.Error != nil || row.CostDrift == nil {
+		if row.Error != nil || row.CostDrift == nil || row.Status == StatusDeleting {
 			continue
 		}
 		anomaly := Anomaly{

@@ -143,9 +143,10 @@ the empty state.
 ### Edge Cases
 
 - Drift at or under 10%, elapsed time under 2 days, a new resource (no actual
-  spend yet), and a deleted resource (no projection) yield no row. The
-  existing drift calculation already returns no drift for these; the command
-  adds no rule of its own.
+  spend yet), and a deleted resource (no projection) yield no row, because the
+  existing drift calculation returns no drift for them. A resource a preview
+  marks for deletion also yields no row, but enrichment still prices it, so
+  the selector checks its status. The command has no other rule of its own.
 - A row with a plugin error is not an anomaly, even when it has drift data.
 - Resources in different currencies are listed separately. No total ever sums
   across currencies; any table total is per currency.
@@ -177,7 +178,8 @@ the empty state.
 - **FR-006**: The command MUST NOT reimplement the 10% threshold, calendar
   month normalization, or the early-month, new-resource, and deleted-resource
   skips. It selects rows whose existing drift data is present.
-- **FR-007**: A row with an error, or with no drift data, MUST NOT be listed.
+- **FR-007**: A row with an error, with no drift data, or with a status of
+  deleting (a preview marks it for deletion) MUST NOT be listed.
 - **FR-008**: JSON output MUST include `considered` (rows the overview
   produced) alongside the anomaly array. An empty list MUST exit 0.
 - **FR-009**: The command MUST NOT sum amounts across currencies.

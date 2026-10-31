@@ -43,5 +43,6 @@ and `summary` leaves exactly the CLI JSON.
 
 ## Selection rule
 
-A row is an anomaly when `Error == nil` and `CostDrift != nil`. Order:
+A row is an anomaly when `Error == nil`, `CostDrift != nil`, and its status is
+not deleting. Order:
 `abs(Deviation)` descending, then `Resource` ascending. Pure function; no I/O.

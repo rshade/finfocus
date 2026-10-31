@@ -27,7 +27,7 @@ finfocus cost anomalies --from 2026-10-01 --to 2026-10-15 --output ndjson
 
 | Flag | Description | Default |
 | --- | --- | --- |
-| `--stack`, `-s` | Pulumi stack for auto-detection (inherited from `cost`) | Current stack |
+| `--stack` | Pulumi stack for auto-detection (inherited from `cost`) | Current stack |
 | `--pulumi-state` | Path to Pulumi state JSON | Auto-detected |
 | `--pulumi-json` | Path to Pulumi preview JSON; also runs with the plan | None |
 | `--from`, `--to` | Window start and end, `2006-01-02` or RFC3339 | Start of the month to now |
@@ -89,6 +89,7 @@ The overview already leaves drift unset for these, and so does this command:
 - Less than two days of data in the window.
 - A new resource with no actual spend yet.
 - A deleted resource with no projection.
+- A resource a preview marks for deletion, even if it has drift data.
 
 A resource whose cost lookup failed is also left out, even if drift data is
 present. An empty stack exits 0 with an empty list.

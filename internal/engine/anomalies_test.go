@@ -110,6 +110,28 @@ func TestSelectAnomalies_Selection(t *testing.T) {
 			wantTotal: 1,
 		},
 		{
+			name: "row a preview marks for deletion is not listed even with drift",
+			build: func(t *testing.T) []OverviewRow {
+				row := anomalyRow(t, "urn:deleting", "USD", steadyMTD*2, projected, 10)
+				row.Status = StatusDeleting
+				return []OverviewRow{row}
+			},
+			wantURNs:  []string{},
+			wantTotal: 1,
+		},
+		{
+			name: "updating and replacing rows with drift are still listed",
+			build: func(t *testing.T) []OverviewRow {
+				updating := anomalyRow(t, "urn:updating", "USD", steadyMTD*2, projected, 10)
+				updating.Status = StatusUpdating
+				replacing := anomalyRow(t, "urn:replacing", "USD", steadyMTD*3, projected, 10)
+				replacing.Status = StatusReplacing
+				return []OverviewRow{updating, replacing}
+			},
+			wantURNs:  []string{"urn:replacing", "urn:updating"},
+			wantTotal: 2,
+		},
+		{
 			name: "two currencies are listed separately",
 			build: func(t *testing.T) []OverviewRow {
 				return []OverviewRow{
