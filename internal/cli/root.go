@@ -146,6 +146,7 @@ Projection commands accept --terraform-plan for saved show -json output and
 	cmd.AddCommand(NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
 	cmd.AddCommand(newMCPServerCmd(cmd, ver, &lifecycle), newSchemaCmd(cmd, ver))
 	applyMCPExclusions(cmd)
+	closeLoggingOnFailure(cmd, &lifecycle)
 
 	return cmd
 }
