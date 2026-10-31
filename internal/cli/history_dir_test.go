@@ -197,7 +197,10 @@ func TestHistoryDir_ProjectTierSymlinkedDatabase(t *testing.T) {
 		{name: "uppercase suffix symlink rejected", fileName: "proj@dev.HISTORY.DB", symlink: true},
 		{name: "compact temp symlink rejected", fileName: "proj@dev.history.db.compact", symlink: true},
 		{name: "history.db sidecar symlink rejected", fileName: "history.db.compact", symlink: true},
+		{name: "daily actuals symlink rejected", fileName: "proj@dev.daily.db", symlink: true},
+		{name: "uppercase daily suffix symlink rejected", fileName: "proj@dev.DAILY.DB", symlink: true},
 		{name: "regular history.db accepted", fileName: "history.db"},
+		{name: "regular daily actuals accepted", fileName: "proj@dev.daily.db"},
 	}
 
 	for _, tt := range tests {

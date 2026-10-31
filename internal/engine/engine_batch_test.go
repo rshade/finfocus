@@ -1692,6 +1692,11 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 		result := &proto.ActualCostResult{
 			Currency:  "USD",
 			TotalCost: 70.0,
+			Observations: []proto.ActualCostPoint{{
+				Timestamp: from.Add(24 * time.Hour),
+				Cost:      3,
+				Currency:  "EUR",
+			}},
 		}
 		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, from, to)
 
@@ -1702,6 +1707,9 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 		for _, dc := range engineResult.DailyCosts {
 			assert.InDelta(t, 10.0, dc, 0.001)
 		}
+		require.Len(t, engineResult.DailyObservations, 1)
+		assert.InDelta(t, 3, engineResult.DailyObservations[0].Cost, 0)
+		assert.Equal(t, "EUR", engineResult.DailyObservations[0].Currency)
 		assert.Equal(t, "Actual cost from 2026-03-01 to 2026-03-08", engineResult.Notes)
 		assert.Equal(t, from, engineResult.StartDate)
 		assert.Equal(t, to, engineResult.EndDate)

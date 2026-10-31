@@ -2130,22 +2130,38 @@ func (e *Engine) getActualCostFromPlugin(
 	monthlyRate, hourlyRate, dailyCosts, notes := deriveActualCostWindow(result.TotalCost, from, to)
 
 	return &CostResult{
-		ResourceType:   resource.Type,
-		ResourceID:     resource.ID,
-		Adapter:        client.Name,
-		Currency:       result.Currency,
-		Monthly:        monthlyRate,
-		Hourly:         hourlyRate,
-		TotalCost:      result.TotalCost,
-		DailyCosts:     dailyCosts,
-		Notes:          notes,
-		Breakdown:      result.CostBreakdown,
-		Sustainability: sustainability,
-		StartDate:      from,
-		EndDate:        to,
-		CostPeriod:     FormatPeriod(from, to),
-		ExpiresAt:      result.ExpiresAt,
+		ResourceType:      resource.Type,
+		ResourceID:        resource.ID,
+		Adapter:           client.Name,
+		Currency:          result.Currency,
+		Monthly:           monthlyRate,
+		Hourly:            hourlyRate,
+		TotalCost:         result.TotalCost,
+		DailyCosts:        dailyCosts,
+		DailyObservations: observationsFromProto(result.Observations),
+		Notes:             notes,
+		Breakdown:         result.CostBreakdown,
+		Sustainability:    sustainability,
+		StartDate:         from,
+		EndDate:           to,
+		CostPeriod:        FormatPeriod(from, to),
+		ExpiresAt:         result.ExpiresAt,
 	}, nil
+}
+
+func observationsFromProto(points []proto.ActualCostPoint) []DailyObservation {
+	if len(points) == 0 {
+		return nil
+	}
+	out := make([]DailyObservation, len(points))
+	for i, point := range points {
+		out[i] = DailyObservation{
+			Timestamp: point.Timestamp,
+			Cost:      point.Cost,
+			Currency:  point.Currency,
+		}
+	}
+	return out
 }
 
 // deriveActualCostWindow computes the rate fields (Monthly, Hourly, DailyCosts) and the
@@ -4370,6 +4386,12 @@ func generateActualCostCacheKey(request ActualCostRequest) string {
 	// existing key unchanged.
 	if request.SkipStateEstimate {
 		filters["skip_state_estimate"] = "true"
+	}
+	// Collecting plugin day buckets must not reuse a total-only cache entry,
+	// which has no observations. Cost actual leaves this unset, so its key
+	// stays the same.
+	if request.RetainDailyObservations {
+		filters["daily_observations"] = "v1"
 	}
 	if request.Adapter != "" {
 		filters["adapter"] = request.Adapter

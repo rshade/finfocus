@@ -33,19 +33,22 @@ const (
 // NewCostHistoryCmd creates the `cost history` command group.
 func NewCostHistoryCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "history",
+		Use:   cmdNameHistory,
 		Short: "Collect and view projected cost history",
 		Long: `Stores and charts projected-cost timelines offline. collect reads successful
-Pulumi updates and needs the Pulumi CLI and cost plugins. Terraform projections
-are recorded automatically under a stable project identity. view, list, diff,
-prune, and export resolve that identity without running a plan. Use
---include-workspace or cost.terraform.include_workspace to scope Terraform
-history to its workspace. The flag is ignored for Pulumi.`,
+Pulumi updates and needs the Pulumi CLI and cost plugins. collect-daily stores
+one actual-cost point per resource per UTC day and does not change that
+timeline. Terraform projections are recorded automatically under a stable
+project identity. view, list, diff, prune, and export resolve that identity
+without running a plan. Use --include-workspace or
+cost.terraform.include_workspace to scope Terraform history to its workspace.
+The flag is ignored for Pulumi.`,
 	}
 	cmd.PersistentFlags().
 		Bool("include-workspace", false, "Include the Terraform workspace in the history identity (overrides cost.terraform.include_workspace)")
 	cmd.AddCommand(
 		NewCostHistoryCollectCmd(),
+		NewCostHistoryCollectDailyCmd(),
 		NewCostHistoryViewCmd(),
 		NewCostHistoryListCmd(),
 		NewCostHistoryDiffCmd(),
