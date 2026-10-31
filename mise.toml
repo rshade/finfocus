@@ -23,7 +23,7 @@ golangci-lint = "2.15.0"
 
 # Node is here to provide the npm backend that installs the markdownlint CLIs
 # below and to build the docs site (docs/).
-node = "24"
+node = "26"
 
 # Same pin as the `ensure-markdownlint` target in the Makefile.
 "npm:markdownlint-cli" = "0.50.0"
