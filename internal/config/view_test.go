@@ -202,3 +202,77 @@ func TestBuildPageResolvesZeroScoringTimeout(t *testing.T) {
 	assert.Equal(t, 0, timeout.Tiers[SourceGlobal].Value)
 	assert.True(t, timeout.Tiers[SourceGlobal].Set)
 }
+
+func TestProjectShadowsKey(t *testing.T) {
+	t.Parallel()
+
+	project := t.TempDir()
+	require.NoError(t, os.WriteFile(ProjectConfigPath(project), []byte(`{
+	  "cost": {"history": {"pulumi_cloud": {"enabled": "auto"}}},
+	  "plugins": {"aws": {"region": "us-west-2"}}
+	}`), 0o600))
+	empty := t.TempDir()
+
+	tests := []struct {
+		name    string
+		dir     string
+		key     string
+		wantHit bool
+	}{
+		{"key in a section the project defines", project, "cost.budgets.global.amount", true},
+		{"flat budget key resolves to the cost section", project, "cost.budgets.amount", true},
+		{"plugin key", project, "plugins.aws.profile", true},
+		{"section the project does not define", project, "output.precision", false},
+		{"project with no config file", empty, "cost.budgets.global.amount", false},
+		{"no project", "", "cost.budgets.global.amount", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			path, got := ProjectShadowsKey(filepath.Join(t.TempDir(), "config.hujson"), tt.dir, tt.key)
+			assert.Equal(t, tt.wantHit, got)
+			if tt.wantHit {
+				assert.Equal(t, ProjectConfigPath(tt.dir), path)
+			}
+		})
+	}
+}
+
+func TestProjectShadowsKeyIgnoresOverlaysThatDoNotApply(t *testing.T) {
+	t.Parallel()
+
+	t.Run("overlay with an incorrectly typed section is not merged", func(t *testing.T) {
+		t.Parallel()
+		project := t.TempDir()
+		require.NoError(t, os.WriteFile(ProjectConfigPath(project),
+			[]byte(`{"cost": {}, "output": {"precision": "oops"}}`), 0o600))
+		_, shadowed := ProjectShadowsKey(
+			filepath.Join(t.TempDir(), "config.hujson"),
+			project,
+			"cost.budgets.global.amount",
+		)
+		assert.False(t, shadowed, "NewWithProjectDir rejects the whole overlay and uses the global config")
+	})
+
+	t.Run("global and project are the same file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := ProjectConfigPath(dir)
+		require.NoError(t, os.WriteFile(path, []byte(`{"cost": {"budgets": {"global": {"amount": 200}}}}`), 0o600))
+		_, shadowed := ProjectShadowsKey(path, dir, "cost.budgets.global.amount")
+		assert.False(t, shadowed, "the project reads the file config set just wrote")
+	})
+
+	t.Run("a symlink to the project file is the same file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := ProjectConfigPath(dir)
+		require.NoError(t, os.WriteFile(path, []byte(`{"cost": {"budgets": {"global": {"amount": 200}}}}`), 0o600))
+		link := filepath.Join(t.TempDir(), "link.hujson")
+		if err := os.Symlink(path, link); err != nil {
+			t.Skipf("symlinks are unavailable: %v", err)
+		}
+		_, shadowed := ProjectShadowsKey(link, dir, "cost.budgets.global.amount")
+		assert.False(t, shadowed)
+	})
+}

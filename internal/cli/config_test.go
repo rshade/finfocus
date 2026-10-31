@@ -477,3 +477,61 @@ func TestConfigListCmdDirectRun(t *testing.T) {
 	require.NoError(t, cmd.RunE(cmd, nil))
 	assert.Contains(t, output.String(), `"output":`)
 }
+
+func writeProjectConfig(t *testing.T, body string) string {
+	t.Helper()
+	root := t.TempDir()
+	dir := filepath.Join(root, ".finfocus")
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.hujson"), []byte(body), 0o600))
+	t.Setenv("FINFOCUS_PROJECT_DIR", root)
+	return filepath.Join(dir, "config.hujson")
+}
+
+func TestConfigSetWarnsWhenProjectConfigShadowsKey(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestConfig(t)
+	projectFile := writeProjectConfig(t, `{"cost": {"history": {"pulumi_cloud": {"enabled": "auto"}}}}`)
+
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "set", "cost.budgets.global.amount", "200"})
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.Contains(t, string(result.Stdout), "Configuration updated: cost.budgets.global.amount = 200")
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, projectFile)
+	assert.Contains(t, stderr, "does not apply")
+
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "set", "output.precision", "4"})
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.NotContains(t, string(result.Stderr), "does not apply")
+}
+
+func TestConfigSetDoesNotWarnWithoutProjectConfig(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestConfig(t)
+	t.Setenv("FINFOCUS_PROJECT_DIR", "")
+
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "set", "cost.budgets.global.amount", "200"})
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.NotContains(t, string(result.Stderr), "does not apply")
+}
+
+func TestConfigGetNamesShadowingProjectConfig(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestConfig(t)
+	home := os.Getenv("FINFOCUS_HOME")
+	require.NoError(t, os.MkdirAll(home, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(home, "config.hujson"),
+		[]byte(`{"cost": {"budgets": {"global": {"amount": 200}}}}`), 0o600))
+	projectFile := writeProjectConfig(t, `{"cost": {"history": {"pulumi_cloud": {"enabled": "auto"}}}}`)
+
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "get", "cost.budgets.global.amount"})
+	assert.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "no budget configured")
+	assert.Contains(t, stderr, projectFile)
+	assert.Contains(t, stderr, "replaces the global")
+}
