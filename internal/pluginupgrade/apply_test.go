@@ -3,6 +3,7 @@ package pluginupgrade_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -159,6 +160,9 @@ func TestApplyReportsPartialWrite(t *testing.T) {
 	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root can write read-only files")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not enforce POSIX directory modes")
 	}
 
 	dir := copyFixture(t, "finfocus-v0.5.3")
