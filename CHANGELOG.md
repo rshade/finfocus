@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5](https://github.com/rshade/finfocus/compare/v0.5.4...v0.5.5) (2026-10-31)
+
+
+### Fixed
+
+* **terraform:** resolve symlinks before comparing a directory with the git root ([#1992](https://github.com/rshade/finfocus/issues/1992)) ([8eec3bd](https://github.com/rshade/finfocus/commit/8eec3bd3753d8182bdf30ac784817a6c94e43e95))
+* **webui:** drop the doubled period after Use scorer and match the budget percentages ([#1993](https://github.com/rshade/finfocus/issues/1993)) ([42393c8](https://github.com/rshade/finfocus/commit/42393c8b67228ef8149384de67cc2cffe1c31670))
+
+
+### Documentation
+
+* **readme:** add a Support section that says where to open issues ([#1976](https://github.com/rshade/finfocus/issues/1976)) ([9f44eee](https://github.com/rshade/finfocus/commit/9f44eee564aa5133850cdb6b846da1b741bce5bc))
+
 ## [0.5.4](https://github.com/rshade/finfocus/compare/v0.5.3...v0.5.4) (2026-10-31)
 
 
