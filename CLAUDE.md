@@ -438,8 +438,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   plugin versions are installed locally.
 - Reject an unknown `--output` before loading state; early returns on empty
   results otherwise exit 0 silently (see `config_routes.go`, `plugin_list.go`).
-  Return it through `unsupportedOutputError` so it exits 2;
-  `TestUnsupportedOutputExitsValidation` lists every command with `--output`.
+  Return it through `unsupportedOutputError` (or `toValidationError`) so it
+  exits 2. A new command with `--output` goes in `outputFormatCases`
+  (`output_validation_test.go`), or in `outputIsNotAFormat` when the flag is
+  a path; `TestUnsupportedOutputCoversEveryCommand` fails otherwise.
 - `config validate` and every `cost` pre-run share `ValidateConfigSource`.
   The on-disk budget field is `cost.budgets.global.amount`; flat
   `cost.budgets.amount` is warned and ignored.

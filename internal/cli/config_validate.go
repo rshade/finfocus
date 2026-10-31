@@ -48,7 +48,8 @@ The report includes:
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			output = resolveOutputFormat(cmd, "output", output)
 			if output != configOutputText && output != outputFormatJSON {
-				return fmt.Errorf("invalid --output %q (must be text or json)", output)
+				return toValidationError(cmd.Context(),
+					fmt.Errorf("invalid --output %q (must be text or json)", output))
 			}
 			return runConfigValidate(cmd, file, output, verbose)
 		},
