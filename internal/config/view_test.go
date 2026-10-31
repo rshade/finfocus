@@ -246,7 +246,11 @@ func TestProjectShadowsKeyIgnoresOverlaysThatDoNotApply(t *testing.T) {
 		project := t.TempDir()
 		require.NoError(t, os.WriteFile(ProjectConfigPath(project),
 			[]byte(`{"cost": {}, "output": {"precision": "oops"}}`), 0o600))
-		_, shadowed := ProjectShadowsKey(filepath.Join(t.TempDir(), "config.hujson"), project, "cost.budgets.global.amount")
+		_, shadowed := ProjectShadowsKey(
+			filepath.Join(t.TempDir(), "config.hujson"),
+			project,
+			"cost.budgets.global.amount",
+		)
 		assert.False(t, shadowed, "NewWithProjectDir rejects the whole overlay and uses the global config")
 	})
 
