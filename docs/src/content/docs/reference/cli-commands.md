@@ -905,8 +905,12 @@ finfocus config init --force
 
 ## config set
 
-Set a configuration value using dot notation. Writes to `~/.finfocus/config.yaml`
-(or the project-local config when inside a Pulumi project).
+Set a configuration value using dot notation. Writes the global
+`config.hujson` (`~/.finfocus/` unless `FINFOCUS_HOME` or `PULUMI_HOME` is
+set), even inside a Pulumi project; edit a project's `.finfocus/config.hujson`
+to set a value for that project only. A key that `config set` does not
+support, such as `cost.history.enabled`, is rejected with the settable keys in
+its section; edit `config.hujson` directly for it.
 
 For sensitive values such as API keys, use environment variables instead of
 storing them in config files.

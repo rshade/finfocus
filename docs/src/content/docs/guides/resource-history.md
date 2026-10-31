@@ -154,7 +154,10 @@ have source `pulumi_cloud`. FinFocus extracts only URN, cloud ID, resource type,
 and provider; it caches those identities in `history.db`. It never stores
 snapshot properties or secrets.
 
-Enable the import from the project directory:
+`config set` writes the global `config.hujson` (`~/.finfocus/` by default), so
+the setting applies to every project. To enable it for one project only, add
+it to that project's `.finfocus/config.hujson` instead. Run the import and
+cost commands from the project directory:
 
 ```bash
 finfocus config set cost.history.pulumi_cloud.enabled auto
