@@ -104,7 +104,7 @@ func runPluginConformanceCmd(
 
 	// Validate output format
 	if output != outputFormatTable && output != outputFormatJSON && output != outputFormatJUnit {
-		return fmt.Errorf("invalid output format %q: must be table, json, or junit", output)
+		return toValidationError(ctx, fmt.Errorf("invalid output format %q: must be table, json, or junit", output))
 	}
 
 	// Create and run suite
