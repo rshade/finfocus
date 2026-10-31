@@ -58,7 +58,7 @@ func NewPluginListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format := resolveOutputFormat(cmd, "output", output)
 			if format != outputFormatTable && format != outputFormatJSON {
-				return fmt.Errorf("unsupported output format: %s (supported: table, json)", format)
+				return unsupportedOutputError(cmd.Context(), format, "table, json")
 			}
 			if available {
 				return runPluginListAvailable(cmd, format)

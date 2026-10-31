@@ -72,7 +72,7 @@ func executeHistory(cmd *cobra.Command, recommendationID string, output string) 
 	switch output {
 	case outputFormatTable, outputFormatJSON, outputFormatNDJSON:
 	default:
-		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", output)
+		return unsupportedOutputError(ctx, output, "table, json, ndjson")
 	}
 	if recommendationID == "" {
 		return errors.New("recommendation ID is required")

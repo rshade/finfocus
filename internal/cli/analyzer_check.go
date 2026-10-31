@@ -50,7 +50,7 @@ Checks include:
 func runAnalyzerCheck(ctx context.Context, cmd *cobra.Command, outputFormat string) error {
 	outputFormat = resolveOutputFormat(cmd, "output", outputFormat)
 	if outputFormat != outputFormatTable && outputFormat != outputFormatJSON {
-		return fmt.Errorf("unsupported output format: %s (supported: table, json)", outputFormat)
+		return unsupportedOutputError(ctx, outputFormat, "table, json")
 	}
 
 	report, err := runAnalyzerChecks(ctx)

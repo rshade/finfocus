@@ -191,12 +191,12 @@ Valid action types for filtering:
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
-	if err := validateRecommendationsInputs(cmd, params); err != nil {
-		return toValidationError(ctx, err)
-	}
 	params.output = resolveOutputFormatWithConfig(cmd, params.output)
 	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.output))) {
-		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
+		return unsupportedOutputError(ctx, params.output, "table, json, ndjson")
+	}
+	if err := validateRecommendationsInputs(cmd, params); err != nil {
+		return toValidationError(ctx, err)
 	}
 
 	scoringCfg := config.New().Scoring.Resolve()

@@ -64,11 +64,11 @@ type RouteMatchOutput struct {
 	Fallback    bool   `json:"fallback"`
 }
 
-// validateOutputFormat checks that format is "table" or "json" and returns an
-// error for unsupported values.
-func validateOutputFormat(format string) error {
+// validateOutputFormat checks that format is "table" or "json" and returns a
+// validation error for unsupported values.
+func validateOutputFormat(ctx context.Context, format string) error {
 	if format != outputFormatTable && format != outputFormatJSON {
-		return fmt.Errorf("unsupported output format: %s (supported: table, json)", format)
+		return unsupportedOutputError(ctx, format, "table, json")
 	}
 	return nil
 }
@@ -143,7 +143,7 @@ including plugin names, features, patterns, and fallback status.`,
 // runConfigRoutesList executes the config routes list command logic.
 func runConfigRoutesList(cmd *cobra.Command, outputFormat string) error {
 	outputFormat = resolveOutputFormat(cmd, "output", outputFormat)
-	if err := validateOutputFormat(outputFormat); err != nil {
+	if err := validateOutputFormat(cmd.Context(), outputFormat); err != nil {
 		return err
 	}
 
@@ -208,7 +208,7 @@ synthetic plugin metadata to show which plugin would be selected per feature.`,
 
 func runConfigRoutesTest(cmd *cobra.Command, args []string, outputFormat string) error {
 	outputFormat = resolveOutputFormat(cmd, "output", outputFormat)
-	if err := validateOutputFormat(outputFormat); err != nil {
+	if err := validateOutputFormat(cmd.Context(), outputFormat); err != nil {
 		return err
 	}
 

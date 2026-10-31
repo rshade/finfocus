@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/rshade/ax-go"
 )
@@ -23,4 +24,10 @@ func toValidationError(ctx context.Context, err error) error {
 	return ax.NewError(ctx, "validation_error", err.Error(),
 		ax.WithErrorExitCode(ax.ExitValidation),
 		ax.WithErrorCause(err))
+}
+
+// unsupportedOutputError reports an --output value the command cannot render.
+// It is a user-input error, so ax.Execute exits 2 rather than 1.
+func unsupportedOutputError(ctx context.Context, format, supported string) error {
+	return toValidationError(ctx, fmt.Errorf("unsupported output format: %s (supported: %s)", format, supported))
 }

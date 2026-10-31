@@ -77,7 +77,7 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	ctx := cmd.Context()
 	format := resolveOutputFormatWithConfig(cmd, params.output)
 	if !isValidOutputFormat(engine.OutputFormat(format)) {
-		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", format)
+		return unsupportedOutputError(ctx, format, "table, json, ndjson")
 	}
 	if err := engine.ValidateClusterGroupBy(params.groupBy); err != nil {
 		return err

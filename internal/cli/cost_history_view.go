@@ -153,7 +153,7 @@ func historyOutputFormat(cmd *cobra.Command) (string, error) {
 		format = historyOutputPlain
 	}
 	if format != historyOutputPlain && format != historyOutputJSON {
-		return "", fmt.Errorf("unsupported output format: %s (supported: plain, json)", format)
+		return "", unsupportedOutputError(cmd.Context(), format, "plain, json")
 	}
 	return format, nil
 }
