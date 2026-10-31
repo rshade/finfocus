@@ -589,7 +589,7 @@ func loadEstimateResources(
 	}
 	// Estimate lists and edits one resource per URN; the preview's separate
 	// replacement steps are priced only by the projected diff.
-	return engine.CollapseReplacements(resources), unchanged, err
+	return collapseLiveReplacements(resources), unchanged, err
 }
 
 // selectorKeys lists the selectors that address a resource, most specific first:

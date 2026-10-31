@@ -373,7 +373,7 @@ func (d *webData) liveResources() ([]engine.ResourceDescriptor, error) {
 	// inventory instead represents each resource after the preview is applied:
 	// one descriptor per replacement, with deletions left out.
 	var resources []engine.ResourceDescriptor
-	for _, resource := range engine.CollapseReplacements(d.snapshot.Descriptors()) {
+	for _, resource := range collapseLiveReplacements(d.snapshot.Descriptors()) {
 		if resource.Operation == engine.DiffOperationDelete {
 			continue
 		}

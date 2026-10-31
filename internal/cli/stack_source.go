@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/spf13/cobra"
 
@@ -114,4 +115,14 @@ func loadDeployedPulumi(ctx context.Context, stack string) ([]engine.ResourceDes
 		return nil, err
 	}
 	return snapshot.DeployedDescriptors(), nil
+}
+
+// collapseLiveReplacements is the live inventory of the preview: one descriptor
+// per replacement, with the old resource of an unpaired delete-replaced step
+// dropped. CollapseReplacements merges a replacement's steps but leaves a step
+// with no partner alone, and that step is a resource the preview removes.
+func collapseLiveReplacements(resources []engine.ResourceDescriptor) []engine.ResourceDescriptor {
+	return slices.DeleteFunc(engine.CollapseReplacements(resources), func(resource engine.ResourceDescriptor) bool {
+		return resource.Operation == "delete-replaced"
+	})
 }

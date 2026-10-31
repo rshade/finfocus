@@ -316,7 +316,7 @@ func loadRecommendationsResources(
 	}
 	// Recommend for each URN once, from the replacement's new state, never for
 	// the resource a replacement removes.
-	return engine.CollapseReplacements(resources), unchanged, err
+	return collapseLiveReplacements(resources), unchanged, err
 }
 
 // newCostRecommendationsAudit records the selected input and recommendation filters.
