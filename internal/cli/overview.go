@@ -286,9 +286,6 @@ func finalizeOverviewOutput(
 	dateRange engine.DateRange,
 	audit *auditContext,
 ) error {
-	if overviewUsesTerraform(params) && !result.IsStateOnly && !result.HasChanges {
-		return projectedUnchanged(ctx, cmd, audit)
-	}
 	stackCtx := engine.StackContext{
 		StackName:      result.StackName,
 		TimeWindow:     dateRange,
@@ -298,6 +295,12 @@ func finalizeOverviewOutput(
 		GeneratedAt:    time.Now(),
 		IsStateOnly:    result.IsStateOnly,
 		ExpansionNotes: result.ExpansionNotes,
+	}
+	if overviewUsesTerraform(params) && !result.IsStateOnly && !result.HasChanges {
+		return projectedUnchanged(ctx, cmd, audit, params.output, func() error {
+			empty := engine.ComputeOverviewResult(nil, time.Now().Day())
+			return renderOverviewOutput(cmd, params.output, empty, stackCtx, result.Budget)
+		})
 	}
 
 	// Compute all display values once; renderers read the pre-computed result.

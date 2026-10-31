@@ -500,8 +500,9 @@ func executePlanBasedEstimate(
 	}
 
 	if unchanged {
-		cmd.Println("No changes. Projected monthly cost is zero.")
-		return nil
+		return writeUnchanged(cmd, params.Output, func() error {
+			return renderMultipleEstimateResults(cmd.OutOrStdout(), params.Output, []*engine.EstimateResult{})
+		})
 	}
 	if len(resources) == 0 {
 		cmd.Println("No resources found in plan")

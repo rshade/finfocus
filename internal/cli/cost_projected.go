@@ -253,11 +253,48 @@ func applyProjectedFilters(
 	return filtered, nil
 }
 
-func projectedUnchanged(ctx context.Context, cmd *cobra.Command, audit *auditContext) error {
-	cmd.Println("No changes. Projected monthly cost is zero.")
+const noChangesMessage = "No changes. Projected monthly cost is zero."
+
+// projectedUnchanged reports a Terraform or OpenTofu plan with no changes
+// through writeUnchanged, then records the empty projection.
+func projectedUnchanged(
+	ctx context.Context,
+	cmd *cobra.Command,
+	audit *auditContext,
+	format string,
+	renderEmpty func() error,
+) error {
+	if err := writeUnchanged(cmd, format, renderEmpty); err != nil {
+		audit.logFailure(ctx, err)
+		return err
+	}
 	recordTerraformProjection(ctx, cmd, nil)
 	audit.logSuccess(ctx, 0, 0)
 	return nil
+}
+
+// writeUnchanged prints the no-change sentence for human output. JSON and
+// NDJSON instead write the command's own empty document through renderEmpty,
+// so stdout stays parseable, and the sentence moves to stderr.
+func writeUnchanged(cmd *cobra.Command, format string, renderEmpty func() error) error {
+	if format != outputFormatJSON && format != outputFormatNDJSON {
+		cmd.Println(noChangesMessage)
+		return nil
+	}
+	if err := renderEmpty(); err != nil {
+		return err
+	}
+	cmd.PrintErrln(noChangesMessage)
+	return nil
+}
+
+// unchangedProjectedDiff is the diff of a plan with no changes. Nothing is
+// priced, so JSON sets emptyPlan as it does for an empty Pulumi preview.
+func unchangedProjectedDiff() *engine.DiffResult {
+	return &engine.DiffResult{
+		EmptyPlan: true,
+		Summary:   engine.DiffSummary{Currency: defaultCurrency},
+	}
 }
 
 func projectedLoadError(
@@ -297,7 +334,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		return projectedLoadError(ctx, params, audit, err)
 	}
 	if unchanged {
-		return projectedUnchanged(ctx, cmd, audit)
+		return projectedUnchanged(ctx, cmd, audit, params.output, func() error {
+			return renderProjectedDiff(cmd, params.output, unchangedProjectedDiff(), false)
+		})
 	}
 
 	emptyPlan := warnForProjectedPlan(cmd, resources, snapshot)

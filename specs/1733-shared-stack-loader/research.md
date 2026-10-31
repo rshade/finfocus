@@ -259,6 +259,7 @@ Consequences found while reading:
    would make the forecast describe the whole stack. Recommendation: keep it
    unchanged now and decide with the owner after the stack total has shipped.
    Tracked in #1903.
-2. **Terraform JSON.** `projectedUnchanged` prints a sentence into JSON output.
-   Recommendation: a separate issue, since FR-011 leaves Terraform alone.
-   Tracked in #1904.
+2. **Terraform JSON.** `projectedUnchanged` printed a sentence into JSON output.
+   Resolved in #1904: JSON and NDJSON write each command's empty document, and
+   the sentence moves to stderr. `cost projected` sets `emptyPlan: true`, as
+   R10 does for Pulumi.

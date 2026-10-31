@@ -138,7 +138,9 @@ func runForecast(cmd *cobra.Command, deps forecastDeps) error {
 		return err
 	}
 	if len(costs) == 0 && settings.model != forecast.ModelARIMA && terraformProjectionSelected(cmd) {
-		return projectedUnchanged(ctx, cmd, audit)
+		return projectedUnchanged(ctx, cmd, audit, format, func() error {
+			return writeUnchangedForecast(cmd, format, settings.months)
+		})
 	}
 	built, err := buildForecast(costs, settings, func() ([]history.CostSnapshot, error) {
 		return forecastHistorySnapshots(cmd, deps)
@@ -503,6 +505,16 @@ func writeForecast(
 	default:
 		return writeForecastPlain(cmd, built.projection, built.history, built.budget, deps)
 	}
+}
+
+// writeUnchangedForecast writes the machine document for a plan with no
+// changes: no series, so no point is invented for spend the plan does not change.
+func writeUnchangedForecast(cmd *cobra.Command, format string, months int) error {
+	doc := forecast.Document{Currency: defaultCurrency, Months: months, Series: []forecast.Series{}}
+	if format == forecastOutputNDJSON {
+		return writeForecastNDJSON(cmd, doc)
+	}
+	return writeJSON(cmd, doc)
 }
 
 type forecastLine struct {
