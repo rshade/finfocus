@@ -64,4 +64,4 @@ jq = "1.8.2"
 "go:golang.org/x/tools/gopls" = "0.24.0"
 
 # Local secret scanning; no make target invokes it.
-trufflehog = "3.99.4"
+trufflehog = "3.99.7"
