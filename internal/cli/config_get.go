@@ -44,6 +44,14 @@ and will not appear in configuration files.`,
 			// Get the value
 			value, err := cfg.Get(key)
 			if err != nil {
+				if path, shadowed := config.ProjectShadowsKey(config.GetResolvedProjectDir(), key); shadowed {
+					section := config.SectionOf(key)
+					return fmt.Errorf(
+						"failed to get config value: %w (project config %s defines %s, "+
+							"which replaces the global %s section)",
+						err, path, section, section,
+					)
+				}
 				return fmt.Errorf("failed to get config value: %w", err)
 			}
 

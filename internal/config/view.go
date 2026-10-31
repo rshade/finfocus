@@ -205,6 +205,29 @@ func resolvedValue(key string, value any) any {
 	return value
 }
 
+// SectionOf returns the top-level config section that holds key.
+func SectionOf(key string) string {
+	return sectionName(CanonicalKey(key))
+}
+
+// ProjectShadowsKey reports whether the project config in projectDir defines
+// the top-level section of key. A project section replaces the whole global
+// section (see ShallowMergeYAML), so a value written to the global file for a
+// key in that section does not apply in the project. It returns the project
+// config file that decides this. A missing or unreadable file shadows nothing.
+func ProjectShadowsKey(projectDir, key string) (string, bool) {
+	if projectDir == "" {
+		return "", false
+	}
+	path := ProjectConfigPath(projectDir)
+	doc, _, err := loadDocument(path)
+	if err != nil {
+		return "", false
+	}
+	_, shadowed := doc[sectionName(CanonicalKey(key))]
+	return path, shadowed
+}
+
 func effective(key string, projectDoc map[string]any, tiers map[string]TierValue) (string, any, bool) {
 	if tiers[SourceEnv].Set {
 		return SourceEnv, tiers[SourceEnv].Value, true
