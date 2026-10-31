@@ -50,7 +50,7 @@ for the same stack and settings. `display.series` follows `series` order.
 | --- | --- | --- | --- |
 | 400 | `invalid_request` | Body is not JSON | Server's standard text |
 | 400 | `invalid_forecast` | Months out of range, unknown growth type, bad or missing rate | The CLI's message for the same flags |
-| 422 | `no_forecast` | No resource was priced, or priced resources use two currencies | The CLI's message (`no cost data available`, or the mixed-currency message naming the codes) |
+| 422 | `no_forecast` | No resource was priced, or priced resources use two currencies | The CLI's message (`no cost data available`, or the mixed-currency message naming the codes). When unchanged resources were left out of the forecast, the web adds how many to `no cost data available`. |
 | 503 | `not_ready` | Session data not loaded | `forecast data is loading` |
 | 502 | `forecast_unavailable` | Pricing or history setup failed | `forecast data unavailable` |
 
