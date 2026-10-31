@@ -3,7 +3,7 @@
 
 package engine
 
-// collapseReplacements merges the plan steps of one Pulumi replacement into a
+// CollapseReplacements merges the plan steps of one Pulumi replacement into a
 // single update descriptor. A replace is reported as create-replacement,
 // replace, and delete-replaced steps that share a URN; priced separately they
 // count the old resource twice. The merged descriptor takes its new state from
@@ -11,7 +11,10 @@ package engine
 // OldProperties, falling back to the delete-replaced step. It keeps the
 // position of the first step. A URN that is not part of a replacement keeps all
 // of its entries, and a replacement step with no partner is left alone.
-func collapseReplacements(resources []ResourceDescriptor) []ResourceDescriptor {
+//
+// It is the one definition of a replacement: the projected diff and the live
+// estimate and recommendations inventories all use it.
+func CollapseReplacements(resources []ResourceDescriptor) []ResourceDescriptor {
 	groups := make(map[string][]int)
 	for i, resource := range resources {
 		if resource.ID != "" && isReplacementOperation(resource.Operation) {
