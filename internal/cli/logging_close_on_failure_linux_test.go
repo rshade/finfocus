@@ -36,15 +36,15 @@ func openHandlesTo(t *testing.T, path string) int {
 // cobra skips PersistentPostRunE after an error, and Windows cannot remove a
 // directory that holds an open file.
 //
-// Not parallel: it sets the process environment and counts process-wide descriptors.
+//nolint:paralleltest // isolateConfig sets the environment, and the test counts process-wide descriptors.
 func TestFailedCommandReleasesItsLogFile(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("FINFOCUS_HOME", home)
-	t.Setenv("FINFOCUS_PROJECT_DIR", "")
-	logPath := filepath.Join(home, "logs", "finfocus.log")
+	isolateConfig(t)
+	isolateFromPulumiProject(t)
+	logPath := filepath.Join(os.Getenv("FINFOCUS_HOME"), "logs", "finfocus.log")
 
 	ok := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "list"})
 	require.Equal(t, 0, ok.ExitCode, string(ok.Stderr))
+	require.FileExists(t, logPath, "the command wrote to the log file this test counts handles on")
 	assert.Zero(t, openHandlesTo(t, logPath), "a successful command closes its log file")
 
 	failed := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
