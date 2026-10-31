@@ -179,23 +179,44 @@ func IsExternalResource(resource ResourceDescriptor) bool {
 	}
 }
 
-// resourceActualStart returns the start to send a plugin for one resource.
-// Plugins trust an explicit start over pulumi:created, so a resource created
-// inside (from, to] starts at its creation time; otherwise it is charged for
-// hours before it existed. An imported resource keeps from, because its
-// pulumi:created is the import time.
-func resourceActualStart(resource ResourceDescriptor, from, to time.Time) time.Time {
+// resourceActualStart returns the start to send a plugin for one resource, and
+// false when the resource did not exist before to and so has no spend in the
+// window. Plugins trust an explicit start over pulumi:created, so a resource
+// created inside (from, to) starts at its creation time; otherwise it is
+// charged for hours before it existed. An imported resource keeps from,
+// because its pulumi:created is the import time.
+func resourceActualStart(resource ResourceDescriptor, from, to time.Time) (time.Time, bool) {
 	if IsExternalResource(resource) {
-		return from
+		return from, true
 	}
 	created, err := ExtractCreatedTimestamp(resource)
 	if err != nil || created.IsZero() {
-		return from
+		return from, true
 	}
-	if created.After(from) && !created.After(to) {
-		return created
+	if !created.Before(to) {
+		return to, false
 	}
-	return from
+	if created.After(from) {
+		return created, true
+	}
+	return from, true
+}
+
+// windowDailyCosts spreads total evenly over the days of [from, to] from the
+// day billing started, leaving earlier days at zero. Index 0 is the day of
+// from, as distributeDailyCosts and AggregateResultsInternal expect.
+func windowDailyCosts(total float64, from, billedFrom, to time.Time) []float64 {
+	days := int(to.Sub(from).Hours() / hoursPerDay)
+	if days <= 0 {
+		return nil
+	}
+	first := min(int(billedFrom.Sub(from).Hours()/hoursPerDay), days-1)
+	daily := make([]float64, days)
+	share := total / float64(days-first)
+	for i := first; i < days; i++ {
+		daily[i] = share
+	}
+	return daily
 }
 
 // UptimeAssumptionNote is the standard note documenting the 100% uptime assumption.

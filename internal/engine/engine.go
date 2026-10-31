@@ -1250,7 +1250,8 @@ func (e *Engine) GetActualCostWithOptions(
 				if len(request.Tags) > 0 && !MatchesTags(ir.resource, request.Tags) {
 					continue
 				}
-				if !resourceActualStart(ir.resource, request.From, request.To).Equal(request.From) {
+				if billedFrom, existed := resourceActualStart(ir.resource, request.From, request.To); !existed ||
+					!billedFrom.Equal(request.From) {
 					continue
 				}
 				batchResources = append(batchResources, ir)

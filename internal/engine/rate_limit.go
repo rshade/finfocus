@@ -97,15 +97,29 @@ func (e *Engine) actualFromPlugin(
 	from, to time.Time,
 	perAttempt time.Duration,
 ) (*CostResult, error) {
-	billedFrom := resourceActualStart(resource, from, to)
+	billedFrom, existed := resourceActualStart(resource, from, to)
+	if !existed {
+		return &CostResult{
+			ResourceType: resource.Type,
+			ResourceID:   resource.ID,
+			Adapter:      client.Name,
+			Currency:     defaultCurrency,
+			Notes:        "Created after the requested window; no spend in it",
+			StartDate:    from,
+			EndDate:      to,
+			CostPeriod:   FormatPeriod(from, to),
+		}, nil
+	}
 	result, err := retryRateLimited(ctx, perAttempt, func(attemptCtx context.Context) (*CostResult, error) {
 		return e.getActualCostFromPlugin(attemptCtx, client, resource, billedFrom, to)
 	})
 	// The result keeps the requested window, so rows and groups share one
-	// period even when a resource was billed from its creation time.
+	// period even when a resource was billed from its creation time. The daily
+	// series is rebuilt over that window so its indices still start at from.
 	if result != nil && !billedFrom.Equal(from) {
 		result.StartDate = from
 		result.CostPeriod = FormatPeriod(from, to)
+		result.DailyCosts = windowDailyCosts(result.TotalCost, from, billedFrom, to)
 	}
 	return result, err
 }
