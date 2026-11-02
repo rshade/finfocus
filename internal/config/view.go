@@ -224,7 +224,7 @@ func ProjectShadowsKey(globalPath, projectDir, key string) (string, bool) {
 		return "", false
 	}
 	path := ProjectConfigPath(projectDir)
-	if sameFile(globalPath, path) {
+	if sameFile(PreferredConfigPath(globalPath), path) {
 		return "", false
 	}
 	doc, err := overlayDocument(path)

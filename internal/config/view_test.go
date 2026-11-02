@@ -278,6 +278,16 @@ func TestProjectShadowsKeyIgnoresOverlaysThatDoNotApply(t *testing.T) {
 		assert.False(t, shadowed, "the project reads the file config set just wrote")
 	})
 
+	t.Run("global and project are the same legacy file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		legacy := filepath.Join(dir, "config.yaml")
+		require.NoError(t, os.WriteFile(legacy, []byte("cost:\n  budgets:\n    global:\n      amount: 200\n"), 0o600))
+		_, shadowed := ProjectShadowsKey(filepath.Join(dir, "config.hujson"), dir, "cost.budgets.global.amount")
+		assert.False(t, shadowed,
+			"config set writes config.hujson only when the value changes; until then the legacy file is both tiers")
+	})
+
 	t.Run("a symlink to the project file is the same file", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
