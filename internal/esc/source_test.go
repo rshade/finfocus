@@ -106,12 +106,12 @@ func TestSourceBudget(t *testing.T) {
 		t.Parallel()
 		srv := esctest.New("tok", map[string]*esctest.Environment{
 			"acme/billing/slow1": {
-				Delay:     80 * time.Millisecond,
+				Delay:     150 * time.Millisecond,
 				ETag:      "e",
 				Variables: map[string]esctest.Variable{"A": {Value: "1"}},
 			},
 			"acme/billing/slow2": {
-				Delay:     80 * time.Millisecond,
+				Delay:     150 * time.Millisecond,
 				ETag:      "e",
 				Variables: map[string]esctest.Variable{"B": {Value: "2"}},
 			},
@@ -124,13 +124,15 @@ func TestSourceBudget(t *testing.T) {
 				Imports: []string{"acme/billing/slow1", "acme/billing/slow2"},
 			}},
 			Getenv: testGetenv(srv.URL),
-			Budget: 400 * time.Millisecond,
+			Budget: 900 * time.Millisecond,
 		})
 		start := time.Now()
 		got := src.Delivery(context.Background(), "recorder")
-		// Open is a POST plus a GET, so one reference takes about 240ms.
-		// Sequential opens would take about 480ms.
-		assert.Less(t, time.Since(start), 400*time.Millisecond)
+		// Open is a HEAD, a POST, a GET, and a HEAD, and the test server delays
+		// each, so one reference takes about 600ms and sequential opens about
+		// 1.2s. The budget and ceiling sit between them with 300ms to spare on
+		// each side, so scheduler jitter under -race cannot decide the outcome.
+		assert.Less(t, time.Since(start), 900*time.Millisecond)
 		assert.Equal(t, "1", got.Values["A"])
 		assert.Equal(t, "2", got.Values["B"])
 	})
@@ -148,11 +150,12 @@ func TestSourceBudget(t *testing.T) {
 				"second": {Environments: ptrList("acme/billing/b")},
 			},
 			Getenv: testGetenv(srv.URL),
-			Budget: 40 * time.Millisecond,
+			Budget: 500 * time.Millisecond,
 		})
 		first := src.Delivery(context.Background(), "first")
 		assert.Equal(t, "1", first.Values["A"])
-		time.Sleep(80 * time.Millisecond)
+		// Idle for longer than the whole budget: only time in flight is charged.
+		time.Sleep(time.Second)
 		second := src.Delivery(context.Background(), "second")
 		assert.Equal(t, "2", second.Values["B"])
 	})
