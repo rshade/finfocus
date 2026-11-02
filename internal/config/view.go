@@ -205,6 +205,66 @@ func resolvedValue(key string, value any) any {
 	return value
 }
 
+// SectionOf returns the top-level config section that holds key.
+func SectionOf(key string) string {
+	return sectionName(CanonicalKey(key))
+}
+
+// ProjectShadowsKey reports whether the project config in projectDir defines
+// the top-level section of key. A project section replaces the whole global
+// section (see ShallowMergeYAML), so a value written to the global file at
+// globalPath for a key in that section does not apply in the project. It
+// returns the project config file that decides this.
+//
+// Nothing is shadowed when the project file is missing, unreadable, or rejected
+// as a whole (NewWithProjectDir then uses the global config), or when it is the
+// same file as the global one (FINFOCUS_HOME inside the project).
+func ProjectShadowsKey(globalPath, projectDir, key string) (string, bool) {
+	if projectDir == "" {
+		return "", false
+	}
+	path := ProjectConfigPath(projectDir)
+	if sameFile(PreferredConfigPath(globalPath), path) {
+		return "", false
+	}
+	doc, err := overlayDocument(path)
+	if err != nil {
+		return "", false
+	}
+	if _, defined := doc[sectionName(CanonicalKey(key))]; !defined {
+		return "", false
+	}
+	if err = ShallowMergeYAML(&Config{}, path); err != nil {
+		return "", false
+	}
+	return path, true
+}
+
+// overlayDocument reads a project config the way the overlay loader does:
+// Hujson first, then YAML. loadDocument alone rejects a YAML file written in
+// flow style ({cost: {...}}) that the loader still applies.
+func overlayDocument(path string) (map[string]any, error) {
+	doc, _, err := loadDocument(path)
+	if err == nil {
+		return doc, nil
+	}
+	data, readErr := os.ReadFile(PreferredConfigPath(path))
+	if readErr != nil {
+		return nil, err
+	}
+	var fallback map[string]any
+	if yaml.Unmarshal(data, &fallback) != nil {
+		return nil, err
+	}
+	return fallback, nil
+}
+
+func sameFile(a, b string) bool {
+	infoA, errA := os.Stat(a)
+	infoB, errB := os.Stat(b)
+	return errA == nil && errB == nil && os.SameFile(infoA, infoB)
+}
+
 func effective(key string, projectDoc map[string]any, tiers map[string]TierValue) (string, any, bool) {
 	if tiers[SourceEnv].Set {
 		return SourceEnv, tiers[SourceEnv].Value, true

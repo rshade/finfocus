@@ -925,6 +925,14 @@ to set a value for that project only. A key that `config set` does not
 support, such as `cost.history.enabled`, is rejected with the settable keys in
 its section; edit `config.hujson` directly for it.
 
+A project `config.hujson` replaces a whole global section, so a value written
+for a key in a section the project defines does not apply in that project. For
+example, a project file with a `cost` section for Pulumi Cloud history hides a
+global `cost.budgets.global.amount`. `config set` still writes the global file,
+prints a warning on stderr that names the project file, and `config get` names
+it when it cannot find the key. See
+[Config Merge Behavior](config-reference.md#config-merge-behavior).
+
 For sensitive values such as API keys, use environment variables instead of
 storing them in config files.
 
