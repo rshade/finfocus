@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -129,10 +131,10 @@ func TestCollectDaily_StoresReplacesAndKeepsTimeline(t *testing.T) {
 	assert.InDelta(t, 1, dailyAmount(points, "urn:ok", start, "USD"), 0)
 	assert.InDelta(t, 5, dailyAmount(points, "urn:ok", start.AddDate(0, 0, 1), "USD"), 0)
 	assert.InDelta(t, 8, dailyAmount(points, "urn:ok", start, "EUR"), 0)
-	require.True(t, dailyHas(points, "urn:zero", start, "USD"))
+	require.True(t, dailyHas(points, "urn:zero", start))
 	assert.InDelta(t, 0, dailyAmount(points, "urn:zero", start, "USD"), 0)
 	assert.InDelta(t, 7, dailyAmount(points, "urn:bad", time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), "USD"), 0)
-	assert.False(t, dailyHas(points, "urn:skip", start, "USD"))
+	assert.False(t, dailyHas(points, "urn:skip", start))
 
 	snaps := readTimeline(t, dir)
 	require.Len(t, snaps, 1)
@@ -189,7 +191,7 @@ func TestCollectDaily_PrunesByAgeOnly(t *testing.T) {
 	require.Len(t, points, 2)
 	assert.InDelta(t, 4, dailyAmount(points, "urn:new", kept, "USD"), 0)
 	assert.InDelta(t, 8, dailyAmount(points, "urn:fail", oldDay, "USD"), 0)
-	assert.False(t, dailyHas(points, "urn:old", oldDay, "USD"))
+	assert.False(t, dailyHas(points, "urn:old", oldDay))
 }
 
 func TestCollectDaily_RequiresFromWhenToIsSet(t *testing.T) {
@@ -323,9 +325,9 @@ func dailyAmount(points []history.DailyPoint, id string, day time.Time, currency
 	return 0
 }
 
-func dailyHas(points []history.DailyPoint, id string, day time.Time, currency string) bool {
+func dailyHas(points []history.DailyPoint, id string, day time.Time) bool {
 	for _, point := range points {
-		if point.ResourceID == id && point.Day.Equal(day) && point.Currency == currency {
+		if point.ResourceID == id && point.Day.Equal(day) && point.Currency == "USD" {
 			return true
 		}
 	}
@@ -438,4 +440,84 @@ func TestPriceDailyWithEngine_ResolvesTerraformTypes(t *testing.T) {
 	assert.Equal(t, []string{"aws:ec2/instance:Instance"}, plugin.types, "the plugin prices the resolved token")
 	require.Len(t, priced.Results, 1)
 	require.Len(t, priced.Results[0].DailyObservations, 1)
+}
+
+func TestCollectDailyPoints_AValidationFailureRejectsTheWholeResource(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	nan := engine.CostResult{
+		ResourceID:        "urn:mixed",
+		DailyObservations: []engine.DailyObservation{{Timestamp: day, Cost: math.NaN(), Currency: "EUR"}},
+	}
+	valid := engine.CostResult{
+		ResourceID:        "urn:mixed",
+		DailyObservations: []engine.DailyObservation{{Timestamp: day, Cost: 2, Currency: "USD"}},
+	}
+	for name, results := range map[string][]engine.CostResult{
+		"invalid then valid": {nan, valid},
+		"valid then invalid": {valid, nan},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			points, report := collectDailyPoints(
+				&engine.CostResultWithErrors{Results: results}, nil, day.Add(48*time.Hour),
+			)
+			assert.Empty(t, points, "no partial data for a resource that failed validation")
+			require.Len(t, report.Errors, 1)
+			assert.Equal(t, "urn:mixed", report.Errors[0].Resource)
+		})
+	}
+}
+
+func TestCollectDaily_DryRunWritesAndPrunesNothing(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	oldDay := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	seedDaily(t, dir, history.DailyPoint{
+		ResourceID: "urn:old", Day: oldDay, Currency: "USD", Amount: 3, WrittenAt: oldDay,
+	})
+	cfg := config.New()
+	cfg.Cost.History.Retention.AutoPrune = true
+	cfg.Cost.History.Retention.MaxAgeDays = 1
+	day := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)
+	cmd, stdout, _ := dailyCmd(t, "--dry-run", "--from", "2026-10-02", "--to", "2026-10-03", "--output", "json")
+	require.NoError(t, runDailyCollect(cmd, dailyCollectDeps{
+		now: func() time.Time { return day.Add(32 * time.Hour) },
+		load: func(context.Context, *cobra.Command) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{{ID: "urn:new"}}, nil
+		},
+		price: func(
+			context.Context, *cobra.Command, []engine.ResourceDescriptor, time.Time, time.Time,
+		) (*engine.CostResultWithErrors, error) {
+			return &engine.CostResultWithErrors{Results: []engine.CostResult{{
+				ResourceID:        "urn:new",
+				DailyObservations: []engine.DailyObservation{{Timestamp: day, Cost: 4, Currency: "USD"}},
+			}}}, nil
+		},
+		cfg: cfg, dir: dir, project: "demo", stack: "dev",
+	}))
+
+	points := readDaily(t, dir)
+	require.Len(t, points, 1, "a rehearsal stores no new point")
+	assert.True(t, dailyHas(points, "urn:old", oldDay), "a rehearsal prunes nothing")
+	var report dailyCollectReport
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &report))
+	assert.True(t, report.DryRun)
+	assert.Equal(t, 1, report.StoredPoints, "the report says what a real run would store")
+	assert.Zero(t, report.PrunedPoints)
+}
+
+// Config, the working directory, and the history directory are process-wide.
+func TestDailyTarget_ExplicitPulumiInputIgnoresTerraformDirectory(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.tf"), []byte("# fixture\n"), 0o600))
+	t.Chdir(dir)
+	cmd, _, _ := dailyCmd(t, "--pulumi-state", "state.json", "--stack", "org/app/dev")
+
+	target, err := dailyTarget(t.Context(), cmd, dailyCollectDeps{cfg: config.New()})
+	require.NoError(t, err)
+	assert.Equal(t, "app", target.Project)
+	assert.Equal(t, "dev", target.Stack, "explicit Pulumi input is a Pulumi stack, not the Terraform directory")
 }

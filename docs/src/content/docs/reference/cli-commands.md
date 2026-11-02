@@ -458,10 +458,11 @@ missing daily series stores nothing for that resource. The command stores only
 what plugins report: it never estimates a day from state, so a reported $0 day
 is stored as $0 and a day the plugin did not send stays empty. A resource that
 every plugin declines counts as skipped. A bucket with no currency is stored as
-USD; a named currency is its own series. The command is not an MCP tool. With
-`cost.history.retention.auto_prune` and `max_age_days` set, points older than
-that many days are deleted. `max_snapshots` does not apply
-to this file.
+USD; a named currency is its own series. With `--dry-run` the command prices the
+stack and reports what it would store, but writes and prunes nothing. The
+command is not an MCP tool. With `cost.history.retention.auto_prune` and
+`max_age_days` set, points older than that many days are deleted.
+`max_snapshots` does not apply to this file.
 
 ### Usage (cost history export)
 

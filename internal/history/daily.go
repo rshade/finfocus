@@ -77,7 +77,7 @@ type ObservedCost struct {
 // PointsFromObservations folds timestamped buckets into one point per UTC day
 // and currency. Buckets on the same day and currency are summed. A bucket with
 // no timestamp is ignored. An empty result is a skip: the caller must not
-// invent a zero for a missing day. A non-finite amount rejects the resource.
+// invent a zero for a missing day. A non-finite amount, or a day's sum that overflows, rejects the resource.
 func PointsFromObservations(resourceID string, observed []ObservedCost, written time.Time) ([]DailyPoint, error) {
 	if err := validateDailyIdentity(resourceID, ""); err != nil {
 		return nil, err
@@ -113,6 +113,9 @@ func PointsFromObservations(resourceID string, observed []ObservedCost, written 
 	}
 	points := make([]DailyPoint, 0, len(order))
 	for _, key := range order {
+		if math.IsInf(sums[key], 0) {
+			return nil, fmt.Errorf("resource %s: the daily cost on %s is not a finite amount", resourceID, key.day)
+		}
 		day, err := time.Parse(time.DateOnly, key.day)
 		if err != nil {
 			return nil, fmt.Errorf("parsing daily point day: %w", err)

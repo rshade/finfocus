@@ -105,3 +105,15 @@ func TestPointsForSeries_AbsentAndMismatch(t *testing.T) {
 	_, err = PointsForSeries("urn:a", "USD", start, end, []float64{1, 2, math.NaN()}, written)
 	require.ErrorContains(t, err, "not a finite amount")
 }
+
+func TestPointsFromObservations_RejectsASumThatOverflows(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	_, err := PointsFromObservations("urn:big", []ObservedCost{
+		{At: day, Amount: math.MaxFloat64, Currency: "USD"},
+		{At: day.Add(time.Hour), Amount: math.MaxFloat64, Currency: "USD"},
+	}, day)
+	require.Error(t, err, "each bucket is finite but the day's sum is +Inf and would fail the whole write")
+	assert.Contains(t, err.Error(), "urn:big")
+}

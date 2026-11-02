@@ -52,6 +52,7 @@ type dailyCollectReport struct {
 	StoredPoints     int                  `json:"storedPoints"`
 	SkippedResources int                  `json:"skippedResources"`
 	PrunedPoints     int                  `json:"prunedPoints"`
+	DryRun           bool                 `json:"dryRun,omitempty"`
 	Errors           []dailyResourceError `json:"errors"`
 	skippedIDs       []string
 }
@@ -117,11 +118,16 @@ func runDailyCollect(cmd *cobra.Command, deps dailyCollectDeps) error {
 	report.Project = target.Project
 	report.From = from.UTC().Format(time.RFC3339)
 	report.To = to.UTC().Format(time.RFC3339)
-	pruned, err := writeDailyPoints(ctx, cmd, deps, target, points, report.skippedIDs, report.Errors)
-	if err != nil {
-		return err
+	if dryRunRequested(cmd) {
+		report.DryRun = true
+		warnDailySkips(cmd, report.skippedIDs, report.Errors)
+	} else {
+		pruned, writeErr := writeDailyPoints(ctx, cmd, deps, target, points, report.skippedIDs, report.Errors)
+		if writeErr != nil {
+			return writeErr
+		}
+		report.PrunedPoints = pruned
 	}
-	report.PrunedPoints = pruned
 	if err = renderDailyReport(cmd.OutOrStdout(), format, report); err != nil {
 		return err
 	}
@@ -221,7 +227,26 @@ func dailyTarget(ctx context.Context, cmd *cobra.Command, deps dailyCollectDeps)
 		return historyTarget{Project: deps.project, Stack: deps.stack}, nil
 	}
 	dir := gatedHistoryDir(ctx, deps.cfg)
+	if explicitPulumiInput(cmd) {
+		stack, err := requiredStack(cmd)
+		if err != nil {
+			return historyTarget{}, err
+		}
+		return resolveHistoryTargetFor(dir, stack, currentProjectName())
+	}
 	return resolveHistoryCommandTarget(cmd, dir)
+}
+
+// explicitPulumiInput reports whether the resources come from a Pulumi file the
+// caller named. That input is a Pulumi stack whatever the working directory is,
+// so a Terraform directory must not decide where its series is stored.
+func explicitPulumiInput(cmd *cobra.Command) bool {
+	for _, name := range []string{"pulumi-json", "pulumi-state"} {
+		if value, err := cmd.Flags().GetString(name); err == nil && value != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func gatedHistoryDir(ctx context.Context, cfg *config.Config) string {
@@ -325,15 +350,20 @@ func collectDailyPoints(
 		return nil, report
 	}
 	failed := map[string]struct{}{}
+	invalid := map[string]struct{}{}
 	skipped := map[string]struct{}{}
 	var points []history.DailyPoint
 	for i := range priced.Results {
 		result := priced.Results[i]
+		if _, bad := invalid[result.ResourceID]; bad {
+			continue
+		}
 		built, err := history.PointsFromObservations(
 			result.ResourceID, observedCosts(result.DailyObservations), written,
 		)
 		if err != nil {
 			failed[result.ResourceID] = struct{}{}
+			invalid[result.ResourceID] = struct{}{}
 			report.Errors = append(report.Errors, dailyResourceError{Resource: result.ResourceID, Message: err.Error()})
 			delete(skipped, result.ResourceID)
 			continue
@@ -563,9 +593,13 @@ func renderDailyReport(w io.Writer, format string, report dailyCollectReport) er
 	if report.Project != "" {
 		label = report.Project + "/" + report.Stack
 	}
-	_, err := fmt.Fprintf(w, "Daily actuals for %s\nWindow: %s to %s\nStored %d resources (%d points).\n"+
+	stored := "Stored"
+	if report.DryRun {
+		stored = "Dry run: nothing written or pruned. Would store"
+	}
+	_, err := fmt.Fprintf(w, "Daily actuals for %s\nWindow: %s to %s\n%s %d resources (%d points).\n"+
 		"Skipped %d resources with no daily costs.\n%d resources failed.\n",
-		label, report.From, report.To,
+		label, report.From, report.To, stored,
 		report.StoredResources, report.StoredPoints,
 		report.SkippedResources, len(report.Errors))
 	if err != nil || report.PrunedPoints == 0 {
