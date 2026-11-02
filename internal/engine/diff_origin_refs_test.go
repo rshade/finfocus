@@ -124,4 +124,15 @@ func TestProjectedStackTotalUsesFullInventoryReferences(t *testing.T) {
 	assert.InDelta(t, 11, showSames.Summary.TotalAfter, 1e-9)
 	assert.InDelta(t, showSames.Summary.StackTotal, defaultPreview.Summary.StackTotal, 1e-9,
 		"the stack total must not depend on whether the preview lists unchanged resources")
+	stackSum := func(diff *DiffResult) float64 {
+		total := 0.0
+		for _, cost := range diff.StackAfterCosts() {
+			total += cost.Monthly
+		}
+		return total
+	}
+	assert.InDelta(t, defaultPreview.Summary.StackTotal, stackSum(defaultPreview), 1e-9,
+		"the per-resource stack costs must carry the full-inventory prices the stack total uses")
+	assert.InDelta(t, stackSum(showSames), stackSum(defaultPreview), 1e-9,
+		"a forecast must not depend on whether the preview lists unchanged resources")
 }

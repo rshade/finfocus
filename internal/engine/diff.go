@@ -112,6 +112,7 @@ func splitDiffOrigins(resources []ResourceDescriptor, result *DiffResult, stackA
 		}
 		if index < len(stackAfter) && stackAfter[index] != nil {
 			stackAdjustment += monthlyOf(stackAfter[index]) - monthlyOf(entry.After)
+			entry.stackAfter = stackAfter[index]
 		}
 		entries = append(entries, entry)
 	}
