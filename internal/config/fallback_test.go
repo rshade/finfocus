@@ -13,6 +13,7 @@ func TestNewMarksWorkingDirFallbackDestinationsAsProject(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", "")
 	t.Setenv("PULUMI_HOME", "")
 	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "") // os.UserHomeDir reads this on Windows
 	dir := t.TempDir()
 	t.Chdir(dir)
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".finfocus"), 0o700))

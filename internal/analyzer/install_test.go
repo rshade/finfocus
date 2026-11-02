@@ -846,7 +846,7 @@ func TestInstall_ForceRecreatesBothEntries(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	ctx := context.Background()
 
-	execPath, err := os.Executable()
+	execPath, err := currentExecutable()
 	require.NoError(t, err)
 	execPath, err = filepath.EvalSymlinks(execPath)
 	require.NoError(t, err)

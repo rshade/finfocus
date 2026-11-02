@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,7 +81,12 @@ func writePluginBinary(t *testing.T, root, name, version string) {
 	t.Helper()
 	dir := filepath.Join(root, name, version)
 	require.NoError(t, os.MkdirAll(dir, 0o750))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\nexit 0\n"), 0o755))
+	// Discovery looks for name.exe on Windows.
+	file := name
+	if runtime.GOOS == "windows" {
+		file += ".exe"
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, file), []byte("#!/bin/sh\nexit 0\n"), 0o755))
 }
 
 func TestVersionIsNewerComparesTheNewestInstall(t *testing.T) {
