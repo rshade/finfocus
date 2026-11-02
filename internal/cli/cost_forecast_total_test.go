@@ -18,6 +18,8 @@ import (
 )
 
 func TestForecastCoversTheWholeLiveInventory(t *testing.T) {
+	showSames, err := filepath.Abs("testdata/pulumi/preview-show-sames.json")
+	require.NoError(t, err)
 	setupMembershipProject(t)
 	plan, err := filepath.Abs("preview.json")
 	require.NoError(t, err)
@@ -42,7 +44,7 @@ func TestForecastCoversTheWholeLiveInventory(t *testing.T) {
 		}
 	}
 	assert.Positive(t, stateCount, "the forecast source must include unchanged state resources")
-	run := func() forecastJSON {
+	run := func(plan string) forecastJSON {
 		result := axtest.Run(ctx, t, NewRootCmd("test"), []string{
 			"cost", "forecast", "--pulumi-json", plan, "--spec-dir", specDir,
 			"--no-history", "--months", "1", "--output", "json",
@@ -54,13 +56,19 @@ func TestForecastCoversTheWholeLiveInventory(t *testing.T) {
 		require.NotEmpty(t, doc.Series[0].Points)
 		return doc
 	}
-	live := run()
+	live := run(plan)
+	listed := run(showSames)
 	t.Chdir(t.TempDir())
-	baseline := run()
+	baseline := run(plan)
 	// The preview creates one priced resource (20). The state adds three
 	// unchanged t3.medium instances at 20 each: a forecast covers the whole
 	// stack (#1903), not only the preview's changes.
 	assert.InDelta(t, 20, baseline.Series[0].Points[0].Value, 1e-9, "a saved preview alone forecasts only itself")
 	assert.InDelta(t, 80, live.Series[0].Points[0].Value, 1e-9,
 		"the live forecast adds the unchanged resources to the preview's changes")
+	// This preview updates web-server and lists queue and secret as unchanged,
+	// all three also in the state: the stack is those three at 20 each, with no
+	// URN counted twice (database and storage have no price).
+	assert.InDelta(t, 60, listed.Series[0].Points[0].Value, 1e-9,
+		"a preview that lists the unchanged resources must not count them twice")
 }

@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDiffResultStackAfterCostsIncludesUnchangedResources(t *testing.T) {
 	t.Parallel()
 
 	var nilResult *DiffResult
-	assert.Nil(t, nilResult.StackAfterCosts())
+	require.Nil(t, nilResult.StackAfterCosts())
 
 	result := &DiffResult{
 		Entries: []DiffEntry{
