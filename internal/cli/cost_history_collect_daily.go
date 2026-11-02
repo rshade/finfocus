@@ -121,6 +121,12 @@ func runDailyCollect(cmd *cobra.Command, deps dailyCollectDeps) error {
 			target.Stack,
 		))
 	}
+	if project := projectOfResources(resources); project != "" && target.Project != "" && project != target.Project {
+		return toValidationError(ctx, fmt.Errorf(
+			"the input resources belong to project %q, not %q; run from that project or pass --stack org/%s/%s",
+			project, target.Project, project, target.Stack,
+		))
+	}
 	target, err = reconcileDailyTarget(dir, target, resources)
 	if err != nil {
 		return toValidationError(ctx, err)
@@ -475,21 +481,7 @@ func collectDailyPoints(
 		delete(failed, result.ResourceID)
 		points = append(points, built...)
 	}
-	for _, detail := range priced.Errors {
-		if resourceStored(points, detail.ResourceID) {
-			continue
-		}
-		if _, seen := failed[detail.ResourceID]; seen {
-			continue
-		}
-		failed[detail.ResourceID] = struct{}{}
-		delete(skipped, detail.ResourceID)
-		message := "actual cost failed"
-		if detail.Error != nil {
-			message = detail.Error.Error()
-		}
-		report.Errors = append(report.Errors, dailyResourceError{Resource: detail.ResourceID, Message: message})
-	}
+	report.Errors = append(report.Errors, failUnansweredResources(priced, resources, points, failed, skipped)...)
 	points, overflowed := mergeDailyPoints(points)
 	report.Errors = append(report.Errors, failOverflowed(overflowed, invalid, failed, skipped)...)
 	points = dropFailedPoints(points, failed)
@@ -594,6 +586,58 @@ func observedCosts(points []engine.DailyObservation) []history.ObservedCost {
 		out[i] = history.ObservedCost{At: point.Timestamp, Amount: point.Cost, Currency: point.Currency}
 	}
 	return out
+}
+
+// failUnansweredResources turns the engine's per-resource errors into failures.
+// An error for a resource that another result already stored is only a failed
+// attempt a fallback plugin answered, unless fewer results came back than
+// resources carry that ID.
+func failUnansweredResources(
+	priced *engine.CostResultWithErrors,
+	resources []engine.ResourceDescriptor,
+	points []history.DailyPoint,
+	failed, skipped map[string]struct{},
+) []dailyResourceError {
+	answered := countResults(priced.Results)
+	wanted := countDescriptors(resources)
+	var errs []dailyResourceError
+	for _, detail := range priced.Errors {
+		id := detail.ResourceID
+		if resourceStored(points, id) && answered[id] >= wanted[id] {
+			continue
+		}
+		if _, seen := failed[id]; seen {
+			continue
+		}
+		failed[id] = struct{}{}
+		delete(skipped, id)
+		message := "actual cost failed"
+		if detail.Error != nil {
+			message = detail.Error.Error()
+		}
+		errs = append(errs, dailyResourceError{Resource: id, Message: message})
+	}
+	return errs
+}
+
+// countResults and countDescriptors tell a failed attempt that a fallback plugin
+// answered (every resource has a result; the error is noise) from a resource
+// that failed outright beside another resource sharing its URN, such as a
+// replacement. Only the second leaves a sum that understates the day.
+func countResults(results []engine.CostResult) map[string]int {
+	counts := make(map[string]int, len(results))
+	for i := range results {
+		counts[results[i].ResourceID]++
+	}
+	return counts
+}
+
+func countDescriptors(resources []engine.ResourceDescriptor) map[string]int {
+	counts := make(map[string]int, len(resources))
+	for _, resource := range resources {
+		counts[resource.ID]++
+	}
+	return counts
 }
 
 func resourceStored(points []history.DailyPoint, id string) bool {

@@ -683,3 +683,64 @@ func TestDailyWindow_OnlyFromPricesThroughNow(t *testing.T) {
 	assert.Equal(t, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), from, "no flags: the last 30 complete UTC days")
 	assert.Equal(t, time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC), to)
 }
+
+func TestCollectDaily_RejectsAnInputFromAnotherProject(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	priced := false
+	cmd, _, _ := dailyCmd(t, "--from", "2026-10-01", "--to", "2026-10-02")
+	err := runDailyCollect(cmd, dailyCollectDeps{
+		now: func() time.Time { return time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC) },
+		load: func(context.Context, *cobra.Command) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{{
+				ID: "urn:pulumi:dev::other::aws:ec2/instance:Instance::web", Type: "aws:ec2/instance:Instance",
+			}}, nil
+		},
+		price: func(
+			context.Context, *cobra.Command, []engine.ResourceDescriptor, time.Time, time.Time,
+		) (*engine.CostResultWithErrors, error) {
+			priced = true
+			return &engine.CostResultWithErrors{}, nil
+		},
+		cfg: config.New(), dir: dir, project: "demo", stack: "dev",
+	})
+
+	require.ErrorContains(t, err, "other")
+	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
+	assert.False(t, priced, "same stack name, different project: nothing is priced or written")
+	assert.Empty(t, readDailyIfPresent(t, dir))
+}
+
+func TestCollectDailyPoints_AFailedReplacementIsNotMaskedByItsTwin(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	priced := func() *engine.CostResultWithErrors {
+		return &engine.CostResultWithErrors{
+			Results: []engine.CostResult{{
+				ResourceID:        "urn:r",
+				DailyObservations: []engine.DailyObservation{{Timestamp: day, Cost: 2, Currency: "USD"}},
+			}},
+			Errors: []engine.ErrorDetail{{ResourceID: "urn:r", Error: errors.New("plugin down")}},
+		}
+	}
+
+	t.Run("two resources share the URN and one failed", func(t *testing.T) {
+		t.Parallel()
+		resources := []engine.ResourceDescriptor{{ID: "urn:r"}, {ID: "urn:r"}}
+		points, report := collectDailyPoints(priced(), resources, day.Add(48*time.Hour))
+		assert.Empty(t, points, "a partial sum would understate the day")
+		require.Len(t, report.Errors, 1, "the failure must exempt the resource from pruning")
+		assert.Equal(t, "urn:r", report.Errors[0].Resource)
+	})
+
+	t.Run("one resource answered after a failed attempt", func(t *testing.T) {
+		t.Parallel()
+		points, report := collectDailyPoints(
+			priced(), []engine.ResourceDescriptor{{ID: "urn:r"}}, day.Add(48*time.Hour),
+		)
+		assert.Len(t, points, 1, "a fallback plugin's success stands")
+		assert.Empty(t, report.Errors)
+	})
+}
