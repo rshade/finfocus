@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -340,7 +339,7 @@ func forecastCosts(
 	if unchanged {
 		return nil, nil
 	}
-	resources, err = ApplyFilters(ctx, planOriginResources(resources), params.filter)
+	resources, err = ApplyFilters(ctx, resources, params.filter)
 	if err != nil {
 		return nil, toValidationError(ctx, fmt.Errorf("applying filters: %w", err))
 	}
@@ -374,7 +373,7 @@ func forecastCosts(
 	if err != nil {
 		return nil, fmt.Errorf("calculating projected costs: %w", err)
 	}
-	return diff.AfterCosts(), nil
+	return diff.StackAfterCosts(), nil
 }
 
 // prepareForecastResources matches cost projected: warn when no plugin can
@@ -622,14 +621,6 @@ func forecastPricingConfig(specDir string) (*config.Config, string) {
 		specDir = cfg.SpecDir
 	}
 	return cfg, specDir
-}
-
-// planOriginResources drops unchanged state: forecasts keep plan membership
-// (#1903), so pricing those resources would only be discarded.
-func planOriginResources(resources []engine.ResourceDescriptor) []engine.ResourceDescriptor {
-	return slices.DeleteFunc(resources, func(r engine.ResourceDescriptor) bool {
-		return r.Origin == engine.OriginState
-	})
 }
 
 // forecastInputError gives a forecast setting error the validation exit code.

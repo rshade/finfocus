@@ -224,6 +224,10 @@ Consequences found while reading:
 
 ### R14. Forecast keeps plan membership for its total
 
+> **Superseded by #1903.** `cost forecast` now covers the whole live inventory
+> (`DiffResult.StackAfterCosts`): plan entries plus unchanged state. The text
+> below records the original decision.
+
 - **Decision**: `cost forecast` derives its inventory from the snapshot but
   keeps its previous total over plan-origin resources. Its totals do not
   change in this feature.

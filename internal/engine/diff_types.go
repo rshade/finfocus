@@ -25,6 +25,10 @@ type DiffEntry struct {
 	DeltaMonthly float64          `json:"deltaMonthly"`
 	Currency     string           `json:"currency,omitempty"`
 	PricingSpec  *PricingSpecView `json:"pricing_spec,omitempty"`
+	// stackAfter is After repriced against the full inventory, set only when a
+	// plan resource's references resolve differently there. After stays
+	// plan-scoped for the plan totals and budgets.
+	stackAfter *CostResult
 }
 
 // DiffSummary is the plan-level before, after, and delta totals.
@@ -82,6 +86,40 @@ func (d *DiffResult) AfterCosts() []CostResult {
 	for i := range d.Entries {
 		if d.Entries[i].After != nil {
 			out = append(out, *d.Entries[i].After)
+		}
+	}
+	return out
+}
+
+// StackAfterCosts returns the projected cost of every live resource after the
+// change: the plan entries, then the unchanged deployed resources the diff held
+// back in StackUnchanged. A forecast covers this whole inventory, so a preview
+// that changes one resource still forecasts the stack it belongs to. Prices
+// are the stack total's: a plan entry whose references resolve differently
+// against the full inventory carries that repriced cost, so the result does not
+// depend on whether the preview listed unchanged resources. A deleted resource
+// is not live and is left out.
+func (d *DiffResult) StackAfterCosts() []CostResult {
+	if d == nil {
+		return nil
+	}
+	out := make([]CostResult, 0, len(d.Entries)+len(d.StackUnchanged))
+	for i := range d.Entries {
+		entry := &d.Entries[i]
+		if entry.Operation == DiffOperationDelete {
+			continue
+		}
+		cost := entry.After
+		if entry.stackAfter != nil {
+			cost = entry.stackAfter
+		}
+		if cost != nil {
+			out = append(out, *cost)
+		}
+	}
+	for i := range d.StackUnchanged {
+		if d.StackUnchanged[i].After != nil {
+			out = append(out, *d.StackUnchanged[i].After)
 		}
 	}
 	return out
