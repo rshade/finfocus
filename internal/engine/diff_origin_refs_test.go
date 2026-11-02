@@ -136,3 +136,49 @@ func TestProjectedStackTotalUsesFullInventoryReferences(t *testing.T) {
 	assert.InDelta(t, stackSum(showSames), stackSum(defaultPreview), 1e-9,
 		"a forecast must not depend on whether the preview lists unchanged resources")
 }
+
+// failingStackRepricePlugin prices the node pool by its plan-scoped references
+// but answers the full-inventory reprice, the only one that resolves the
+// cluster's region, with an error result.
+type failingStackRepricePlugin struct{ mockCostSourceClient }
+
+func (*failingStackRepricePlugin) GetProjectedCost(
+	_ context.Context, in *proto.GetProjectedCostRequest, _ ...grpc.CallOption,
+) (*proto.GetProjectedCostResponse, error) {
+	results := make([]*proto.CostResult, 0, len(in.Resources))
+	for _, resource := range in.Resources {
+		result := &proto.CostResult{Currency: "USD", MonthlyCost: 1}
+		if resource.Properties["vmSize"] != "" {
+			result.MonthlyCost = 4
+		}
+		if resource.Properties["ref.kubernetesClusterId.region"] == "westeurope" {
+			result = &proto.CostResult{Currency: "USD", Notes: "ERROR: pricing unavailable"}
+		}
+		results = append(results, result)
+	}
+	return &proto.GetProjectedCostResponse{Results: results}, nil
+}
+
+func TestProjectedStackKeepsThePlanPriceWhenRepricingFails(t *testing.T) {
+	t.Parallel()
+	pool := referencedNodePool(DiffOperationCreate, "Standard_D4s_v3", "")
+	pool.Origin = OriginPlan
+	cluster := referencedCluster(DiffOperationSame)
+	cluster.Origin = OriginState
+	result, err := New(
+		[]*pluginhost.Client{{Name: "azure", API: &failingStackRepricePlugin{}}},
+		nil,
+	).GetProjectedCostDiff(context.Background(), []ResourceDescriptor{pool, cluster})
+	require.NoError(t, err)
+
+	var poolCost *CostResult
+	for _, cost := range result.StackAfterCosts() {
+		if cost.ResourceID == nodePoolURN {
+			poolCost = &cost
+		}
+	}
+	require.NotNil(t, poolCost)
+	assert.InDelta(t, 4, poolCost.Monthly, 1e-9, "a failed reprice keeps the priced plan result")
+	assert.NotContains(t, poolCost.Notes, "ERROR:")
+	assert.InDelta(t, 4+1, result.Summary.StackTotal, 1e-9, "the stack total keeps the plan price too")
+}
