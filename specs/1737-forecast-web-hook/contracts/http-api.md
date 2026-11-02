@@ -60,8 +60,8 @@ for the same stack and settings. `display.series` follows `series` order.
 | --- | --- | --- |
 | Handler | `(*webui.Server).handleForecastQuery` | No (transport only) |
 | Callback | `webui.SessionOptions.Forecast` = `(*cli.webData).forecast` | No (session wiring) |
-| Pricing | `(*engine.Engine).GetProjectedCostDiff(ctx, resources).AfterCosts()` on the session query engine | Yes (`forecastCosts`) |
-| Membership | `cli.planOriginResources`, `cli.ApplyFilters`, `cli.resolveResourceTypes` | Yes |
+| Pricing | `(*engine.Engine).GetProjectedCostDiff(ctx, resources).StackAfterCosts()` on the session query engine | Yes (`forecastCosts`) |
+| Membership | `snapshot.Descriptors()` (whole live inventory), `cli.ApplyFilters`, `cli.resolveResourceTypes` | Yes |
 | Input parse | `forecast.ValidateMonths`, `forecast.ParseGrowth` | Yes (`runForecast`) |
 | Build | `cli.buildForecast(costs, forecastSettings, readHistory)` | Yes (`runForecast`) |
 | Projection | `forecast.Project(resources, months, now)` via `cli.forecastResources` | Yes |

@@ -33,10 +33,11 @@
 
 ## R3. Resource membership in the web session
 
-- **Decision**: The web prices `snapshot.Descriptors()` with
-  the whole live inventory (#1903; it was plan-origin only until then), then the launch filters and
-  `resolveResourceTypes`, then `GetProjectedCostDiff(...).AfterCosts()`.
-  A Terraform session uses its planned resources.
+- **Decision**: The web prices `snapshot.Descriptors()`, the whole live
+  inventory (#1903; it was plan-origin only until then), then the launch
+  filters and `resolveResourceTypes`, then
+  `GetProjectedCostDiff(...).StackAfterCosts()`. A Terraform session uses its
+  planned resources.
 - **Rationale**: That is the CLI's path (`loadProjectedResources` →
   `ApplyFilters` → resolve → diff, priced with `StackAfterCosts`). #1903 decided
   whole-stack membership for both surfaces.
