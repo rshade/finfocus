@@ -83,8 +83,9 @@ line. MCP callers get it because `cost cluster` is already an MCP tool.
 ### Functional Requirements
 
 - **FR-001**: `engine.GroupClusterByCapacity` MUST group `ClusterRow` values by
-  the `capacity_type` tag of the row's node, found by joining the row's `node`
-  subject to the priceable descriptor id. It MUST keep no table of capacity
+  the `capacity_type` tag of the row's node, found by joining the row's
+  `cluster` and `node` subjects to the priceable descriptor's `cluster` tag
+  and id. It MUST keep no table of capacity
   values and MUST NOT interpret Kubernetes.
 - **FR-002**: A row whose node has no tag, an empty tag, or no node subject MUST
   go to the `unlabeled` group.
@@ -124,6 +125,13 @@ line. MCP callers get it because `cost cluster` is already an MCP tool.
 - The usage source tags priceable nodes with `capacity_type` and the allocator
   puts a node's note on every row of that node (both hold today).
 - The control plane is not a capacity type and is reported as `unlabeled`.
+- With the current kubernetes and prometheus plugins, both default
+  `capacity_type` to `on-demand` for a node with no spot label. The
+  `unlabeled` bucket therefore holds no-node rows (control-plane fee, Fargate
+  pods, orphan rows), not untagged nodes. It holds untagged nodes only for a
+  usage source that omits the tag.
+- Nodes are matched by cluster and node name, because node names repeat
+  across clusters.
 
 ## Out of Scope
 

@@ -3,6 +3,7 @@ package engine
 import (
 	"sort"
 
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
@@ -27,13 +28,20 @@ type CapacityGroup struct {
 	Notes        []string `json:"notes,omitempty"`
 }
 
-// capacityByNode maps each priceable resource id to its capacity_type tag.
-// Resources without the tag, or with an empty value, are absent.
+// nodeKey identifies a node by cluster and name, because node names repeat
+// across clusters. A row or descriptor without a cluster uses the empty one.
+func nodeKey(cluster, node string) string {
+	return cluster + "\x00" + node
+}
+
+// capacityByNode maps each priceable resource's cluster and id to its
+// capacity_type tag. Resources without the tag, or with an empty value, are
+// absent.
 func capacityByNode(descs []*pbc.ResourceDescriptor) map[string]string {
 	out := make(map[string]string, len(descs))
 	for _, d := range descs {
 		if v := d.GetTags()[capacityTypeTag]; v != "" {
-			out[d.GetId()] = v
+			out[nodeKey(d.GetTags()[pluginsdk.SubjectCluster], d.GetId())] = v
 		}
 	}
 	return out
@@ -48,8 +56,9 @@ func GroupClusterByCapacity(rows []ClusterRow, capacity map[string]string) []Cap
 	notes := map[string]map[string]bool{}
 	for _, r := range rows {
 		node := r.Subject[subjectKeyNode]
+		nk := nodeKey(r.Subject[pluginsdk.SubjectCluster], node)
 		key := CapacityUnlabeled
-		if v := capacity[node]; v != "" && node != "" {
+		if v := capacity[nk]; v != "" && node != "" {
 			key = v
 		}
 		g := groups[key]
@@ -67,7 +76,7 @@ func GroupClusterByCapacity(rows []ClusterRow, capacity map[string]string) []Cap
 			g.IdleCost += r.TotalCost
 		}
 		if node != "" {
-			nodes[key][node] = true
+			nodes[key][nk] = true
 		}
 		if r.Note != "" {
 			notes[key][r.Note] = true

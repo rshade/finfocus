@@ -63,7 +63,7 @@ be priced.
 
 When the usage source tags its nodes with `capacity_type` (the kubernetes and
 prometheus plugins do, including Karpenter's `karpenter.sh/capacity-type`), the
-table adds a section after the groups:
+table adds a section after the groups. This example is illustrative:
 
 ```text
 CAPACITY TYPE  NODES  TOTAL   SHARE   IDLE   NOTES
@@ -73,11 +73,14 @@ unlabeled      1      10.00   10.0%   1.00
 ```
 
 Each allocated row, idle rows included, counts once, under the capacity type
-of its node, so the rows sum to the cluster total and idle cost is never
-counted twice. A node without the tag, and rows that name no node such as the
-control plane, go under `unlabeled`; they are not folded into on-demand.
-Tag values are shown as the plugin reports them. The section is omitted when
-no node is labeled.
+of its node (matched by cluster and node name), so the rows sum to the cluster
+total and idle cost is never counted twice. Rows that name no node, such as
+the control plane, Fargate pods, and orphan rows, go under `unlabeled`, as does
+any node whose usage source sends no `capacity_type`; they are not folded into
+on-demand. The kubernetes and prometheus plugins default a node with no spot
+label to `on-demand`, so with them `unlabeled` holds only no-node rows. Tag
+values are shown as the plugin reports them. The section is omitted when no
+row is labeled.
 
 In run-rate mode a pricing plugin has no spot rate, so the allocator prices a
 spot node at its on-demand rate and says so in the NOTES column. A historical
