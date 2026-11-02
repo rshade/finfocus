@@ -744,3 +744,23 @@ func TestCollectDailyPoints_AFailedReplacementIsNotMaskedByItsTwin(t *testing.T)
 		assert.Empty(t, report.Errors)
 	})
 }
+
+// The working directory is process-wide.
+func TestDailyTarget_ExplicitInputIgnoresProjectedTimelines(t *testing.T) {
+	t.Chdir(t.TempDir())
+	dir := t.TempDir()
+	for _, name := range []string{"other@dev.history.db", "third@dev.history.db"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), nil, 0o600))
+	}
+	cmd, _, _ := dailyCmd(t, "--pulumi-state", "state.json", "--stack", "dev")
+
+	target, err := dailyTarget(cmd, dailyCollectDeps{cfg: config.New()}, dir)
+	require.NoError(t, err, "several projected timelines must not make an explicit input ambiguous")
+	assert.Empty(t, target.Project, "the input's own URNs name the project, not a timeline of another project")
+	assert.Equal(t, "dev", target.Stack)
+
+	app := []engine.ResourceDescriptor{{ID: "urn:pulumi:dev::app::aws:ec2/instance:Instance::web"}}
+	target, err = reconcileDailyTarget(dir, target, app)
+	require.NoError(t, err)
+	assert.Equal(t, "app", target.Project)
+}

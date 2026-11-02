@@ -260,9 +260,21 @@ func dailyTarget(cmd *cobra.Command, deps dailyCollectDeps, dir string) (history
 		if err != nil {
 			return historyTarget{}, err
 		}
-		return resolveHistoryTargetFor(dir, stack, currentProjectName())
+		return explicitInputTarget(stack), nil
 	}
 	return resolveHistoryCommandTarget(cmd, dir)
+}
+
+// explicitInputTarget names the project from the --stack value or the current
+// Pulumi project and nothing else. Projected timelines belong to other commands:
+// letting them pick the project would send an input to another project's file,
+// or fail as ambiguous before the input's own URNs could name its project.
+func explicitInputTarget(stack string) historyTarget {
+	project, short := history.SplitStack(stack)
+	if project == "" {
+		project = currentProjectName()
+	}
+	return historyTarget{Project: project, Stack: short}
 }
 
 // explicitPulumiInput reports whether the resources come from a Pulumi file the
