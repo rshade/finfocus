@@ -72,7 +72,21 @@ func OpenCostDBRead(path string) (*CostDB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening cost history: %w", err)
 	}
+	if checkErr := db.View(rejectDailyFile); checkErr != nil {
+		_ = db.Close()
+		return nil, checkErr
+	}
 	return newCostDB(db, path), nil
+}
+
+// rejectDailyFile refuses a daily actuals file, which would otherwise read as
+// an empty timeline.
+func rejectDailyFile(tx *bolt.Tx) error {
+	if meta := tx.Bucket([]byte(costBucketMeta)); meta != nil &&
+		len(meta.Get([]byte(metaKeyDailySchema))) > 0 {
+		return ErrDailyFileAsTimeline
+	}
+	return nil
 }
 
 func newCostDB(db *bolt.DB, path string) *CostDB {
@@ -81,9 +95,8 @@ func newCostDB(db *bolt.DB, path string) *CostDB {
 
 func (d *CostDB) init(project, stack string) error {
 	return d.db.Update(func(tx *bolt.Tx) error {
-		if meta := tx.Bucket([]byte(costBucketMeta)); meta != nil &&
-			len(meta.Get([]byte(metaKeyDailySchema))) > 0 {
-			return ErrDailyFileAsTimeline
+		if err := rejectDailyFile(tx); err != nil {
+			return err
 		}
 		meta, err := tx.CreateBucketIfNotExists([]byte(costBucketMeta))
 		if err != nil {

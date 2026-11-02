@@ -145,3 +145,17 @@ func amountOn(points []DailyPoint, day time.Time, currency string) float64 {
 	}
 	return -1
 }
+
+func TestOpenCostDBRead_RefusesADailyFile(t *testing.T) {
+	t.Parallel()
+
+	dailyPath := filepath.Join(t.TempDir(), "demo@dev.daily.db")
+	daily := openDaily(t, dailyPath)
+	require.NoError(t, daily.Close())
+
+	reader, err := OpenCostDBRead(dailyPath)
+	if err == nil {
+		_ = reader.Close()
+	}
+	require.ErrorIs(t, err, ErrDailyFileAsTimeline, "a read-only open must not show a daily file as an empty timeline")
+}

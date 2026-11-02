@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -108,6 +109,16 @@ func runDailyCollect(cmd *cobra.Command, deps dailyCollectDeps) error {
 	resources, err := deps.load(ctx, cmd)
 	if err != nil {
 		return err
+	}
+	if inputStackMismatch(resources, history.StackContext{Stack: target.Stack}) {
+		return toValidationError(ctx, fmt.Errorf(
+			"the input resources belong to a different stack than %q; pass --stack for the stack that produced it",
+			target.Stack,
+		))
+	}
+	target, err = reconcileDailyTarget(dailyHistoryDir(ctx, deps), target, resources)
+	if err != nil {
+		return toValidationError(ctx, err)
 	}
 	priced, err := priceDaily(ctx, cmd, deps, resources, from, to)
 	if err != nil {
@@ -249,6 +260,73 @@ func explicitPulumiInput(cmd *cobra.Command) bool {
 	return false
 }
 
+func dailyHistoryDir(ctx context.Context, deps dailyCollectDeps) string {
+	if deps.dir != "" {
+		return deps.dir
+	}
+	return gatedHistoryDir(ctx, deps.cfg)
+}
+
+// reconcileDailyTarget names the project of a bare stack when nothing else did,
+// so a stack collected once as org/project/stack and later as a bare name lands
+// in the same file. The input's own URNs name the project first; failing that,
+// one existing daily file for the stack does; several are ambiguous.
+func reconcileDailyTarget(
+	dir string, target historyTarget, resources []engine.ResourceDescriptor,
+) (historyTarget, error) {
+	if target.Project != "" {
+		return target, nil
+	}
+	if project := projectOfResources(resources); project != "" {
+		target.Project = project
+		return target, nil
+	}
+	entries, err := os.ReadDir(historyDir(dir))
+	if err != nil {
+		return target, nil //nolint:nilerr // no history directory yet: a fresh file named by the stack alone
+	}
+	var projects []string
+	for _, entry := range entries {
+		project, stack, ok := history.DailyProjectFromFileName(entry.Name())
+		if ok && !entry.IsDir() && stack == target.Stack {
+			projects = append(projects, project)
+		}
+	}
+	switch len(projects) {
+	case 0:
+		return target, nil
+	case 1:
+		target.Project = projects[0]
+		return target, nil
+	default:
+		return historyTarget{}, fmt.Errorf(
+			"stack %q exists in several projects (%s); run from a project directory or pass --stack org/project/%s",
+			target.Stack, strings.Join(projects, ", "), target.Stack,
+		)
+	}
+}
+
+// projectOfResources is the one project the input's Pulumi URNs name, or "".
+func projectOfResources(resources []engine.ResourceDescriptor) string {
+	project := ""
+	for _, resource := range resources {
+		urn, _ := resource.Properties[engine.PropertyPulumiURN].(string)
+		if urn == "" {
+			urn = resource.ID
+		}
+		named := history.ProjectFromURN(urn)
+		switch {
+		case named == "":
+			continue
+		case project == "":
+			project = named
+		case project != named:
+			return ""
+		}
+	}
+	return project
+}
+
 func gatedHistoryDir(ctx context.Context, cfg *config.Config) string {
 	projectDir := config.GetResolvedProjectDir()
 	dir := resolveHistoryDir(ctx, cfg, projectDir)
@@ -294,9 +372,12 @@ func loadDailyResources(ctx context.Context, cmd *cobra.Command) ([]engine.Resou
 	audit := newAuditContext(ctx, "cost history collect-daily", map[string]string{
 		"plan_path": plan, "state_path": state, "terraform_state": tf,
 	})
-	return loadActualResources(ctx, cmd, costActualParams{
-		planPath: plan, statePath: state, terraformState: tf,
-	}, audit)
+	params := costActualParams{planPath: plan, statePath: state, terraformState: tf}
+	resources, err := loadActualResources(ctx, cmd, params, audit)
+	if err != nil {
+		return nil, wrapActualLoadError(ctx, params, err)
+	}
+	return resources, nil
 }
 
 func priceDailyResources(
@@ -398,6 +479,7 @@ func collectDailyPoints(
 		}
 		report.Errors = append(report.Errors, dailyResourceError{Resource: detail.ResourceID, Message: message})
 	}
+	points = mergeDailyPoints(points)
 	points = dropFailedPoints(points, failed)
 	report.Errors = keepUnresolvedErrors(report.Errors, points)
 	markOmittedAsSkipped(resources, priced, points, failed, skipped)
@@ -441,6 +523,29 @@ func markOmittedAsSkipped(
 		}
 		skipped[resource.ID] = struct{}{}
 	}
+}
+
+// mergeDailyPoints sums points that share a resource, UTC day, and currency.
+// A state export can hold an old resource and its replacement under one URN;
+// both are priced, and writing the same key twice would keep only the last.
+func mergeDailyPoints(points []history.DailyPoint) []history.DailyPoint {
+	type key struct {
+		resource string
+		day      int64
+		currency string
+	}
+	index := make(map[key]int, len(points))
+	merged := make([]history.DailyPoint, 0, len(points))
+	for _, point := range points {
+		k := key{point.ResourceID, point.Day.Unix(), point.Currency}
+		if at, seen := index[k]; seen {
+			merged[at].Amount += point.Amount
+			continue
+		}
+		index[k] = len(merged)
+		merged = append(merged, point)
+	}
+	return merged
 }
 
 func observedCosts(points []engine.DailyObservation) []history.ObservedCost {
@@ -524,10 +629,7 @@ func writeDailyPoints(
 	errs []dailyResourceError,
 ) (int, error) {
 	warnDailySkips(cmd, skipped, errs)
-	dir := deps.dir
-	if dir == "" {
-		dir = gatedHistoryDir(ctx, deps.cfg)
-	}
+	dir := dailyHistoryDir(ctx, deps)
 	name, err := history.DailyFileNameFor(target.Project, target.Stack)
 	if err != nil {
 		return 0, err

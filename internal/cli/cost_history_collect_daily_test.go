@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -520,4 +521,114 @@ func TestDailyTarget_ExplicitPulumiInputIgnoresTerraformDirectory(t *testing.T) 
 	require.NoError(t, err)
 	assert.Equal(t, "app", target.Project)
 	assert.Equal(t, "dev", target.Stack, "explicit Pulumi input is a Pulumi stack, not the Terraform directory")
+}
+
+func TestCollectDailyPoints_SumsResultsThatShareAURN(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	result := func(cost float64) engine.CostResult {
+		return engine.CostResult{
+			ResourceID:        "urn:replaced",
+			DailyObservations: []engine.DailyObservation{{Timestamp: day, Cost: cost, Currency: "USD"}},
+		}
+	}
+	points, report := collectDailyPoints(
+		&engine.CostResultWithErrors{Results: []engine.CostResult{result(2), result(3)}}, nil, day.Add(48*time.Hour),
+	)
+
+	require.Len(t, points, 1, "one key is one point, or the second write silently replaces the first")
+	assert.InDelta(t, 5, points[0].Amount, 0)
+	assert.Equal(t, 1, report.StoredPoints)
+}
+
+func TestCollectDaily_RejectsAnInputFromAnotherStack(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	priced := false
+	cmd, _, _ := dailyCmd(t, "--from", "2026-10-01", "--to", "2026-10-02")
+	err := runDailyCollect(cmd, dailyCollectDeps{
+		now: func() time.Time { return time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC) },
+		load: func(context.Context, *cobra.Command) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{{
+				ID: "urn:pulumi:prod::demo::aws:ec2/instance:Instance::web", Type: "aws:ec2/instance:Instance",
+			}}, nil
+		},
+		price: func(
+			context.Context, *cobra.Command, []engine.ResourceDescriptor, time.Time, time.Time,
+		) (*engine.CostResultWithErrors, error) {
+			priced = true
+			return &engine.CostResultWithErrors{}, nil
+		},
+		cfg: config.New(), dir: dir, project: "demo", stack: "dev",
+	})
+
+	require.ErrorContains(t, err, "prod")
+	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
+	assert.False(t, priced, "a mismatched input is rejected before any pricing")
+	assert.Empty(t, readDailyIfPresent(t, dir), "nothing is written to the other stack's database")
+}
+
+func TestLoadDailyResources_ClassifiesAMissingInputFileAsValidation(t *testing.T) {
+	t.Parallel()
+
+	cmd, _, _ := dailyCmd(t, "--from", "2026-10-01", "--pulumi-state", filepath.Join(t.TempDir(), "absent.json"))
+	_, err := loadDailyResources(t.Context(), cmd)
+	require.Error(t, err)
+	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err), "an unreadable input file is a usage error, exit 2")
+}
+
+func TestReconcileDailyTarget_FindsTheProjectOfABareStack(t *testing.T) {
+	t.Parallel()
+
+	appResource := engine.ResourceDescriptor{ID: "urn:pulumi:dev::app::aws:ec2/instance:Instance::web"}
+	plain := engine.ResourceDescriptor{ID: "i-123"}
+
+	t.Run("a URN names the project", func(t *testing.T) {
+		t.Parallel()
+		target, err := reconcileDailyTarget(
+			t.TempDir(), historyTarget{Stack: "dev"}, []engine.ResourceDescriptor{appResource},
+		)
+		require.NoError(t, err)
+		assert.Equal(t, "app", target.Project)
+	})
+
+	t.Run("one existing daily file names the project", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "app@dev.daily.db"), nil, 0o600))
+		target, err := reconcileDailyTarget(dir, historyTarget{Stack: "dev"}, []engine.ResourceDescriptor{plain})
+		require.NoError(t, err)
+		assert.Equal(t, "app", target.Project)
+	})
+
+	t.Run("several existing daily files are ambiguous", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		for _, name := range []string{"app@dev.daily.db", "web@dev.daily.db"} {
+			require.NoError(t, os.WriteFile(filepath.Join(dir, name), nil, 0o600))
+		}
+		_, err := reconcileDailyTarget(dir, historyTarget{Stack: "dev"}, []engine.ResourceDescriptor{plain})
+		require.ErrorContains(t, err, "several projects")
+	})
+
+	t.Run("a known project is left alone", func(t *testing.T) {
+		t.Parallel()
+		target, err := reconcileDailyTarget(
+			t.TempDir(), historyTarget{Project: "chosen", Stack: "dev"}, []engine.ResourceDescriptor{appResource},
+		)
+		require.NoError(t, err)
+		assert.Equal(t, "chosen", target.Project)
+	})
+}
+
+func readDailyIfPresent(t *testing.T, dir string) []history.DailyPoint {
+	t.Helper()
+	name, err := history.DailyFileNameFor("demo", "dev")
+	require.NoError(t, err)
+	if _, statErr := os.Stat(filepath.Join(dir, name)); statErr != nil {
+		return nil
+	}
+	return readDaily(t, dir)
 }

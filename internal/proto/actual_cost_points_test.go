@@ -56,3 +56,25 @@ func TestActualCostObservations_BlankCurrencyDoesNotBorrowAnotherBucketsCurrency
 	assert.Equal(t, "USD", points[0].Currency, "a blank currency is USD, whatever another bucket says")
 	assert.Equal(t, "EUR", points[1].Currency)
 }
+
+func TestActualCostObservations_SkipsBucketsWiderThanOneUTCDay(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	period := func(start, end time.Time) *pbc.FocusCostRecord {
+		return &pbc.FocusCostRecord{
+			ChargePeriodStart: timestamppb.New(start),
+			ChargePeriodEnd:   timestamppb.New(end),
+		}
+	}
+	points := actualCostObservations([]*pbc.ActualCostResult{
+		{Timestamp: timestamppb.New(day), Cost: 300, FocusRecord: period(day, day.AddDate(0, 0, 30))},
+		{Timestamp: timestamppb.New(day), Cost: 7, FocusRecord: period(day.Add(10*time.Hour), day.Add(34*time.Hour))},
+		{Timestamp: timestamppb.New(day), Cost: 1, FocusRecord: period(day, day.AddDate(0, 0, 1))},
+		{Timestamp: timestamppb.New(day.AddDate(0, 0, 1)), Cost: 2},
+	})
+
+	require.Len(t, points, 2, "a 30-day bucket and a bucket straddling midnight are not daily amounts")
+	assert.InDelta(t, 1, points[0].Cost, 0, "a bucket covering exactly one UTC day is kept")
+	assert.InDelta(t, 2, points[1].Cost, 0, "a bucket with no charge period stays a daily amount")
+}
