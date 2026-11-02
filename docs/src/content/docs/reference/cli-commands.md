@@ -446,7 +446,7 @@ finfocus cost history collect-daily --stack <name> [options]
 | --- | --- | --- |
 | `--stack` | Pulumi stack name. This is the parent `cost` flag | required |
 | `--from` | Window start (`YYYY-MM-DD` or RFC3339) | 30 complete UTC days ago |
-| `--to` | Window end (`YYYY-MM-DD` or RFC3339) | start of the current UTC day |
+| `--to` | Window end (`YYYY-MM-DD` or RFC3339) | start of the current UTC day; now when only `--from` is set |
 | `--pulumi-json` | Pulumi preview JSON. Mutually exclusive with the state flags | none |
 | `--pulumi-state` | Pulumi state JSON | none |
 | `--terraform-state` | Terraform state JSON. Requires `--from` | none |

@@ -667,12 +667,19 @@ func TestCollectDaily_TerraformStateNeedsAnExplicitFrom(t *testing.T) {
 	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
 }
 
-func TestDailyWindow_DefaultsToTheStartOfTheCurrentUTCDay(t *testing.T) {
+func TestDailyWindow_OnlyFromPricesThroughNow(t *testing.T) {
 	t.Parallel()
 
+	now := time.Date(2026, 10, 31, 15, 4, 0, 0, time.UTC)
 	cmd, _, _ := dailyCmd(t, "--from", "2026-10-01")
-	from, to, err := dailyWindow(cmd, time.Date(2026, 10, 31, 15, 4, 0, 0, time.UTC))
+	from, to, err := dailyWindow(cmd, now)
 	require.NoError(t, err)
 	assert.Equal(t, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), from)
-	assert.Equal(t, time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC), to, "today is partial, so the window ends before it")
+	assert.Equal(t, now, to, "spec: only --from prices through the current time, so today's partial day is stored")
+
+	cmd, _, _ = dailyCmd(t)
+	from, to, err = dailyWindow(cmd, now)
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), from, "no flags: the last 30 complete UTC days")
+	assert.Equal(t, time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC), to)
 }

@@ -78,7 +78,10 @@ YYYY-MM-DD or RFC3339, the same formats as cost actual.`,
 		},
 	}
 	cmd.Flags().String("from", "", "Start date (YYYY-MM-DD or RFC3339); default is 30 complete UTC days ago")
-	cmd.Flags().String("to", "", "End date (YYYY-MM-DD or RFC3339); default excludes the current partial day")
+	cmd.Flags().String(
+		"to", "",
+		"End date (YYYY-MM-DD or RFC3339); default is the start of the current UTC day, or now when only --from is set",
+	)
 	cmd.Flags().String("pulumi-json", "", "Path to Pulumi preview JSON output")
 	cmd.Flags().String("pulumi-state", "", "Path to Pulumi state JSON from 'pulumi stack export'")
 	cmd.Flags().String(
@@ -200,8 +203,7 @@ func dailyWindow(cmd *cobra.Command, now time.Time) (time.Time, time.Time, error
 		return time.Time{}, time.Time{}, errors.New("--from is required when --to is set")
 	}
 	if toStr == "" {
-		_, today := defaultDailyWindow(now)
-		toStr = today.Format(time.RFC3339)
+		toStr = now.UTC().Format(time.RFC3339)
 	}
 	return ParseTimeRange(fromStr, toStr)
 }
