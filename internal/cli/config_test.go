@@ -535,3 +535,17 @@ func TestConfigGetNamesShadowingProjectConfig(t *testing.T) {
 	assert.Contains(t, stderr, projectFile)
 	assert.Contains(t, stderr, "replaces the global")
 }
+
+func TestConfigGetDoesNotBlameProjectConfigForAKeyTheGlobalConfigLacks(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestConfig(t)
+	projectFile := writeProjectConfig(t, `{"cost": {"history": {"pulumi_cloud": {"enabled": "auto"}}}}`)
+
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "get", "cost.budgets.global.amount"})
+	assert.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "no budget configured")
+	assert.NotContains(t, stderr, projectFile, "nothing was hidden: the global config never set the key")
+	assert.NotContains(t, stderr, "replaces the global")
+}
