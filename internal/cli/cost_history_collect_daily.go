@@ -262,7 +262,17 @@ func dailyTarget(cmd *cobra.Command, deps dailyCollectDeps, dir string) (history
 		}
 		return explicitInputTarget(stack), nil
 	}
-	return resolveHistoryCommandTarget(cmd, dir)
+	target, err := resolveHistoryCommandTarget(cmd, dir)
+	if err != nil {
+		return historyTarget{}, err
+	}
+	if target.Label == "" {
+		// A legacy timeline keeps the stack as typed (org/project/stack), but a
+		// daily file name takes the short name. A Terraform identity has a label
+		// and is left alone.
+		_, target.Stack = history.SplitStack(target.Stack)
+	}
+	return target, nil
 }
 
 // explicitInputTarget names the project from the --stack value or the current

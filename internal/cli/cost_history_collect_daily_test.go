@@ -764,3 +764,22 @@ func TestDailyTarget_ExplicitInputIgnoresProjectedTimelines(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "app", target.Project)
 }
+
+// The working directory is process-wide.
+func TestDailyTarget_LegacyTimelineKeepsAShortStackName(t *testing.T) {
+	t.Chdir(t.TempDir())
+	dir := t.TempDir()
+	legacy, err := history.CostFileName("org/app/dev")
+	require.NoError(t, err)
+	db, err := history.OpenCostDBFor(filepath.Join(dir, legacy), "app", "dev")
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+	cmd, _, _ := dailyCmd(t, "--stack", "org/app/dev")
+
+	target, err := dailyTarget(cmd, dailyCollectDeps{cfg: config.New()}, dir)
+	require.NoError(t, err)
+	assert.Equal(t, "app", target.Project)
+	assert.Equal(t, "dev", target.Stack, "a qualified name would make DailyFileNameFor reject the slashes")
+	_, err = history.DailyFileNameFor(target.Project, target.Stack)
+	require.NoError(t, err)
+}

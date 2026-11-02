@@ -203,3 +203,22 @@ func TestActualCost_OmitsDayBucketsUnlessRetained(t *testing.T) {
 	require.Len(t, retained.Results, 1)
 	assert.Len(t, retained.Results[0].DailyObservations, 1)
 }
+
+func TestActualCostWithOptions_OmitsDayBucketsUnlessRetained(t *testing.T) {
+	t.Parallel()
+
+	plugin, eng, resource, from, to := windowBillFixture(5)
+	plugin.observations = []proto.ActualCostPoint{{Timestamp: from.Add(24 * time.Hour), Cost: 5, Currency: "USD"}}
+	request := ActualCostRequest{Resources: []ResourceDescriptor{resource}, From: from, To: to}
+
+	plain, err := eng.GetActualCostWithOptions(t.Context(), request)
+	require.NoError(t, err)
+	require.Len(t, plain, 1)
+	assert.Empty(t, plain[0].DailyObservations, "cost actual and the cluster path never showed day buckets")
+
+	request.RetainDailyObservations = true
+	retained, err := eng.GetActualCostWithOptions(t.Context(), request)
+	require.NoError(t, err)
+	require.Len(t, retained, 1)
+	assert.Len(t, retained[0].DailyObservations, 1)
+}

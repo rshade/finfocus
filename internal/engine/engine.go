@@ -1209,6 +1209,7 @@ func (e *Engine) GetActualCostWithOptions(
 
 	// Check actual cost cache after validation
 	if cached := e.tryActualCostCache(ctx, request); cached != nil {
+		dropDailyObservations(cached, request.RetainDailyObservations)
 		log.Debug().Ctx(ctx).Str("component", "engine").
 			Msg("returning cached actual cost results")
 		return cached, nil
@@ -1553,6 +1554,7 @@ func (e *Engine) GetActualCostWithOptions(
 			results = append(results, *cr.result)
 		}
 	}
+	dropDailyObservations(results, request.RetainDailyObservations)
 
 	// Group results if requested
 	if request.GroupBy != "" {
@@ -1614,6 +1616,7 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 
 	// Check actual cost cache after validation
 	if cached := e.tryActualCostCache(ctx, request); cached != nil {
+		dropDailyObservations(cached, request.RetainDailyObservations)
 		return &CostResultWithErrors{Results: cached, Errors: []ErrorDetail{}}, nil
 	}
 
