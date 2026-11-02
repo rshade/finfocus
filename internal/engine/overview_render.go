@@ -220,6 +220,13 @@ func renderSummaryFooter(tw *tabwriter.Writer, summary OverviewTotals, stackCtx 
 		}
 	}
 
+	if summary.Spot != nil {
+		if _, writeErr := fmt.Fprintf(tw, "\t\t\t\t%s:\t%s\n",
+			SpotExposureLabel, summary.Spot.Display); writeErr != nil {
+			return writeErr
+		}
+	}
+
 	if stackCtx.HasChanges {
 		if _, writeErr := fmt.Fprintf(tw,
 			"\t\t\t\t%d pending changes\t\t\t\t\n",
@@ -246,6 +253,8 @@ type OverviewSummary struct {
 	ProjectedDelta   float64 `json:"projectedDelta"`
 	PotentialSavings float64 `json:"potentialSavings"`
 	Currency         string  `json:"currency"`
+	// Spot is omitted when no projected row is DYNAMIC.
+	Spot *SpotExposure `json:"spot,omitempty"`
 }
 
 // OverviewJSONOutput is the top-level JSON output structure.
@@ -315,6 +324,7 @@ func RenderOverviewAsJSON(
 			ProjectedDelta:   result.Summary.TotalDelta,
 			PotentialSavings: result.Summary.TotalSavings,
 			Currency:         result.Summary.Currency,
+			Spot:             result.Summary.Spot,
 		},
 		Budgets: budgets,
 		Errors:  errs,

@@ -108,6 +108,18 @@ category. They carry `spotInterruptionRisk` only for spot results with a known
 risk, so an absent value on a `DYNAMIC` result means unknown. Resources
 priced on demand show no tag.
 
+When any resource is spot, the cost diff also reports the exposure: the spot
+cost, its share of the total, and the cost-weighted interruption risk. For
+example, `Spot exposure  400.00 USD (40.0% of 1000.00 USD), weighted risk 0.18`.
+A resource with an unknown risk counts as spot but is left out of the weighted
+risk, and the line says how many were left out. When no resource has a risk
+score, the weighted risk reads `unknown`, never `0.00`. A cost diff adds a
+`Spot change` line with the spot cost before, after, and the difference; a
+replaced resource counts once. JSON carries these as `summary.spot` (and
+`spotChange` for a diff). The figures are informational: they do not feed
+budgets, exit codes, or CI gates. A total with no spot resource, or with mixed
+currencies, shows no exposure.
+
 ### 3. (Optional) View Actual Costs
 
 Requires plugin configuration. See [Configuration](#configuration).

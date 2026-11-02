@@ -401,6 +401,14 @@ sample above, or run `finfocus overview --plain --yes` in a project.
 | `-` | `deleting` | Resource will be deleted by the pending plan |
 | `↻` | `replacing` | Resource will be deleted and re-created |
 
+When any projected row is spot, a `Spot exposure:` line follows the summary
+with the spot cost, its share of the projected total, and the cost-weighted
+interruption risk (for example `2000.00 USD (35.2% of 5678.90 USD), weighted
+risk 0.18`). Rows with an unknown risk count as spot but are excluded from the
+weighted risk, and the line names how many. It uses the projected (monthly)
+amounts only, never the month-to-date column. The web overview shows the same
+text in its totals bar.
+
 ### JSON
 
 Structured JSON object:
@@ -422,7 +430,17 @@ Structured JSON object:
     "projectedMonthly": 5678.90,
     "projectedDelta": 4444.34,
     "potentialSavings": 500.00,
-    "currency": "USD"
+    "currency": "USD",
+    "spot": {
+      "spotCost": 2000.00,
+      "totalCost": 5678.90,
+      "spotShare": 0.3522,
+      "weightedRisk": 0.18,
+      "spotResources": 2,
+      "riskUnknownResources": 0,
+      "currency": "USD",
+      "display": "2000.00 USD (35.2% of 5678.90 USD), weighted risk 0.18"
+    }
   },
   "budgets": [
     {
@@ -437,6 +455,10 @@ Structured JSON object:
   "errors": [ ... ]
 }
 ```
+
+`summary.spot` is present only when a projected row is spot. `weightedRisk` is
+absent when no spot row has a risk score, or when every spot row that has one
+costs $0. `spotShare` is absent when the total is zero.
 
 Each resource object includes `warnings` when a condition applies. The values
 are `drift`, `error`, and `new`, in that order. An empty list is omitted.

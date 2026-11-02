@@ -203,6 +203,15 @@ test('server-formatted totals render verbatim without browser currency formattin
   t.mounted.unmount();
 });
 
+test('spot exposure renders the server-built display text', async () => {
+  const t = await setup();
+  const display = '30.00 USD (30.0% of 100.00 USD), weighted risk 0.18';
+  t.calls[0].resolve(page([row('alpha')], { totals: { totalProjectedDisplay: '$100.00', spot: { display }, currency: 'USD' } }));
+  await flush();
+  assert.deepEqual(t.container.querySelectorAll('.totals-value').map((node) => node.textContent), ['$100.00', display]);
+  t.mounted.unmount();
+});
+
 test('a slower previous hash route cannot replace the current view', async () => {
   const pending = deferred();
   const route = (label, delay) => async (context) => {

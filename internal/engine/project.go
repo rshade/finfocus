@@ -240,6 +240,9 @@ func renderSummary(w io.Writer, aggregated *AggregatedResults, totalTrend string
 	}
 	fmt.Fprintf(w, "Total Hourly Cost:\t%.2f %s\n", aggregated.Summary.TotalHourly, aggregated.Summary.Currency)
 	fmt.Fprintf(w, "Total Resources:\t%d\n", len(aggregated.Resources))
+	if aggregated.Summary.Spot != nil {
+		fmt.Fprintf(w, "%s:\t%s\n", SpotExposureLabel, aggregated.Summary.Spot.Display)
+	}
 	recCount := CountRecommendations(aggregated.Resources)
 	if recCount > 0 {
 		fmt.Fprintf(w, "Recommendations:\t%d\n", recCount)

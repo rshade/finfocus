@@ -86,6 +86,10 @@ type OverviewTotals struct {
 	// The totals are then meaningless, so the table and JSON renderers return
 	// ErrMixedCurrencies; NDJSON has no totals and still renders.
 	MixedCurrencies bool `json:"mixedCurrencies,omitempty"`
+	// Spot is the spot share and weighted interruption risk of TotalProjected
+	// (MonthlyCost basis). Nil, and omitted, when no counted row is DYNAMIC or
+	// the currencies are mixed.
+	Spot *SpotExposure `json:"spot,omitempty"`
 }
 
 // OverviewResult holds all pre-computed display values for the overview.
@@ -249,10 +253,32 @@ func summarizeOverviewRows(rows []OverviewRow) OverviewTotals {
 		}
 	}
 	s.TotalSavings = savings.Total()
+	if !s.MixedCurrencies {
+		s.Spot = ComputeSpotExposure(overviewSpotItems(rows))
+	}
 	if s.Currency == "" {
 		s.Currency = defaultCurrency
 	}
 	return s
+}
+
+// overviewSpotItems lists the rows that make up TotalProjected, with their
+// MonthlyCost, so the spot share has the same denominator as that total.
+func overviewSpotItems(rows []OverviewRow) []SpotExposureItem {
+	items := make([]SpotExposureItem, 0, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		if row.Error != nil || row.ExpansionSource == ExpansionSourceLive || row.ProjectedCost == nil {
+			continue
+		}
+		items = append(items, SpotExposureItem{
+			Cost:     row.ProjectedCost.MonthlyCost,
+			Currency: row.ProjectedCost.Currency,
+			Category: row.ProjectedCost.PricingCategory,
+			Risk:     row.ProjectedCost.SpotInterruptionRisk,
+		})
+	}
+	return items
 }
 
 // rowSavingsResource is the resource a row recommendation's savings are grouped

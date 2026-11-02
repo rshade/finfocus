@@ -259,6 +259,7 @@ export function mount(container, ctx) {
       ['Projected', display('totalProjected')],
       ['Delta', display('totalDelta')],
       ['Potential savings', display('totalSavings')],
+      ['Spot exposure', pick(pick(t, 'spot'), 'display')],
     ];
     totalsBar.replaceChildren(
       ...parts

@@ -832,6 +832,9 @@ type CostSummary struct {
 	ByService    map[string]float64 `json:"byService"    datakey:"true"`
 	ByAdapter    map[string]float64 `json:"byAdapter"    datakey:"true"`
 	Resources    []CostResult       `json:"resources"`
+	// Spot is the spot share and weighted interruption risk of the total. It is
+	// nil, and omitted, when no resource is DYNAMIC.
+	Spot *SpotExposure `json:"spot,omitempty"`
 }
 
 // AggregatedResults contains cost results with summary and aggregation data.
