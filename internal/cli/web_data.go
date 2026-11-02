@@ -370,22 +370,13 @@ func (d *webData) liveResources() ([]engine.ResourceDescriptor, error) {
 		return nil, errors.New("stack source unavailable")
 	}
 	// Pricing descriptors preserve individual preview operations. The live web
-	// inventory instead represents each resource after the preview is applied.
+	// inventory instead represents each resource after the preview is applied:
+	// one descriptor per replacement, with deletions left out.
 	var resources []engine.ResourceDescriptor
-	indices := make(map[string]int)
-	for _, resource := range d.snapshot.Descriptors() {
-		if resource.Operation == engine.DiffOperationDelete || resource.Operation == "delete-replaced" {
+	for _, resource := range collapseLiveReplacements(d.snapshot.Descriptors()) {
+		if resource.Operation == engine.DiffOperationDelete {
 			continue
 		}
-		if index, exists := indices[resource.ID]; exists {
-			// The concrete replacement create carries the new instance's inputs;
-			// prefer it over the logical replace summary in either step order.
-			if resource.Operation == "create-replacement" {
-				resources[index] = resource
-			}
-			continue
-		}
-		indices[resource.ID] = len(resources)
 		resources = append(resources, resource)
 	}
 	return resources, nil

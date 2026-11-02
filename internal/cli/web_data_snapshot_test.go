@@ -112,6 +112,32 @@ func TestWebSnapshotLiveInventoryCollapsesReplacementSteps(t *testing.T) {
 	}
 }
 
+// A delete-replaced step with no partner is the old resource, which the preview
+// removes; the live inventory must not offer it for estimate or recommendations.
+func TestWebSnapshotLiveInventoryDropsUnpairedDeleteReplaced(t *testing.T) {
+	t.Parallel()
+	const (
+		orphan       = "urn:pulumi:dev::test::aws:ec2/instance:Instance::orphan"
+		kept         = "urn:pulumi:dev::test::aws:ec2/instance:Instance::kept"
+		resourceType = "aws:ec2/instance:Instance"
+	)
+	data := newWebData(&cobra.Command{}, overviewParams{cfg: config.New()}, engine.DateRange{}, nil)
+	publishWebTestState(t, data, []ingest.StackExportResource{
+		{URN: orphan, Type: resourceType, Inputs: map[string]any{"instanceType": "t3.small"}},
+		{URN: kept, Type: resourceType, Inputs: map[string]any{"instanceType": "t3.micro"}},
+	})
+	publishWebTestPlan(context.Background(), t, data, &ingest.PulumiPlan{Steps: []ingest.PulumiStep{{
+		Op: "delete-replaced", URN: orphan, Type: resourceType,
+		OldState: &ingest.PulumiState{Inputs: map[string]any{"instanceType": "t3.small"}},
+	}}})
+
+	resources, err := data.liveResources()
+	require.NoError(t, err)
+	byID := resourcesByID(resources)
+	assert.NotContains(t, byID, orphan)
+	assert.Contains(t, byID, kept)
+}
+
 type snapshotHistoryClient struct {
 	webActualClient
 

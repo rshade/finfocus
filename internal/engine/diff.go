@@ -38,7 +38,7 @@ func (e *Engine) GetProjectedCostDiff(
 	}
 
 	resources = uniqueStateInventory(resources)
-	resources = collapseReplacements(resources)
+	resources = CollapseReplacements(resources)
 	plan := planDiffPricing(ctx, resources)
 	afterCosts, afterErrs, err := e.priceAligned(ctx, plan.after)
 	if err != nil {
