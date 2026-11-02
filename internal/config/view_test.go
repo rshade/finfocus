@@ -238,6 +238,21 @@ func TestProjectShadowsKey(t *testing.T) {
 	}
 }
 
+func TestProjectShadowsKeyReadsAFlowStyleYAMLOverlay(t *testing.T) {
+	t.Parallel()
+
+	project := t.TempDir()
+	path := filepath.Join(project, "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("{cost: {budgets: {global: {amount: 5}}}}\n"), 0o600))
+	got, shadowed := ProjectShadowsKey(
+		filepath.Join(t.TempDir(), "config.hujson"),
+		project,
+		"cost.budgets.global.amount",
+	)
+	assert.True(t, shadowed, "the loader applies this overlay through its YAML fallback")
+	assert.Equal(t, path, got)
+}
+
 func TestProjectShadowsKeyIgnoresOverlaysThatDoNotApply(t *testing.T) {
 	t.Parallel()
 

@@ -227,7 +227,7 @@ func ProjectShadowsKey(globalPath, projectDir, key string) (string, bool) {
 	if sameFile(globalPath, path) {
 		return "", false
 	}
-	doc, _, err := loadDocument(path)
+	doc, err := overlayDocument(path)
 	if err != nil {
 		return "", false
 	}
@@ -238,6 +238,25 @@ func ProjectShadowsKey(globalPath, projectDir, key string) (string, bool) {
 		return "", false
 	}
 	return path, true
+}
+
+// overlayDocument reads a project config the way the overlay loader does:
+// Hujson first, then YAML. loadDocument alone rejects a YAML file written in
+// flow style ({cost: {...}}) that the loader still applies.
+func overlayDocument(path string) (map[string]any, error) {
+	doc, _, err := loadDocument(path)
+	if err == nil {
+		return doc, nil
+	}
+	data, readErr := os.ReadFile(PreferredConfigPath(path))
+	if readErr != nil {
+		return nil, err
+	}
+	var fallback map[string]any
+	if yaml.Unmarshal(data, &fallback) != nil {
+		return nil, err
+	}
+	return fallback, nil
 }
 
 func sameFile(a, b string) bool {
