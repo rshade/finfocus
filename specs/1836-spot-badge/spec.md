@@ -34,8 +34,8 @@ one resource and a standard price for another. The first row shows
 2. **Given** category DYNAMIC and risk 0.0, **When** it is rendered, **Then**
    the tag reads `SPOT · risk unknown`, never `risk 0.00`.
 3. **Given** category STANDARD, COMMITTED, OTHER, or UNSPECIFIED, **When** it
-   is rendered, **Then** no tag appears and the row is byte-identical to the
-   output before this feature.
+   is rendered, **Then** no tag appears and the rendered text is unchanged
+   from before this feature. JSON gains `pricingCategory` (see SC-002).
 4. **Given** `NO_COLOR`, `--plain`, or JSON output, **When** a spot row is
    rendered, **Then** the tag text (or the structured fields) is still there.
 
@@ -124,6 +124,11 @@ if the plugin would now answer differently.
   equivalent, no savings, no totals.
 - **FR-010**: Rows that are not DYNAMIC MUST render unchanged, including TUI
   column widths and existing golden files.
+- **FR-011**: The mapping boundary MUST keep a risk score only when the
+  category is DYNAMIC and the score is finite and within [0, 1]; otherwise it
+  stores 0. A risk between 0 and 0.005 renders as `risk <0.01`.
+- **FR-012**: In the `cost projected` diff view, an updated resource MUST NOT
+  show the spot label of its old price; a deleted resource shows it.
 
 ### Key Entities
 
@@ -167,6 +172,10 @@ if the plugin would now answer differently.
 
 - Savings versus on-demand (issue #1838; needs a spec field).
 - Spot exposure totals and weighted risk (issue #1837).
+- Follow-ups: the analyzer (Pulumi policy) diagnostics show no spot marker;
+  the `cost` TUI Cost column (15 wide, `$%.2f` plus the `SPOT` tag) truncates the
+  tag at $1,000,000 and above; the `spotBadge` helper is duplicated in
+  `overview.js` and `estimate.js`.
 - Spot recommendations (#1839) and a spot what-if mode (#1841).
 - Actual-cost results: `GetActualCostResponse` has no category field.
 
@@ -175,7 +184,10 @@ if the plugin would now answer differently.
 ### Measurable Outcomes
 
 - **SC-001**: A DYNAMIC result shows `SPOT` on all five CLI/TUI/web surfaces.
-- **SC-002**: Output for non-DYNAMIC results is byte-identical to before,
-  proven by the existing goldens passing unchanged.
+- **SC-002**: Rendered text for non-DYNAMIC results is unchanged, proven by
+  the existing goldens passing unchanged. JSON gains `pricingCategory` for
+  STANDARD, COMMITTED, and OTHER results, and `cost estimate` JSON for a
+  STANDARD result no longer carries the old `Pricing:` note string. A test
+  pins both.
 - **SC-003**: A cache hit returns the same category and risk that were stored.
 - **SC-004**: `make lint`, `make test`, and `go vet ./...` pass.

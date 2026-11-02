@@ -150,7 +150,14 @@ func diffRowNote(entry *DiffEntry) string {
 		}
 	}
 	if entry.Before != nil {
-		return formatResourceNotes(*entry.Before)
+		before := *entry.Before
+		if entry.Operation != DiffOperationDelete {
+			// The old price's pricing model no longer applies to a resource
+			// that still exists, so its spot label must not carry over.
+			before.PricingCategory = ""
+			before.SpotInterruptionRisk = 0
+		}
+		return formatResourceNotes(before)
 	}
 	return ""
 }

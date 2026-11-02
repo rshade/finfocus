@@ -279,7 +279,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `EstimateCost` attributes. Do not add a second rule.
 - Anything new sent to a plugin must be in the projected cache key; that is
   why keys end in `/tags-`, `/refs-`, `/attrs-` digests and feature suffixes
-  (`/pricing-spec`, `/growth-v1`, `/pricing-v1`, `/penv-`, `/profile-dev|prod|burst`). `/penv-` is the digest of the
+  (in key order `/growth-v1`, `/pricing-v1`, `/penv-`, `/pricing-spec`,
+  `/profile-dev|prod|burst`). `/growth-v1` and `/pricing-v1` version the
+  stored response format, not anything sent to a plugin. `/penv-` is the digest of the
   clients that engine retained at construction. A settings or validate probe
   must not update another engine's key. An empty digest omits the suffix.
   Tests of the process-wide helper must not run in parallel and must call

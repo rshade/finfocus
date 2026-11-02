@@ -330,7 +330,7 @@ func estimateResponseToCostResult(resp *pbc.EstimateCostResponse, resource *Reso
 		Hourly:       hourly,
 
 		PricingCategory:      PricingCategory(proto.PricingCategoryLabel(resp.GetPricingCategory())),
-		SpotInterruptionRisk: resp.GetSpotInterruptionRiskScore(),
+		SpotInterruptionRisk: proto.SpotRisk(resp.GetPricingCategory(), resp.GetSpotInterruptionRiskScore()),
 	}
 
 	if ts := resp.GetExpiresAt(); ts.IsValid() {

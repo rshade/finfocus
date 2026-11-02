@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 
@@ -27,6 +28,9 @@ func TestSpotDisplay(t *testing.T) {
 		{"dynamic rounds to two places", PricingCategoryDynamic, 0.456, "SPOT · risk 0.46"},
 		{"dynamic zero risk is unknown", PricingCategoryDynamic, 0, "SPOT · risk unknown"},
 		{"standard is not spot", PricingCategoryStandard, 0.5, ""},
+		{"tiny risk is not shown as zero", PricingCategoryDynamic, 0.001, "SPOT · risk <0.01"},
+		{"risk at the display floor", PricingCategoryDynamic, 0.005, "SPOT · risk 0.01"},
+		{"risk of one", PricingCategoryDynamic, 1, "SPOT · risk 1.00"},
 		{"committed is not spot", PricingCategoryCommitted, 0, ""},
 		{"unspecified is not spot", "", 0.9, ""},
 	}
@@ -102,6 +106,55 @@ func TestEstimateResponseToCostResult_Pricing(t *testing.T) {
 			assert.Empty(t, got.Notes, "pricing is a structured field, not a note")
 		})
 	}
+}
+
+func TestEstimateResponseToCostResult_DropsInvalidRisk(t *testing.T) {
+	t.Parallel()
+
+	dynamic := pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_DYNAMIC
+	standard := pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_STANDARD
+	tests := []struct {
+		name     string
+		category pbc.FocusPricingCategory
+		risk     float64
+		want     float64
+	}{
+		{"NaN", dynamic, math.NaN(), 0},
+		{"infinity", dynamic, math.Inf(1), 0},
+		{"negative", dynamic, -0.2, 0},
+		{"above one", dynamic, 1.7, 0},
+		{"standard with a score", standard, 0.5, 0},
+		{"zero", dynamic, 0, 0},
+		{"one", dynamic, 1, 1},
+	}
+	resource := &ResourceDescriptor{Type: "aws:ec2:Instance", ID: "i-1"}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := estimateResponseToCostResult(&pbc.EstimateCostResponse{
+				CostMonthly: 1, PricingCategory: tt.category, SpotInterruptionRiskScore: tt.risk,
+			}, resource)
+			assert.InDelta(t, tt.want, got.SpotInterruptionRisk, 1e-12)
+			_, err := json.Marshal(got)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestNonSpotJSONGainsOnlyPricingCategory(t *testing.T) {
+	t.Parallel()
+
+	got := estimateResponseToCostResult(&pbc.EstimateCostResponse{
+		CostMonthly: 1, PricingCategory: pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_STANDARD,
+		SpotInterruptionRiskScore: 0.5,
+	}, &ResourceDescriptor{Type: "aws:ec2:Instance", ID: "i-1"})
+	data, err := json.Marshal(got)
+	require.NoError(t, err)
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, "STANDARD", decoded["pricingCategory"])
+	assert.NotContains(t, decoded, "spotInterruptionRisk")
+	assert.Empty(t, decoded["notes"], "the old Pricing: note string is gone")
 }
 
 func TestProjectedCacheKeepsSpotFields(t *testing.T) {

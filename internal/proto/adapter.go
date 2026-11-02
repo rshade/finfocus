@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -1102,7 +1103,7 @@ func mapProjectedProto(resp *pbc.GetProjectedCostResponse) *CostResult {
 		GrowthType:     growthTypeLabel(resp.GetGrowthType()),
 
 		PricingCategory:      PricingCategoryLabel(resp.GetPricingCategory()),
-		SpotInterruptionRisk: resp.GetSpotInterruptionRiskScore(),
+		SpotInterruptionRisk: SpotRisk(resp.GetPricingCategory(), resp.GetSpotInterruptionRiskScore()),
 	}
 	if ts := resp.GetExpiresAt(); ts != nil {
 		t := ts.AsTime()
@@ -1131,6 +1132,19 @@ func mapProjectedProto(resp *pbc.GetProjectedCostResponse) *CostResult {
 }
 
 const pricingCategoryOther = "OTHER"
+
+// SpotRisk keeps a plugin risk score only when it can be shown and stored: the
+// category is DYNAMIC and the score is finite and within [0, 1]. Anything else
+// is 0, which renders as unknown, and NaN never reaches JSON encoding.
+func SpotRisk(category pbc.FocusPricingCategory, score float64) float64 {
+	if category != pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_DYNAMIC {
+		return 0
+	}
+	if math.IsNaN(score) || math.IsInf(score, 0) || score < 0 || score > 1 {
+		return 0
+	}
+	return score
+}
 
 // PricingCategoryLabel names a plugin pricing category for CostResult.
 // UNSPECIFIED and values this core does not know map to "".

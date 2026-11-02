@@ -95,6 +95,16 @@ aws:rds/instance:Instance         aws:rds:Instance    $0.00     USD
 Total: $7.50 USD
 ```
 
+#### Spot pricing
+
+When a plugin prices a resource as spot (interruptible), `cost projected`,
+`cost estimate`, and the overview mark it with a `SPOT` tag and the plugin's
+interruption risk, for example `SPOT · risk 0.12`. A risk of 0.0 reads
+`SPOT · risk unknown`, because the plugin cannot say zero from unset. The tag
+is plain text, so it appears with `NO_COLOR` and `--plain`. JSON and NDJSON
+carry `pricingCategory` (`DYNAMIC` for spot) and `spotInterruptionRisk` on
+each cost result. Resources priced on demand show no tag.
+
 ### 3. (Optional) View Actual Costs
 
 Requires plugin configuration. See [Configuration](#configuration).

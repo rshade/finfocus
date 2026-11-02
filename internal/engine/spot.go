@@ -22,6 +22,7 @@ const (
 	spotTag         = "SPOT"
 	spotSeparator   = " · "
 	spotRiskUnknown = "risk unknown"
+	spotRiskFloor   = 0.005
 )
 
 // IsSpot reports whether the category marks interruptible pricing.
@@ -39,6 +40,9 @@ func SpotDisplay(category PricingCategory, risk float64) string {
 	}
 	if risk <= 0 {
 		return spotTag + spotSeparator + spotRiskUnknown
+	}
+	if risk < spotRiskFloor {
+		return spotTag + spotSeparator + "risk <0.01"
 	}
 	return fmt.Sprintf("%s%srisk %.2f", spotTag, spotSeparator, risk)
 }

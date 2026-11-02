@@ -225,7 +225,11 @@ data from plugins. Resources update in-place as data arrives.
 Press Enter on a resource to see a detailed breakdown including:
 
 - Actual cost (MTD) with breakdown by category
-- Projected cost (monthly) with breakdown
+- Projected cost (monthly) with breakdown, and a `Pricing` line such as
+  `SPOT · risk 0.12` when the plugin priced the resource as spot. The table
+  and the dashboard list show `SPOT` beside the projected amount, and JSON
+  rows carry `projectedCost.pricingCategory` and
+  `projectedCost.spotInterruptionRisk`.
 - Cost drift analysis with extrapolation
 - Optimization recommendations with estimated savings
 - Stored cost history for this resource, loaded when the detail view opens.
