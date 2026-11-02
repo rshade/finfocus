@@ -87,6 +87,23 @@ func (d *DiffResult) AfterCosts() []CostResult {
 	return out
 }
 
+// StackAfterCosts returns the projected cost of every live resource after the
+// change: the plan entries, then the unchanged deployed resources the diff held
+// back in StackUnchanged. A forecast covers this whole inventory, so a preview
+// that changes one resource still forecasts the stack it belongs to.
+func (d *DiffResult) StackAfterCosts() []CostResult {
+	if d == nil {
+		return nil
+	}
+	out := d.AfterCosts()
+	for i := range d.StackUnchanged {
+		if d.StackUnchanged[i].After != nil {
+			out = append(out, *d.StackUnchanged[i].After)
+		}
+	}
+	return out
+}
+
 func normalizeDiffOperation(op string) string {
 	switch op {
 	case "", DiffOperationCreate:

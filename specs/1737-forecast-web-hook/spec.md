@@ -94,8 +94,9 @@ compare the series list with the CLI.
   generic message; plugin error text does not reach the page.
 - A history database in another currency is omitted with the CLI's warning.
 - A budget in another currency is omitted with the CLI's warning.
-- A state-only session forecasts only plan-listed resources, the same
-  membership the CLI uses (#1903), so an empty plan yields an empty forecast.
+- The session forecasts the whole live inventory, the same membership the CLI
+  uses (#1903), before and after a preview; an empty stack yields an empty
+  forecast.
 - A plugin reload between queries uses the replacement engine, as the other
   query endpoints do.
 - Two concurrent forecast requests are serialized through the session's

@@ -24,6 +24,19 @@ finfocus cost forecast --pulumi-json plan.json --growth-rate 0.05 --output json
 `--months` is how many months ahead to project. The series starts at the
 current month, so `--months 12` is 13 points. The allowed range is 1 to 36.
 
+## Which resources are forecast
+
+The forecast covers the whole live stack: the resources the preview changes,
+creates, or replaces, plus the unchanged resources already deployed. A preview
+that changes one resource therefore forecasts the stack it belongs to, and the
+same stack gives the same forecast with or without `--pulumi-json`.
+
+A saved preview given with no stack state, such as `--pulumi-json plan.json`
+outside a Pulumi project, forecasts only what that file lists, because nothing
+else is known. Earlier releases forecast only the resources a default preview
+lists; the total now includes the unchanged ones.
+`cost projected` and its budgets keep the plan total and are not affected.
+
 ## Growth
 
 | Model | Formula | When |

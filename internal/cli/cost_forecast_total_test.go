@@ -17,7 +17,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 )
 
-func TestForecastLiveInventoryPreservesPlanTotal(t *testing.T) {
+func TestForecastCoversTheWholeLiveInventory(t *testing.T) {
 	setupMembershipProject(t)
 	plan, err := filepath.Abs("preview.json")
 	require.NoError(t, err)
@@ -57,7 +57,10 @@ func TestForecastLiveInventoryPreservesPlanTotal(t *testing.T) {
 	live := run()
 	t.Chdir(t.TempDir())
 	baseline := run()
-	assert.InDelta(t, 20, live.Series[0].Points[0].Value, 1e-9)
-	assert.InDelta(t, baseline.Series[0].Points[0].Value, live.Series[0].Points[0].Value, 1e-9,
-		"unchanged inventory must not increase the v0.5.2 forecast total")
+	// The preview creates one priced resource (20). The state adds three
+	// unchanged t3.medium instances at 20 each: a forecast covers the whole
+	// stack (#1903), not only the preview's changes.
+	assert.InDelta(t, 20, baseline.Series[0].Points[0].Value, 1e-9, "a saved preview alone forecasts only itself")
+	assert.InDelta(t, 80, live.Series[0].Points[0].Value, 1e-9,
+		"the live forecast adds the unchanged resources to the preview's changes")
 }
