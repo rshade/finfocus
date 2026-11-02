@@ -526,7 +526,11 @@ type CostResult struct {
 	// Actual cost specific fields
 	TotalCost  float64   `json:"totalCost,omitempty"`
 	DailyCosts []float64 `json:"dailyCosts,omitempty"`
-	CostPeriod string    `json:"costPeriod,omitempty"`
+	// DailyObservations are the plugin's timestamped buckets. DailyCosts stays
+	// the even split of TotalCost that cost actual shows. A nil slice means the
+	// plugin did not send day buckets.
+	DailyObservations []DailyObservation `json:"dailyObservations,omitempty"`
+	CostPeriod        string             `json:"costPeriod,omitempty"`
 	//nolint:modernize // omitempty is a no-op for time.Time, but omitzero would change serialized output.
 	StartDate time.Time `json:"startDate,omitempty"`
 	//nolint:modernize // omitempty is a no-op for time.Time, but omitzero would change serialized output.
@@ -600,15 +604,23 @@ func (c *CostResultWithErrors) ErrorSummary() string {
 
 // ActualCostRequest contains parameters for querying historical actual costs with filtering and grouping.
 type ActualCostRequest struct {
-	Resources          []ResourceDescriptor
-	From               time.Time
-	To                 time.Time
-	Adapter            string
-	GroupBy            string
-	Tags               map[string]string
-	EstimateConfidence bool // Show confidence level in output
-	FallbackEstimate   bool // When true, include $0 placeholder results for resources with no plugin data
-	SkipStateEstimate  bool // When true, keep the plugin period total and do not estimate from state
+	Resources               []ResourceDescriptor
+	From                    time.Time
+	To                      time.Time
+	Adapter                 string
+	GroupBy                 string
+	Tags                    map[string]string
+	EstimateConfidence      bool // Show confidence level in output
+	FallbackEstimate        bool // When true, include $0 placeholder results for resources with no plugin data
+	SkipStateEstimate       bool // When true, keep the plugin period total and do not estimate from state
+	RetainDailyObservations bool // When true, keep plugin day buckets and use a separate cache entry
+}
+
+// DailyObservation is one timestamped actual-cost bucket from a plugin.
+type DailyObservation struct {
+	Timestamp time.Time `json:"timestamp"`
+	Cost      float64   `json:"cost"`
+	Currency  string    `json:"currency"`
 }
 
 // CrossProviderAggregation represents daily/monthly cost aggregation across providers.

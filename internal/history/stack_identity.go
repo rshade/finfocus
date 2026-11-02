@@ -92,6 +92,20 @@ func ProjectFromFileName(name string) (string, string, bool) {
 	return project, stack, true
 }
 
+// DailyProjectFromFileName is ProjectFromFileName for a daily actuals file,
+// `<project>@<stack>.daily.db`.
+func DailyProjectFromFileName(name string) (string, string, bool) {
+	base, ok := strings.CutSuffix(name, dailyDBSuffix)
+	if !ok {
+		return "", "", false
+	}
+	project, stack, found := strings.Cut(base, stackSeparator)
+	if !found || project == "" || stack == "" {
+		return "", "", false
+	}
+	return project, stack, true
+}
+
 // InferProject returns the project that owns this database: the stored one, or
 // for a database written before projects were recorded, the project in the URNs
 // of its snapshots. It returns "" when nothing identifies one.

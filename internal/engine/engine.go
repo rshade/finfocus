@@ -1209,6 +1209,7 @@ func (e *Engine) GetActualCostWithOptions(
 
 	// Check actual cost cache after validation
 	if cached := e.tryActualCostCache(ctx, request); cached != nil {
+		dropDailyObservations(cached, request.RetainDailyObservations)
 		log.Debug().Ctx(ctx).Str("component", "engine").
 			Msg("returning cached actual cost results")
 		return cached, nil
@@ -1553,6 +1554,7 @@ func (e *Engine) GetActualCostWithOptions(
 			results = append(results, *cr.result)
 		}
 	}
+	dropDailyObservations(results, request.RetainDailyObservations)
 
 	// Group results if requested
 	if request.GroupBy != "" {
@@ -1614,6 +1616,7 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 
 	// Check actual cost cache after validation
 	if cached := e.tryActualCostCache(ctx, request); cached != nil {
+		dropDailyObservations(cached, request.RetainDailyObservations)
 		return &CostResultWithErrors{Results: cached, Errors: []ErrorDetail{}}, nil
 	}
 
@@ -1686,6 +1689,10 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 		result.Errors = append(result.Errors, cr.errors...)
 	}
 
+	// Day buckets are for daily collection. Other callers get the results they
+	// always had, and their cache entries carry no buckets.
+	dropDailyObservations(result.Results, request.RetainDailyObservations)
+
 	// Group results if requested
 	if request.GroupBy != "" {
 		result.Results = e.GroupResults(result.Results, GroupBy(request.GroupBy))
@@ -1695,6 +1702,17 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 	e.storeActualCostCacheIfClean(ctx, request, result)
 
 	return result, nil
+}
+
+// dropDailyObservations clears the plugin day buckets unless the caller, a daily
+// collection, asked to retain them.
+func dropDailyObservations(results []CostResult, retain bool) {
+	if retain {
+		return
+	}
+	for i := range results {
+		results[i].DailyObservations = nil
+	}
 }
 
 // getActualCostForResource processes a single resource for actual cost with error tracking.
@@ -2130,22 +2148,38 @@ func (e *Engine) getActualCostFromPlugin(
 	monthlyRate, hourlyRate, dailyCosts, notes := deriveActualCostWindow(result.TotalCost, from, to)
 
 	return &CostResult{
-		ResourceType:   resource.Type,
-		ResourceID:     resource.ID,
-		Adapter:        client.Name,
-		Currency:       result.Currency,
-		Monthly:        monthlyRate,
-		Hourly:         hourlyRate,
-		TotalCost:      result.TotalCost,
-		DailyCosts:     dailyCosts,
-		Notes:          notes,
-		Breakdown:      result.CostBreakdown,
-		Sustainability: sustainability,
-		StartDate:      from,
-		EndDate:        to,
-		CostPeriod:     FormatPeriod(from, to),
-		ExpiresAt:      result.ExpiresAt,
+		ResourceType:      resource.Type,
+		ResourceID:        resource.ID,
+		Adapter:           client.Name,
+		Currency:          result.Currency,
+		Monthly:           monthlyRate,
+		Hourly:            hourlyRate,
+		TotalCost:         result.TotalCost,
+		DailyCosts:        dailyCosts,
+		DailyObservations: observationsFromProto(result.Observations),
+		Notes:             notes,
+		Breakdown:         result.CostBreakdown,
+		Sustainability:    sustainability,
+		StartDate:         from,
+		EndDate:           to,
+		CostPeriod:        FormatPeriod(from, to),
+		ExpiresAt:         result.ExpiresAt,
 	}, nil
+}
+
+func observationsFromProto(points []proto.ActualCostPoint) []DailyObservation {
+	if len(points) == 0 {
+		return nil
+	}
+	out := make([]DailyObservation, len(points))
+	for i, point := range points {
+		out[i] = DailyObservation{
+			Timestamp: point.Timestamp,
+			Cost:      point.Cost,
+			Currency:  point.Currency,
+		}
+	}
+	return out
 }
 
 // deriveActualCostWindow computes the rate fields (Monthly, Hourly, DailyCosts) and the
@@ -4370,6 +4404,12 @@ func generateActualCostCacheKey(request ActualCostRequest) string {
 	// existing key unchanged.
 	if request.SkipStateEstimate {
 		filters["skip_state_estimate"] = "true"
+	}
+	// Collecting plugin day buckets must not reuse a total-only cache entry,
+	// which has no observations. Cost actual leaves this unset, so its key
+	// stays the same.
+	if request.RetainDailyObservations {
+		filters["daily_observations"] = "v1"
 	}
 	if request.Adapter != "" {
 		filters["adapter"] = request.Adapter

@@ -486,10 +486,11 @@ func projectHistoryDirectoryRecheckFails(
 }
 
 // historyDatabaseFilesSafe reports whether every database file the history code
-// opens in dir (history.db, the *.history.db cost files, and their compaction
-// temp files) is absent or a regular file. A symlink there would make Bolt open or create its target
-// outside the project. Lstat does not follow the link; the check is made
-// before the open, so a swap in between is not covered.
+// opens in dir (history.db, the *.history.db cost files, their compaction
+// temp files, and the *.daily.db actuals files) is absent or a regular file.
+// A symlink there would make Bolt open or create its target outside the
+// project. Lstat does not follow the link; the check is made before the open,
+// so a swap in between is not covered.
 func historyDatabaseFilesSafe(dir string) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -497,8 +498,7 @@ func historyDatabaseFilesSafe(dir string) bool {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		lower := strings.ToLower(name)
-		if !strings.HasPrefix(lower, "history.db") && !strings.Contains(lower, ".history.db") {
+		if !guardedHistoryFile(strings.ToLower(name)) {
 			continue
 		}
 		info, lerr := os.Lstat(filepath.Join(dir, name))
@@ -507,6 +507,13 @@ func historyDatabaseFilesSafe(dir string) bool {
 		}
 	}
 	return true
+}
+
+// guardedHistoryFile reports whether name is a history database the jail must
+// treat as a file Bolt will open. name is already lowercased.
+func guardedHistoryFile(name string) bool {
+	return strings.HasPrefix(name, "history.db") || strings.Contains(name, ".history.db") ||
+		strings.HasPrefix(name, "daily.db") || strings.Contains(name, ".daily.db")
 }
 
 // projectHistoryDirectorySafe reports whether a project-tier relative path

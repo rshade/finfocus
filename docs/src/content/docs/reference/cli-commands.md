@@ -434,6 +434,40 @@ The database is `~/.finfocus/history/<stack>.history.db`. Slashes in the
 stack name become dashes. `FINFOCUS_HOME` changes the root. CI recipes are
 in [CI/CD cost tracking](../guides/ci-cd-cost-tracking.md).
 
+### Usage (cost history collect-daily)
+
+```bash
+finfocus cost history collect-daily --stack <name> [options]
+```
+
+### Options (cost history collect-daily)
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--stack` | Pulumi stack name. This is the parent `cost` flag | required |
+| `--from` | Window start (`YYYY-MM-DD` or RFC3339) | 30 complete UTC days ago |
+| `--to` | Window end (`YYYY-MM-DD` or RFC3339) | start of the current UTC day; now when only `--from` is set |
+| `--pulumi-json` | Pulumi preview JSON. Mutually exclusive with the state flags | none |
+| `--pulumi-state` | Pulumi state JSON | none |
+| `--terraform-state` | Terraform state JSON. Requires `--from` | none |
+| `--output` | `table` or `json` | `table` |
+
+The file is `<project>@<stack>.daily.db` in the same history directory. A
+re-run replaces days the plugin sent and leaves every other day in place. A
+missing daily series stores nothing for that resource. The command stores only
+what plugins report: it never estimates a day from state, so a reported $0 day
+is stored as $0 and a day the plugin did not send stays empty. A resource that
+every plugin declines counts as skipped. A bucket with no currency is stored as
+USD; a named currency is its own series. With `--dry-run` the command prices the
+stack and reports what it would store, but writes and prunes nothing. A bucket
+whose stated charge period spans more than one UTC day, or starts on another day
+than its timestamp, is not a daily amount and is left out; resources sharing a
+URN are summed per day. An input whose URNs name another stack or project than
+the target exits 2 before anything is priced or written. The command is not an
+MCP tool. With `cost.history.retention.auto_prune` and `max_age_days` set,
+points older than that many days are deleted.
+`max_snapshots` does not apply to this file.
+
 ### Usage (cost history export)
 
 ```bash

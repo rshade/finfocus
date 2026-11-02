@@ -548,14 +548,25 @@ type GetActualCostRequest struct {
 	Resource *ResourceDescriptor
 }
 
+// ActualCostPoint is one plugin-reported actual-cost bucket.
+// A nil plugin timestamp is not a point. Callers must not invent days for it.
+type ActualCostPoint struct {
+	Timestamp time.Time
+	Cost      float64
+	Currency  string
+}
+
 // ActualCostResult represents the calculated actual cost data retrieved from cloud providers.
 // It includes the total cost and detailed breakdowns by service or resource.
+// Observations are the timestamped buckets the plugin returned. They are not
+// an even split of TotalCost.
 type ActualCostResult struct {
 	Currency       string
 	TotalCost      float64
 	CostBreakdown  map[string]float64
 	Sustainability map[string]SustainabilityMetric
 	ExpiresAt      *time.Time
+	Observations   []ActualCostPoint
 }
 
 // GetActualCostResponse contains the results of actual cost queries.
@@ -1179,6 +1190,7 @@ func MapBatchActualResults(resp *pbc.BatchCostResponse) []BatchMappedResult {
 			CostBreakdown:  breakdown,
 			Sustainability: make(map[string]SustainabilityMetric),
 			ExpiresAt:      earliestExpiresAt(pbcResults),
+			Observations:   actualCostObservations(pbcResults),
 		}
 
 		aggregateImpactMetrics(result, pbcResults)
@@ -1601,6 +1613,7 @@ func (c *clientAdapter) GetActualCost(
 			TotalCost:      totalCost,
 			CostBreakdown:  breakdown,
 			Sustainability: make(map[string]SustainabilityMetric),
+			Observations:   actualCostObservations(resp.GetResults()),
 		}
 
 		result.ExpiresAt = earliestExpiresAt(resp.GetResults())
@@ -1646,6 +1659,78 @@ func totalActualCost(pbcResults []*pbc.ActualCostResult) (float64, map[string]fl
 		}
 	}
 	return totalCost, breakdown
+}
+
+// actualCostObservations keeps each plugin bucket that has a timestamp and fits
+// one UTC day. Buckets with no timestamp, or that span several days, stay in the
+// summed total and do not become days.
+func actualCostObservations(pbcResults []*pbc.ActualCostResult) []ActualCostPoint {
+	points := make([]ActualCostPoint, 0, len(pbcResults))
+	for _, result := range pbcResults {
+		if result.GetTimestamp() == nil || !fitsOneUTCDay(result.GetFocusRecord()) {
+			continue
+		}
+		timestamp := result.GetTimestamp().AsTime().UTC()
+		if !stampedOnPeriodDay(timestamp, result.GetFocusRecord()) {
+			continue
+		}
+		points = append(points, ActualCostPoint{
+			Timestamp: timestamp,
+			Cost:      result.GetCost(),
+			Currency:  pointCurrency(result),
+		})
+	}
+	if len(points) == 0 {
+		return nil
+	}
+	return points
+}
+
+// pointCurrency is the bucket's own billing or pricing currency. A bucket that
+// names none is USD: another bucket's currency says nothing about it.
+// fitsOneUTCDay reports whether a bucket's stated charge period lies inside one
+// UTC day. The plugin contract lets a timestamp be a bucket start, so a bucket
+// that says it covers several days (or straddles midnight) is not a daily
+// amount and must not be stored as one. A bucket that states no charge period
+// is taken as the day of its timestamp.
+func fitsOneUTCDay(focus *pbc.FocusCostRecord) bool {
+	if focus == nil || focus.GetChargePeriodStart() == nil || focus.GetChargePeriodEnd() == nil {
+		return true
+	}
+	start := focus.GetChargePeriodStart().AsTime().UTC()
+	end := focus.GetChargePeriodEnd().AsTime().UTC()
+	switch {
+	case end.Before(start):
+		return false
+	case end.Equal(start):
+		return true
+	}
+	last := end.Add(-time.Nanosecond)
+	return start.Year() == last.Year() && start.YearDay() == last.YearDay()
+}
+
+// stampedOnPeriodDay reports whether a bucket's timestamp lies on the UTC day
+// its charge period starts. A timestamp on another day would put the amount on
+// the wrong day. A bucket that states no period is taken as stamped correctly.
+func stampedOnPeriodDay(timestamp time.Time, focus *pbc.FocusCostRecord) bool {
+	if focus.GetChargePeriodStart() == nil {
+		return true
+	}
+	start := focus.GetChargePeriodStart().AsTime().UTC()
+	return start.Year() == timestamp.Year() && start.YearDay() == timestamp.YearDay()
+}
+
+func pointCurrency(result *pbc.ActualCostResult) string {
+	focus := result.GetFocusRecord()
+	if focus != nil {
+		if currency := strings.TrimSpace(focus.GetBillingCurrency()); currency != "" {
+			return currency
+		}
+		if currency := strings.TrimSpace(focus.GetPricingCurrency()); currency != "" {
+			return currency
+		}
+	}
+	return defaultCurrency
 }
 
 func actualCostCurrency(pbcResults []*pbc.ActualCostResult) string {
