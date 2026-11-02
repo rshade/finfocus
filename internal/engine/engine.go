@@ -1686,6 +1686,10 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 		result.Errors = append(result.Errors, cr.errors...)
 	}
 
+	// Day buckets are for daily collection. Other callers get the results they
+	// always had, and their cache entries carry no buckets.
+	dropDailyObservations(result.Results, request.RetainDailyObservations)
+
 	// Group results if requested
 	if request.GroupBy != "" {
 		result.Results = e.GroupResults(result.Results, GroupBy(request.GroupBy))
@@ -1695,6 +1699,17 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 	e.storeActualCostCacheIfClean(ctx, request, result)
 
 	return result, nil
+}
+
+// dropDailyObservations clears the plugin day buckets unless the caller, a daily
+// collection, asked to retain them.
+func dropDailyObservations(results []CostResult, retain bool) {
+	if retain {
+		return
+	}
+	for i := range results {
+		results[i].DailyObservations = nil
+	}
 }
 
 // getActualCostForResource processes a single resource for actual cost with error tracking.

@@ -182,3 +182,24 @@ func TestSkipStateEstimate_KeepsTimestampedZeroObservation(t *testing.T) {
 	require.Len(t, kept.Results[0].DailyObservations, 1)
 	assert.Zero(t, kept.Results[0].DailyObservations[0].Cost)
 }
+
+// Day buckets are for daily collection only. An ordinary actual-cost request
+// must not grow a dailyObservations field in its results.
+func TestActualCost_OmitsDayBucketsUnlessRetained(t *testing.T) {
+	t.Parallel()
+
+	plugin, eng, resource, from, to := windowBillFixture(5)
+	plugin.observations = []proto.ActualCostPoint{{Timestamp: from.Add(24 * time.Hour), Cost: 5, Currency: "USD"}}
+	request := ActualCostRequest{Resources: []ResourceDescriptor{resource}, From: from, To: to}
+
+	plain, err := eng.GetActualCostWithOptionsAndErrors(t.Context(), request)
+	require.NoError(t, err)
+	require.Len(t, plain.Results, 1)
+	assert.Empty(t, plain.Results[0].DailyObservations)
+
+	request.RetainDailyObservations = true
+	retained, err := eng.GetActualCostWithOptionsAndErrors(t.Context(), request)
+	require.NoError(t, err)
+	require.Len(t, retained.Results, 1)
+	assert.Len(t, retained.Results[0].DailyObservations, 1)
+}

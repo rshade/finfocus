@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -102,7 +103,8 @@ func runDailyCollect(cmd *cobra.Command, deps dailyCollectDeps) error {
 	if err = validateDailyInputs(cmd, from); err != nil {
 		return toValidationError(ctx, err)
 	}
-	target, err := dailyTarget(ctx, cmd, deps)
+	dir := dailyHistoryDir(ctx, deps)
+	target, err := dailyTarget(cmd, deps, dir)
 	if err != nil {
 		return err
 	}
@@ -116,7 +118,7 @@ func runDailyCollect(cmd *cobra.Command, deps dailyCollectDeps) error {
 			target.Stack,
 		))
 	}
-	target, err = reconcileDailyTarget(dailyHistoryDir(ctx, deps), target, resources)
+	target, err = reconcileDailyTarget(dir, target, resources)
 	if err != nil {
 		return toValidationError(ctx, err)
 	}
@@ -133,7 +135,7 @@ func runDailyCollect(cmd *cobra.Command, deps dailyCollectDeps) error {
 		report.DryRun = true
 		warnDailySkips(cmd, report.skippedIDs, report.Errors)
 	} else {
-		pruned, writeErr := writeDailyPoints(ctx, cmd, deps, target, points, report.skippedIDs, report.Errors)
+		pruned, writeErr := writeDailyPoints(cmd, deps, dir, target, points, report.skippedIDs, report.Errors)
 		if writeErr != nil {
 			return writeErr
 		}
@@ -198,7 +200,8 @@ func dailyWindow(cmd *cobra.Command, now time.Time) (time.Time, time.Time, error
 		return time.Time{}, time.Time{}, errors.New("--from is required when --to is set")
 	}
 	if toStr == "" {
-		toStr = now.UTC().Format(time.RFC3339)
+		_, today := defaultDailyWindow(now)
+		toStr = today.Format(time.RFC3339)
 	}
 	return ParseTimeRange(fromStr, toStr)
 }
@@ -222,6 +225,13 @@ func validateDailyInputs(cmd *cobra.Command, from time.Time) error {
 	if err != nil {
 		return err
 	}
+	rawFrom, err := cmd.Flags().GetString("from")
+	if err != nil {
+		return err
+	}
+	if tf != "" && strings.TrimSpace(rawFrom) == "" {
+		return errors.New("--from is required when using --terraform-state")
+	}
 	return validateActualInputFlags(costActualParams{
 		planPath:       plan,
 		statePath:      state,
@@ -230,14 +240,13 @@ func validateDailyInputs(cmd *cobra.Command, from time.Time) error {
 	})
 }
 
-func dailyTarget(ctx context.Context, cmd *cobra.Command, deps dailyCollectDeps) (historyTarget, error) {
+func dailyTarget(cmd *cobra.Command, deps dailyCollectDeps, dir string) (historyTarget, error) {
 	if deps.dir != "" {
 		if strings.TrimSpace(deps.stack) == "" {
 			return historyTarget{}, ErrStackRequired
 		}
 		return historyTarget{Project: deps.project, Stack: deps.stack}, nil
 	}
-	dir := gatedHistoryDir(ctx, deps.cfg)
 	if explicitPulumiInput(cmd) {
 		stack, err := requiredStack(cmd)
 		if err != nil {
@@ -479,7 +488,8 @@ func collectDailyPoints(
 		}
 		report.Errors = append(report.Errors, dailyResourceError{Resource: detail.ResourceID, Message: message})
 	}
-	points = mergeDailyPoints(points)
+	points, overflowed := mergeDailyPoints(points)
+	report.Errors = append(report.Errors, failOverflowed(overflowed, invalid, failed, skipped)...)
 	points = dropFailedPoints(points, failed)
 	report.Errors = keepUnresolvedErrors(report.Errors, points)
 	markOmittedAsSkipped(resources, priced, points, failed, skipped)
@@ -525,10 +535,31 @@ func markOmittedAsSkipped(
 	}
 }
 
+// failOverflowed marks resources whose merged daily sum overflowed as failed
+// and returns their errors. A resource already rejected keeps its first error.
+func failOverflowed(ids []string, invalid, failed, skipped map[string]struct{}) []dailyResourceError {
+	var errs []dailyResourceError
+	for _, id := range ids {
+		if _, bad := invalid[id]; bad {
+			continue
+		}
+		invalid[id] = struct{}{}
+		failed[id] = struct{}{}
+		delete(skipped, id)
+		errs = append(errs, dailyResourceError{
+			Resource: id, Message: fmt.Sprintf("resource %s: the daily cost is not a finite amount", id),
+		})
+	}
+	return errs
+}
+
 // mergeDailyPoints sums points that share a resource, UTC day, and currency.
 // A state export can hold an old resource and its replacement under one URN;
 // both are priced, and writing the same key twice would keep only the last.
-func mergeDailyPoints(points []history.DailyPoint) []history.DailyPoint {
+// Two finite amounts can still sum to infinity, which the store cannot encode
+// and which would roll back every other resource's write; those resources are
+// returned so the caller can fail them alone.
+func mergeDailyPoints(points []history.DailyPoint) ([]history.DailyPoint, []string) {
 	type key struct {
 		resource string
 		day      int64
@@ -536,16 +567,20 @@ func mergeDailyPoints(points []history.DailyPoint) []history.DailyPoint {
 	}
 	index := make(map[key]int, len(points))
 	merged := make([]history.DailyPoint, 0, len(points))
+	overflow := map[string]struct{}{}
 	for _, point := range points {
 		k := key{point.ResourceID, point.Day.Unix(), point.Currency}
 		if at, seen := index[k]; seen {
 			merged[at].Amount += point.Amount
+			if math.IsInf(merged[at].Amount, 0) {
+				overflow[point.ResourceID] = struct{}{}
+			}
 			continue
 		}
 		index[k] = len(merged)
 		merged = append(merged, point)
 	}
-	return merged
+	return merged, mapKeys(overflow)
 }
 
 func observedCosts(points []engine.DailyObservation) []history.ObservedCost {
@@ -620,16 +655,15 @@ func sortDailyErrors(errs []dailyResourceError) {
 }
 
 func writeDailyPoints(
-	ctx context.Context,
 	cmd *cobra.Command,
 	deps dailyCollectDeps,
+	dir string,
 	target historyTarget,
 	points []history.DailyPoint,
 	skipped []string,
 	errs []dailyResourceError,
 ) (int, error) {
 	warnDailySkips(cmd, skipped, errs)
-	dir := dailyHistoryDir(ctx, deps)
 	name, err := history.DailyFileNameFor(target.Project, target.Stack)
 	if err != nil {
 		return 0, err

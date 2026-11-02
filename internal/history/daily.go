@@ -131,51 +131,6 @@ func PointsFromObservations(resourceID string, observed []ObservedCost, written 
 	return points, nil
 }
 
-// PointsForSeries maps one daily series into points.
-// An empty series returns no points and no error: the caller treats that as
-// "the plugin sent nothing" and must not invent zeros.
-// Index 0 is the UTC day of start. The length must equal the whole-day count
-// from start up to end, the same count windowDailyCosts uses. A mismatch
-// returns an error and no points.
-func PointsForSeries(
-	resourceID, currency string,
-	start, end time.Time,
-	daily []float64,
-	written time.Time,
-) ([]DailyPoint, error) {
-	if len(daily) == 0 {
-		return nil, nil
-	}
-	if err := validateDailyIdentity(resourceID, currency); err != nil {
-		return nil, err
-	}
-	days, err := dailySlotCount(start, end)
-	if err != nil {
-		return nil, fmt.Errorf("resource %s: %w", resourceID, err)
-	}
-	if len(daily) != days {
-		return nil, fmt.Errorf(
-			"resource %s: daily costs have %d points for a %d-day window",
-			resourceID, len(daily), days,
-		)
-	}
-	currency = normalizeDailyCurrency(currency)
-	points := make([]DailyPoint, 0, len(daily))
-	for i, amount := range daily {
-		if math.IsNaN(amount) || math.IsInf(amount, 0) {
-			return nil, fmt.Errorf("resource %s: daily cost %d is not a finite amount", resourceID, i)
-		}
-		points = append(points, DailyPoint{
-			ResourceID: resourceID,
-			Day:        dailyDay(start, i),
-			Currency:   currency,
-			Amount:     amount,
-			WrittenAt:  written.UTC(),
-		})
-	}
-	return points, nil
-}
-
 func validateDailyIdentity(resourceID, currency string) error {
 	if resourceID == "" || strings.Contains(resourceID, "\x00") {
 		return errors.New("daily point resource id is empty or contains NUL")
@@ -192,28 +147,6 @@ func normalizeDailyCurrency(currency string) string {
 		return blankDailyCurrency
 	}
 	return currency
-}
-
-// dailySlotCount is the number of whole UTC days in [start, end).
-// An end that falls on a midnight is exclusive, matching windowDailyCosts.
-func dailySlotCount(start, end time.Time) (int, error) {
-	if start.IsZero() || end.IsZero() {
-		return 0, errors.New("daily costs are missing a start or end date")
-	}
-	if !end.After(start) {
-		return 0, errors.New("daily cost end is not after the start")
-	}
-	days := int(end.UTC().Sub(start.UTC()).Hours() / dailyHoursPerDay)
-	if days <= 0 {
-		return 0, errors.New("daily cost window is shorter than one day")
-	}
-	return days, nil
-}
-
-func dailyDay(start time.Time, index int) time.Time {
-	start = start.UTC()
-	midnight := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
-	return midnight.AddDate(0, 0, index)
 }
 
 func dailyPointKey(point DailyPoint) ([]byte, error) {

@@ -517,7 +517,7 @@ func TestDailyTarget_ExplicitPulumiInputIgnoresTerraformDirectory(t *testing.T) 
 	t.Chdir(dir)
 	cmd, _, _ := dailyCmd(t, "--pulumi-state", "state.json", "--stack", "org/app/dev")
 
-	target, err := dailyTarget(t.Context(), cmd, dailyCollectDeps{cfg: config.New()})
+	target, err := dailyTarget(cmd, dailyCollectDeps{cfg: config.New()}, t.TempDir())
 	require.NoError(t, err)
 	assert.Equal(t, "app", target.Project)
 	assert.Equal(t, "dev", target.Stack, "explicit Pulumi input is a Pulumi stack, not the Terraform directory")
@@ -631,4 +631,48 @@ func readDailyIfPresent(t *testing.T, dir string) []history.DailyPoint {
 		return nil
 	}
 	return readDaily(t, dir)
+}
+
+func TestCollectDailyPoints_AnOverflowingSumFailsOnlyItsResource(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	result := func(id string, cost float64) engine.CostResult {
+		return engine.CostResult{
+			ResourceID:        id,
+			DailyObservations: []engine.DailyObservation{{Timestamp: day, Cost: cost, Currency: "USD"}},
+		}
+	}
+	points, report := collectDailyPoints(&engine.CostResultWithErrors{Results: []engine.CostResult{
+		result("urn:big", math.MaxFloat64),
+		result("urn:ok", 3),
+		result("urn:big", math.MaxFloat64),
+	}}, nil, day.Add(48*time.Hour))
+
+	require.Len(t, points, 1, "the healthy resource is still stored")
+	assert.Equal(t, "urn:ok", points[0].ResourceID)
+	require.Len(t, report.Errors, 1)
+	assert.Equal(t, "urn:big", report.Errors[0].Resource)
+}
+
+func TestCollectDaily_TerraformStateNeedsAnExplicitFrom(t *testing.T) {
+	t.Parallel()
+
+	cmd, _, _ := dailyCmd(t, "--terraform-state", filepath.Join(t.TempDir(), "terraform.tfstate"))
+	err := runDailyCollect(cmd, dailyCollectDeps{
+		now: func() time.Time { return time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC) },
+		dir: t.TempDir(), project: "demo", stack: "dev", cfg: config.New(),
+	})
+	require.ErrorContains(t, err, "--from is required when using --terraform-state")
+	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
+}
+
+func TestDailyWindow_DefaultsToTheStartOfTheCurrentUTCDay(t *testing.T) {
+	t.Parallel()
+
+	cmd, _, _ := dailyCmd(t, "--from", "2026-10-01")
+	from, to, err := dailyWindow(cmd, time.Date(2026, 10, 31, 15, 4, 0, 0, time.UTC))
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), from)
+	assert.Equal(t, time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC), to, "today is partial, so the window ends before it")
 }

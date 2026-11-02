@@ -42,7 +42,7 @@ func OpenDailyDB(path, project, stack string) (*DailyDB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), dbDirPermissions); err != nil {
 		return nil, fmt.Errorf("creating daily actuals directory: %w", err)
 	}
-	db, err := bolt.Open(path, dbFilePermissions, &bolt.Options{Timeout: time.Second})
+	db, err := bolt.Open(path, dbFilePermissions, &bolt.Options{Timeout: time.Second, OpenFile: openDailyFile})
 	if err != nil {
 		return nil, fmt.Errorf("opening daily actuals: %w", err)
 	}
@@ -52,6 +52,27 @@ func OpenDailyDB(path, project, stack string) (*DailyDB, error) {
 		return nil, initErr
 	}
 	return store, nil
+}
+
+// openDailyFile is the only place the path is resolved for the open: it refuses
+// a symlink at the final component and a non-regular file, so a link swapped in
+// after rejectNonRegularDailyFile cannot send the database elsewhere. The Lstat
+// pre-check stays as the portable fallback where O_NOFOLLOW does not exist.
+func openDailyFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+	file, err := os.OpenFile(path, flag|noFollowFlag, perm)
+	if err != nil {
+		return nil, err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		_ = file.Close()
+		return nil, errors.New("daily actuals file is not a regular file")
+	}
+	return file, nil
 }
 
 func rejectNonRegularDailyFile(path string) error {

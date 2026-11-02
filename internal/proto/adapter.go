@@ -1670,8 +1670,12 @@ func actualCostObservations(pbcResults []*pbc.ActualCostResult) []ActualCostPoin
 		if result.GetTimestamp() == nil || !fitsOneUTCDay(result.GetFocusRecord()) {
 			continue
 		}
+		timestamp := result.GetTimestamp().AsTime().UTC()
+		if !stampedOnPeriodDay(timestamp, result.GetFocusRecord()) {
+			continue
+		}
 		points = append(points, ActualCostPoint{
-			Timestamp: result.GetTimestamp().AsTime().UTC(),
+			Timestamp: timestamp,
 			Cost:      result.GetCost(),
 			Currency:  pointCurrency(result),
 		})
@@ -1703,6 +1707,17 @@ func fitsOneUTCDay(focus *pbc.FocusCostRecord) bool {
 	}
 	last := end.Add(-time.Nanosecond)
 	return start.Year() == last.Year() && start.YearDay() == last.YearDay()
+}
+
+// stampedOnPeriodDay reports whether a bucket's timestamp lies on the UTC day
+// its charge period starts. A timestamp on another day would put the amount on
+// the wrong day. A bucket that states no period is taken as stamped correctly.
+func stampedOnPeriodDay(timestamp time.Time, focus *pbc.FocusCostRecord) bool {
+	if focus.GetChargePeriodStart() == nil {
+		return true
+	}
+	start := focus.GetChargePeriodStart().AsTime().UTC()
+	return start.Year() == timestamp.Year() && start.YearDay() == timestamp.YearDay()
 }
 
 func pointCurrency(result *pbc.ActualCostResult) string {

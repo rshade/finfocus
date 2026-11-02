@@ -77,7 +77,7 @@ specs/1924-daily-actuals/
 
 ```text
 internal/history/
-├── daily.go              # DailyPoint, file names, PointsForSeries
+├── daily.go              # DailyPoint, file names, PointsFromObservations
 ├── daily_db.go           # DailyDB open, replace, list, prune
 ├── daily_test.go
 ├── daily_db_test.go

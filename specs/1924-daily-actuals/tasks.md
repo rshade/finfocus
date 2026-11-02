@@ -12,10 +12,11 @@ prune.
 
 ## Phase 1: Store
 
-- [x] T001 Add `DailyPoint`, file names, and `PointsForSeries` in
+- [x] T001 Add `DailyPoint`, file names, and `PointsFromObservations` in
   `internal/history/daily.go`, with tests in `internal/history/daily_test.go`
-  for a dense series, a zero day, two currencies, a short series, and an
-  empty series.
+  for grouped days, a zero day, two currencies, a non-finite amount, and an
+  empty result. The even split in `DailyCosts` is never stored, so no
+  series-to-points function exists.
 - [x] T002 Add `DailyDB` in `internal/history/daily_db.go` and tests in
   `internal/history/daily_db_test.go`: replace one day, leave a day outside
   the new write, reject a symlink, refuse a projected timeline, and refuse to
