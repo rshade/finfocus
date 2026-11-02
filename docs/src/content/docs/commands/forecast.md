@@ -28,8 +28,10 @@ current month, so `--months 12` is 13 points. The allowed range is 1 to 36.
 
 The forecast covers the whole live stack: the resources the preview changes,
 creates, or replaces, plus the unchanged resources already deployed. A preview
-that changes one resource therefore forecasts the stack it belongs to, and the
-same stack gives the same forecast with or without `--pulumi-json`.
+that changes one resource therefore forecasts the stack it belongs to, not only
+the changed resource. The preview's changes still count: a new resource adds its
+cost, a deleted one leaves the forecast, and a changed price replaces the old
+one. Only the unchanged resources are the same with or without `--pulumi-json`.
 
 A saved preview given with no stack state, such as `--pulumi-json plan.json`
 outside a Pulumi project, forecasts only what that file lists, because nothing

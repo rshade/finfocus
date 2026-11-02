@@ -255,7 +255,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `finfocus.stack` reports the separate stack total and safe completeness status.
   `finfocus.emptyPlan` depends only on priceable plan resources, even with state.
   Forecast covers the whole live inventory (plan entries plus unchanged state,
-  `DiffResult.StackAfterCosts`, #1903), so a preview does not shrink it; actual
+  `DiffResult.StackAfterCosts`, #1903), so a preview never drops unchanged
+  resources, though its creates, deletes, and price changes still apply; actual
   costs use deployed inventory plus existing history enrichment
   (`specs/1733-shared-stack-loader/`).
   A saved preview whose URNs name another stack or project than the
