@@ -34,6 +34,7 @@ type clusterOutput struct {
 	NamespaceScoped bool                   `json:"namespace_scoped"`
 	Incomplete      bool                   `json:"incomplete"`
 	Groups          []engine.ClusterGroup  `json:"groups"`
+	Capacity        []engine.CapacityGroup `json:"capacity"`
 	Priced          []engine.PricedSummary `json:"priced"`
 	Policy          clusterPolicyOutput    `json:"policy"`
 	Warnings        []string               `json:"warnings,omitempty"`
@@ -45,13 +46,21 @@ func newClusterOutput(
 	out := clusterOutput{
 		Mode: res.Mode, Period: res.Period, Currency: res.Currency, GroupBy: groupBy,
 		Total: res.Total, NamespaceScoped: res.NamespaceScoped, Incomplete: res.Incomplete,
-		Groups: groups, Priced: res.Priced, Policy: policy, Warnings: res.Warnings,
+		Groups: groups, Capacity: capacityOrEmpty(res.Capacity), Priced: res.Priced,
+		Policy: policy, Warnings: res.Warnings,
 	}
 	if !res.NamespaceScoped {
 		idle := res.Idle
 		out.Idle = &idle
 	}
 	return out
+}
+
+func capacityOrEmpty(c []engine.CapacityGroup) []engine.CapacityGroup {
+	if c == nil {
+		return []engine.CapacityGroup{}
+	}
+	return c
 }
 
 func renderClusterResult(cmd *cobra.Command, format string, out clusterOutput) error {
@@ -96,6 +105,9 @@ func renderClusterTable(cmd *cobra.Command, out clusterOutput) error {
 	if err := w.Flush(); err != nil {
 		return err
 	}
+	if err := renderCapacityTable(cmd, out); err != nil {
+		return err
+	}
 	cmd.Println()
 	cmd.Printf("Mode:    %s\n", clusterModeLine(out))
 	cmd.Printf("Total:   $%.2f %s\n", out.Total, out.Currency)
@@ -119,6 +131,31 @@ func renderClusterTable(cmd *cobra.Command, out clusterOutput) error {
 		cmd.Printf("Incomplete: %d resources could not be priced (%s)\n", len(missing), strings.Join(missing, "; "))
 	}
 	return nil
+}
+
+func renderCapacityTable(cmd *cobra.Command, out clusterOutput) error {
+	labeled := false
+	for _, g := range out.Capacity {
+		if g.CapacityType != engine.CapacityUnlabeled {
+			labeled = true
+			break
+		}
+	}
+	if !labeled {
+		return nil
+	}
+	cmd.Println()
+	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, tabPadding, ' ', 0)
+	fmt.Fprintln(w, "CAPACITY TYPE\tNODES\tTOTAL\tSHARE\tIDLE\tNOTES")
+	for _, g := range out.Capacity {
+		share := 0.0
+		if out.Total > 0 {
+			share = g.TotalCost / out.Total * percentMultiplier
+		}
+		fmt.Fprintf(w, "%s\t%d\t%.2f\t%.1f%%\t%.2f\t%s\n", g.CapacityType, g.Nodes, g.TotalCost, share,
+			g.IdleCost, strings.Join(g.Notes, "; "))
+	}
+	return w.Flush()
 }
 
 func clusterModeLine(out clusterOutput) string {

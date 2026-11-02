@@ -133,3 +133,80 @@ func TestRenderCluster_NDJSON(t *testing.T) {
 	assert.Equal(t, "group", second["type"])
 	assert.Equal(t, "payments", second["key"])
 }
+
+func capacityClusterOutput() clusterOutput {
+	out := sampleClusterOutput(false)
+	out.Capacity = []engine.CapacityGroup{
+		{CapacityType: "on-demand", TotalCost: 55, IdleCost: 3, Nodes: 2, Rows: 4},
+		{CapacityType: "spot", TotalCost: 35, IdleCost: 3, Nodes: 1, Rows: 2,
+			Notes: []string{"spot node priced on-demand"}},
+		{CapacityType: engine.CapacityUnlabeled, TotalCost: 10, IdleCost: 1, Nodes: 1, Rows: 2},
+	}
+	return out
+}
+
+func TestRenderCluster_CapacityTable(t *testing.T) {
+	t.Parallel()
+
+	s := renderTo(t, outputFormatTable, capacityClusterOutput())
+	lines := strings.Split(s, "\n")
+	header := -1
+	for i, l := range lines {
+		if strings.HasPrefix(l, "CAPACITY TYPE") {
+			header = i
+		}
+	}
+	require.GreaterOrEqual(t, header, 0, s)
+	assert.Regexp(t, `^on-demand\s+2\s+55\.00\s+55\.0%\s+3\.00\s*$`, lines[header+1])
+	assert.Regexp(t, `^spot\s+1\s+35\.00\s+35\.0%\s+3\.00\s+spot node priced on-demand$`, lines[header+2])
+	assert.Regexp(t, `^unlabeled\s+1\s+10\.00\s+10\.0%\s+1\.00\s*$`, lines[header+3])
+}
+
+func TestRenderCluster_CapacityTableOmittedWhenAllUnlabeled(t *testing.T) {
+	t.Parallel()
+
+	out := sampleClusterOutput(false)
+	out.Capacity = []engine.CapacityGroup{{CapacityType: engine.CapacityUnlabeled, TotalCost: 100, Nodes: 1, Rows: 3}}
+	assert.NotContains(t, renderTo(t, outputFormatTable, out), "CAPACITY TYPE")
+}
+
+func TestRenderCluster_CapacityJSON(t *testing.T) {
+	t.Parallel()
+
+	var got struct {
+		Capacity []map[string]any `json:"capacity"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(renderTo(t, outputFormatJSON, capacityClusterOutput())), &got))
+	require.Len(t, got.Capacity, 3)
+	assert.Equal(t, "spot", got.Capacity[1]["capacity_type"])
+	assert.InDelta(t, 35, got.Capacity[1]["total_cost"], 1e-9)
+	assert.InDelta(t, 3, got.Capacity[1]["idle_cost"], 1e-9)
+	assert.InDelta(t, 1, got.Capacity[1]["nodes"], 1e-9)
+	assert.Equal(t, []any{"spot node priced on-demand"}, got.Capacity[1]["notes"])
+	assert.Equal(t, engine.CapacityUnlabeled, got.Capacity[2]["capacity_type"])
+	assert.NotContains(t, got.Capacity[0], "notes")
+
+	var empty map[string]any
+	require.NoError(t, json.Unmarshal([]byte(renderTo(t, outputFormatJSON,
+		newClusterOutput(&engine.ClusterResult{}, nil, "namespace", clusterPolicyOutput{}))), &empty))
+	assert.Equal(t, []any{}, empty["capacity"], "capacity is an empty array, never null")
+}
+
+func TestNewClusterOutput_CarriesCapacity(t *testing.T) {
+	t.Parallel()
+
+	res := &engine.ClusterResult{Capacity: []engine.CapacityGroup{{CapacityType: "spot", TotalCost: 1}}}
+	out := newClusterOutput(res, nil, "namespace", clusterPolicyOutput{})
+	require.Len(t, out.Capacity, 1)
+	assert.Equal(t, "spot", out.Capacity[0].CapacityType)
+	assert.NotNil(t, newClusterOutput(&engine.ClusterResult{}, nil, "namespace", clusterPolicyOutput{}).Capacity)
+}
+
+func TestRenderCluster_NDJSONSummaryCarriesCapacity(t *testing.T) {
+	t.Parallel()
+
+	lines := strings.Split(strings.TrimSpace(renderTo(t, outputFormatNDJSON, capacityClusterOutput())), "\n")
+	var first map[string]any
+	require.NoError(t, json.Unmarshal([]byte(lines[0]), &first))
+	assert.Len(t, first["capacity"], 3)
+}

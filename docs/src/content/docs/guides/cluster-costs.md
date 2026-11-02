@@ -59,6 +59,30 @@ The footer reports the mode and period, the priced total, idle cost and its
 share, the policy source with a short digest, and any resources that could not
 be priced.
 
+## Spend by capacity type
+
+When the usage source tags its nodes with `capacity_type` (the kubernetes and
+prometheus plugins do, including Karpenter's `karpenter.sh/capacity-type`), the
+table adds a section after the groups:
+
+```text
+CAPACITY TYPE  NODES  TOTAL   SHARE   IDLE   NOTES
+on-demand      2      55.00   55.0%   3.00
+spot           1      35.00   35.0%   3.00   spot node priced on-demand
+unlabeled      1      10.00   10.0%   1.00
+```
+
+Each allocated row, idle rows included, counts once, under the capacity type
+of its node, so the rows sum to the cluster total and idle cost is never
+counted twice. A node without the tag, and rows that name no node such as the
+control plane, go under `unlabeled`; they are not folded into on-demand.
+Tag values are shown as the plugin reports them. The section is omitted when
+no node is labeled.
+
+In run-rate mode a pricing plugin has no spot rate, so the allocator prices a
+spot node at its on-demand rate and says so in the NOTES column. A historical
+window carries actual spend and adds no such note.
+
 ## Grouping
 
 `--group-by` selects the aggregation dimension (default `namespace`):
@@ -129,8 +153,10 @@ traced back to the exact policy that produced it.
 
 `--output json` emits a single document with `mode`, `period`, `currency`,
 `group_by`, `total`, `idle` (omitted when namespace-scoped),
-`namespace_scoped`, `incomplete`, `groups`, `priced`, `policy`, and
-`warnings`. In historical mode, `priced[].monthly` is the window total
+`namespace_scoped`, `incomplete`, `groups`, `capacity`, `priced`, `policy`,
+and `warnings`. `capacity` is an array (empty when there are no rows) of
+`capacity_type`, `cpu_cost`, `mem_cost`, `total_cost`, `idle_cost`, `nodes`,
+`rows`, and `notes`; the `total_cost` values sum to `total`. In historical mode, `priced[].monthly` is the window total
 (`TotalCost`), not a 730-hour projection. Each group may include `pulumi_urns` when a workload in it
 carries annotation `finfocus.dev/pulumi-urn`. `--output ndjson` emits a `summary` line followed by one `group`
 line per group. The command is also exposed as an MCP tool (`finfocus
