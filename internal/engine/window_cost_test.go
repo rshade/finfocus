@@ -24,6 +24,7 @@ type windowBillPlugin struct {
 
 	mu             sync.Mutex
 	actualTotal    float64
+	observations   []proto.ActualCostPoint
 	projectedCalls int
 	actualReq      *proto.GetActualCostRequest
 }
@@ -34,9 +35,10 @@ func (p *windowBillPlugin) GetActualCost(
 	p.mu.Lock()
 	p.actualReq = in
 	total := p.actualTotal
+	observations := p.observations
 	p.mu.Unlock()
 	return &proto.GetActualCostResponse{
-		Results: []*proto.ActualCostResult{{Currency: "USD", TotalCost: total}},
+		Results: []*proto.ActualCostResult{{Currency: "USD", TotalCost: total, Observations: observations}},
 	}, nil
 }
 
@@ -152,4 +154,31 @@ func TestWindowCost_SkipStateEstimateKeepsZero(t *testing.T) {
 	require.NotNil(t, actual)
 	assert.Equal(t, from.Unix(), actual.StartTime)
 	assert.Equal(t, to.Unix(), actual.EndTime)
+}
+
+// A daily collection stores what the plugin reported, so a timestamped $0 day
+// must reach the caller instead of being replaced by a projected-rate estimate.
+func TestSkipStateEstimate_KeepsTimestampedZeroObservation(t *testing.T) {
+	t.Parallel()
+
+	plugin, eng, resource, from, to := windowBillFixture(0)
+	plugin.observations = []proto.ActualCostPoint{{Timestamp: from.Add(24 * time.Hour), Cost: 0, Currency: "USD"}}
+	request := ActualCostRequest{
+		Resources:               []ResourceDescriptor{resource},
+		From:                    from,
+		To:                      to,
+		RetainDailyObservations: true,
+	}
+
+	estimated, err := eng.GetActualCostWithOptionsAndErrors(t.Context(), request)
+	require.NoError(t, err)
+	require.Len(t, estimated.Results, 1)
+	assert.Empty(t, estimated.Results[0].DailyObservations, "the state estimate replaces the plugin result")
+
+	request.SkipStateEstimate = true
+	kept, err := eng.GetActualCostWithOptionsAndErrors(t.Context(), request)
+	require.NoError(t, err)
+	require.Len(t, kept.Results, 1)
+	require.Len(t, kept.Results[0].DailyObservations, 1)
+	assert.Zero(t, kept.Results[0].DailyObservations[0].Cost)
 }

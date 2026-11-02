@@ -454,9 +454,13 @@ finfocus cost history collect-daily --stack <name> [options]
 
 The file is `<project>@<stack>.daily.db` in the same history directory. A
 re-run replaces days the plugin sent and leaves every other day in place. A
-missing daily series stores nothing for that resource. The command is not an
-MCP tool. With `cost.history.retention.auto_prune` and `max_age_days` set,
-points older than that many days are deleted. `max_snapshots` does not apply
+missing daily series stores nothing for that resource. The command stores only
+what plugins report: it never estimates a day from state, so a reported $0 day
+is stored as $0 and a day the plugin did not send stays empty. A resource that
+every plugin declines counts as skipped. A bucket with no currency is stored as
+USD; a named currency is its own series. The command is not an MCP tool. With
+`cost.history.retention.auto_prune` and `max_age_days` set, points older than
+that many days are deleted. `max_snapshots` does not apply
 to this file.
 
 ### Usage (cost history export)

@@ -15,7 +15,9 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/history"
+	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
 const dailyCompleteDays = 30
@@ -110,7 +112,7 @@ func runDailyCollect(cmd *cobra.Command, deps dailyCollectDeps) error {
 	if err != nil {
 		return err
 	}
-	points, report := collectDailyPoints(priced, deps.now())
+	points, report := collectDailyPoints(priced, resources, deps.now())
 	report.Stack = target.Stack
 	report.Project = target.Project
 	report.From = from.UTC().Format(time.RFC3339)
@@ -283,18 +285,40 @@ func priceDailyResources(
 		return nil, err
 	}
 	defer cleanup()
-	eng, _, cleanupCache := newEngineWithCache(ctx, cmd, clients, nil, config.GetGlobalConfig())
+	eng, store, cleanupCache := newEngineWithCache(ctx, cmd, clients, nil, config.GetGlobalConfig())
 	defer cleanupCache()
-	return eng.GetActualCostWithOptionsAndErrors(ctx, engine.ActualCostRequest{
+	return priceDailyWithEngine(ctx, eng, clients, store, resources, from, to)
+}
+
+// priceDailyWithEngine resolves Terraform types the way cost actual does, so a
+// plugin that prices Pulumi tokens can price a Terraform state's resources.
+func priceDailyWithEngine(
+	ctx context.Context,
+	eng *engine.Engine,
+	clients []*pluginhost.Client,
+	store cache.Cache,
+	resources []engine.ResourceDescriptor,
+	from, to time.Time,
+) (*engine.CostResultWithErrors, error) {
+	resources = resolveResourceTypes(ctx, clients, store, resources)
+	return eng.GetActualCostWithOptionsAndErrors(ctx, dailyActualRequest(resources, from, to))
+}
+
+// dailyActualRequest asks for the plugin's day buckets and nothing else. A
+// state estimate would replace a plugin's reported $0 day, which carries no
+// observations, and would fill a gap the series must leave empty.
+func dailyActualRequest(resources []engine.ResourceDescriptor, from, to time.Time) engine.ActualCostRequest {
+	return engine.ActualCostRequest{
 		Resources:               resources,
 		From:                    from,
 		To:                      to,
 		RetainDailyObservations: true,
-	})
+		SkipStateEstimate:       true,
+	}
 }
 
 func collectDailyPoints(
-	priced *engine.CostResultWithErrors, written time.Time,
+	priced *engine.CostResultWithErrors, resources []engine.ResourceDescriptor, written time.Time,
 ) ([]history.DailyPoint, dailyCollectReport) {
 	report := dailyCollectReport{Errors: []dailyResourceError{}}
 	if priced == nil {
@@ -346,12 +370,47 @@ func collectDailyPoints(
 	}
 	points = dropFailedPoints(points, failed)
 	report.Errors = keepUnresolvedErrors(report.Errors, points)
+	markOmittedAsSkipped(resources, priced, points, failed, skipped)
 	report.skippedIDs = mapKeys(skipped)
 	report.SkippedResources = len(report.skippedIDs)
 	report.StoredPoints = len(points)
 	report.StoredResources = countResources(points)
 	sortDailyErrors(report.Errors)
 	return points, report
+}
+
+// markOmittedAsSkipped counts a billable resource the engine returned neither
+// a result nor an error for, which happens when every plugin declines it. The
+// summary would otherwise report a nonempty stack as nothing stored, skipped, or
+// failed.
+func markOmittedAsSkipped(
+	resources []engine.ResourceDescriptor,
+	priced *engine.CostResultWithErrors,
+	points []history.DailyPoint,
+	failed, skipped map[string]struct{},
+) {
+	reported := make(map[string]struct{}, len(priced.Results)+len(priced.Errors))
+	for i := range priced.Results {
+		reported[priced.Results[i].ResourceID] = struct{}{}
+	}
+	for _, detail := range priced.Errors {
+		reported[detail.ResourceID] = struct{}{}
+	}
+	for _, point := range points {
+		reported[point.ResourceID] = struct{}{}
+	}
+	for _, resource := range resources {
+		if engine.IsPulumiInternalType(resource.Type) {
+			continue
+		}
+		if _, seen := reported[resource.ID]; seen {
+			continue
+		}
+		if _, bad := failed[resource.ID]; bad {
+			continue
+		}
+		skipped[resource.ID] = struct{}{}
+	}
 }
 
 func observedCosts(points []engine.DailyObservation) []history.ObservedCost {

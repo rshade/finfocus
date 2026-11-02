@@ -1664,7 +1664,6 @@ func totalActualCost(pbcResults []*pbc.ActualCostResult) (float64, map[string]fl
 // actualCostObservations keeps each plugin bucket that has a timestamp.
 // Buckets with no timestamp stay in the summed total and do not become days.
 func actualCostObservations(pbcResults []*pbc.ActualCostResult) []ActualCostPoint {
-	fallback := actualCostCurrency(pbcResults)
 	points := make([]ActualCostPoint, 0, len(pbcResults))
 	for _, result := range pbcResults {
 		if result.GetTimestamp() == nil {
@@ -1673,7 +1672,7 @@ func actualCostObservations(pbcResults []*pbc.ActualCostResult) []ActualCostPoin
 		points = append(points, ActualCostPoint{
 			Timestamp: result.GetTimestamp().AsTime().UTC(),
 			Cost:      result.GetCost(),
-			Currency:  pointCurrency(result, fallback),
+			Currency:  pointCurrency(result),
 		})
 	}
 	if len(points) == 0 {
@@ -1682,7 +1681,9 @@ func actualCostObservations(pbcResults []*pbc.ActualCostResult) []ActualCostPoin
 	return points
 }
 
-func pointCurrency(result *pbc.ActualCostResult, fallback string) string {
+// pointCurrency is the bucket's own billing or pricing currency. A bucket that
+// names none is USD: another bucket's currency says nothing about it.
+func pointCurrency(result *pbc.ActualCostResult) string {
 	focus := result.GetFocusRecord()
 	if focus != nil {
 		if currency := strings.TrimSpace(focus.GetBillingCurrency()); currency != "" {
@@ -1692,7 +1693,7 @@ func pointCurrency(result *pbc.ActualCostResult, fallback string) string {
 			return currency
 		}
 	}
-	return fallback
+	return defaultCurrency
 }
 
 func actualCostCurrency(pbcResults []*pbc.ActualCostResult) string {

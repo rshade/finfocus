@@ -38,3 +38,21 @@ func TestActualCostObservations_KeepsTimestampedBuckets(t *testing.T) {
 
 	assert.Empty(t, actualCostObservations([]*pbc.ActualCostResult{{Cost: 10}}))
 }
+
+func TestActualCostObservations_BlankCurrencyDoesNotBorrowAnotherBucketsCurrency(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	points := actualCostObservations([]*pbc.ActualCostResult{
+		{Timestamp: timestamppb.New(day), Cost: 1},
+		{
+			Timestamp:   timestamppb.New(day),
+			Cost:        2,
+			FocusRecord: &pbc.FocusCostRecord{BillingCurrency: "EUR"},
+		},
+	})
+
+	require.Len(t, points, 2)
+	assert.Equal(t, "USD", points[0].Currency, "a blank currency is USD, whatever another bucket says")
+	assert.Equal(t, "EUR", points[1].Currency)
+}

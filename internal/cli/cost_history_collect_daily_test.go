@@ -6,16 +6,22 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 func TestCollectDailyPoints_IgnoresEvenSplit(t *testing.T) {
@@ -35,7 +41,7 @@ func TestCollectDailyPoints_IgnoresEvenSplit(t *testing.T) {
 				Timestamp: start, Cost: 4, Currency: "USD",
 			}},
 		}},
-	}, time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC))
+	}, nil, time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC))
 
 	require.Len(t, points, 1)
 	assert.InDelta(t, 4, points[0].Amount, 0)
@@ -324,4 +330,112 @@ func dailyHas(points []history.DailyPoint, id string, day time.Time, currency st
 		}
 	}
 	return false
+}
+
+func TestDailyActualRequest_StoresWhatThePluginReported(t *testing.T) {
+	t.Parallel()
+
+	from := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	to := from.Add(24 * time.Hour)
+	resources := []engine.ResourceDescriptor{{ID: "urn:a"}}
+	request := dailyActualRequest(resources, from, to)
+
+	assert.Equal(t, resources, request.Resources)
+	assert.Equal(t, from, request.From)
+	assert.Equal(t, to, request.To)
+	assert.True(t, request.RetainDailyObservations)
+	assert.True(t, request.SkipStateEstimate, "a state estimate would replace a reported $0 day and fill gaps")
+}
+
+func TestCollectDailyPoints_CountsResourcesTheEngineOmitted(t *testing.T) {
+	t.Parallel()
+
+	resources := []engine.ResourceDescriptor{
+		{ID: "urn:priced", Type: "aws:ec2/instance:Instance"},
+		{ID: "urn:declined", Type: "aws:rds/instance:Instance"},
+		{ID: "urn:stack", Type: "pulumi:pulumi:Stack"},
+	}
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	points, report := collectDailyPoints(&engine.CostResultWithErrors{
+		Results: []engine.CostResult{{
+			ResourceID:        "urn:priced",
+			DailyObservations: []engine.DailyObservation{{Timestamp: day, Cost: 3, Currency: "USD"}},
+		}},
+	}, resources, day.Add(48*time.Hour))
+
+	require.Len(t, points, 1)
+	assert.Equal(t, 1, report.SkippedResources, "a declined resource is reported, internal Pulumi types are not")
+	assert.Equal(t, []string{"urn:declined"}, report.skippedIDs)
+	assert.Empty(t, report.Errors)
+}
+
+// dailyTerraformPlugin resolves Terraform types to Pulumi tokens but prices
+// only those tokens, as a plugin that advertises resolution does.
+type dailyTerraformPlugin struct {
+	proto.CostSourceClient
+
+	mu    sync.Mutex
+	types []string
+	day   time.Time
+}
+
+func (*dailyTerraformPlugin) ResolveResourceTypes(
+	_ context.Context, _ *pbc.ResolveResourceTypesRequest, _ ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	return &pbc.ResolveResourceTypesResponse{Mappings: map[string]*pbc.ResourceTypeMapping{
+		"aws_instance": {PulumiToken: "aws:ec2/instance:Instance", Supported: true},
+	}}, nil
+}
+
+func (*dailyTerraformPlugin) Supports(
+	_ context.Context, _ *pbc.SupportsRequest, _ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	return &pbc.SupportsResponse{Supported: true}, nil
+}
+
+func (p *dailyTerraformPlugin) GetActualCost(
+	_ context.Context, in *proto.GetActualCostRequest, _ ...grpc.CallOption,
+) (*proto.GetActualCostResponse, error) {
+	p.mu.Lock()
+	p.types = append(p.types, in.ResourceType)
+	p.mu.Unlock()
+	if in.ResourceType != "aws:ec2/instance:Instance" {
+		return nil, errors.New("unsupported resource type " + in.ResourceType)
+	}
+	return &proto.GetActualCostResponse{Results: []*proto.ActualCostResult{{
+		Currency:     "USD",
+		TotalCost:    3,
+		Observations: []proto.ActualCostPoint{{Timestamp: p.day, Cost: 3, Currency: "USD"}},
+	}}}, nil
+}
+
+func TestPriceDailyWithEngine_ResolvesTerraformTypes(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	plugin := &dailyTerraformPlugin{day: day}
+	clients := []*pluginhost.Client{{
+		Name: "aws-plugin",
+		Metadata: &proto.PluginMetadata{
+			Name:               "aws-plugin",
+			SupportedProviders: []string{"aws"},
+			Capabilities:       []string{"actual_costs", capabilityResolveResourceTypes},
+		},
+		API:   plugin,
+		Close: func() error { return nil },
+	}}
+	resources := []engine.ResourceDescriptor{{
+		ID:         "aws_instance.web",
+		Type:       "aws_instance",
+		Provider:   "aws",
+		Properties: map[string]any{"instanceType": "t3.micro"},
+	}}
+
+	priced, err := priceDailyWithEngine(
+		t.Context(), engine.New(clients, nil), clients, nil, resources, day, day.Add(24*time.Hour),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"aws:ec2/instance:Instance"}, plugin.types, "the plugin prices the resolved token")
+	require.Len(t, priced.Results, 1)
+	require.Len(t, priced.Results[0].DailyObservations, 1)
 }
