@@ -29,10 +29,10 @@ func TestProjectedCacheMissesPreGrowthEntries(t *testing.T) {
 	}
 	key, err := ProjectedResourceCacheKey(resource)
 	require.NoError(t, err)
-	assert.True(t, strings.HasSuffix(key, projectedGrowthCacheSuffix), key)
+	assert.True(t, strings.HasSuffix(key, projectedGrowthCacheSuffix+projectedPricingCacheSuffix), key)
 
 	store := newMockCache(true)
-	oldKey := strings.TrimSuffix(key, projectedGrowthCacheSuffix)
+	oldKey := strings.TrimSuffix(key, projectedGrowthCacheSuffix+projectedPricingCacheSuffix)
 	require.NotEqual(t, oldKey, key)
 	// A result stored before GrowthType existed. Unmarshal would treat the
 	// missing field as no growth and forecast a linear resource as flat.

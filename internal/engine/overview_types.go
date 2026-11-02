@@ -212,6 +212,11 @@ type ProjectedCostData struct {
 	MonthlyCost float64            `json:"monthlyCost"`
 	Currency    string             `json:"currency"`
 	Breakdown   map[string]float64 `json:"breakdown,omitempty" datakey:"true"`
+	// PricingCategory and SpotInterruptionRisk are the plugin's values from
+	// CostResult, with the same meaning. OverviewRowResult.SpotDisplay is the
+	// label every renderer shows.
+	PricingCategory      PricingCategory `json:"pricingCategory,omitempty"`
+	SpotInterruptionRisk float64         `json:"spotInterruptionRisk,omitempty"`
 }
 
 // Validate checks that the ProjectedCostData fields are consistent.

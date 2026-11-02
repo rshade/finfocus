@@ -7,7 +7,6 @@ import (
 	"maps"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -323,21 +322,15 @@ func estimateResponseToCostResult(resp *pbc.EstimateCostResponse, resource *Reso
 	monthly := resp.GetCostMonthly()
 	hourly := monthly / hoursPerMonth
 
-	var notes []string
-	if resp.GetPricingCategory() != pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_UNSPECIFIED {
-		notes = append(notes, "Pricing: "+resp.GetPricingCategory().String())
-	}
-	if resp.GetSpotInterruptionRiskScore() > 0 {
-		notes = append(notes, fmt.Sprintf("Spot risk: %.2f", resp.GetSpotInterruptionRiskScore()))
-	}
-
 	result := &CostResult{
 		ResourceType: resource.Type,
 		ResourceID:   resource.ID,
 		Currency:     currency,
 		Monthly:      monthly,
 		Hourly:       hourly,
-		Notes:        strings.Join(notes, "; "),
+
+		PricingCategory:      PricingCategory(proto.PricingCategoryLabel(resp.GetPricingCategory())),
+		SpotInterruptionRisk: resp.GetSpotInterruptionRiskScore(),
 	}
 
 	if ts := resp.GetExpiresAt(); ts.IsValid() {

@@ -45,11 +45,14 @@ type EstimateProperty struct {
 
 // EstimateDisplay contains the presentation shared by estimate transports.
 type EstimateDisplay struct {
-	Baseline   string             `json:"baseline"`
-	Modified   string             `json:"modified"`
-	Change     string             `json:"change"`
-	Arrow      string             `json:"arrow"`
-	Properties []EstimateProperty `json:"properties"`
+	Baseline string `json:"baseline"`
+	Modified string `json:"modified"`
+	Change   string `json:"change"`
+	Arrow    string `json:"arrow"`
+	// BaselineSpot and ModifiedSpot are engine.SpotDisplay for each side, empty when not spot.
+	BaselineSpot string             `json:"baselineSpot,omitempty"`
+	ModifiedSpot string             `json:"modifiedSpot,omitempty"`
+	Properties   []EstimateProperty `json:"properties"`
 }
 
 // BuildEstimateDisplay formats estimates using shared TUI conventions. Sensitive
@@ -70,9 +73,11 @@ func BuildEstimateDisplay(
 			currency = result.Baseline.Currency
 		}
 		display.Baseline = FormatEstimateMonthly(result.Baseline.Monthly, currency)
+		display.BaselineSpot = result.Baseline.SpotDisplay()
 	}
 	if result.Modified != nil {
 		display.Modified = FormatEstimateMonthly(result.Modified.Monthly, currency)
+		display.ModifiedSpot = result.Modified.SpotDisplay()
 	}
 	delta := FormatEstimateDelta(result.TotalChange)
 	display.Change = delta.Text

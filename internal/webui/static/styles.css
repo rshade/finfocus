@@ -15,6 +15,9 @@
   --accent: #0b5cad;
   --accent-fg: #ffffff;
   --accent-hover: #094a8a;
+  --spot: #00525e;
+  --spot-bg: #d8f4f8;
+  --spot-border: #0e7490;
   --link: #0b5cad;
   --focus-ring: #0b5cad;
   --error: #b3261e;
@@ -42,6 +45,9 @@
     --accent: #8ab4f8;
     --accent-fg: #12161c;
     --accent-hover: #aecdfa;
+    --spot: #7fe3f0;
+    --spot-bg: #0b3a42;
+    --spot-border: #22a6bd;
     --link: #8ab4f8;
     --focus-ring: #8ab4f8;
     --error: #f28b82;
@@ -1074,4 +1080,19 @@ button:disabled {
 
 .anomalies-table .col-num {
   text-align: right;
+}
+
+/* --- Spot pricing tag --------------------------------------------------------- */
+
+.spot-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--spot-border);
+  border-radius: 999px;
+  background: var(--spot-bg);
+  color: var(--spot);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
 }

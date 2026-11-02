@@ -59,10 +59,12 @@ type EstimateModel struct {
 	editBuffer string
 
 	// Cost display
-	baselineCost float64
-	modifiedCost float64
-	currency     string
-	deltas       []engine.CostDelta
+	baselineCost    float64
+	modifiedCost    float64
+	baselinePricing pricingSnapshot
+	modifiedPricing pricingSnapshot
+	currency        string
+	deltas          []engine.CostDelta
 
 	// State management
 	state   EstimateState
@@ -171,12 +173,14 @@ func (m *EstimateModel) initializeProperties() {
 func (m *EstimateModel) applyResult(result *engine.EstimateResult) {
 	if result.Baseline != nil {
 		m.baselineCost = result.Baseline.Monthly
+		m.baselinePricing = snapshotPricing(result.Baseline)
 		if result.Baseline.Currency != "" {
 			m.currency = result.Baseline.Currency
 		}
 	}
 	if result.Modified != nil {
 		m.modifiedCost = result.Modified.Monthly
+		m.modifiedPricing = snapshotPricing(result.Modified)
 	}
 	m.deltas = result.Deltas
 
@@ -429,7 +433,10 @@ func (m *EstimateModel) renderEditingView() string {
 	}
 
 	// Cost comparison
-	output += RenderCostComparison(m.baselineCost, m.modifiedCost, m.currency)
+	output += RenderCostComparisonWithSpot(
+		m.baselineCost, m.modifiedCost, m.currency,
+		m.baselinePricing.display(), m.modifiedPricing.display(),
+	)
 	output += "\n\n"
 
 	// Property table with edit buffer if in edit mode
@@ -478,8 +485,8 @@ func (m *EstimateModel) GetResult() *engine.EstimateResult {
 
 	return &engine.EstimateResult{
 		Resource:    m.resource,
-		Baseline:    &engine.CostResult{Monthly: m.baselineCost, Currency: m.currency},
-		Modified:    &engine.CostResult{Monthly: m.modifiedCost, Currency: m.currency},
+		Baseline:    m.baselinePricing.costResult(m.baselineCost, m.currency),
+		Modified:    m.modifiedPricing.costResult(m.modifiedCost, m.currency),
 		TotalChange: m.modifiedCost - m.baselineCost,
 		Deltas:      deltas,
 	}

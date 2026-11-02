@@ -518,6 +518,13 @@ func FormatRecommendationCount(count int) string {
 // otherwise the notes consist solely of the sustainability list.
 func formatResourceNotes(result CostResult) string {
 	notes := result.Notes
+	if spot := result.SpotDisplay(); spot != "" {
+		if notes != "" {
+			notes = spot + "; " + notes
+		} else {
+			notes = spot
+		}
+	}
 	if len(result.Sustainability) > 0 {
 		var metrics []string
 		var keys []string

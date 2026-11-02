@@ -44,6 +44,10 @@ type OverviewRowResult struct {
 	DriftDisplay     string `json:"driftDisplay"`     // signed percent with optional warning icon, or "-"
 	RecsDisplay      string `json:"recsDisplay"`      // "N", "N(-M)", or "-"
 
+	// SpotDisplay is "SPOT · risk 0.12" or "SPOT · risk unknown" for a row
+	// priced as spot, else empty. Every renderer reads this one field.
+	SpotDisplay string `json:"spotDisplay,omitempty"`
+
 	// Metadata.
 	ActiveRecs    int  `json:"activeRecs"`
 	DismissedRecs int  `json:"dismissedRecs"`
@@ -175,6 +179,10 @@ func (r *OverviewRowResult) computeDisplayStrings() {
 	r.ProjectedDisplay = "-"
 	if r.Projected != nil {
 		r.ProjectedDisplay = FormatOverviewCurrency(*r.Projected)
+	}
+
+	if r.ProjectedCost != nil {
+		r.SpotDisplay = SpotDisplay(r.ProjectedCost.PricingCategory, r.ProjectedCost.SpotInterruptionRisk)
 	}
 
 	r.DeltaDisplay = "-"

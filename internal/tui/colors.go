@@ -10,6 +10,7 @@ var (
 	ColorWarning  = lipgloss.Color("208") // #ff8700 - Orange
 	ColorCritical = lipgloss.Color("196") // #ff0000 - Red
 	ColorInfo     = lipgloss.Color("33")  // #0087ff - Blue
+	ColorSpot     = lipgloss.Color("45")  // #00d7ff - Cyan (spot pricing accent)
 )
 
 // UI element colors.

@@ -4325,6 +4325,10 @@ func (e *Engine) usageProfileCacheSuffix() string {
 // projectedGrowthCacheSuffix versions cached projected results for GrowthType.
 const projectedGrowthCacheSuffix = "/growth-v1"
 
+// projectedPricingCacheSuffix versions cached projected results for
+// PricingCategory and SpotInterruptionRisk.
+const projectedPricingCacheSuffix = "/pricing-v1"
+
 // ProjectedResourceCacheKey returns the projected-cost cache key for one resource.
 // Callers that seed the cache, including overview, must use this key. It includes
 // a digest of the flattened tag map.
@@ -4360,6 +4364,9 @@ func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, erro
 	// an empty type is also a valid "no growth" answer. A new suffix misses
 	// those entries so the next lookup stores the plugin's model.
 	key += projectedGrowthCacheSuffix
+	// Entries written before CostResult.PricingCategory existed hold no spot
+	// data. Reading one back would show a spot resource as on-demand.
+	key += projectedPricingCacheSuffix
 	return key, nil
 }
 
