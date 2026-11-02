@@ -84,8 +84,11 @@ line. MCP callers get it because `cost cluster` is already an MCP tool.
 
 - **FR-001**: `engine.GroupClusterByCapacity` MUST group `ClusterRow` values by
   the `capacity_type` tag of the row's node, found by joining the row's
-  `cluster` and `node` subjects to the priceable descriptor's `cluster` tag
-  and id. It MUST keep no table of capacity
+  `cluster` and `node` subjects to a node descriptor (`kind=node`) by cluster
+  and Kubernetes name (workload rows) or cluster and priced id (idle rows).
+  An exact match wins, even with an empty tag. A row that names a cluster
+  falls back to a descriptor with no cluster tag, as the allocator does; a
+  descriptor tagged for another cluster never matches. It MUST keep no table of capacity
   values and MUST NOT interpret Kubernetes.
 - **FR-002**: A row whose node has no tag, an empty tag, or no node subject MUST
   go to the `unlabeled` group.
@@ -131,7 +134,10 @@ line. MCP callers get it because `cost cluster` is already an MCP tool.
   pods, orphan rows), not untagged nodes. It holds untagged nodes only for a
   usage source that omits the tag.
 - Nodes are matched by cluster and node name, because node names repeat
-  across clusters.
+  across clusters. Same-named nodes in different clusters use a composite
+  priced id (`cluster`, NUL, `node`) with `cluster` and `node` tags, which is
+  the only shape the SDK accepts. The in-tree plugins do not emit it yet.
+- Nodes are counted once per priced node, by its canonical cluster and id.
 
 ## Out of Scope
 

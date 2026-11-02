@@ -34,32 +34,74 @@ func nodeKey(cluster, node string) string {
 	return cluster + "\x00" + node
 }
 
-// capacityByNode maps each priceable resource's cluster and id to its
-// capacity_type tag. Resources without the tag, or with an empty value, are
-// absent.
-func capacityByNode(descs []*pbc.ResourceDescriptor) map[string]string {
-	out := make(map[string]string, len(descs))
+// capacityEntry is one priced node: its capacity_type tag (possibly empty) and
+// its canonical cluster-and-id key, unique across the request.
+type capacityEntry struct {
+	capacity string
+	id       string
+}
+
+// capacityIndex finds a node's capacity entry from an allocation row.
+type capacityIndex map[string]capacityEntry
+
+// capacityByNode indexes the node descriptors twice: under cluster and
+// Kubernetes name, which workload rows carry, and under cluster and priced id,
+// which idle rows carry. Descriptors of other kinds (control plane, Fargate
+// pods) are left out.
+func capacityByNode(descs []*pbc.ResourceDescriptor) capacityIndex {
+	idx := make(capacityIndex, len(descs))
 	for _, d := range descs {
-		if v := d.GetTags()[capacityTypeTag]; v != "" {
-			out[nodeKey(d.GetTags()[pluginsdk.SubjectCluster], d.GetId())] = v
+		tags := d.GetTags()
+		if tags[subjectKeyKind] != pluginsdk.KindNode {
+			continue
 		}
+		cluster := tags[pluginsdk.SubjectCluster]
+		name := tags[subjectKeyNode]
+		if name == "" {
+			name = d.GetId()
+		}
+		e := capacityEntry{capacity: tags[capacityTypeTag], id: nodeKey(cluster, d.GetId())}
+		idx[nodeKey(cluster, name)] = e
+		idx[e.id] = e
 	}
-	return out
+	return idx
+}
+
+// lookup finds the entry for a row's cluster and node. An exact match wins even
+// when its capacity is empty. A row that names a cluster falls back to a
+// descriptor with no cluster tag, as the allocator does; a descriptor tagged
+// for another cluster never matches.
+func (idx capacityIndex) lookup(cluster, node string) (capacityEntry, bool) {
+	if node == "" {
+		return capacityEntry{}, false
+	}
+	if e, ok := idx[nodeKey(cluster, node)]; ok {
+		return e, true
+	}
+	if cluster != "" {
+		e, ok := idx[nodeKey("", node)]
+		return e, ok
+	}
+	return capacityEntry{}, false
 }
 
 // GroupClusterByCapacity aggregates rows by the capacity_type of their node.
 // The tag value is opaque: core keeps no table of capacity types and reports
 // the plugin's row notes as they come.
-func GroupClusterByCapacity(rows []ClusterRow, capacity map[string]string) []CapacityGroup {
+func GroupClusterByCapacity(rows []ClusterRow, capacity capacityIndex) []CapacityGroup {
 	groups := map[string]*CapacityGroup{}
 	nodes := map[string]map[string]bool{}
 	notes := map[string]map[string]bool{}
 	for _, r := range rows {
 		node := r.Subject[subjectKeyNode]
-		nk := nodeKey(r.Subject[pluginsdk.SubjectCluster], node)
+		cluster := r.Subject[pluginsdk.SubjectCluster]
+		nk := nodeKey(cluster, node)
 		key := CapacityUnlabeled
-		if v := capacity[nk]; v != "" && node != "" {
-			key = v
+		if e, ok := capacity.lookup(cluster, node); ok {
+			nk = e.id
+			if e.capacity != "" {
+				key = e.capacity
+			}
 		}
 		g := groups[key]
 		if g == nil {

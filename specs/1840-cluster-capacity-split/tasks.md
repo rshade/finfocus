@@ -7,9 +7,9 @@
 
 - [X] T001 Write table-driven tests in `internal/engine/cluster_capacity_test.go`: mixed spot, on-demand, untagged, control-plane row, no tags, empty tag value, no rows; every case checks group totals sum to the row total
 - [X] T002 Write `RunClusterAllocation` tests: tagged nodes through the fake allocator give capacity totals equal to `Total` and idle counted once; namespace-scoped run has `idle_cost` 0
-- [X] T011 Write a same-node-name-in-two-clusters test and assert CPU and memory per bucket
 - [X] T003 Implement `CapacityGroup`, `capacityByNode`, `GroupClusterByCapacity` in `internal/engine/cluster_capacity.go`
 - [X] T004 Add `ClusterResult.Capacity` and fill it in `newClusterResult` in `internal/engine/cluster.go`
+- [X] T011 Match by cluster and node for workload rows and cluster and priced id for idle rows, node descriptors only, exact match before the clusterless fallback, nodes counted by canonical id; table tests in `cluster_capacity_test.go` cover composite-id two-cluster, clusterless descriptor with clustered rows, empty-tag exact match, other-cluster isolation, and non-node descriptors. The allocator shapes are built by hand: core cannot import the kubernetes plugin, so the real allocator was not run in these tests
 
 ## Phase 2: CLI
 

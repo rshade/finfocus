@@ -44,13 +44,15 @@ func capacityRows() []ClusterRow {
 func TestGroupClusterByCapacity(t *testing.T) {
 	t.Parallel()
 
-	capacity := map[string]string{nodeKey("", "spot-1"): "spot", nodeKey("", "od-1"): "on-demand"}
+	capacity := []*pbc.ResourceDescriptor{
+		capNode("", "spot-1", "", "spot"), capNode("", "od-1", "", "on-demand"),
+	}
 	const spotNote = "spot node priced on-demand"
 
 	tests := []struct {
 		name     string
 		rows     []ClusterRow
-		capacity map[string]string
+		capacity []*pbc.ResourceDescriptor
 		want     []CapacityGroup
 	}{
 		{
@@ -100,7 +102,7 @@ func TestGroupClusterByCapacity(t *testing.T) {
 		{
 			name:     "empty tag value is unlabeled",
 			rows:     capacityRows()[3:5],
-			capacity: map[string]string{nodeKey("", "od-1"): ""},
+			capacity: []*pbc.ResourceDescriptor{capNode("", "od-1", "", "")},
 			want: []CapacityGroup{
 				{
 					CapacityType: CapacityUnlabeled,
@@ -123,7 +125,7 @@ func TestGroupClusterByCapacity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := GroupClusterByCapacity(tt.rows, tt.capacity)
+			got := GroupClusterByCapacity(tt.rows, capacityByNode(tt.capacity))
 			require.Len(t, got, len(tt.want))
 			for i := range tt.want {
 				assert.Equal(t, tt.want[i].CapacityType, got[i].CapacityType)
@@ -147,40 +149,112 @@ func TestGroupClusterByCapacity(t *testing.T) {
 	}
 }
 
-func TestGroupClusterByCapacity_SameNodeNameInTwoClusters(t *testing.T) {
+func capNode(cluster, id, name, capacity string) *pbc.ResourceDescriptor {
+	tags := map[string]string{"kind": "node"}
+	if cluster != "" {
+		tags["cluster"] = cluster
+	}
+	if name != "" {
+		tags["node"] = name
+	}
+	if capacity != "" {
+		tags["capacity_type"] = capacity
+	}
+	return &pbc.ResourceDescriptor{Id: id, Tags: tags}
+}
+
+func capRow(kind, cluster, node string, cost float64) ClusterRow {
+	s := map[string]string{"kind": kind, "node": node}
+	if cluster != "" {
+		s["cluster"] = cluster
+	}
+	return ClusterRow{Subject: s, CPUCost: cost, TotalCost: cost}
+}
+
+func TestGroupClusterByCapacity_AllocatorShapes(t *testing.T) {
 	t.Parallel()
 
-	desc := func(cluster, capacity string) *pbc.ResourceDescriptor {
-		return &pbc.ResourceDescriptor{
-			Id:   "ip-10-0-1-5",
-			Tags: map[string]string{"cluster": cluster, "capacity_type": capacity},
-		}
+	type want struct {
+		total, idle float64
+		nodes       int
 	}
-	row := func(kind, cluster string, cost float64) ClusterRow {
-		return ClusterRow{
-			Subject:   map[string]string{"kind": kind, "cluster": cluster, "node": "ip-10-0-1-5"},
-			CPUCost:   cost,
-			TotalCost: cost,
-		}
+	tests := []struct {
+		name  string
+		descs []*pbc.ResourceDescriptor
+		rows  []ClusterRow
+		want  map[string]want
+	}{
+		{
+			name: "same node name in two clusters, composite ids",
+			descs: []*pbc.ResourceDescriptor{
+				capNode("c1", "c1\x00n1", "n1", "spot"),
+				capNode("c2", "c2\x00n1", "n1", "on-demand"),
+			},
+			rows: []ClusterRow{
+				capRow("workload", "c1", "n1", 17.5), capRow("workload", "c2", "n1", 70),
+				capRow("__idle__", "c1", "c1\x00n1", 52.5), capRow("__idle__", "c2", "c2\x00n1", 70),
+			},
+			want: map[string]want{"spot": {70, 52.5, 1}, "on-demand": {140, 70, 1}},
+		},
+		{
+			name:  "clusterless descriptor with rows stamped with a cluster",
+			descs: []*pbc.ResourceDescriptor{capNode("", "spot-1", "", "spot")},
+			rows: []ClusterRow{
+				capRow("workload", "c", "spot-1", 11.07), capRow("__idle__", "c", "spot-1", 18.93),
+				capRow("workload", "c", "fargate-ip-1", 0), capRow("workload", "c", "deleted-node", 0),
+			},
+			want: map[string]want{"spot": {30, 18.93, 1}, CapacityUnlabeled: {0, 0, 2}},
+		},
+		{
+			name: "exact match with an empty tag beats the clusterless fallback",
+			descs: []*pbc.ResourceDescriptor{
+				capNode("c1", "c1\x00n1", "n1", ""), capNode("", "n1", "", "spot"),
+			},
+			rows: []ClusterRow{capRow("workload", "c1", "n1", 5), capRow("__idle__", "c1", "c1\x00n1", 5)},
+			want: map[string]want{CapacityUnlabeled: {10, 5, 1}},
+		},
+		{
+			name:  "descriptor tagged for another cluster never matches",
+			descs: []*pbc.ResourceDescriptor{capNode("c1", "c1\x00n1", "n1", "spot")},
+			rows:  []ClusterRow{capRow("workload", "c2", "n1", 5)},
+			want:  map[string]want{CapacityUnlabeled: {5, 0, 1}},
+		},
+		{
+			name:  "single cluster run without cluster on rows",
+			descs: []*pbc.ResourceDescriptor{capNode("", "n1", "", "spot")},
+			rows:  []ClusterRow{capRow("workload", "", "n1", 6), capRow("__idle__", "", "n1", 4)},
+			want:  map[string]want{"spot": {10, 4, 1}},
+		},
+		{
+			name: "control plane and Fargate descriptors are not nodes",
+			descs: []*pbc.ResourceDescriptor{
+				{Id: "eks", Tags: map[string]string{"kind": "cluster", "capacity_type": "spot"}},
+				{Id: "fargate-1", Tags: map[string]string{"kind": "fargate", "capacity_type": "spot"}},
+			},
+			rows: []ClusterRow{capRow("workload", "", "fargate-1", 3)},
+			want: map[string]want{CapacityUnlabeled: {3, 0, 1}},
+		},
 	}
-	rows := []ClusterRow{
-		row("workload", "a", 10), row("__idle__", "a", 5),
-		row("workload", "b", 30), row("__idle__", "b", 20),
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := GroupClusterByCapacity(tt.rows, capacityByNode(tt.descs))
+			require.Len(t, got, len(tt.want))
+			var sumRows, sumGroups float64
+			for _, r := range tt.rows {
+				sumRows += r.TotalCost
+			}
+			for _, g := range got {
+				w, ok := tt.want[g.CapacityType]
+				require.True(t, ok, g.CapacityType)
+				assert.InDelta(t, w.total, g.TotalCost, 1e-9, g.CapacityType)
+				assert.InDelta(t, w.idle, g.IdleCost, 1e-9, g.CapacityType)
+				assert.Equal(t, w.nodes, g.Nodes, g.CapacityType)
+				sumGroups += g.TotalCost
+			}
+			assert.InDelta(t, sumRows, sumGroups, 1e-9, "buckets sum to the input")
+		})
 	}
-
-	got := GroupClusterByCapacity(rows, capacityByNode([]*pbc.ResourceDescriptor{
-		desc("a", "spot"), desc("b", "on-demand"),
-	}))
-
-	require.Len(t, got, 2)
-	assert.Equal(t, "on-demand", got[0].CapacityType)
-	assert.InDelta(t, 50, got[0].TotalCost, 1e-9)
-	assert.InDelta(t, 20, got[0].IdleCost, 1e-9)
-	assert.Equal(t, 1, got[0].Nodes)
-	assert.Equal(t, "spot", got[1].CapacityType)
-	assert.InDelta(t, 15, got[1].TotalCost, 1e-9)
-	assert.InDelta(t, 5, got[1].IdleCost, 1e-9)
-	assert.Equal(t, 1, got[1].Nodes)
 }
 
 func taggedNodeDesc(id, capacity string) *pbc.ResourceDescriptor {
