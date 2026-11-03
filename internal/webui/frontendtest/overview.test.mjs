@@ -79,7 +79,7 @@ async function setup({ routeModules = {} } = {}) {
   });
   await app.link(() => {}); await app.evaluate(); await flush();
   const overview = new vm.SourceTextModule(await readFile(new URL('../static/views/overview.js', import.meta.url), 'utf8'), { context });
-  await linkView(overview, app, context); await overview.evaluate();
+  await linkView(overview, app, context, 'overview'); await overview.evaluate();
   const stream = new app.namespace.OverviewStream();
   const calls = [];
   const api = {
@@ -108,7 +108,7 @@ test('a remounted overview recovers ready state from cached stream events', asyn
 });
 async function importOverview(t) {
   const mod = new vm.SourceTextModule(await readFile(new URL('../static/views/overview.js', import.meta.url), 'utf8'), { context: t.context });
-  await linkView(mod, t.app, t.context); await mod.evaluate(); return mod.namespace;
+  await linkView(mod, t.app, t.context, 'overview'); await mod.evaluate(); return mod.namespace;
 }
 
 test('an older query cannot overwrite the page after sorting', async () => {
