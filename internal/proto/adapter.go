@@ -518,6 +518,10 @@ type CostResult struct {
 	// SpotInterruptionRisk is the plugin's interruption score. It is meaningful
 	// only with PricingCategory "DYNAMIC", where 0 means unknown.
 	SpotInterruptionRisk float64
+	// OnDemandEquivalentMonthly is what the plugin says this result would cost
+	// on demand. Nil when the plugin left it unset or sent a value that cannot
+	// be used; see OnDemandEquivalent.
+	OnDemandEquivalentMonthly *float64
 }
 
 // SustainabilityMetric represents a single sustainability impact measurement.
@@ -1104,6 +1108,8 @@ func mapProjectedProto(resp *pbc.GetProjectedCostResponse) *CostResult {
 
 		PricingCategory:      PricingCategoryLabel(resp.GetPricingCategory()),
 		SpotInterruptionRisk: SpotRisk(resp.GetPricingCategory(), resp.GetSpotInterruptionRiskScore()),
+
+		OnDemandEquivalentMonthly: OnDemandEquivalent(resp.GetPricingCategory(), resp.OnDemandEquivalentMonthlyCost),
 	}
 	if ts := resp.GetExpiresAt(); ts != nil {
 		t := ts.AsTime()
@@ -1144,6 +1150,22 @@ func SpotRisk(category pbc.FocusPricingCategory, score float64) float64 {
 		return 0
 	}
 	return score
+}
+
+// OnDemandEquivalent keeps the plugin's on-demand monthly price only when the
+// field is present (a pointer, so an explicit 0 is kept), the category is
+// DYNAMIC, and the value is finite and not negative. Anything else is nil, so
+// the field is ignored on a non-spot result and a bad value never reaches
+// arithmetic or JSON. It returns a copy, never the response's own pointer.
+func OnDemandEquivalent(category pbc.FocusPricingCategory, value *float64) *float64 {
+	if value == nil || category != pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_DYNAMIC {
+		return nil
+	}
+	v := *value
+	if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 {
+		return nil
+	}
+	return &v
 }
 
 // PricingCategoryLabel names a plugin pricing category for CostResult.

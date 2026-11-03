@@ -18,26 +18,27 @@ import (
 func TestSpotDisplay(t *testing.T) {
 	t.Parallel()
 
+	const unavailable = " · spot savings unavailable"
 	tests := []struct {
 		name     string
 		category PricingCategory
 		risk     float64
 		want     string
 	}{
-		{"dynamic with risk", PricingCategoryDynamic, 0.12, "SPOT · risk 0.12"},
-		{"dynamic rounds to two places", PricingCategoryDynamic, 0.456, "SPOT · risk 0.46"},
-		{"dynamic zero risk is unknown", PricingCategoryDynamic, 0, "SPOT · risk unknown"},
+		{"dynamic with risk", PricingCategoryDynamic, 0.12, "SPOT · risk 0.12" + unavailable},
+		{"dynamic rounds to two places", PricingCategoryDynamic, 0.456, "SPOT · risk 0.46" + unavailable},
+		{"dynamic zero risk is unknown", PricingCategoryDynamic, 0, "SPOT · risk unknown" + unavailable},
 		{"standard is not spot", PricingCategoryStandard, 0.5, ""},
-		{"tiny risk is not shown as zero", PricingCategoryDynamic, 0.001, "SPOT · risk <0.01"},
-		{"risk at the display floor", PricingCategoryDynamic, 0.005, "SPOT · risk 0.01"},
-		{"risk of one", PricingCategoryDynamic, 1, "SPOT · risk 1.00"},
+		{"tiny risk is not shown as zero", PricingCategoryDynamic, 0.001, "SPOT · risk <0.01" + unavailable},
+		{"risk at the display floor", PricingCategoryDynamic, 0.005, "SPOT · risk 0.01" + unavailable},
+		{"risk of one", PricingCategoryDynamic, 1, "SPOT · risk 1.00" + unavailable},
 		{"committed is not spot", PricingCategoryCommitted, 0, ""},
 		{"unspecified is not spot", "", 0.9, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, SpotDisplay(tt.category, tt.risk))
+			assert.Equal(t, tt.want, SpotDisplay(tt.category, tt.risk, nil))
 		})
 	}
 
@@ -55,8 +56,8 @@ func TestMapProtoCostResultToEngine_Pricing(t *testing.T) {
 		wantCategory PricingCategory
 		wantDisplay  string
 	}{
-		{"dynamic", "DYNAMIC", 0.12, PricingCategoryDynamic, "SPOT · risk 0.12"},
-		{"dynamic zero risk", "DYNAMIC", 0, PricingCategoryDynamic, "SPOT · risk unknown"},
+		{"dynamic", "DYNAMIC", 0.12, PricingCategoryDynamic, "SPOT · risk 0.12 · spot savings unavailable"},
+		{"dynamic zero risk", "DYNAMIC", 0, PricingCategoryDynamic, "SPOT · risk unknown · spot savings unavailable"},
 		{"standard", "STANDARD", 0, PricingCategoryStandard, ""},
 		{"unspecified", "", 0, "", ""},
 	}
@@ -179,7 +180,37 @@ func TestProjectedCacheKeepsSpotFields(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.Equal(t, PricingCategoryDynamic, got[0].PricingCategory)
 	assert.InDelta(t, 0.12, got[0].SpotInterruptionRisk, 1e-9)
-	assert.Equal(t, "SPOT · risk 0.12", got[0].SpotDisplay())
+	assert.Equal(t, "SPOT · risk 0.12 · spot savings unavailable", got[0].SpotDisplay())
+}
+
+func TestProjectedCacheKeepsOnDemandEquivalent(t *testing.T) {
+	t.Parallel()
+
+	resource := ResourceDescriptor{
+		ID:         "i-spot",
+		Type:       "aws:ec2:Instance",
+		Provider:   "aws",
+		Properties: map[string]any{"instanceType": "t3.micro"},
+	}
+	onDemand := 100.0
+	cached := CostResult{
+		ResourceType:         resource.Type,
+		Monthly:              38,
+		Currency:             "USD",
+		PricingCategory:      PricingCategoryDynamic,
+		SpotInterruptionRisk: 0.12,
+	}
+	cached.applyOnDemandEquivalent(&onDemand)
+	eng := &Engine{cache: newMockCache(true)}
+	eng.storeProjectedCostCache(context.Background(), resource, []CostResult{cached})
+
+	got := eng.tryProjectedCostCache(context.Background(), resource)
+	require.Len(t, got, 1)
+	require.NotNil(t, got[0].OnDemandEquivalentMonthly)
+	assert.InDelta(t, 100, *got[0].OnDemandEquivalentMonthly, 1e-9)
+	require.NotNil(t, got[0].SpotSavingsPercent)
+	assert.InDelta(t, 62, *got[0].SpotSavingsPercent, 1e-9)
+	assert.Equal(t, "SPOT · risk 0.12 · -62% vs on-demand", got[0].SpotDisplay())
 }
 
 func TestProjectedCacheMissesPrePricingEntries(t *testing.T) {
@@ -240,8 +271,8 @@ func TestRenderCostTableShowsSpotTag(t *testing.T) {
 	var out bytes.Buffer
 	require.NoError(t, RenderCostTable(&out, results, CostTableOptions{}))
 	text := out.String()
-	assert.Contains(t, text, "SPOT · risk 0.12; billed hourly")
-	assert.Contains(t, text, "SPOT · risk unknown")
+	assert.Contains(t, text, "SPOT · risk 0.12 · spot savings unavailable; billed hourly")
+	assert.Contains(t, text, "SPOT · risk unknown · spot savings unavailable")
 	assert.Equal(t, 2, strings.Count(text, "SPOT"))
 	assert.Contains(t, text, "on-demand")
 }

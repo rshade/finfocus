@@ -30,18 +30,23 @@ func (c PricingCategory) IsSpot() bool {
 	return c == PricingCategoryDynamic
 }
 
-// SpotDisplay is the one spot label every surface renders: "SPOT · risk 0.12",
-// or "SPOT · risk unknown" when the score is 0.0 (proto3 cannot tell a zero
-// score from an unset one). It returns "" for any other category, so a caller
-// shows it only when it is not empty.
-func SpotDisplay(category PricingCategory, risk float64) string {
+// SpotDisplay is the one spot label every surface renders:
+// "SPOT · risk 0.12 · -62% vs on-demand". The risk reads "risk unknown" when
+// the score is 0.0 (proto3 cannot tell a zero score from an unset one). The
+// savings part reads "spot savings unavailable" when savingsPercent is nil,
+// never 0%. It returns "" for any other category, so a caller shows it only
+// when it is not empty.
+func SpotDisplay(category PricingCategory, risk float64, savingsPercent *float64) string {
 	if !category.IsSpot() {
 		return ""
 	}
+	label := spotTag + spotSeparator
 	if risk <= 0 {
-		return spotTag + spotSeparator + spotRiskUnknown
+		label += spotRiskUnknown
+	} else {
+		label += "risk " + formatSpotRiskValue(risk)
 	}
-	return spotTag + spotSeparator + "risk " + formatSpotRiskValue(risk)
+	return label + spotSeparator + spotSavingsDisplay(savingsPercent)
 }
 
 func formatSpotRiskValue(risk float64) string {
@@ -56,5 +61,5 @@ func (r *CostResult) SpotDisplay() string {
 	if r == nil {
 		return ""
 	}
-	return SpotDisplay(r.PricingCategory, r.SpotInterruptionRisk)
+	return SpotDisplay(r.PricingCategory, r.SpotInterruptionRisk, r.SpotSavingsPercent)
 }

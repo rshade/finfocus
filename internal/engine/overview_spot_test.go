@@ -33,8 +33,16 @@ func TestOverviewRowResult_SpotDisplay(t *testing.T) {
 		row  OverviewRow
 		want string
 	}{
-		{"dynamic with risk", spotOverviewRow("urn:a::spot", PricingCategoryDynamic, 0.12), "SPOT · risk 0.12"},
-		{"dynamic zero risk", spotOverviewRow("urn:a::unknown", PricingCategoryDynamic, 0), "SPOT · risk unknown"},
+		{
+			"dynamic with risk",
+			spotOverviewRow("urn:a::spot", PricingCategoryDynamic, 0.12),
+			"SPOT · risk 0.12 · spot savings unavailable",
+		},
+		{
+			"dynamic zero risk",
+			spotOverviewRow("urn:a::unknown", PricingCategoryDynamic, 0),
+			"SPOT · risk unknown · spot savings unavailable",
+		},
 		{"standard", spotOverviewRow("urn:a::std", PricingCategoryStandard, 0.4), ""},
 		{"unspecified", spotOverviewRow("urn:a::none", "", 0), ""},
 		{"no projected cost", OverviewRow{URN: "urn:a::bare", Type: "aws:s3/bucket:Bucket"}, ""},
@@ -81,7 +89,7 @@ func TestRenderOverviewAsTable_SpotTag(t *testing.T) {
 	}
 	require.Len(t, spotLines, 1)
 	require.Len(t, plainLines, 1)
-	assert.Contains(t, spotLines[0], "$25.00 SPOT · risk 0.12")
+	assert.Contains(t, spotLines[0], "$25.00 SPOT · risk 0.12 · spot savings unavailable")
 	assert.NotContains(t, plainLines[0], "SPOT")
 }
 
@@ -117,7 +125,7 @@ func TestOverviewJSON_CarriesPricingFields(t *testing.T) {
 		} `json:"projectedCost"`
 	}
 	require.NoError(t, json.Unmarshal(data, &decoded))
-	assert.Equal(t, "SPOT · risk 0.12", decoded.SpotDisplay)
+	assert.Equal(t, "SPOT · risk 0.12 · spot savings unavailable", decoded.SpotDisplay)
 	assert.Equal(t, "DYNAMIC", decoded.ProjectedCost.PricingCategory)
 	assert.InDelta(t, 0.12, decoded.ProjectedCost.SpotInterruptionRisk, 1e-9)
 

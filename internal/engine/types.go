@@ -566,6 +566,18 @@ type CostResult struct {
 	// It carries meaning only when PricingCategory is DYNAMIC, and 0 there
 	// means the risk is unknown, because proto3 cannot tell zero from unset.
 	SpotInterruptionRisk float64 `json:"spotInterruptionRisk,omitempty"`
+
+	// OnDemandEquivalentMonthly is the plugin's own figure for what this
+	// DYNAMIC result would cost on demand, on the same basis as Monthly. Nil
+	// when the plugin sent none, and always nil off DYNAMIC. Core never
+	// estimates it.
+	OnDemandEquivalentMonthly *float64 `json:"onDemandEquivalentMonthlyCost,omitempty"`
+
+	// SpotSavingsPercent is (OnDemandEquivalentMonthly - Monthly) /
+	// OnDemandEquivalentMonthly * 100, so 62 means spot is 62% cheaper. Nil when
+	// the on-demand figure is missing or 0; SpotDisplay then says savings are
+	// unavailable rather than 0%.
+	SpotSavingsPercent *float64 `json:"spotSavingsPercent,omitempty"`
 }
 
 // ErrorDetail captures information about a failed resource cost calculation.

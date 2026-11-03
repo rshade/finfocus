@@ -176,10 +176,10 @@ test('a late close event does not clear the retry prompt after it reopened', asy
 
 test('a spot row shows the server-formatted SPOT tag and other rows show none', async () => {
   const t = await setup();
-  t.calls[0].resolve(page([row('alpha', { spotDisplay: 'SPOT · risk 0.12' }), row('beta')])); await flush();
+  t.calls[0].resolve(page([row('alpha', { spotDisplay: 'SPOT · risk 0.12 · -62% vs on-demand' }), row('beta')])); await flush();
   const badges = t.container.querySelectorAll('.spot-badge');
   assert.equal(badges.length, 1);
-  assert.equal(badges[0].textContent, 'SPOT · risk 0.12');
+  assert.equal(badges[0].textContent, 'SPOT · risk 0.12 · -62% vs on-demand');
   assert.equal(t.container.querySelector('tr[data-urn="alpha"]').querySelectorAll('.spot-badge').length, 1);
   assert.equal(t.container.querySelector('tr[data-urn="beta"]').querySelectorAll('.spot-badge').length, 0);
   t.mounted.unmount();
@@ -189,9 +189,9 @@ test('the detail panel shows the SPOT tag for a spot row', async () => {
   const t = await setup();
   t.calls[0].resolve(page([row('alpha')])); await flush();
   t.container.querySelector('.resource-link').dispatch('click');
-  t.calls.at(-1).resolve(row('alpha', { displayName: 'Alpha', spotDisplay: 'SPOT · risk unknown' })); await flush();
+  t.calls.at(-1).resolve(row('alpha', { displayName: 'Alpha', spotDisplay: 'SPOT · risk unknown · spot savings unavailable' })); await flush();
   const badge = t.container.querySelector('.detail-panel').querySelector('.spot-badge');
-  assert.equal(badge.textContent, 'SPOT · risk unknown');
+  assert.equal(badge.textContent, 'SPOT · risk unknown · spot savings unavailable');
   t.mounted.unmount();
 });
 

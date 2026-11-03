@@ -12,16 +12,19 @@ import (
 )
 
 func spotRows() []engine.OverviewRow {
+	onDemand := 57.63
 	return []engine.OverviewRow{
 		{
 			URN:    "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::batch-worker",
 			Type:   "aws:ec2/instance:Instance",
 			Status: engine.StatusCreating,
 			ProjectedCost: &engine.ProjectedCostData{
-				MonthlyCost:          21.90,
-				Currency:             "USD",
-				PricingCategory:      engine.PricingCategoryDynamic,
-				SpotInterruptionRisk: 0.12,
+				MonthlyCost:               21.90,
+				Currency:                  "USD",
+				PricingCategory:           engine.PricingCategoryDynamic,
+				SpotInterruptionRisk:      0.12,
+				OnDemandEquivalentMonthly: &onDemand,
+				SpotSavingsPercent:        engine.SpotSavingsPercent(engine.PricingCategoryDynamic, 21.90, &onDemand),
 			},
 		},
 		{
@@ -127,12 +130,17 @@ func TestCostRowsAndDetailShowSpot(t *testing.T) {
 		},
 		{ResourceType: "aws:ec2:Instance", ResourceID: "std", Currency: "USD", Monthly: 73, Hourly: 0.1},
 	}
-	assert.Equal(t, "SPOT · risk 0.12", NewResourceRow(results[0]).SpotDisplay)
+	assert.Equal(t, "SPOT · risk 0.12 · spot savings unavailable", NewResourceRow(results[0]).SpotDisplay)
 	assert.Empty(t, NewResourceRow(results[1]).SpotDisplay)
 
 	spotDetail := ansi.Strip(RenderDetailView(results[0], 100))
 	assert.Contains(t, spotDetail, "Pricing:")
-	assert.Contains(t, spotDetail, "SPOT · risk 0.12")
+	assert.Contains(t, spotDetail, "SPOT · risk 0.12 · spot savings unavailable")
+
+	onDemand := 57.63
+	results[0].OnDemandEquivalentMonthly = &onDemand
+	results[0].SpotSavingsPercent = engine.SpotSavingsPercent(results[0].PricingCategory, results[0].Monthly, &onDemand)
+	assert.Contains(t, ansi.Strip(RenderDetailView(results[0], 100)), "SPOT · risk 0.12 · -62% vs on-demand")
 	assert.NotContains(t, ansi.Strip(RenderDetailView(results[1], 100)), "SPOT")
 
 	table := NewResultTable(results, 10)

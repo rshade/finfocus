@@ -186,7 +186,8 @@ func (r *OverviewRowResult) computeDisplayStrings() {
 	}
 
 	if r.ProjectedCost != nil {
-		r.SpotDisplay = SpotDisplay(r.ProjectedCost.PricingCategory, r.ProjectedCost.SpotInterruptionRisk)
+		r.SpotDisplay = SpotDisplay(
+			r.ProjectedCost.PricingCategory, r.ProjectedCost.SpotInterruptionRisk, r.ProjectedCost.SpotSavingsPercent)
 	}
 
 	r.DeltaDisplay = "-"
