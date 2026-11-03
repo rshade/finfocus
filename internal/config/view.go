@@ -431,7 +431,7 @@ func defaultValue(key string) any {
 		return DefaultBudgetPeriod
 	case keyPulumiCloudEnabled:
 		return cloudModeFalse
-	case "scoring.enabled":
+	case "scoring.enabled", "web.logs.enabled":
 		return false
 	case "scoring.identifier_mode":
 		return ScoringIdentifierPseudonymized

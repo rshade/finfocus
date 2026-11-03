@@ -1,0 +1,6 @@
+10:00:00.001 TRACE [core] tracing
+10:00:01.000 DEBUG [aws-public] pricing lookup region=us-east-1
+10:00:02.123 INFO  [overview] overview started resources=12
+10:00:03.000 WARN  [kubernetes] slow node
+10:00:04.000 ERROR [core] plugin call failed api_token=[redacted] nested={"host":"example.test","password":"[redacted]"}
+10:00:05.000 FATAL [core] giving up

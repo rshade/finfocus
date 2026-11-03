@@ -220,12 +220,17 @@ build-all: build build-recorder build-plugin build-kubernetes build-scorer build
 # Default test target - runs unit tests only (fast, for CI and local dev)
 # Unit tests are colocated with source; see test/README.md for details
 .PHONY: test
-test: test-unit test-frontend test-kubernetes test-scorer test-prometheus test-carbon
+test: test-unit test-frontend test-zerolog-viewer test-kubernetes test-scorer test-prometheus test-carbon
 
 # Browser renderer regression tests use the Node version pinned in mise.toml.
 .PHONY: test-frontend
 test-frontend:
 	node --experimental-vm-modules --disable-warning=ExperimentalWarning --test internal/webui/frontendtest/*.test.mjs
+
+# The standalone zerolog viewer package has its own node:test suite.
+.PHONY: test-zerolog-viewer
+test-zerolog-viewer:
+	node --test packages/zerolog-viewer/test/*.test.mjs
 
 # Browser acceptance is credential-free and requires the real binary and Chromium.
 # Resolve the installer in the nested module, keeping its driver version matched.

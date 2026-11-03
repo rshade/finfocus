@@ -46,7 +46,7 @@ start the opener is logged as a warning; the server keeps running.
 
 ## Views
 
-The header links to nine views. Each has its own URL fragment, and a
+The header links to nine views, and a tenth, Logs, when you turn it on. Each has its own URL fragment, and a
 **Skip to main content** link comes first in the tab order.
 
 | View | Fragment | Shows |
@@ -60,6 +60,7 @@ The header links to nine views. Each has its own URL fragment, and a
 | Carbon | `#/carbon` | Provider-published monthly carbon emissions for complete UTC months, with source, provider, grouping, period, model version, and retrieval time per record |
 | Config | `#/config` | Effective configuration, the tier each value comes from, and edits to known settings in the project or global file |
 | Plugins | `#/plugins` | Built-in catalog, installed versions, install, update, remove, validate, and per-plugin settings |
+| Logs | `#/logs` | Live log lines from FinFocus and its plugins. Shown only when [web logs are enabled](#logs-view). |
 
 ### Overview controls
 
@@ -215,6 +216,61 @@ newest release has no files yet, the confirmation names the older version that
 will be installed. A missing checksum file is named before the install
 continues. A checksum that does not match stops the install.
 
+### Logs view
+
+The Logs view is off by default. When it is off, the header has no Logs link,
+nothing is captured, and the `/api/logs/` routes do not exist.
+
+| Setting | Effect |
+| --- | --- |
+| `FINFOCUS_WEB_LOGS` | `1` or `true` turns the view on; `0` or `false` turns it off. Any other non-empty value is a validation error (exit 2) when the dashboard starts. |
+| `web.logs.enabled` | `true` turns the view on in `config.hujson`. Set it with `finfocus config set web.logs.enabled true`. |
+
+The environment variable wins over the configuration key. With neither set,
+the view is off. The setting is read when the dashboard starts, so a change
+applies to the next launch. Capturing starts with the dashboard, so lines from
+the initial load are already there when you open the view.
+
+| Control | Effect |
+| --- | --- |
+| Source chips | One chip per source seen so far (`core` and each plugin). Select chips to show only those sources. |
+| Source kind | **All sources**, **Core**, or **Plugins**. |
+| Minimum level | **All levels**, or a level and above (`trace+` through `panic+`). |
+| Filter | Text to find in the message and in field values. Nothing else is searched. |
+| **Regex** | Reads the filter as a regular expression. An invalid expression is reported next to the box and the previous result stays. |
+| **Pause** / **Resume** | Stops following the newest line. The status line counts lines that arrive while paused. |
+| **Clear** | Empties the view. The server buffer is not cleared. |
+| **Download NDJSON** | Saves the rows currently shown, after filters, as `logs-<timestamp>.ndjson`. The browser builds the file; there is no download endpoint. |
+
+Each row shows the time, a level badge that carries the level name as text, the
+source, the message, and the remaining fields. All text is inserted as text, so
+markup in a message is shown literally. The view keeps the newest 2000 rows
+and counts the older ones it dropped.
+
+The server keeps the newest 5000 entries in memory. When the buffer is full, the
+oldest entry is dropped and counted. Nothing the viewer captures is written to
+disk. The configured log file receives the same lines as it does when the view
+is off.
+
+Credential-like field names and Pulumi secret values in fields are replaced
+with `[redacted]` before an entry leaves the server, and fields whose names
+start with `__` are removed. The free-text `message` is shown as written.
+
+#### Log sources
+
+A plugin's lines are tagged with its `plugin_name` field when the line has one.
+Otherwise the tag is the plugin's name taken from its binary path, such as
+`aws-public` for `finfocus-plugin-aws-public`. Lines from the host are `core`.
+A line that is not JSON is shown at level `info`, with the tag of the plugin
+that printed it.
+
+While the view is on, FinFocus does not pass `FINFOCUS_LOG_FILE` to plugins.
+Their log output goes to standard error, and FinFocus copies it to the log
+file and to the view. See [Web UI design](../architecture/web-ui.md#log-capture).
+
+The same entries are available in the terminal with
+[`finfocus logs`](../commands/logs.md).
+
 ### Web-only controls
 
 The **Group by** selector and the **Include dismissed** checkbox expose existing
@@ -283,6 +339,10 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST /api/forecast/query` when no resource was priced, or priced resources use two currencies | 422 | `no_forecast` | The message `cost forecast` prints, such as `no cost data available`. |
 | `POST /api/forecast/query` before the session has loaded | 503 | `not_ready` | `forecast data is loading` |
 | `POST /api/forecast/query` whose pricing fails | 502 | `forecast_unavailable` | `forecast data unavailable` |
+| `GET /api/logs/status` | 200 | - | `enabled`, `capacity`, `retained`, `dropped`, and `sources` (each with `name` and `kind`, `core` or `plugin`). |
+| `GET /api/logs/stream` | 200 | - | Server-sent events: `snapshot` (`entries`, `sources`, `dropped`, `capacity`), then `log` for each new entry, and `gap` (`missed`) when entries were lost between a reconnect and its replay. Each frame's `id` is the entry's `seq`; send `Last-Event-ID` to resume. A comment line is sent every 15 seconds. |
+| Any `/api/logs/` path while web logs are off | 404 | `not_found` | `unknown path` |
+| `/api/logs/status` or `/api/logs/stream` with a method other than `GET` | 405 | `method_not_allowed` | `GET only` |
 | `GET /api/history/view` | 200 | - | The `cost history view --output json` document for the session stack (`stack`, `snapshots`, `annotations`, `currency_warning`), plus `status: "ok"`, `budget` when a global budget is set, and `display` strings. Optional `from` and `to` (`YYYY-MM-DD` or RFC 3339), `currency`, and `strict` (`true` or `false`) work like the flags. |
 | `GET /api/history/diff?from=<selector>` | 200 | - | The `cost history diff --output json` document, plus `status: "ok"` and `display` strings. `from` and `to` take `v35` or `YYYY-MM-DD`; an empty `to` is the newest snapshot. `threshold` hides changes at or below that monthly amount. |
 | `GET /api/history/resource?id=<id>` | 200 | - | One resource's stored series, the points the terminal detail view loads: `status: "ok"`, `id`, `points` (`timestamp`, `amount`, `currency`), and `display.points`. |
@@ -292,6 +352,9 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `GET /api/history/resource` with no `id` | 400 | `invalid_query` | `resource id required` |
 | A history request before the session has loaded | 503 | `not_ready` | `cost history is loading` |
 | A history database that cannot be read or belongs to another stack | 502 | `history_unavailable` | `cost history unavailable` |
+
+Requests under `/api/logs/` are not written to the dashboard's request log, so
+the stream does not add lines to the log it shows.
 
 The session cookie is `finfocus_session_<port>`, with `HttpOnly`,
 `SameSite=Strict`, and `Path=/`, and without `Secure`. The token stays valid

@@ -304,3 +304,43 @@ func TestConfigAPIPulumiCloudHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"cost":{"history":{"pulumi_cloud":{"enabled":"auto"}}}}`, string(data))
 }
+
+func TestConfigAPIListsWebLogsSetting(t *testing.T) {
+	t.Parallel()
+	global := filepath.Join(t.TempDir(), "config.hujson")
+	session := NewSession(context.Background(), SessionOptions{
+		ConfigView: func(context.Context) (config.Page, error) { return config.BuildPage(global, "") },
+		ConfigPreview: func(_ context.Context, request config.WriteRequest) (config.PatchResult, error) {
+			return writeConfig(global, request, true)
+		},
+		ConfigSave: func(_ context.Context, request config.WriteRequest) (config.PatchResult, error) {
+			return writeConfig(global, request, false)
+		},
+	})
+	server := newRunningServer(t, Options{Session: session})
+
+	response := overviewRequest(t, server, http.MethodGet, "/api/config", "")
+	require.Equal(t, http.StatusOK, response.StatusCode)
+	var page config.Page
+	require.NoError(t, json.Unmarshal([]byte(readBody(t, response)), &page))
+	var found *config.SettingView
+	for i := range page.Settings {
+		if page.Settings[i].Key == "web.logs.enabled" {
+			found = &page.Settings[i]
+		}
+	}
+	require.NotNil(t, found)
+	assert.Equal(t, config.KindBool, found.Kind)
+	assert.Contains(t, found.Help, "resource names")
+	assert.Contains(t, found.Help, "paths")
+
+	saved := overviewRequest(t, server, http.MethodPost, "/api/config", `{
+	  "tier": "global",
+	  "baseVersion": "`+page.Versions[config.TierGlobal]+`",
+	  "changes": [{"key": "web.logs.enabled", "value": "true"}]
+	}`)
+	require.Equal(t, http.StatusOK, saved.StatusCode, readBody(t, saved))
+	onDisk, err := os.ReadFile(global)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"web":{"logs":{"enabled":true}}}`, string(onDisk))
+}

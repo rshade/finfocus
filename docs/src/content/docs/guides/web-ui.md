@@ -241,6 +241,60 @@ When Pulumi ESC supplies a plugin setting, the Status cell reads
 `from ESC (<reference>)`. The help text names that environment and says it
 overrides the shell and both configuration files. The value stays hidden.
 
+## Watch the logs
+
+The dashboard can show the log lines that FinFocus and its plugins write while
+the session runs. The view is off by default. Turn it on for one run with an
+environment variable:
+
+```bash
+FINFOCUS_WEB_LOGS=1 finfocus --web
+```
+
+Or turn it on for every run:
+
+```bash
+finfocus config set web.logs.enabled true
+```
+
+The environment variable wins over the setting, so `FINFOCUS_WEB_LOGS=0`
+turns the view off for one run even when the setting is `true`. A value other
+than `1`, `true`, `0`, or `false` stops the launch with a validation error.
+
+Open **Logs** in the header. Earlier lines from the initial load are already
+there, oldest first, and new lines follow. For debug lines, add `--debug` or
+set `FINFOCUS_LOG_LEVEL=debug` before you launch.
+
+To narrow what you see:
+
+- Select source chips to show only `core` or specific plugins, or use the
+  **All sources** / **Core** / **Plugins** select.
+- Choose a minimum level, such as `warn+`.
+- Type text in the filter box. It matches the message and field values, not
+  field names. Turn on **Regex** to use a regular expression.
+- Press **Pause** to stop following the newest line while you read. The status
+  line counts the lines that arrive meanwhile. Press **Resume** to follow
+  again.
+- Press **Clear** to empty the view. This does not touch the log file.
+- Press **Download NDJSON** to save the rows currently shown, after filters,
+  as a file with one JSON object per line.
+
+For the same data in a terminal, run [`finfocus logs`](../commands/logs.md). It
+reads the log file once, with the same filters and the same redaction.
+
+### What the log view shows
+
+- Credential-like field names and Pulumi secret values in fields are replaced
+  with `[redacted]`, in the page and in the downloaded file. The free-text
+  message is shown as written, because it cannot be inspected reliably.
+  Plugins should never log credentials in a message.
+- Log lines can contain resource names and file paths. The view is served only
+  on `127.0.0.1` behind the session token, like the rest of the dashboard.
+- The server holds the newest 5000 entries in memory, and the page shows the
+  newest 2000 rows. Older entries are dropped. The viewer writes nothing to
+  disk, and the entries disappear when the session ends. The log file keeps
+  receiving the same lines it does with the view off.
+
 ## Stop the session
 
 Closing the browser tab does not stop FinFocus. Press `Ctrl+C` in the terminal
@@ -257,6 +311,7 @@ that launched it to shut down the server and its plugins.
 | `port <n> on 127.0.0.1 is unavailable` | Another process holds the pinned port. Choose another `--port` or omit it. |
 | `valid session cookie required; open the URL printed in the terminal` | Open the printed URL, not the bare address. |
 | `invalid session token; open the URL printed in the terminal` | The token belongs to an earlier session. Use the URL from the current run. |
+| No Logs link in the header | Logs are off by default. Set `FINFOCUS_WEB_LOGS=1` or `web.logs.enabled` to `true` and relaunch. |
 | No cost data | Check that the needed plugins are installed: `finfocus plugin list`. |
 
 ## Limitations
@@ -276,5 +331,6 @@ that launched it to shut down the server and its plugins.
   HTTP behavior
 - [Web UI design](../architecture/web-ui.md): the security model and how the
   dashboard shares the CLI engine
+- [logs command](../commands/logs.md): the same log data from the terminal
 - [overview command](../commands/overview.md): the terminal equivalent
 - [CLI Commands Reference](../reference/cli-commands.md#root-command-entry-points)

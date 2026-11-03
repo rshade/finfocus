@@ -1,0 +1,6 @@
+{"level":"trace","time":"2026-11-02T10:00:00.001Z","message":"tracing"}
+{"level":"debug","plugin_name":"aws-public","time":"2026-11-02T10:00:01Z","message":"pricing lookup","region":"us-east-1"}
+{"level":"info","component":"overview","time":"2026-11-02T10:00:02.123Z","message":"overview started","resources":12}
+{"level":"warn","plugin_name":"kubernetes","time":"2026-11-02T10:00:03Z","message":"slow node"}
+{"level":"error","time":"2026-11-02T10:00:04Z","message":"plugin call failed","api_token":"abc123","nested":{"host":"example.test","password":"hunter2"}}
+{"level":"fatal","time":"2026-11-02T10:00:05Z","message":"giving up"}

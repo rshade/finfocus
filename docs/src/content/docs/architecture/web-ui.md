@@ -104,6 +104,54 @@ each setting and its set or source status stay in the response, and the handler
 writes that document directly. A redactor that drops credential-looking keys
 would delete settings the page is supposed to list.
 
+## Log capture
+
+The optional Logs view (`web.logs.enabled`, `FINFOCUS_WEB_LOGS`) shows the log
+lines of the core process and its plugins. Four choices shape it.
+
+**Lines are parsed and redacted in Go.** The redaction rules live in Go
+(`config.IsCredentialName` for names, `history.IsPulumiSecret` for values), and
+the project keeps one copy of each. Redacting in JavaScript would need a second
+list that could drift. So the `internal/weblog` package turns each raw line
+into an entry, redacts its fields, and sets its display strings before the line
+is stored. The browser receives entries and never a raw line. The free-text
+`message` is not redacted, because it cannot be inspected reliably; plugins are
+told never to log credentials. `finfocus logs` uses the same package, so the
+terminal and the page show one pipeline's output.
+
+**Plugins stop receiving `FINFOCUS_LOG_FILE` while logs are on.** When core
+logs to a file, it normally passes that path to each plugin, and the plugin SDK
+then opens the file and writes straight to it. Core would see nothing on the
+plugin's standard error. With the view on, core omits the variable, so the SDK
+writes JSON to standard error. Core copies each plugin's standard error to its
+existing log destination and to the log hub, so the file receives the same
+lines as before. With the view off, the plugin environment is unchanged.
+Core's own lines reach the hub through a tee writer on the logger, next to the
+normal output.
+
+**The viewer is a separate package.** `packages/zerolog-viewer` is plain ES
+modules with no dependencies and no build step. It imports nothing outside its
+own `src` folder, calls no network API, and never writes HTML from log text. A
+test enforces that. The dashboard's `views/logs.js` is the only glue: it opens
+the stream and feeds entries to the viewer. That keeps the viewer usable on its
+own and keeps the dashboard's page free of log-parsing code.
+
+**The stream is dedicated.** Log entries use their own server-sent event
+stream, `/api/logs/stream`, not the overview event bus. That bus redacts
+payloads with the engine's data-keyed rules and drops slow subscribers, which
+suits neither raw log entries nor a replayable buffer. The log stream sends a snapshot of
+the buffer first, then each new entry with its sequence number as the event id,
+so a reconnect resumes without duplicates. The hub keeps a bounded in-memory
+ring (5000 entries) and drops the oldest entry when it is full.
+
+When the setting is off, the server registers no log routes, so the paths
+answer 404 like any unknown path, the header link stays hidden, and no log hub
+exists to capture anything. Requests under `/api/logs/` are left out of the
+request log, so watching the logs does not add lines to them.
+
+`internal/webui` reaches the hub only through a small `LogSource` interface, so
+it does not import `cli`, `registry`, or `pluginhost`.
+
 ## Layout and adding a feature
 
 Every view is built from the same slots, in the same order, so a new feature

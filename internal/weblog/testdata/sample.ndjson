@@ -1,0 +1,8 @@
+{"level":"info","component":"overview","time":"2026-11-02T10:00:00.123Z","message":"overview started","resources":12}
+{"level":"debug","plugin_name":"aws-public","time":"2026-11-02T10:00:01Z","message":"pricing lookup","region":"us-east-1"}
+plain text from a plugin that does not use the SDK logger
+{"level":"info","time":"2026-11-02T10:00:02Z","message":"connecting","api_token":"abc123","nested":{"password":"hunter2","host":"example.test"}}
+{"level":"warn","component":"engine","time":"2026-11-02T10:00:03Z","message":"secret property","instanceType":{"4dabf18193072939515e22adb298388d":"1","ciphertext":"v1:xyz"}}
+{"level":"info","time":"2026-11-02T10:00:04Z","message":"inputs","__defaults":["a"],"keep":"yes"}
+{"level":"verbose","time":"2026-11-02T10:00:05Z","message":"unknown level line"}
+{"level":"warning","plugin_name":"kubernetes","time":"2026-11-02T10:00:06Z","message":"slow node"}

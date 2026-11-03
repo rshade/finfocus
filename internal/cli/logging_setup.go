@@ -16,6 +16,7 @@ import (
 	"github.com/rshade/finfocus/internal/constants"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/weblog"
 )
 
 // loggingSession owns the log destinations opened for one CLI process
@@ -32,6 +33,7 @@ type loggingSession struct {
 	logger          zerolog.Logger
 	pluginLogWriter *os.File
 	auditLogger     logging.AuditLogger
+	webHub          *weblog.Hub
 
 	closeOnce sync.Once
 	closeErr  error
@@ -39,7 +41,47 @@ type loggingSession struct {
 
 // setupLogging configures logging based on config file, environment, and CLI flags,
 // attaches it to cmd's context, and returns the session that owns the opened handles.
+//
+// An invalid FINFOCUS_WEB_LOGS value only disables the web log hub here; use
+// setupLoggingChecked to receive that error.
 func setupLogging(cmd *cobra.Command) *loggingSession {
+	session, err := setupLoggingChecked(cmd)
+	if err != nil {
+		return setupLoggingWithHub(cmd, false)
+	}
+	return session
+}
+
+// dashboardWillRun reports whether cmd can serve the web dashboard: the
+// root --web invocation, or the overview command whose TUI hands off to it.
+func dashboardWillRun(cmd *cobra.Command) bool {
+	if cmd.Name() == overviewCommandName {
+		return true
+	}
+	web, err := cmd.Flags().GetBool(webFlag)
+	return err == nil && web
+}
+
+// setupLoggingChecked is setupLogging that also reports an invalid
+// FINFOCUS_WEB_LOGS value when a dashboard will run. No log destination is
+// opened on error.
+func setupLoggingChecked(cmd *cobra.Command) (*loggingSession, error) {
+	withHub := false
+	if dashboardWillRun(cmd) {
+		var configured *bool
+		if web := config.GetGlobalConfig().Web; web != nil {
+			configured = web.Logs.Enabled
+		}
+		enabled, err := config.ResolveWebLogs(os.Getenv, configured)
+		if err != nil {
+			return nil, err
+		}
+		withHub = enabled
+	}
+	return setupLoggingWithHub(cmd, withHub), nil
+}
+
+func setupLoggingWithHub(cmd *cobra.Command, withHub bool) *loggingSession {
 	loggingCfg := config.GetLoggingConfig()
 
 	debug, _ := cmd.Flags().GetBool("debug")
@@ -70,10 +112,18 @@ func setupLogging(cmd *cobra.Command) *loggingSession {
 		}
 	}
 
-	result := logging.NewLoggerWithPath(loggingCfg.ToLoggingConfig())
+	var hub *weblog.Hub
+	logCfg := loggingCfg.ToLoggingConfig()
+	if withHub {
+		hub = weblog.NewHub(0)
+		logCfg.Tee = hub.Tee()
+	}
+
+	result := logging.NewLoggerWithPath(logCfg)
 	session := &loggingSession{
 		LogPathResult: result,
 		logger:        logging.ComponentLogger(result.Logger, "cli"),
+		webHub:        hub,
 	}
 
 	if !suppressAuxOutputFromContext(cmd.Context()) {
@@ -130,6 +180,11 @@ func (s *loggingSession) attachWithTrace(cmd *cobra.Command, traceID string) {
 	if s.pluginLogWriter != nil {
 		ctx = logging.ContextWithPluginLogWriter(ctx, s.pluginLogWriter)
 		ctx = logging.ContextWithPluginLogPath(ctx, s.FilePath)
+	}
+
+	if s.webHub != nil {
+		ctx = weblog.ContextWithHub(ctx, s.webHub)
+		ctx = logging.ContextWithPluginLogTap(ctx, s.webHub.Writer)
 	}
 
 	ctx = logging.ContextWithAuditLogger(ctx, s.auditLogger)

@@ -18,6 +18,7 @@ const ROUTES = {
   carbon: () => import('./views/carbon.js'),
   plugins: () => import('./views/plugins.js'),
   config: () => import('./views/config.js'),
+  logs: () => import('./views/logs.js'),
 };
 const DEFAULT_ROUTE = 'overview';
 
@@ -482,3 +483,6 @@ document.querySelector('.skip-link')?.addEventListener('click', (event) => {
 });
 stream.start();
 renderRoute();
+ROUTES.logs()
+  .then((mod) => mod.probeLogs(api, document.querySelector('.app-nav a[data-route="logs"]')))
+  .catch((err) => console.error('logs probe failed', err));

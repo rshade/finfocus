@@ -129,6 +129,15 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   no SKU uses `ValidateProjectedCostRequestLenient`.
 - Logging: `--debug` > `FINFOCUS_LOG_LEVEL`/`FINFOCUS_LOG_FORMAT` > config >
   info/console. `FINFOCUS_TRACE_ID` injects a trace id.
+- Web logs viewer (`specs/1925-web-logs-viewer/`): off by default. Enabled by
+  `FINFOCUS_WEB_LOGS`, then `web.logs.enabled`, then false, through
+  `config.ResolveWebLogs`; a bad env value is exit 2 when a dashboard will run.
+  `internal/weblog` is a leaf: it imports only `config` and `history` (for the
+  shared redaction rules) and never `cli`, `webui`, `registry`, or `pluginhost`.
+  `internal/webui` imports it only for the types behind its `LogSource`
+  interface. `packages/zerolog-viewer` must stay self-contained (nothing outside
+  its `src/`, no network, no `innerHTML`); `packages/zerolog-viewer/test/boundary.test.mjs` enforces it.
+  Redaction covers fields only; `message` is shown as written.
 - `ax.Execute` mounts `--format json|human`, `--dry-run`, `--yes`, and
   `--idempotency-key` on every command, plus `__schema` and `mcp-server`
   (`--mcp` is the stdio alias). A command must not redeclare `--format`;
@@ -373,6 +382,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `started.idempotentClose()`.
 - Secrets never appear in logs, errors, or another plugin's environment.
   Credential names stay on `config.IsCredentialName`.
+- While web logs are on, `startPlugin` drops `FINFOCUS_LOG_FILE` from the
+  plugin environment (the SDK would write to the file and bypass stderr) and
+  tees plugin stderr into the log hub next to the existing destination. Keep the
+  variable when logs are off. The hub tags a plugin by its binary path name
+  (`pluginNameFromPath`); a `plugin_name` field in the line wins.
 - Dashboard settings apply on the next `NewClient`. The first reload must not
   close the overview pipeline's original clients. Later reloads close only
   the set the previous reload opened. `closeReloaded` runs before
@@ -474,6 +488,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
 - The overview docs page is `docs/src/content/docs/commands/overview.md`.
+- `finfocus logs` is a one-shot snapshot of the log file through `internal/weblog`
+  (same parsing, redaction, and display strings as the web Logs view). It opens
+  no logging session (`readsLogFile`) and is not a follow mode.
 - `cost anomalies` (`specs/1923-cost-anomalies/`) runs the overview pipeline
   and lists rows whose `CostDrift` is set through `engine.SelectAnomalies`,
   the one selector the CLI, MCP tool, and web handler share. It adds no rule

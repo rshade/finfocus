@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -57,6 +58,9 @@ type Options struct {
 	// Logger receives request logs. When nil, a logger is taken from the
 	// background context (stderr, info level).
 	Logger *zerolog.Logger
+	// Logs supplies captured log lines for the Logs page. Nil disables the
+	// feature: its routes are not registered.
+	Logs LogSource
 }
 
 // Server is the localhost-only web UI HTTP server. A per-session token,
@@ -67,6 +71,7 @@ type Server struct {
 	mux     *http.ServeMux
 	token   string
 	logger  zerolog.Logger
+	logs    LogSource
 
 	reqPort    int
 	actualPort atomic.Int32
@@ -93,6 +98,9 @@ func New(opts Options) (*Server, error) {
 		token:   hex.EncodeToString(raw),
 		session: opts.Session,
 		reqPort: opts.Port,
+	}
+	if opts.Logs != nil && !isNilLogSource(opts.Logs) {
+		s.logs = opts.Logs
 	}
 	if s.session == nil {
 		s.session = NewSession(context.Background(), SessionOptions{})
@@ -278,7 +286,10 @@ func (s *Server) handler() http.Handler {
 		s.registerHistory(mux)
 		s.registerConfig(mux)
 		s.registerPlugins(mux)
+		s.registerLogs(mux)
 		mux.HandleFunc("/", s.handleRoot)
+		mux.Handle("/static/zerolog-viewer/",
+			http.StripPrefix("/static/zerolog-viewer/", http.FileServerFS(viewerFiles())))
 		mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(staticFiles())))
 	}
 
@@ -343,6 +354,10 @@ func (r *statusRecorder) Unwrap() http.ResponseWriter {
 // passphrases and estimate overrides, so neither is ever logged (FR-016).
 func (s *Server) requestLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, logsPathPrefix) {
+			next.ServeHTTP(w, r)
+			return
+		}
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
 		s.logger.Info().

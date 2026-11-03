@@ -132,6 +132,22 @@
         }
       }
     },
+    "web": {
+      "type": "object",
+      "description": "Web dashboard preferences",
+      "properties": {
+        "logs": {
+          "type": "object",
+          "description": "Logs view",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Show a Logs view in the web dashboard. Log lines can include resource names and paths. FINFOCUS_WEB_LOGS overrides this."
+            }
+          }
+        }
+      }
+    },
     "scoring": {
       "type": "object",
       "description": "Optional recommendation scoring",
