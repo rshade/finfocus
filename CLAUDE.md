@@ -811,6 +811,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   DYNAMIC and non-finite or negative values. The field joined `/pricing-v1`
   without a new suffix because that suffix has not shipped; a released cache
   would need `/pricing-v2`.
+- Spot follow-ups (`specs/2010-spot-followups/`): the analyzer cost diagnostic
+  appends `CostResult.SpotDisplay()` after ` | ` (DYNAMIC only; other results
+  stay byte-identical). The projected TUI Cost column widens to its longest
+  cell past 15 characters so `SPOT` survives a 7-figure cost. The web
+  `spotBadge` lives in `static/spot.js`; node harnesses link it through
+  `frontendtest/view_linker.mjs` (their fake `app` module has only `el`).
 - Scoring (`internal/scoring`, off by default) pseudonymizes identifiers by
   default, only warns on failure, and never dismisses or hides anything.
   Scorer-only plugins are dropped from cost features before `Supports`.

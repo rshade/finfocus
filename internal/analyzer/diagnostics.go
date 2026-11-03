@@ -138,6 +138,10 @@ func formatCostMessage(cost engine.CostResult) string {
 		message = "Unable to estimate cost"
 	}
 
+	if spot := cost.SpotDisplay(); spot != "" {
+		message += " | " + spot
+	}
+
 	// Append sustainability metrics if present (sorted for deterministic output - SC-003 fix)
 	if len(cost.Sustainability) > 0 {
 		var sustainParts []string
