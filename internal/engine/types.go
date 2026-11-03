@@ -557,6 +557,15 @@ type CostResult struct {
 	// "exponential", or empty when the plugin did not set one. Empty matches
 	// none. It does not change Monthly. cost forecast reads it.
 	GrowthType string `json:"growthType,omitempty"`
+
+	// PricingCategory is the plugin-reported pricing model. Empty when the
+	// plugin left it unspecified. DYNAMIC marks spot pricing; see SpotDisplay.
+	PricingCategory PricingCategory `json:"pricingCategory,omitempty"`
+
+	// SpotInterruptionRisk is the plugin's interruption probability in [0, 1].
+	// It carries meaning only when PricingCategory is DYNAMIC, and 0 there
+	// means the risk is unknown, because proto3 cannot tell zero from unset.
+	SpotInterruptionRisk float64 `json:"spotInterruptionRisk,omitempty"`
 }
 
 // ErrorDetail captures information about a failed resource cost calculation.

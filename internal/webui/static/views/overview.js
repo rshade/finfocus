@@ -34,6 +34,12 @@ const COLUMNS = [
 
 const PRICE_UNAVAILABLE = 'n/a';
 
+// The server formats the spot label (for example "SPOT · risk 0.12"). The text
+// carries the meaning; the cyan accent only emphasizes it.
+function spotBadge(text) {
+  return text ? [el('span', { class: 'spot-badge', text })] : [];
+}
+
 function priceUnavailable(row) {
   if (pick(row, 'hasError') || pick(row, 'status') === 'deleting') return false;
   return pick(row, 'projected') === undefined && (pick(row, 'projectedDisplay') ?? '-') === '-';
@@ -281,7 +287,9 @@ export function mount(container, ctx) {
   }
 
   function projectedCell(row) {
-    if (!priceUnavailable(row)) return el('td', { class: 'col-num', text: pick(row, 'projectedDisplay') ?? '' });
+    if (!priceUnavailable(row)) {
+      return el('td', { class: 'col-num' }, pick(row, 'projectedDisplay') ?? '', spotBadge(pick(row, 'spotDisplay')));
+    }
     return el('td', { class: 'col-num price-unavailable', title: 'No price is available for this resource' },
       el('span', { 'aria-hidden': 'true', text: PRICE_UNAVAILABLE }),
       el('span', { class: 'visually-hidden', text: 'Price unavailable' }));
@@ -677,13 +685,14 @@ export function mount(container, ctx) {
           ['Status', pick(row, 'statusDisplay')],
           ['Actual MTD', pick(row, 'actualDisplay')],
           ['Projected', priceUnavailable(row) ? 'Price unavailable' : pick(row, 'projectedDisplay')],
+          ['Pricing', pick(row, 'spotDisplay')],
           ['Delta', pick(row, 'deltaDisplay')],
           ['Drift', pick(row, 'driftDisplay')],
         ]
           .filter(([, value]) => value !== undefined && value !== '')
           .flatMap(([label, value]) => [
             el('dt', { text: label }),
-            el('dd', { text: String(value) }),
+            label === 'Pricing' ? el('dd', {}, spotBadge(String(value))) : el('dd', { text: String(value) }),
           ])),
     ];
 

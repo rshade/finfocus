@@ -41,7 +41,8 @@ type ResourceRow struct {
 	Currency            string
 	HasError            bool
 	ErrorMsg            string
-	RecommendationCount int // Number of recommendations for this resource.
+	RecommendationCount int    // Number of recommendations for this resource.
+	SpotDisplay         string // Spot label from engine.SpotDisplay, empty when not spot.
 }
 
 // NewResourceRow converts an engine.CostResult into a display-ready ResourceRow.
@@ -68,6 +69,7 @@ func NewResourceRow(result engine.CostResult) ResourceRow {
 		HasError:            result.Error != nil || strings.HasPrefix(result.Notes, "ERROR:"),
 		ErrorMsg:            errorMsg,
 		RecommendationCount: len(result.Recommendations),
+		SpotDisplay:         result.SpotDisplay(),
 	}
 }
 
@@ -149,6 +151,9 @@ func newResultTable(results []engine.CostResult, height int, trends map[string]s
 		row := NewResourceRow(r)
 
 		costStr := fmt.Sprintf("$%.2f", row.Monthly)
+		if row.SpotDisplay != "" {
+			costStr += spotListSuffix
+		}
 		deltaStr := RenderDelta(row.Delta)
 		recsStr := engine.FormatRecommendationCount(row.RecommendationCount)
 
@@ -316,6 +321,12 @@ func RenderDetailView(resource engine.CostResult, width int) string {
 		content.WriteString(LabelStyle.Render("Hourly Cost:   "))
 		content.WriteString(ValueStyle.Render(display.HourlyDisplay))
 		content.WriteString("\n")
+
+		if spot := resource.SpotDisplay(); spot != "" {
+			content.WriteString(LabelStyle.Render("Pricing:       "))
+			content.WriteString(SpotStyle.Render(spot))
+			content.WriteString("\n")
+		}
 	}
 
 	if display.DeltaDisplay != "" {

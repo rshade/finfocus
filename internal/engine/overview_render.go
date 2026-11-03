@@ -139,9 +139,13 @@ func RenderOverviewAsTable(w io.Writer, result OverviewResult, stackCtx StackCon
 		resType := TruncateOverviewResource(row.Type, colWidthType)
 
 		warn := FormatOverviewWarnings(row.Warnings)
+		projected := row.ProjectedDisplay
+		if row.SpotDisplay != "" {
+			projected += " " + row.SpotDisplay
+		}
 		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			resource, resType, row.StatusDisplay,
-			row.ActualDisplay, row.ProjectedDisplay, row.DeltaDisplay,
+			row.ActualDisplay, projected, row.DeltaDisplay,
 			row.DriftDisplay, row.RecsDisplay, warn,
 		); err != nil {
 			return fmt.Errorf("writing row: %w", err)

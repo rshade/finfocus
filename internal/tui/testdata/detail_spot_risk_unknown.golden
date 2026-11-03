@@ -1,0 +1,18 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:ec2/instance:Instance::unscored                            │
+│ Type:   aws:ec2/instance:Instance                                                              │
+│ Status: creating                                                                               │
+│                                                                                                │
+│ PROJECTED COST (Monthly)                                                                       │
+│   Total: $30.00                                                                                │
+│   Pricing: SPOT · risk unknown                                                                 │
+│                                                                                                │
+│ COST IMPACT                                                                                    │
+│   New Monthly Cost: $30.00                                                                     │
+│   Delta:                  +$30.00                                                              │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

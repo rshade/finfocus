@@ -318,8 +318,10 @@ func enrichProjectedCost(
 			return failure
 		}
 		row.ProjectedCost = &ProjectedCostData{
-			MonthlyCost: costResult.Monthly,
-			Currency:    costResult.Currency,
+			MonthlyCost:          costResult.Monthly,
+			Currency:             costResult.Currency,
+			PricingCategory:      costResult.PricingCategory,
+			SpotInterruptionRisk: costResult.SpotInterruptionRisk,
 		}
 		if row.ProjectedCost.Currency == "" {
 			row.ProjectedCost.Currency = defaultCurrency

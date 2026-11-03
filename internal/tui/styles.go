@@ -58,6 +58,12 @@ var (
 	InfoStyle = lipgloss.NewStyle().
 			Foreground(ColorInfo).
 			Bold(true)
+
+	// SpotStyle formats the spot pricing tag with a cyan accent. The tag text
+	// carries the meaning; color only emphasizes it.
+	SpotStyle = lipgloss.NewStyle().
+			Foreground(ColorSpot).
+			Bold(true)
 )
 
 // Container styles provide layout and grouping for content blocks.

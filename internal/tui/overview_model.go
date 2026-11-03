@@ -291,7 +291,8 @@ func (m *OverviewModel) typeColumnWidth() int {
 // variableColumnWidths calculates widths for Resource and Type using the
 // available table width budget after fixed columns and cell padding.
 func (m *OverviewModel) variableColumnWidths() (int, int) {
-	available := m.width - borderPadding - tablePaddingForColumns(overviewColumnCount) - fixedOverviewColumnsTotal
+	available := m.width - borderPadding - tablePaddingForColumns(overviewColumnCount) -
+		fixedOverviewColumnsTotal - m.spotColumnExtra()
 	if available <= 0 {
 		return minCompactColWidth, minCompactColWidth
 	}
@@ -907,12 +908,36 @@ func (m *OverviewModel) overviewTableRow(entry overviewDisplayEntry, resourceWid
 		row.Type,
 		row.StatusDisplay,
 		row.ActualDisplay,
-		row.ProjectedDisplay,
+		projectedCell(row),
 		row.DeltaDisplay,
 		row.DriftDisplay,
 		row.RecsDisplay,
 		formatOverviewWarnCell(row.Warnings),
 	}
+}
+
+// spotListSuffix marks a spot row in the Projected cell. The list shows the
+// short tag; the detail view shows the full label with the risk.
+const spotListSuffix = " SPOT"
+
+// projectedCell is the Projected cell: the amount, plus the spot tag on a row
+// priced as spot. An error row shows no tag.
+func projectedCell(row engine.OverviewRowResult) string {
+	if row.SpotDisplay == "" {
+		return row.ProjectedDisplay
+	}
+	return row.ProjectedDisplay + spotListSuffix
+}
+
+// spotColumnExtra widens the Projected column only while a spot row is in the
+// list, so lists without spot rows keep their layout.
+func (m *OverviewModel) spotColumnExtra() int {
+	for i := range m.allRows {
+		if m.allRows[i].SpotDisplay != "" {
+			return len(spotListSuffix)
+		}
+	}
+	return 0
 }
 
 // buildOverviewTable creates a new table model with current configuration.
@@ -928,7 +953,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		{Title: columnTitleType, Width: typeWidth},
 		{Title: "Status", Width: colWidthStatus},
 		{Title: "Actual", Width: colWidthActual},
-		{Title: projectedHeader, Width: colWidthProjected},
+		{Title: projectedHeader, Width: colWidthProjected + m.spotColumnExtra()},
 		{Title: columnTitleDelta, Width: colWidthDelta},
 		{Title: "Drift%", Width: colWidthDrift},
 		{Title: "Recs", Width: colWidthRecs},

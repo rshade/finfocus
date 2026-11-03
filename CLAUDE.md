@@ -279,7 +279,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `EstimateCost` attributes. Do not add a second rule.
 - Anything new sent to a plugin must be in the projected cache key; that is
   why keys end in `/tags-`, `/refs-`, `/attrs-` digests and feature suffixes
-  (`/pricing-spec`, `/growth-v1`, `/penv-`, `/profile-dev|prod|burst`). `/penv-` is the digest of the
+  (in key order `/growth-v1`, `/pricing-v1`, `/penv-`, `/pricing-spec`,
+  `/profile-dev|prod|burst`). `/growth-v1` and `/pricing-v1` version the
+  stored response format, not anything sent to a plugin. `/penv-` is the digest of the
   clients that engine retained at construction. A settings or validate probe
   must not update another engine's key. An empty digest omits the suffix.
   Tests of the process-wide helper must not run in parallel and must call
@@ -791,6 +793,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   after dated events. A timestamp or expiry that is present but invalid drops
   that event only. Events match on action, reason, note, time, and expiry;
   a named actor replaces a blank one, and different actors are both kept.
+- Spot badge (`specs/1836-spot-badge/`): `CostResult.PricingCategory` and
+  `SpotInterruptionRisk` come from the spec fields on the projected and
+  estimate paths. `engine.SpotDisplay` is the only label builder
+  (`SPOT · risk 0.12`; DYNAMIC with risk <= 0 is `risk unknown`; any other
+  category is empty). Every renderer reads `OverviewRowResult.SpotDisplay` or
+  `EstimateDisplay.BaselineSpot/ModifiedSpot`; never rebuild the label. Core
+  knows only DYNAMIC. Adding a field that is stored in `[]CostResult` cache
+  JSON needs a cache key suffix, as `/pricing-v1` did.
 - Scoring (`internal/scoring`, off by default) pseudonymizes identifiers by
   default, only warns on failure, and never dismisses or hides anything.
   Scorer-only plugins are dropped from cost features before `Supports`.

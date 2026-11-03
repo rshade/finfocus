@@ -98,6 +98,13 @@ func RenderEstimateHeader(provider, resourceType, resourceID string) string {
 //
 // Returns a styled cost comparison view.
 func RenderCostComparison(baseline, modified float64, currency string) string {
+	return RenderCostComparisonWithSpot(baseline, modified, currency, "", "")
+}
+
+// RenderCostComparisonWithSpot renders the cost comparison and appends each
+// side's spot label (engine.SpotDisplay) after its price. An empty label adds
+// nothing.
+func RenderCostComparisonWithSpot(baseline, modified float64, currency, baselineSpot, modifiedSpot string) string {
 	var sb strings.Builder
 
 	labelStyle := lipgloss.NewStyle().Foreground(ColorLabel)
@@ -106,11 +113,13 @@ func RenderCostComparison(baseline, modified float64, currency string) string {
 	// Baseline cost
 	sb.WriteString(labelStyle.Render("Baseline:  "))
 	sb.WriteString(valueStyle.Render(viewmodel.FormatEstimateMonthly(baseline, currency)))
+	writeSpotLabel(&sb, baselineSpot)
 	sb.WriteString("\n")
 
 	// Modified cost
 	sb.WriteString(labelStyle.Render("Modified:  "))
 	sb.WriteString(valueStyle.Render(viewmodel.FormatEstimateMonthly(modified, currency)))
+	writeSpotLabel(&sb, modifiedSpot)
 	sb.WriteString("\n\n")
 
 	// Total change
@@ -120,6 +129,38 @@ func RenderCostComparison(baseline, modified float64, currency string) string {
 	sb.WriteString("/mo")
 
 	return sb.String()
+}
+
+func writeSpotLabel(sb *strings.Builder, spot string) {
+	if spot == "" {
+		return
+	}
+	sb.WriteString("  ")
+	sb.WriteString(SpotStyle.Render(spot))
+}
+
+// pricingSnapshot keeps the plugin pricing fields of one estimate side so the
+// model can show them and rebuild the result.
+type pricingSnapshot struct {
+	category engine.PricingCategory
+	risk     float64
+}
+
+func snapshotPricing(result *engine.CostResult) pricingSnapshot {
+	return pricingSnapshot{category: result.PricingCategory, risk: result.SpotInterruptionRisk}
+}
+
+func (p pricingSnapshot) display() string {
+	return engine.SpotDisplay(p.category, p.risk)
+}
+
+func (p pricingSnapshot) costResult(monthly float64, currency string) *engine.CostResult {
+	return &engine.CostResult{
+		Monthly:              monthly,
+		Currency:             currency,
+		PricingCategory:      p.category,
+		SpotInterruptionRisk: p.risk,
+	}
 }
 
 // RenderPropertyTable renders the editable property table.
@@ -262,7 +303,10 @@ func RenderEstimateResultView(result *engine.EstimateResult, width int) string {
 	if result.Modified != nil {
 		modified = result.Modified.Monthly
 	}
-	sb.WriteString(RenderCostComparison(baseline, modified, currency))
+	sb.WriteString(RenderCostComparisonWithSpot(
+		baseline, modified, currency,
+		result.Baseline.SpotDisplay(), result.Modified.SpotDisplay(),
+	))
 	sb.WriteString("\n\n")
 
 	// Property deltas

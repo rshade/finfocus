@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -511,6 +512,12 @@ type CostResult struct {
 	// or empty when the plugin left it unset. Empty matches none. The monthly
 	// cost is the current price; cost forecast applies the model.
 	GrowthType string
+	// PricingCategory is the plugin-reported pricing model: "STANDARD",
+	// "COMMITTED", "DYNAMIC", "OTHER", or empty when unspecified.
+	PricingCategory string
+	// SpotInterruptionRisk is the plugin's interruption score. It is meaningful
+	// only with PricingCategory "DYNAMIC", where 0 means unknown.
+	SpotInterruptionRisk float64
 }
 
 // SustainabilityMetric represents a single sustainability impact measurement.
@@ -1094,6 +1101,9 @@ func mapProjectedProto(resp *pbc.GetProjectedCostResponse) *CostResult {
 		},
 		Sustainability: make(map[string]SustainabilityMetric),
 		GrowthType:     growthTypeLabel(resp.GetGrowthType()),
+
+		PricingCategory:      PricingCategoryLabel(resp.GetPricingCategory()),
+		SpotInterruptionRisk: SpotRisk(resp.GetPricingCategory(), resp.GetSpotInterruptionRiskScore()),
 	}
 	if ts := resp.GetExpiresAt(); ts != nil {
 		t := ts.AsTime()
@@ -1119,6 +1129,40 @@ func mapProjectedProto(resp *pbc.GetProjectedCostResponse) *CostResult {
 		}
 	}
 	return result
+}
+
+const pricingCategoryOther = "OTHER"
+
+// SpotRisk keeps a plugin risk score only when it can be shown and stored: the
+// category is DYNAMIC and the score is finite and within [0, 1]. Anything else
+// is 0, which renders as unknown, and NaN never reaches JSON encoding.
+func SpotRisk(category pbc.FocusPricingCategory, score float64) float64 {
+	if category != pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_DYNAMIC {
+		return 0
+	}
+	if math.IsNaN(score) || math.IsInf(score, 0) || score < 0 || score > 1 {
+		return 0
+	}
+	return score
+}
+
+// PricingCategoryLabel names a plugin pricing category for CostResult.
+// UNSPECIFIED and values this core does not know map to "".
+func PricingCategoryLabel(category pbc.FocusPricingCategory) string {
+	switch category {
+	case pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_STANDARD:
+		return "STANDARD"
+	case pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_COMMITTED:
+		return "COMMITTED"
+	case pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_DYNAMIC:
+		return "DYNAMIC"
+	case pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_OTHER:
+		return pricingCategoryOther
+	case pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_UNSPECIFIED:
+		return ""
+	default:
+		return ""
+	}
 }
 
 func growthTypeLabel(growth pbc.GrowthType) string {

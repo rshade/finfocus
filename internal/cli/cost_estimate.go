@@ -764,8 +764,8 @@ func renderEstimateResultTable(w io.Writer, result *engine.EstimateResult) error
 		modifiedMonthly = result.Modified.Monthly
 	}
 
-	fmt.Fprintf(w, "Baseline:  $%.2f/mo (%s)\n", baselineMonthly, currency)
-	fmt.Fprintf(w, "Modified:  $%.2f/mo (%s)\n", modifiedMonthly, currency)
+	fmt.Fprintf(w, "Baseline:  $%.2f/mo (%s)%s\n", baselineMonthly, currency, spotSuffix(result.Baseline.SpotDisplay()))
+	fmt.Fprintf(w, "Modified:  $%.2f/mo (%s)%s\n", modifiedMonthly, currency, spotSuffix(result.Modified.SpotDisplay()))
 	fmt.Fprintln(w)
 
 	// Total change with color indication
@@ -805,6 +805,13 @@ func renderEstimateResultTable(w io.Writer, result *engine.EstimateResult) error
 	}
 
 	return nil
+}
+
+func spotSuffix(display string) string {
+	if display == "" {
+		return ""
+	}
+	return "  " + display
 }
 
 // renderEstimateResultJSON renders a single estimate result as JSON.
@@ -868,7 +875,10 @@ func renderMultipleEstimateResultsTable(w io.Writer, results []*engine.EstimateR
 		if result.TotalChange > 0 {
 			sign = "+"
 		}
-		fmt.Fprintf(w, "  %s: %s$%.2f/mo\n", resourceName, sign, result.TotalChange)
+		fmt.Fprintf(
+			w, "  %s: %s$%.2f/mo%s\n",
+			resourceName, sign, result.TotalChange, spotSuffix(result.Modified.SpotDisplay()),
+		)
 
 		for _, delta := range result.Deltas {
 			deltaSign := ""

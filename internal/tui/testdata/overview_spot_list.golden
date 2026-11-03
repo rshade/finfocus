@@ -1,0 +1,14 @@
+ Resource      Type         Status        Actual        Projected          Delta         Drift%    Recs       Warn    
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ batch-worker  aws:ec2/in…  + creating    -             $21.90 SPOT        -             -         -          -       
+ cache-node    aws:ec2/in…  + creating    -             $73.00             -             -         -          -       
+ unscored      aws:ec2/in…  + creating    -             $30.00 SPOT        -             -         -          -       
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+Sort: Cost | Press 's' to cycle, '/' to filter, 'q' to quit                                                           
+[w] web dashboard · finfocus --web                                                                                    

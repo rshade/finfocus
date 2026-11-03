@@ -363,6 +363,11 @@ func renderDetailProjectedCost(content *strings.Builder, row engine.OverviewRowR
 	content.WriteString(LabelStyle.Render("  Total: "))
 	content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(row.ProjectedCost.MonthlyCost)))
 	content.WriteString("\n")
+	if row.SpotDisplay != "" {
+		content.WriteString(LabelStyle.Render("  Pricing: "))
+		content.WriteString(SpotStyle.Render(row.SpotDisplay))
+		content.WriteString("\n")
+	}
 	renderBreakdown(content, row.ProjectedCost.Breakdown)
 	content.WriteString("\n")
 }

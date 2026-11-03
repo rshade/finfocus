@@ -674,6 +674,9 @@ func mapProtoCostResultToEngine(
 		Breakdown:      result.CostBreakdown,
 		Sustainability: make(map[string]SustainabilityMetric),
 		GrowthType:     result.GrowthType,
+
+		PricingCategory:      PricingCategory(result.PricingCategory),
+		SpotInterruptionRisk: result.SpotInterruptionRisk,
 	}
 
 	engineResult.ExpiresAt = result.ExpiresAt

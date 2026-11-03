@@ -1,5 +1,11 @@
 import { el } from '../app.js';
 
+// The server formats the spot label; the text carries the meaning and the cyan
+// accent only emphasizes it.
+function spotBadge(text) {
+  return text ? [el('span', { class: 'spot-badge', text })] : [];
+}
+
 // Cost values, deltas and pricing labels are computed and formatted by Go.
 export function mount(container, { api, stream }) {
   let alive = true, generation = 0, requestAbort, resourceAbort, resourceGeneration = 0, calculationPending = false;
@@ -91,8 +97,8 @@ export function mount(container, { api, stream }) {
   }
   function render(result, focusKey) {
     const display = result.display;
-    comparison.replaceChildren(el('p', { text: `Baseline: ${display.baseline}` }),
-      el('p', { text: `Modified: ${display.modified}` }), el('p', { text: `Change: ${display.change}` }));
+    comparison.replaceChildren(el('p', { text: `Baseline: ${display.baseline}` }, spotBadge(display.baselineSpot)),
+      el('p', { text: `Modified: ${display.modified}` }, spotBadge(display.modifiedSpot)), el('p', { text: `Change: ${display.change}` }));
     renderModes(result);
     renderRows(display.properties, focusKey);
     status.textContent = 'Estimate calculated.';
