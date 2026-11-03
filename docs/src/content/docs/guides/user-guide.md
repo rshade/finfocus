@@ -99,11 +99,14 @@ Total: $7.50 USD
 
 When a plugin prices a resource as spot (interruptible), `cost projected`,
 `cost estimate`, and the overview mark it with a `SPOT` tag and the plugin's
-interruption risk, for example `SPOT · risk 0.12`. A risk of 0.0 reads
-`SPOT · risk unknown`, because the plugin cannot say zero from unset. The tag
-is plain text, so it appears with `NO_COLOR` and `--plain`. JSON and NDJSON
-carry `pricingCategory` (`DYNAMIC` for spot) and `spotInterruptionRisk` on
-each cost result. Resources priced on demand show no tag.
+interruption risk, for example `SPOT · risk 0.12`. A risk below 0.005 reads
+`SPOT · risk <0.01`. A risk of 0.0 reads `SPOT · risk unknown`, because
+protobuf cannot tell a zero score from an unset one. The tag is plain text,
+so it appears with `NO_COLOR` and `--plain`. JSON and NDJSON carry
+`pricingCategory` (`DYNAMIC` for spot) on cost results where the plugin set a
+category. They carry `spotInterruptionRisk` only for spot results with a known
+risk, so an absent value on a `DYNAMIC` result means unknown. Resources
+priced on demand show no tag.
 
 ### 3. (Optional) View Actual Costs
 
