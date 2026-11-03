@@ -26,7 +26,10 @@ The same two fields and keys, copied from the `CostResult` in
 
 - `SpotSavingsPercent(category, spot, onDemand *float64) *float64`: nil unless
   the category is DYNAMIC, `onDemand` is present, finite, and above 0, and
-  `spot` is finite and not negative.
+  `spot` is finite and not negative. It is also nil when the result is not
+  finite or its magnitude exceeds 999 (a bad plugin figure such as an
+  on-demand price near zero), so the label reads unavailable and JSON stays
+  encodable.
 - `SpotDisplay(category, risk, savingsPercent *float64) string`: the one label.
 - `(*CostResult).applyOnDemandEquivalent(*float64)`: sets both fields; called
   by `mapProtoCostResultToEngine` and `estimateResponseToCostResult`.
@@ -41,6 +44,8 @@ The same two fields and keys, copied from the `CostResult` in
 | DYNAMIC | <= 0 | 100, spot 38 | `SPOT · risk unknown · -62% vs on-demand` |
 | DYNAMIC | any | 100, spot 115 | `SPOT · risk 0.12 · +15% vs on-demand` |
 | DYNAMIC | any | 100, spot 100 (or rounds to it) | `SPOT · risk 0.12 · 0% vs on-demand` |
+| DYNAMIC | any | 100, spot 0.2 | `SPOT · risk 0.12 · -99% vs on-demand` (`-100%` only when spot is exactly 0) |
+| DYNAMIC | any | 0.01, spot 300 (beyond the cap) | `SPOT · risk 0.12 · spot savings unavailable` |
 | DYNAMIC | any | unset | `SPOT · risk 0.12 · spot savings unavailable` |
 | DYNAMIC | any | 0 | `SPOT · risk 0.12 · spot savings unavailable` |
 | anything else | any | any | empty |

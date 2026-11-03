@@ -61,6 +61,11 @@ monthly cost of 38 and an on-demand equivalent of 100. Every surface shows
   string and formats nothing (#1836 FR on a single label). The percentage is
   rounded to a whole number; a saving that rounds to zero reads `0% vs
   on-demand` (a real figure, unlike the unavailable marker).
+- **FR-005a**: Bounds. A percentage that is not finite, or whose magnitude
+  exceeds 999, is not stated: it reads `spot savings unavailable` and JSON
+  omits `spotSavingsPercent`. A saving below 100% never prints `-100%`; it
+  prints `-99%` (mirroring the `risk <0.01` floor), so only a spot price of
+  exactly 0 reads as free. A real saving or premium under 0.5% prints `0%`.
 - **FR-006**: Color is never the only signal: the text is in the label, so
   `NO_COLOR`, `--plain`, JSON, and NDJSON carry it.
 - **FR-007**: JSON carries both prices and the percentage on `CostResult`

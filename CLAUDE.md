@@ -806,7 +806,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   never by value; core has no twin call or estimate. `SpotDisplay` takes
   `SpotSavingsPercent` and appends `-62% vs on-demand` or `spot savings
   unavailable`. An on-demand price of 0 has no percentage and is the
-  unavailable case, never `0%`. `proto.OnDemandEquivalent` drops the field off
+  unavailable case, never `0%`. A result that is not finite or exceeds 999% is
+  also unavailable, and `-100%` prints only when spot is exactly 0. `proto.OnDemandEquivalent` drops the field off
   DYNAMIC and non-finite or negative values. The field joined `/pricing-v1`
   without a new suffix because that suffix has not shipped; a released cache
   would need `/pricing-v2`.

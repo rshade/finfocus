@@ -8,6 +8,14 @@ import (
 const (
 	spotSavingsUnavailable = "spot savings unavailable"
 	spotSavingsSuffix      = " vs on-demand"
+
+	// spotSavingsMaxPercent bounds the percentage core will state. A ratio
+	// beyond it (spot over ten times on-demand, or an on-demand price near
+	// zero) is a bad plugin figure, so the savings read as unavailable.
+	spotSavingsMaxPercent = 999.0
+	// spotSavingsFreeFloor keeps a spot price that is not exactly free from
+	// printing "-100%".
+	spotSavingsFreeFloor = 99.0
 )
 
 // SpotSavingsPercent is how much cheaper a spot price is than the plugin's
@@ -30,6 +38,9 @@ func SpotSavingsPercent(category PricingCategory, spot float64, onDemand *float6
 		return nil
 	}
 	pct := (od - spot) / od * percentScale
+	if math.IsNaN(pct) || math.IsInf(pct, 0) || math.Abs(pct) > spotSavingsMaxPercent {
+		return nil
+	}
 	return &pct
 }
 
@@ -37,10 +48,13 @@ func SpotSavingsPercent(category PricingCategory, spot float64, onDemand *float6
 // on-demand" (the spot price is 62% below on-demand), "+15% vs on-demand", or
 // the explicit unavailable marker when the percentage is nil.
 func spotSavingsDisplay(savingsPercent *float64) string {
-	if savingsPercent == nil {
+	if savingsPercent == nil || math.IsNaN(*savingsPercent) || math.IsInf(*savingsPercent, 0) {
 		return spotSavingsUnavailable
 	}
 	change := math.Round(-*savingsPercent)
+	if change < -spotSavingsFreeFloor && *savingsPercent < percentScale {
+		change = -spotSavingsFreeFloor
+	}
 	if change == 0 {
 		return "0%" + spotSavingsSuffix
 	}

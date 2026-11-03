@@ -113,7 +113,8 @@ own on-demand price for the resource, for example
 `SPOT · risk 0.12 · -62% vs on-demand` (the spot price is 62% below the
 on-demand price). A spot price above on demand reads `+15% vs on-demand`.
 FinFocus never estimates the on-demand price itself. When the plugin sends
-none, or sends an on-demand price of 0, the tag reads
+none, sends an on-demand price of 0, or sends one so small that the saving
+exceeds 999%, the tag reads
 `SPOT · risk 0.12 · spot savings unavailable`, never `0%`, because 0% would
 claim that spot costs the same as on demand. JSON and NDJSON carry
 `onDemandEquivalentMonthlyCost` (the plugin's figure, kept even when it is 0)

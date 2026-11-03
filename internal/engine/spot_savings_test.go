@@ -36,6 +36,10 @@ func TestSpotSavingsPercent(t *testing.T) {
 		{"infinite on-demand", PricingCategoryDynamic, 38, floatPtr(math.Inf(1)), nil},
 		{"negative spot", PricingCategoryDynamic, -1, floatPtr(100), nil},
 		{"NaN spot", PricingCategoryDynamic, math.NaN(), floatPtr(100), nil},
+		{"tiny on-demand overflows the ratio", PricingCategoryDynamic, 30.5, floatPtr(1e-306), nil},
+		{"denormal on-demand", PricingCategoryDynamic, 30.5, floatPtr(5e-324), nil},
+		{"ratio beyond the cap", PricingCategoryDynamic, 300, floatPtr(0.01), nil},
+		{"ratio at the cap", PricingCategoryDynamic, 1099, floatPtr(100), floatPtr(-999)},
 		{"standard ignores the field", PricingCategoryStandard, 38, floatPtr(100), nil},
 		{"unspecified ignores the field", "", 38, floatPtr(100), nil},
 	}
@@ -69,6 +73,9 @@ func TestSpotDisplayWithSavings(t *testing.T) {
 		{"exactly equal", 0.12, floatPtr(0), "SPOT · risk 0.12 · 0% vs on-demand"},
 		{"rounds to equal", 0.12, floatPtr(0.2), "SPOT · risk 0.12 · 0% vs on-demand"},
 		{"negative zero stays plain", 0.12, floatPtr(math.Copysign(0, -1)), "SPOT · risk 0.12 · 0% vs on-demand"},
+		{"almost free is not shown as free", 0.12, floatPtr(99.8), "SPOT · risk 0.12 · -99% vs on-demand"},
+		{"exactly free", 0.12, floatPtr(100), "SPOT · risk 0.12 · -100% vs on-demand"},
+		{"non-finite is unavailable", 0.12, floatPtr(math.Inf(-1)), "SPOT · risk 0.12 · spot savings unavailable"},
 		{"unavailable is explicit, not 0%", 0.12, nil, "SPOT · risk 0.12 · spot savings unavailable"},
 	}
 	for _, tt := range tests {
@@ -180,4 +187,26 @@ func TestCostResultJSONCarriesSavings(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(plain), "onDemandEquivalentMonthlyCost")
 	assert.NotContains(t, string(plain), "spotSavingsPercent")
+}
+
+func TestExtremeOnDemandStillMarshals(t *testing.T) {
+	t.Parallel()
+
+	dynamic := pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_DYNAMIC
+	tiny := 1e-306
+	denormal := 5e-324
+	resource := ResourceDescriptor{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"}
+
+	projected := mapProtoCostResultToEngine(resource, "plugin", &proto.CostResult{
+		Currency: "USD", MonthlyCost: 30.5, PricingCategory: "DYNAMIC", OnDemandEquivalentMonthly: &tiny,
+	})
+	estimated := estimateResponseToCostResult(&pbc.EstimateCostResponse{
+		CostMonthly: 30.5, PricingCategory: dynamic, OnDemandEquivalentMonthlyCost: &denormal,
+	}, &resource)
+	for _, result := range []*CostResult{projected, estimated} {
+		assert.Nil(t, result.SpotSavingsPercent)
+		assert.Contains(t, result.SpotDisplay(), "spot savings unavailable")
+		_, err := json.Marshal(result)
+		require.NoError(t, err)
+	}
 }
