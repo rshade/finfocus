@@ -801,6 +801,15 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `EstimateDisplay.BaselineSpot/ModifiedSpot`; never rebuild the label. Core
   knows only DYNAMIC. Adding a field that is stored in `[]CostResult` cache
   JSON needs a cache key suffix, as `/pricing-v1` did.
+- Spot savings (`specs/1838-spot-savings/`): the on-demand price is the
+  plugin's `on_demand_equivalent_monthly_cost`, read by presence (`*float64`),
+  never by value; core has no twin call or estimate. `SpotDisplay` takes
+  `SpotSavingsPercent` and appends `-62% vs on-demand` or `spot savings
+  unavailable`. An on-demand price of 0 has no percentage and is the
+  unavailable case, never `0%`. `proto.OnDemandEquivalent` drops the field off
+  DYNAMIC and non-finite or negative values. The field joined `/pricing-v1`
+  without a new suffix because that suffix has not shipped; a released cache
+  would need `/pricing-v2`.
 - Scoring (`internal/scoring`, off by default) pseudonymizes identifiers by
   default, only warns on failure, and never dismisses or hides anything.
   Scorer-only plugins are dropped from cost features before `Supports`.

@@ -108,6 +108,19 @@ category. They carry `spotInterruptionRisk` only for spot results with a known
 risk, so an absent value on a `DYNAMIC` result means unknown. Resources
 priced on demand show no tag.
 
+The tag also states the saving against on demand when the plugin supplies its
+own on-demand price for the resource, for example
+`SPOT · risk 0.12 · -62% vs on-demand` (the spot price is 62% below the
+on-demand price). A spot price above on demand reads `+15% vs on-demand`.
+FinFocus never estimates the on-demand price itself. When the plugin sends
+none, or sends an on-demand price of 0, the tag reads
+`SPOT · risk 0.12 · spot savings unavailable`, never `0%`, because 0% would
+claim that spot costs the same as on demand. JSON and NDJSON carry
+`onDemandEquivalentMonthlyCost` (the plugin's figure, kept even when it is 0)
+and `spotSavingsPercent` (positive when spot is cheaper, absent when it cannot
+be computed) on spot results. Neither appears on a result that is not spot,
+and an invalid plugin value (negative or not a number) is dropped.
+
 When any resource is spot, the cost diff also reports the exposure: the spot
 cost, its share of the total, and the cost-weighted interruption risk. For
 example, `Spot exposure  400.00 USD (40.0% of 1000.00 USD), weighted risk 0.18`.

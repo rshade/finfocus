@@ -217,6 +217,10 @@ type ProjectedCostData struct {
 	// label every renderer shows.
 	PricingCategory      PricingCategory `json:"pricingCategory,omitempty"`
 	SpotInterruptionRisk float64         `json:"spotInterruptionRisk,omitempty"`
+	// OnDemandEquivalentMonthly and SpotSavingsPercent are the plugin's
+	// on-demand price and the savings computed from it (see CostResult).
+	OnDemandEquivalentMonthly *float64 `json:"onDemandEquivalentMonthlyCost,omitempty"`
+	SpotSavingsPercent        *float64 `json:"spotSavingsPercent,omitempty"`
 }
 
 // Validate checks that the ProjectedCostData fields are consistent.

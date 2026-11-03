@@ -332,6 +332,8 @@ func estimateResponseToCostResult(resp *pbc.EstimateCostResponse, resource *Reso
 		PricingCategory:      PricingCategory(proto.PricingCategoryLabel(resp.GetPricingCategory())),
 		SpotInterruptionRisk: proto.SpotRisk(resp.GetPricingCategory(), resp.GetSpotInterruptionRiskScore()),
 	}
+	result.applyOnDemandEquivalent(
+		proto.OnDemandEquivalent(resp.GetPricingCategory(), resp.OnDemandEquivalentMonthlyCost))
 
 	if ts := resp.GetExpiresAt(); ts.IsValid() {
 		expiresAt := ts.AsTime()

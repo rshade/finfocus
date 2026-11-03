@@ -34,7 +34,7 @@ const COLUMNS = [
 
 const PRICE_UNAVAILABLE = 'n/a';
 
-// The server formats the spot label (for example "SPOT · risk 0.12"). The text
+// The server formats the spot label (for example "SPOT · risk 0.12 · -62% vs on-demand"). The text
 // carries the meaning; the cyan accent only emphasizes it.
 function spotBadge(text) {
   return text ? [el('span', { class: 'spot-badge', text })] : [];

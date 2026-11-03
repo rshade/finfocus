@@ -319,11 +319,11 @@ test('list recovery preserves a baseline unavailable marker from the updated API
 test('estimate shows the server-formatted SPOT tag beside the priced side only',async()=>{
  const t=await setup('estimate');
  t.calls[0].resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
- const base=baseline();base.display.modifiedSpot='SPOT · risk 0.12';
+ const base=baseline();base.display.modifiedSpot='SPOT · risk 0.12 · -62% vs on-demand';
  t.calls[1].resolve(base);await flush();
  const badges=t.container.querySelectorAll('.spot-badge');
  assert.equal(badges.length,1);
- assert.equal(badges[0].textContent,'SPOT · risk 0.12');
+ assert.equal(badges[0].textContent,'SPOT · risk 0.12 · -62% vs on-demand');
  assert.equal(badges[0].parent.textContent.startsWith('Modified:'),true);t.mounted.unmount();
 });
 test('reserved terraform metadata is not offered as an editable property',async()=>{

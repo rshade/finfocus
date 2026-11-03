@@ -322,6 +322,9 @@ func enrichProjectedCost(
 			Currency:             costResult.Currency,
 			PricingCategory:      costResult.PricingCategory,
 			SpotInterruptionRisk: costResult.SpotInterruptionRisk,
+
+			OnDemandEquivalentMonthly: costResult.OnDemandEquivalentMonthly,
+			SpotSavingsPercent:        costResult.SpotSavingsPercent,
 		}
 		if row.ProjectedCost.Currency == "" {
 			row.ProjectedCost.Currency = defaultCurrency

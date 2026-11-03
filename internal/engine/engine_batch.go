@@ -679,6 +679,7 @@ func mapProtoCostResultToEngine(
 		SpotInterruptionRisk: result.SpotInterruptionRisk,
 	}
 
+	engineResult.applyOnDemandEquivalent(result.OnDemandEquivalentMonthly)
 	engineResult.ExpiresAt = result.ExpiresAt
 
 	if result.StructuredError != nil {

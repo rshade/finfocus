@@ -23,12 +23,25 @@ func TestEstimateDisplayCarriesSpotLabels(t *testing.T) {
 			modified: &engine.CostResult{
 				Monthly: 20, PricingCategory: engine.PricingCategoryDynamic, SpotInterruptionRisk: 0.12,
 			},
-			wantModified: "SPOT · risk 0.12",
+			wantModified: "SPOT · risk 0.12 · spot savings unavailable",
 		},
 		{
 			name:         "dynamic zero risk",
 			modified:     &engine.CostResult{Monthly: 20, PricingCategory: engine.PricingCategoryDynamic},
-			wantModified: "SPOT · risk unknown",
+			wantModified: "SPOT · risk unknown · spot savings unavailable",
+		},
+		{
+			name: "dynamic with savings",
+			modified: func() *engine.CostResult {
+				onDemand := 100.0
+				result := &engine.CostResult{
+					Monthly: 38, PricingCategory: engine.PricingCategoryDynamic, SpotInterruptionRisk: 0.12,
+					OnDemandEquivalentMonthly: &onDemand,
+				}
+				result.SpotSavingsPercent = engine.SpotSavingsPercent(result.PricingCategory, result.Monthly, &onDemand)
+				return result
+			}(),
+			wantModified: "SPOT · risk 0.12 · -62% vs on-demand",
 		},
 		{
 			name:     "standard",

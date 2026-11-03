@@ -142,16 +142,23 @@ func writeSpotLabel(sb *strings.Builder, spot string) {
 // pricingSnapshot keeps the plugin pricing fields of one estimate side so the
 // model can show them and rebuild the result.
 type pricingSnapshot struct {
-	category engine.PricingCategory
-	risk     float64
+	category       engine.PricingCategory
+	risk           float64
+	onDemand       *float64
+	savingsPercent *float64
 }
 
 func snapshotPricing(result *engine.CostResult) pricingSnapshot {
-	return pricingSnapshot{category: result.PricingCategory, risk: result.SpotInterruptionRisk}
+	return pricingSnapshot{
+		category:       result.PricingCategory,
+		risk:           result.SpotInterruptionRisk,
+		onDemand:       result.OnDemandEquivalentMonthly,
+		savingsPercent: result.SpotSavingsPercent,
+	}
 }
 
 func (p pricingSnapshot) display() string {
-	return engine.SpotDisplay(p.category, p.risk)
+	return engine.SpotDisplay(p.category, p.risk, p.savingsPercent)
 }
 
 func (p pricingSnapshot) costResult(monthly float64, currency string) *engine.CostResult {
@@ -160,6 +167,9 @@ func (p pricingSnapshot) costResult(monthly float64, currency string) *engine.Co
 		Currency:             currency,
 		PricingCategory:      p.category,
 		SpotInterruptionRisk: p.risk,
+
+		OnDemandEquivalentMonthly: p.onDemand,
+		SpotSavingsPercent:        p.savingsPercent,
 	}
 }
 
