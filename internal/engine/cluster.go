@@ -106,6 +106,7 @@ type ClusterResult struct {
 	Period          string
 	Currency        string
 	Rows            []ClusterRow
+	Capacity        []CapacityGroup
 	Priced          []PricedSummary
 	Total           float64
 	Idle            float64
@@ -229,6 +230,10 @@ func newClusterResult(
 		if kind == rowKindIdle {
 			res.Idle += r.GetTotalCost()
 		}
+	}
+	res.Capacity = GroupClusterByCapacity(res.Rows, capacityByNode(stats.GetPriceable()))
+	if res.NamespaceScoped {
+		res.Capacity = withoutIdle(res.Capacity)
 	}
 	return res
 }
