@@ -208,6 +208,7 @@ type OverviewTotalsPayload struct {
 func totalsPayload(t engine.OverviewTotals) OverviewTotalsPayload {
 	if t.MixedCurrencies {
 		t.TotalActual, t.TotalProjected, t.TotalDelta, t.TotalSavings = 0, 0, 0, 0
+		t.Spot = nil
 		return OverviewTotalsPayload{
 			OverviewTotals:    t,
 			UnavailableReason: "Totals unavailable: resources use different currencies.",

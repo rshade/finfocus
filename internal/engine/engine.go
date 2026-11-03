@@ -2622,6 +2622,7 @@ func AggregateResults(results []CostResult) *AggregatedResults {
 		// Aggregate by adapter
 		summary.ByAdapter[result.Adapter] += result.Monthly
 	}
+	summary.Spot = SpotExposureFromCosts(results)
 
 	return &AggregatedResults{
 		Summary:   summary,

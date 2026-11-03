@@ -70,6 +70,12 @@ func renderDiffTable(w io.Writer, diff *DiffResult, showBreakdown bool) error {
 	fmt.Fprintf(tw, "Before\t%.2f %s\n", diff.Summary.TotalBefore, diff.Summary.Currency)
 	fmt.Fprintf(tw, "After\t%.2f %s\n", diff.Summary.TotalAfter, diff.Summary.Currency)
 	fmt.Fprintf(tw, "Change\t%+.2f %s\n", diff.Summary.TotalDelta, diff.Summary.Currency)
+	if spot := SpotExposureFromCosts(diff.AfterCosts()); spot != nil {
+		fmt.Fprintf(tw, "%s\t%s\n", SpotExposureLabel, spot.Display)
+	}
+	if change := ComputeSpotExposureChange(diff); change != nil {
+		fmt.Fprintf(tw, "%s\t%s\n", SpotChangeLabel, change.Display)
+	}
 	fmt.Fprintf(tw, "Resources\t%d (%d create, %d update, %d delete, %d unchanged)\n",
 		len(diff.Entries), diff.Summary.Creates, diff.Summary.Updates,
 		diff.Summary.Deletes, diff.Summary.Unchanged)
@@ -231,6 +237,7 @@ type projectedDiffDocument struct {
 	Summary   CostSummary             `json:"summary"`
 	Resources []projectedDiffResource `json:"resources"`
 	Diff      DiffSummary             `json:"diff"`
+	SpotDiff  *SpotExposureChange     `json:"spotChange,omitempty"`
 	EmptyPlan bool                    `json:"emptyPlan,omitempty"`
 	Profile   string                  `json:"profile"`
 	Errors    []diffErrorJSON         `json:"errors,omitempty"`
@@ -251,6 +258,7 @@ func renderDiffJSON(w io.Writer, diff *DiffResult) error {
 		Summary:   aggregated.Summary,
 		Resources: make([]projectedDiffResource, 0, len(diff.Entries)),
 		Diff:      diff.Summary,
+		SpotDiff:  ComputeSpotExposureChange(diff),
 		EmptyPlan: diff.EmptyPlan,
 		Profile:   displayedProfile(diff.Profile),
 		Errors:    diffErrorsJSON(diff.Errors),

@@ -41,10 +41,14 @@ func SpotDisplay(category PricingCategory, risk float64) string {
 	if risk <= 0 {
 		return spotTag + spotSeparator + spotRiskUnknown
 	}
+	return spotTag + spotSeparator + "risk " + formatSpotRiskValue(risk)
+}
+
+func formatSpotRiskValue(risk float64) string {
 	if risk < spotRiskFloor {
-		return spotTag + spotSeparator + "risk <0.01"
+		return "<0.01"
 	}
-	return fmt.Sprintf("%s%srisk %.2f", spotTag, spotSeparator, risk)
+	return fmt.Sprintf("%.2f", risk)
 }
 
 // SpotDisplay is the spot label for this result, or "" when it is not spot.
