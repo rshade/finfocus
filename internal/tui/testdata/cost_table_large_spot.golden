@@ -1,0 +1,11 @@
+ Resource                                  Type                            Provider    Cost              Delta            Recommendations 
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ aws:ec2:Instance/big-spot                 aws:ec2:Instance                aws         $1234567.89 SPOT  $0.00 →          -               
+ aws:ec2:Instance/std                      aws:ec2:Instance                aws         $73.00            $0.00 →          -               
+                                                                                                                                          
+                                                                                                                                          
+                                                                                                                                          
+                                                                                                                                          
+                                                                                                                                          
+                                                                                                                                          
+                                                                                                                                          
