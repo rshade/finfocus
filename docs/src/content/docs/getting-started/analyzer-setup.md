@@ -63,6 +63,10 @@ Policies:
           Total Estimated Monthly Cost: $7.50 USD (1 resources analyzed)
 ```
 
+A resource the plugin prices as spot adds its spot label after the cost line,
+for example `Estimated Monthly Cost: $21.90 USD (source: finfocus-plugin-aws) |
+SPOT · risk 0.12 · -62% vs on-demand`.
+
 ## Troubleshooting
 
 ### no language plugin 'pulumi-language-finfocus'

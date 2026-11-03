@@ -117,6 +117,8 @@ func StackSummaryDiagnostic(
 // The message uses the following observable behaviors:
 //   - If cost.Monthly > 0, the message begins with an estimated monthly cost showing the amount,
 //     currency, and adapter; otherwise it uses cost.Notes if present, or "Unable to estimate cost".
+//   - When the result is DYNAMIC (spot), the shared label from CostResult.SpotDisplay is appended
+//     prefixed with " | ", for example " | SPOT · risk 0.12 · -62% vs on-demand".
 //   - Sustainability metrics, when present, are appended in a deterministic, sorted order and
 //     may be followed by carbon equivalency text if computable.
 //   - Recommendations, when present, are appended prefixed with " | ".
