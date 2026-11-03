@@ -163,7 +163,7 @@ traced back to the exact policy that produced it.
 and `warnings`. `capacity` is an array (empty when there are no rows) of
 `capacity_type`, `cpu_cost`, `mem_cost`, `total_cost`, `idle_cost`
 (omitted when namespace-scoped, like the top-level `idle`), `nodes`, `rows`, and
-`notes`; the `total_cost` values sum to `total`. With `--namespace`, the table
+`notes` (omitted when the group has none); the `total_cost` values sum to `total`. With `--namespace`, the table
 shows `-` in the IDLE column. In historical mode, `priced[].monthly` is the window total
 (`TotalCost`), not a 730-hour projection. Each group may include `pulumi_urns` when a workload in it
 carries annotation `finfocus.dev/pulumi-urn`. `--output ndjson` emits a `summary` line followed by one `group`
