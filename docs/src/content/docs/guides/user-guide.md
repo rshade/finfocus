@@ -99,7 +99,9 @@ Total: $7.50 USD
 
 When a plugin prices a resource as spot (interruptible), `cost projected`,
 `cost estimate`, and the overview mark it with a `SPOT` tag and the plugin's
-interruption risk, for example `SPOT · risk 0.12`. A risk below 0.005 reads
+interruption risk, for example `SPOT · risk 0.12`. The Pulumi analyzer's
+per-resource cost diagnostic shows the same label after ` | `, following the
+cost line. A risk below 0.005 reads
 `SPOT · risk <0.01`. A risk of 0.0 reads `SPOT · risk unknown`, because
 protobuf cannot tell a zero score from an unset one. The tag is plain text,
 so it appears with `NO_COLOR` and `--plain`. JSON and NDJSON carry

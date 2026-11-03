@@ -1,10 +1,5 @@
 import { el } from '../app.js';
-
-// The server formats the spot label; the text carries the meaning and the cyan
-// accent only emphasizes it.
-function spotBadge(text) {
-  return text ? [el('span', { class: 'spot-badge', text })] : [];
-}
+import { spotBadge } from '../spot.js';
 
 // Cost values, deltas and pricing labels are computed and formatted by Go.
 export function mount(container, { api, stream }) {

@@ -131,12 +131,32 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 	return newResultTable(results, height, nil)
 }
 
+// resultCostColumnWidth is the default Cost column width of the projected table.
+const resultCostColumnWidth = 15
+
+func projectedCostCell(row ResourceRow) string {
+	cell := fmt.Sprintf("$%.2f", row.Monthly)
+	if row.SpotDisplay != "" {
+		cell += spotListSuffix
+	}
+	return cell
+}
+
 func newResultTable(results []engine.CostResult, height int, trends map[string]string) table.Model {
+	resourceRows := make([]ResourceRow, len(results))
+	costCells := make([]string, len(results))
+	costWidth := resultCostColumnWidth
+	for i, r := range results {
+		resourceRows[i] = NewResourceRow(r)
+		costCells[i] = projectedCostCell(resourceRows[i])
+		costWidth = max(costWidth, len(costCells[i]))
+	}
+
 	columns := []table.Column{
 		{Title: columnTitleResource, Width: 40}, //nolint:mnd // Column width.
 		{Title: columnTitleType, Width: 30},     //nolint:mnd // Column width.
 		{Title: "Provider", Width: 10},          //nolint:mnd // Column width.
-		{Title: "Cost", Width: 15},              //nolint:mnd // Column width.
+		{Title: "Cost", Width: costWidth},
 	}
 	if trends != nil {
 		columns = append(columns, table.Column{Title: "Trend", Width: trendColumnWidth})
@@ -148,12 +168,9 @@ func newResultTable(results []engine.CostResult, height int, trends map[string]s
 
 	rows := make([]table.Row, len(results))
 	for i, r := range results {
-		row := NewResourceRow(r)
+		row := resourceRows[i]
 
-		costStr := fmt.Sprintf("$%.2f", row.Monthly)
-		if row.SpotDisplay != "" {
-			costStr += spotListSuffix
-		}
+		costStr := costCells[i]
 		deltaStr := RenderDelta(row.Delta)
 		recsStr := engine.FormatRecommendationCount(row.RecommendationCount)
 
