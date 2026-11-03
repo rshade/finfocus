@@ -18,14 +18,15 @@ const capacityTypeTag = "capacity_type"
 // totals add up to ClusterResult.Total and idle cost is counted once, under
 // the node it belongs to.
 type CapacityGroup struct {
-	CapacityType string   `json:"capacity_type"`
-	CPUCost      float64  `json:"cpu_cost"`
-	MemCost      float64  `json:"mem_cost"`
-	TotalCost    float64  `json:"total_cost"`
-	IdleCost     float64  `json:"idle_cost"`
-	Nodes        int      `json:"nodes"`
-	Rows         int      `json:"rows"`
-	Notes        []string `json:"notes,omitempty"`
+	CapacityType string  `json:"capacity_type"`
+	CPUCost      float64 `json:"cpu_cost"`
+	MemCost      float64 `json:"mem_cost"`
+	TotalCost    float64 `json:"total_cost"`
+	// IdleCost is nil when idle rows were not measured (a namespace-scoped run).
+	IdleCost *float64 `json:"idle_cost,omitempty"`
+	Nodes    int      `json:"nodes"`
+	Rows     int      `json:"rows"`
+	Notes    []string `json:"notes,omitempty"`
 }
 
 // nodeKey identifies a node by cluster and name, because node names repeat
@@ -105,7 +106,7 @@ func GroupClusterByCapacity(rows []ClusterRow, capacity capacityIndex) []Capacit
 		}
 		g := groups[key]
 		if g == nil {
-			g = &CapacityGroup{CapacityType: key}
+			g = &CapacityGroup{CapacityType: key, IdleCost: new(float64)}
 			groups[key] = g
 			nodes[key] = map[string]bool{}
 			notes[key] = map[string]bool{}
@@ -115,7 +116,7 @@ func GroupClusterByCapacity(rows []ClusterRow, capacity capacityIndex) []Capacit
 		g.TotalCost += r.TotalCost
 		g.Rows++
 		if r.Subject[subjectKeyKind] == rowKindIdle {
-			g.IdleCost += r.TotalCost
+			*g.IdleCost += r.TotalCost
 		}
 		if node != "" {
 			nodes[key][nk] = true
@@ -140,4 +141,12 @@ func GroupClusterByCapacity(rows []ClusterRow, capacity capacityIndex) []Capacit
 		return out[i].CapacityType < out[j].CapacityType
 	})
 	return out
+}
+
+// withoutIdle clears IdleCost on every group, for runs that drop idle rows.
+func withoutIdle(groups []CapacityGroup) []CapacityGroup {
+	for i := range groups {
+		groups[i].IdleCost = nil
+	}
+	return groups
 }

@@ -75,11 +75,13 @@ unlabeled      1      10.00   10.0%   1.00
 Each allocated row, idle rows included, counts once, under the capacity type
 of its node (matched by cluster and node name; a usage source that sends no
 cluster tag still matches, as in the allocator), so the rows sum to the cluster
-total and idle cost is never counted twice. Rows that name no node, such as
-the control plane, Fargate pods, and orphan rows, go under `unlabeled`, as does
+total and idle cost is never counted twice. Rows that match no node, such as
+the control plane, Fargate pods (which name a pod host that is not a priced
+node), and orphan rows (which name a node that no longer exists), go under
+`unlabeled`, as does
 any node whose usage source sends no `capacity_type`; they are not folded into
 on-demand. The kubernetes and prometheus plugins default a node with no spot
-label to `on-demand`, so with them `unlabeled` holds only no-node rows. Tag
+label to `on-demand`, so with them `unlabeled` holds only rows that match no node. Tag
 values are shown as the plugin reports them. The section is omitted when no
 row is labeled.
 
@@ -159,8 +161,10 @@ traced back to the exact policy that produced it.
 `group_by`, `total`, `idle` (omitted when namespace-scoped),
 `namespace_scoped`, `incomplete`, `groups`, `capacity`, `priced`, `policy`,
 and `warnings`. `capacity` is an array (empty when there are no rows) of
-`capacity_type`, `cpu_cost`, `mem_cost`, `total_cost`, `idle_cost`, `nodes`,
-`rows`, and `notes`; the `total_cost` values sum to `total`. In historical mode, `priced[].monthly` is the window total
+`capacity_type`, `cpu_cost`, `mem_cost`, `total_cost`, `idle_cost`
+(omitted when namespace-scoped, like the top-level `idle`), `nodes`, `rows`, and
+`notes`; the `total_cost` values sum to `total`. With `--namespace`, the table
+shows `-` in the IDLE column. In historical mode, `priced[].monthly` is the window total
 (`TotalCost`), not a 730-hour projection. Each group may include `pulumi_urns` when a workload in it
 carries annotation `finfocus.dev/pulumi-urn`. `--output ndjson` emits a `summary` line followed by one `group`
 line per group. The command is also exposed as an MCP tool (`finfocus

@@ -69,7 +69,8 @@ line. MCP callers get it because `cost cluster` is already an MCP tool.
 ### Edge Cases
 
 - `--namespace` scoped runs omit idle and cluster rows. The split then covers
-  workload rows only and its `idle_cost` is 0.
+  workload rows only, `idle_cost` is omitted from JSON, and the table shows
+  `-` in the IDLE column, matching the omitted top-level idle.
 - The control-plane row (`__cluster__`) names no node and lands in `unlabeled`.
 - A tag with an empty value is unlabeled.
 - A group named `unlabeled` by a plugin's own tag value would merge with the
@@ -130,7 +131,7 @@ line. MCP callers get it because `cost cluster` is already an MCP tool.
 - The control plane is not a capacity type and is reported as `unlabeled`.
 - With the current kubernetes and prometheus plugins, both default
   `capacity_type` to `on-demand` for a node with no spot label. The
-  `unlabeled` bucket therefore holds no-node rows (control-plane fee, Fargate
+  `unlabeled` bucket therefore holds rows that match no node (control-plane fee, Fargate
   pods, orphan rows), not untagged nodes. It holds untagged nodes only for a
   usage source that omits the tag.
 - Nodes are matched by cluster and node name, because node names repeat

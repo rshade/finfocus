@@ -137,10 +137,10 @@ func TestRenderCluster_NDJSON(t *testing.T) {
 func capacityClusterOutput() clusterOutput {
 	out := sampleClusterOutput(false)
 	out.Capacity = []engine.CapacityGroup{
-		{CapacityType: "on-demand", TotalCost: 55, IdleCost: 3, Nodes: 2, Rows: 4},
-		{CapacityType: "spot", TotalCost: 35, IdleCost: 3, Nodes: 1, Rows: 2,
+		{CapacityType: "on-demand", TotalCost: 55, IdleCost: ptrFloat(3), Nodes: 2, Rows: 4},
+		{CapacityType: "spot", TotalCost: 35, IdleCost: ptrFloat(3), Nodes: 1, Rows: 2,
 			Notes: []string{"spot node priced on-demand"}},
-		{CapacityType: engine.CapacityUnlabeled, TotalCost: 10, IdleCost: 1, Nodes: 1, Rows: 2},
+		{CapacityType: engine.CapacityUnlabeled, TotalCost: 10, IdleCost: ptrFloat(1), Nodes: 1, Rows: 2},
 	}
 	return out
 }
@@ -160,6 +160,35 @@ func TestRenderCluster_CapacityTable(t *testing.T) {
 	assert.Regexp(t, `^on-demand\s+2\s+55\.00\s+55\.0%\s+3\.00\s*$`, lines[header+1])
 	assert.Regexp(t, `^spot\s+1\s+35\.00\s+35\.0%\s+3\.00\s+spot node priced on-demand$`, lines[header+2])
 	assert.Regexp(t, `^unlabeled\s+1\s+10\.00\s+10\.0%\s+1\.00\s*$`, lines[header+3])
+}
+
+func ptrFloat(v float64) *float64 { return &v }
+
+func scopedCapacityOutput() clusterOutput {
+	out := capacityClusterOutput()
+	out.Idle, out.NamespaceScoped = nil, true
+	for i := range out.Capacity {
+		out.Capacity[i].IdleCost = nil
+	}
+	return out
+}
+
+func TestRenderCluster_CapacityNamespaceScoped(t *testing.T) {
+	t.Parallel()
+
+	table := renderTo(t, outputFormatTable, scopedCapacityOutput())
+	assert.Contains(t, table, "omitted (--namespace scoped)")
+	assert.Regexp(t, `(?m)^on-demand\s+2\s+55\.00\s+55\.0%\s+-\s*$`, table)
+	assert.Regexp(t, `(?m)^spot\s+1\s+35\.00\s+35\.0%\s+-\s+spot node priced on-demand$`, table)
+
+	var got struct {
+		Capacity []map[string]any `json:"capacity"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(renderTo(t, outputFormatJSON, scopedCapacityOutput())), &got))
+	require.Len(t, got.Capacity, 3)
+	for _, g := range got.Capacity {
+		assert.NotContains(t, g, "idle_cost")
+	}
 }
 
 func TestRenderCluster_CapacityTableOmittedWhenAllUnlabeled(t *testing.T) {

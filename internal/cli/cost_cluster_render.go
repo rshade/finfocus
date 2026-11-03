@@ -152,8 +152,12 @@ func renderCapacityTable(cmd *cobra.Command, out clusterOutput) error {
 		if out.Total > 0 {
 			share = g.TotalCost / out.Total * percentMultiplier
 		}
-		fmt.Fprintf(w, "%s\t%d\t%.2f\t%.1f%%\t%.2f\t%s\n", g.CapacityType, g.Nodes, g.TotalCost, share,
-			g.IdleCost, strings.Join(g.Notes, "; "))
+		idle := "-"
+		if g.IdleCost != nil {
+			idle = fmt.Sprintf("%.2f", *g.IdleCost)
+		}
+		fmt.Fprintf(w, "%s\t%d\t%.2f\t%.1f%%\t%s\t%s\n", g.CapacityType, g.Nodes, g.TotalCost, share,
+			idle, strings.Join(g.Notes, "; "))
 	}
 	return w.Flush()
 }

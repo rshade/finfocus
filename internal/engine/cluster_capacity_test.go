@@ -65,17 +65,25 @@ func TestGroupClusterByCapacity(t *testing.T) {
 					CPUCost:      6,
 					MemCost:      4,
 					TotalCost:    83,
-					IdleCost:     2,
+					IdleCost:     ptr(2),
 					Nodes:        1,
 					Rows:         3,
 				},
-				{CapacityType: "on-demand", CPUCost: 25, MemCost: 15, TotalCost: 40, IdleCost: 10, Nodes: 1, Rows: 2},
+				{
+					CapacityType: "on-demand",
+					CPUCost:      25,
+					MemCost:      15,
+					TotalCost:    40,
+					IdleCost:     ptr(10),
+					Nodes:        1,
+					Rows:         2,
+				},
 				{
 					CapacityType: "spot",
 					CPUCost:      12.5,
 					MemCost:      7.5,
 					TotalCost:    20,
-					IdleCost:     5,
+					IdleCost:     ptr(5),
 					Nodes:        1,
 					Rows:         3,
 					Notes:        []string{spotNote},
@@ -92,7 +100,7 @@ func TestGroupClusterByCapacity(t *testing.T) {
 					CPUCost:      43.5,
 					MemCost:      26.5,
 					TotalCost:    143,
-					IdleCost:     17,
+					IdleCost:     ptr(17),
 					Nodes:        3,
 					Rows:         8,
 					Notes:        []string{spotNote},
@@ -109,7 +117,7 @@ func TestGroupClusterByCapacity(t *testing.T) {
 					CPUCost:      25,
 					MemCost:      15,
 					TotalCost:    40,
-					IdleCost:     10,
+					IdleCost:     ptr(10),
 					Nodes:        1,
 					Rows:         2,
 				},
@@ -132,7 +140,7 @@ func TestGroupClusterByCapacity(t *testing.T) {
 				assert.InDelta(t, tt.want[i].TotalCost, got[i].TotalCost, 1e-9, tt.want[i].CapacityType)
 				assert.InDelta(t, tt.want[i].CPUCost, got[i].CPUCost, 1e-9, tt.want[i].CapacityType)
 				assert.InDelta(t, tt.want[i].MemCost, got[i].MemCost, 1e-9, tt.want[i].CapacityType)
-				assert.InDelta(t, tt.want[i].IdleCost, got[i].IdleCost, 1e-9, tt.want[i].CapacityType)
+				assert.InDelta(t, idleOf(tt.want[i]), idleOf(got[i]), 1e-9, tt.want[i].CapacityType)
 				assert.Equal(t, tt.want[i].Nodes, got[i].Nodes, tt.want[i].CapacityType)
 				assert.Equal(t, tt.want[i].Rows, got[i].Rows, tt.want[i].CapacityType)
 				assert.Equal(t, tt.want[i].Notes, got[i].Notes, tt.want[i].CapacityType)
@@ -210,8 +218,11 @@ func TestGroupClusterByCapacity_AllocatorShapes(t *testing.T) {
 			descs: []*pbc.ResourceDescriptor{
 				capNode("c1", "c1\x00n1", "n1", ""), capNode("", "n1", "", "spot"),
 			},
-			rows: []ClusterRow{capRow("workload", "c1", "n1", 5), capRow("__idle__", "c1", "c1\x00n1", 5)},
-			want: map[string]want{CapacityUnlabeled: {10, 5, 1}},
+			rows: []ClusterRow{
+				capRow("workload", "c1", "n1", 5), capRow("__idle__", "c1", "c1\x00n1", 5),
+				capRow("__idle__", "", "n1", 2),
+			},
+			want: map[string]want{CapacityUnlabeled: {10, 5, 1}, "spot": {2, 2, 1}},
 		},
 		{
 			name:  "descriptor tagged for another cluster never matches",
@@ -248,7 +259,7 @@ func TestGroupClusterByCapacity_AllocatorShapes(t *testing.T) {
 				w, ok := tt.want[g.CapacityType]
 				require.True(t, ok, g.CapacityType)
 				assert.InDelta(t, w.total, g.TotalCost, 1e-9, g.CapacityType)
-				assert.InDelta(t, w.idle, g.IdleCost, 1e-9, g.CapacityType)
+				assert.InDelta(t, w.idle, idleOf(g), 1e-9, g.CapacityType)
 				assert.Equal(t, w.nodes, g.Nodes, g.CapacityType)
 				sumGroups += g.TotalCost
 			}
@@ -288,11 +299,11 @@ func TestRunClusterAllocation_CapacitySplit(t *testing.T) {
 	for _, g := range res.Capacity {
 		byType[g.CapacityType] = g
 		sum += g.TotalCost
-		idle += g.IdleCost
+		idle += idleOf(g)
 	}
 	require.Len(t, byType, 3)
 	assert.InDelta(t, 50, byType["spot"].TotalCost, 1e-9)
-	assert.InDelta(t, 20, byType["spot"].IdleCost, 1e-9)
+	assert.InDelta(t, 20, idleOf(byType["spot"]), 1e-9)
 	assert.InDelta(t, 30, byType["on-demand"].TotalCost, 1e-9)
 	assert.InDelta(t, 20, byType[CapacityUnlabeled].TotalCost, 1e-9)
 	assert.InDelta(t, res.Total, sum, 1e-9, "capacity split sums to the cluster total")
@@ -317,5 +328,14 @@ func TestRunClusterAllocation_CapacitySplitNamespaceScoped(t *testing.T) {
 	require.Len(t, res.Capacity, 1)
 	assert.Equal(t, "spot", res.Capacity[0].CapacityType)
 	assert.InDelta(t, res.Total, res.Capacity[0].TotalCost, 1e-9)
-	assert.InDelta(t, 0, res.Capacity[0].IdleCost, 1e-9, "scoped runs omit idle rows")
+	assert.Nil(t, res.Capacity[0].IdleCost, "scoped runs omit idle rows")
+}
+
+func ptr(v float64) *float64 { return &v }
+
+func idleOf(g CapacityGroup) float64 {
+	if g.IdleCost == nil {
+		return 0
+	}
+	return *g.IdleCost
 }

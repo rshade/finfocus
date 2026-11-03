@@ -232,6 +232,9 @@ func newClusterResult(
 		}
 	}
 	res.Capacity = GroupClusterByCapacity(res.Rows, capacityByNode(stats.GetPriceable()))
+	if res.NamespaceScoped {
+		res.Capacity = withoutIdle(res.Capacity)
+	}
 	return res
 }
 

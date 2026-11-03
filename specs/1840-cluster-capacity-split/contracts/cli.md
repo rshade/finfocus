@@ -42,7 +42,9 @@ descending then `capacity_type`. It is `[]` when there are no rows, never
 ```
 
 `notes` is omitted when empty. The `total_cost` values sum to `total`, and the
-`idle_cost` values sum to `idle` (absent when namespace-scoped).
+`idle_cost` values sum to `idle`. In a namespace-scoped run idle rows are not
+measured, so `idle` and every `idle_cost` are omitted, and the table shows `-`
+in the IDLE column.
 
 ## NDJSON
 
