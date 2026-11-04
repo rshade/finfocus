@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/tui/detail"
 	"github.com/rshade/finfocus/internal/webui"
@@ -81,6 +83,18 @@ func (d *webData) historyResource(ctx context.Context, id string) ([]webui.Histo
 		out[i] = webui.HistoryPoint{Timestamp: point.Timestamp, Amount: point.Amount, Currency: point.Currency}
 	}
 	return out, nil
+}
+
+// dailyPoints reads the session stack's stored daily actuals, complete UTC
+// days only: the web handler passes them through engine.SelectAnomalies, the
+// same function the CLI command applies. A stack without a daily file is an
+// empty series, not a failure.
+func (d *webData) dailyPoints(ctx context.Context) ([]history.DailyPoint, error) {
+	stack, err := d.historyStack(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return loadDailyAnomalySeries(ctx, d.historyDirOverride, stack, engine.DateRange{}, time.Now(), false)
 }
 
 // historyStack reads the session stack under the query gate and releases the

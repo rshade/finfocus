@@ -10,11 +10,12 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
-// anomaliesDeps replaces the overview pipeline stages in tests. A nil field
-// selects the production stage.
+// anomaliesDeps replaces the overview pipeline stages and the daily-series
+// reader in tests. A nil field selects the production stage.
 type anomaliesDeps struct {
 	loader      OverviewPipelineLoader
 	openPlugins func(ctx context.Context, adapter string, audit *auditContext) ([]*pluginhost.Client, func(), error)
@@ -26,12 +27,17 @@ type anomaliesDeps struct {
 		dateRange engine.DateRange,
 		progressChan chan<- engine.OverviewRowUpdate,
 	) []engine.OverviewRow
+	// dailySeries reads the stack's stored daily actuals for the window,
+	// dropping the current partial day. nil selects the production reader
+	// over the history directory, and a nil result keeps the drift rows.
+	dailySeries func(ctx context.Context, window engine.DateRange, now time.Time) ([]history.DailyPoint, error)
 }
 
 // NewCostAnomaliesCmd returns `cost anomalies`. It runs the overview pipeline
 // and lists the rows whose run-rate drift crossed the overview warning
-// threshold. The selection is engine.SelectAnomalies, shared with the web
-// dashboard.
+// threshold, replacing a resource's drift row with a robust-median row when
+// the stack's stored daily actuals qualify. The selection is
+// engine.SelectAnomalies, shared with the web dashboard.
 func NewCostAnomaliesCmd() *cobra.Command {
 	return newCostAnomaliesCmd(anomaliesDeps{})
 }
@@ -42,21 +48,43 @@ func newCostAnomaliesCmd(deps anomaliesDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "anomalies",
 		Short: "List resources whose month-to-date run-rate diverged from the projection",
-		Long: `List the overview drift warnings as rows.
+		Long: `List the overview drift warnings as rows, plus robust-median rows when the
+stack's stored daily actuals mark the latest complete day as a spike.
 
-Each row is a resource whose extrapolated monthly run-rate differs from its
-projected monthly cost by more than 10%. The thresholds and the skips for the
-first two days, new resources, and deleted resources are the overview's own;
-this command only selects the rows that carry drift data.
+Drift rows are resources whose extrapolated monthly run-rate differs from
+their projected monthly cost by more than 10%. The thresholds and the skips
+for the first two days, new resources, and deleted resources are the
+overview's own; this command only selects the rows that carry drift data.
 
-baseline is the projected monthly cost normalized to the calendar month.
-observed is the extrapolated monthly run-rate, not the raw month-to-date spend.
-A row whose cost lookup failed is not an anomaly.
+When the daily series stored by "cost history collect-daily" has at least 14
+earlier days of one currency, a resource's latest complete day is compared
+with the median of the days before it instead. A robust z-score of 3.5 or
+more in either direction reports that day with method "robust-median" in
+place of the resource's drift row: baseline is the median, observed is the
+day's amount, and baselineWindow names the first and last day inside the
+median. A missing day is a gap, never a zero, and never part of the count.
+A flat series (median absolute deviation 0) hides a spike from the score, so
+no statistical row replaces the drift row for it. When the median is 0 the
+percentDrift field is left out and deviation still reports the gap.
+Currencies are never pooled into one median.
+
+The daily series follows the dates you ask for: --from and --to bound the
+days it reads, and without them the whole stored history of the stack is
+used, because the daily store is already a rolling history of that stack.
+The default cost window (the current month, which the drift comparison
+needs) never truncates it, so the method works as soon as the store holds
+fifteen days of one currency.
+
+Drift baseline is the projected monthly cost normalized to the calendar
+month, and drift observed is the extrapolated monthly run-rate, not the raw
+month-to-date spend. A row whose cost lookup failed is not an anomaly.
 
 Without --pulumi-json the command reads the deployed state and does not run
-pulumi preview. JSON output includes considered, the number of rows the
-overview produced, so an empty list differs from a failed load. Table, JSON,
-and NDJSON are supported. The command prices through the overview pipeline and
+pulumi preview. The daily series loads only when the stack is named through
+--stack or a Terraform workspace; when it is not, every resource keeps its
+drift row. JSON output includes considered, the number of rows the overview
+produced, so an empty list differs from a failed load. Table, JSON, and
+NDJSON are supported. The command prices through the overview pipeline and
 is as slow as finfocus overview --output json.`,
 		Example: `  finfocus cost anomalies
   finfocus cost anomalies --stack prod --output json
@@ -144,8 +172,16 @@ func runCostAnomalies(cmd *cobra.Command, params overviewParams, deps anomaliesD
 		report engine.AnomalyReport
 		ready  bool
 	)
+	// The series loads before the pipeline runs so OnReady can apply both
+	// methods at once. A series read failure is a real failure: the stored
+	// daily costs are half the evidence this command reports.
+	series, seriesErr := loadAnomalySeries(ctx, deps, params.stack, dailySeriesWindow(params, dateRange), explicitPulumiInput(cmd))
+	if seriesErr != nil {
+		audit.logFailure(ctx, seriesErr)
+		return seriesErr
+	}
 	pipe.OnReady = func(result OverviewPipelineResult) {
-		report = engine.SelectAnomalies(result.Rows)
+		report = engine.SelectAnomalies(result.Rows, series)
 		ready = true
 	}
 	if runErr := runOverviewPipeline(ctx, pipe); runErr != nil {
@@ -161,6 +197,41 @@ func runCostAnomalies(cmd *cobra.Command, params overviewParams, deps anomaliesD
 	}
 	audit.logSuccess(ctx, report.Considered, 0)
 	return nil
+}
+
+// dailySeriesWindow returns the window the daily reader scores inside. The
+// stored daily actuals are a rolling history of the stack, so an explicit
+// --from or --to bounds them and the implicit default window (the current
+// month, which the drift comparison needs) does not. A zero bound filters
+// nothing on that side.
+func dailySeriesWindow(params overviewParams, resolved engine.DateRange) engine.DateRange {
+	window := engine.DateRange{}
+	if params.fromStr != "" {
+		window.Start = resolved.Start
+	}
+	if params.toStr != "" {
+		window.End = resolved.End
+	}
+	return window
+}
+
+// loadAnomalySeries reads the stored daily actuals through the deps seam.
+// The production reader looks up the history directory's daily file for the
+// named stack, and any seam replaces it wholesale in tests.
+func loadAnomalySeries(
+	ctx context.Context,
+	deps anomaliesDeps,
+	stack string,
+	window engine.DateRange,
+	explicitPulumi bool,
+) ([]history.DailyPoint, error) {
+	loader := deps.dailySeries
+	if loader == nil {
+		loader = func(listCtx context.Context, listWindow engine.DateRange, now time.Time) ([]history.DailyPoint, error) {
+			return loadDailyAnomalySeries(listCtx, "", stack, listWindow, now, explicitPulumi)
+		}
+	}
+	return loader(ctx, window, time.Now())
 }
 
 func renderAnomalies(cmd *cobra.Command, output string, report engine.AnomalyReport) error {
