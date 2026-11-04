@@ -151,12 +151,23 @@ func (lc *commandLifecycle) runRootMCP(cmd *cobra.Command, ver string) error {
 
 // startLogging opens the logging session for a top-level invocation. A
 // dispatched MCP tools/call reuses the server's session instead.
-func (lc *commandLifecycle) startLogging(cmd *cobra.Command) {
+func (lc *commandLifecycle) startLogging(cmd *cobra.Command) error {
+	if readsLogFile(cmd) {
+		if !lc.serving {
+			lc.session = nil
+		}
+		return nil
+	}
 	if lc.serving && lc.session != nil {
 		lc.session.attachCall(cmd)
-		return
+		return nil
 	}
-	lc.session = setupLogging(cmd)
+	session, err := setupLoggingChecked(cmd)
+	if err != nil {
+		return toValidationError(cmd.Context(), err)
+	}
+	lc.session = session
+	return nil
 }
 
 // stopLogging closes the session opened by startLogging; dispatched MCP calls

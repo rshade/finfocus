@@ -65,3 +65,10 @@ jq = "1.8.2"
 
 # Local secret scanning; no make target invokes it.
 trufflehog = "3.99.7"
+
+# ------------------------------------------------------------------------- env
+
+[env]
+# For development and tests only: turns on the Logs page in `finfocus --web`.
+# It is off by default in finfocus itself.
+FINFOCUS_WEB_LOGS = "1"

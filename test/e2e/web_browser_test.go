@@ -1242,6 +1242,43 @@ func TestWebUIOverviewPresentation(t *testing.T) {
 }
 
 //nolint:paralleltest // Browser journey shares the Playwright driver process.
+func TestWebUILogsEntryShowsCoreLine(t *testing.T) {
+	f := newWebFixture(t)
+	browser := webBrowser(t)
+	s := f.start(t, filepath.Join(f.root, "testdata/simple-plan.json"), false, "FINFOCUS_WEB_LOGS=1")
+	page := webPage(t, browser, s, playwright.ColorSchemeLight)
+	webWait(t, page, `() => document.querySelector('.app-nav a[data-route="logs"]')?.hidden === false`)
+	webRoute(t, page, "logs")
+	webWait(t, page, `() => document.querySelector('.zlv-row') !== null`)
+	message, err := page.Locator(".zlv-row .zlv-message").First().TextContent()
+	require.NoError(t, err)
+	assert.NotEmpty(t, message)
+	kind, err := page.Locator(".zlv-row .zlv-source").First().GetAttribute("data-kind")
+	require.NoError(t, err)
+	assert.Equal(t, "core", kind, "a core line's badge names the component and carries kind core")
+}
+
+func TestWebUILogsEntryHiddenByDefault(t *testing.T) {
+	f := newWebFixture(t)
+	browser := webBrowser(t)
+	s := f.start(t, filepath.Join(f.root, "testdata/simple-plan.json"), false)
+	page := webPage(t, browser, s, playwright.ColorSchemeLight)
+	webWait(t, page, `() => document.querySelector('.app-nav a[data-route="overview"]') !== null`)
+	// The nav probe is asynchronous: wait for its status request to finish,
+	// then one macrotask so its handler has run, before asserting the entry
+	// stayed hidden.
+	webWait(
+		t,
+		page,
+		`() => performance.getEntriesByType('resource').some(e => e.name.includes('/api/logs/status') && e.responseEnd > 0)`,
+	)
+	_, err := page.Evaluate(`() => new Promise(resolve => setTimeout(resolve, 0))`)
+	require.NoError(t, err)
+	hidden, err := page.Evaluate(`() => document.querySelector('.app-nav a[data-route="logs"]')?.hidden ?? true`)
+	require.NoError(t, err)
+	assert.Equal(t, true, hidden)
+}
+
 func TestWebUIConfigEditKeepsProjectComment(t *testing.T) {
 	f := newWebFixture(t)
 	browser := webBrowser(t)

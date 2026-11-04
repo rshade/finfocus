@@ -92,6 +92,12 @@ func KnownSettings() []Setting {
 			Help: "Import resource identity from Pulumi Cloud update history",
 			Enum: []string{cloudModeFalse, "auto", envBoolTrue},
 		},
+		{
+			Key:  "web.logs.enabled",
+			Kind: KindBool,
+			Help: "Show a Logs view in the web dashboard. Log lines can include resource names and paths. " +
+				"FINFOCUS_WEB_LOGS overrides this.",
+		},
 		{Key: "scoring.enabled", Kind: KindBool, Help: "Score recommendations. Requires scoring.plugin."},
 		{Key: "scoring.plugin", Kind: KindString, Help: "Plugin that scores recommendations"},
 		{

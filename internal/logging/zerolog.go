@@ -31,6 +31,9 @@ type pluginLogWriterKey struct{}
 // pluginLogPathKey is a private type for storing the plugin log file path in context.
 type pluginLogPathKey struct{}
 
+// pluginLogTapKey is a private type for storing the plugin log tap factory in context.
+type pluginLogTapKey struct{}
+
 // Config holds logging configuration settings.
 type Config struct {
 	Level      string // Log level: trace, debug, info, warn, error
@@ -39,6 +42,11 @@ type Config struct {
 	File       string // File path when Output is "file"
 	Caller     bool   // Include file:line in output
 	StackTrace bool   // Include stack trace on errors
+
+	// Tee, when non-nil, receives each raw zerolog JSON event in addition to the
+	// destination, even when the destination formats output for the console.
+	// It is set in code only and is never read from user configuration.
+	Tee io.Writer `yaml:"-" json:"-"`
 }
 
 // TracingHook implements zerolog.Hook to automatically inject trace_id from context.
@@ -171,6 +179,13 @@ func newLoggerWithWriter(cfg Config, writer io.Writer) zerolog.Logger {
 			TimeFormat: time.RFC3339,
 			NoColor:    false,
 		}
+	}
+
+	if cfg.Tee != nil {
+		output = zerolog.MultiLevelWriter(
+			zerolog.LevelWriterAdapter{Writer: output},
+			zerolog.LevelWriterAdapter{Writer: cfg.Tee},
+		)
 	}
 
 	// Create base logger with timestamp
@@ -312,6 +327,22 @@ func ContextWithPluginLogWriter(ctx context.Context, w io.Writer) context.Contex
 func PluginLogWriterFromContext(ctx context.Context) io.Writer {
 	if w, ok := ctx.Value(pluginLogWriterKey{}).(io.Writer); ok {
 		return w
+	}
+	return nil
+}
+
+// ContextWithPluginLogTap stores a factory in the context that returns, for a named plugin,
+// a writer that receives that plugin's log output in addition to the plugin log writer.
+// Plugin launchers use it to fan plugin stderr into a secondary destination such as a log viewer.
+func ContextWithPluginLogTap(ctx context.Context, tap func(name string) io.WriteCloser) context.Context {
+	return context.WithValue(ctx, pluginLogTapKey{}, tap)
+}
+
+// PluginLogTapFromContext extracts the plugin log tap factory from context.
+// Returns nil if no factory is stored, in which case plugin output is not tapped.
+func PluginLogTapFromContext(ctx context.Context) func(name string) io.WriteCloser {
+	if tap, ok := ctx.Value(pluginLogTapKey{}).(func(name string) io.WriteCloser); ok {
+		return tap
 	}
 	return nil
 }

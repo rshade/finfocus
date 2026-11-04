@@ -113,11 +113,10 @@ Projection commands accept --terraform-plan for saved show -json output and
 			// Initialize global config with project overlay
 			config.InitGlobalConfigWithProject(cmd.Context(), resolvedDir)
 
-			lifecycle.startLogging(cmd)
-			if attachErr := attachESCSource(cmd, cwd); attachErr != nil {
-				return attachErr
+			if logErr := lifecycle.startLogging(cmd); logErr != nil {
+				return logErr
 			}
-			return nil
+			return attachESCSource(cmd, cwd)
 		},
 		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
 			return lifecycle.stopLogging()
@@ -144,7 +143,7 @@ Projection commands accept --terraform-plan for saved show -json output and
 	registerWebFlags(cmd, webFlags)
 	registerImportCloudHistoryFlags(cmd)
 	cmd.AddCommand(newCarbonCmd(), newCostCmd(), newPluginCmd(), newConfigCmd())
-	cmd.AddCommand(NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
+	cmd.AddCommand(NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd(), newLogsCmd())
 	cmd.AddCommand(newMCPServerCmd(cmd, ver, &lifecycle), newSchemaCmd(cmd, ver))
 	applyMCPExclusions(cmd)
 	closeLoggingOnFailure(cmd, &lifecycle)

@@ -15,6 +15,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/weblog"
 	"github.com/rshade/finfocus/internal/webui"
 )
 
@@ -359,7 +360,11 @@ func listenAndPrintWeb(
 	session *webui.Session,
 	audit *auditContext,
 ) (*webui.Server, error) {
-	srv, err := webui.New(webui.Options{Port: flags.port, Session: session})
+	srv, err := webui.New(webui.Options{
+		Port:    flags.port,
+		Session: session,
+		Logs:    weblog.HubFromContext(ctx),
+	})
 	if err != nil {
 		return nil, err
 	}

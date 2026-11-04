@@ -43,7 +43,7 @@ func validateInfrastructureInputs(cmd *cobra.Command) error {
 	}
 	// Overview already accepts a Pulumi state and preview together to build a diff.
 	// cost anomalies runs the same pipeline and takes the same inputs.
-	if cmd.Name() == "overview" || cmd.Name() == "anomalies" {
+	if cmd.Name() == overviewCommandName || cmd.Name() == "anomalies" {
 		plan, _ := cmd.Flags().GetString("terraform-plan")
 		state, _ := cmd.Flags().GetString("terraform-state")
 		if plan == "" && state == "" {

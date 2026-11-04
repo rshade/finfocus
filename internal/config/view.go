@@ -431,7 +431,7 @@ func defaultValue(key string) any {
 		return DefaultBudgetPeriod
 	case keyPulumiCloudEnabled:
 		return cloudModeFalse
-	case "scoring.enabled":
+	case "scoring.enabled", "web.logs.enabled":
 		return false
 	case "scoring.identifier_mode":
 		return ScoringIdentifierPseudonymized
@@ -552,6 +552,11 @@ func collectEnv(environ []string) map[string]any {
 	if raw := env["FINFOCUS_STRICT_COMPATIBILITY"]; raw != "" {
 		if value, err := strconv.ParseBool(raw); err == nil {
 			out["plugin_host.strict_compatibility"] = value
+		}
+	}
+	if raw := env[EnvWebLogs]; raw != "" {
+		if enabled, err := ResolveWebLogs(func(string) string { return raw }, nil); err == nil {
+			out["web.logs.enabled"] = enabled
 		}
 	}
 	scanPluginEnv(environ, "FINFOCUS_PLUGIN_", out)

@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -601,7 +602,11 @@ func (p *ProcessLauncher) startPlugin(
 
 	// Propagate logging configuration to plugin processes so well-behaved plugins
 	// (using pluginsdk) can write structured logs directly to the same file.
-	if logPath := logging.PluginLogPathFromContext(ctx); logPath != "" {
+	tap := logging.PluginLogTapFromContext(ctx)
+	if tap != nil {
+		cmd.Env = dropEnvKey(cmd.Env, pluginsdk.EnvLogFile)
+	}
+	if logPath := logging.PluginLogPathFromContext(ctx); logPath != "" && tap == nil {
 		cmd.Env = append(cmd.Env,
 			fmt.Sprintf("%s=%s", pluginsdk.EnvLogFile, logPath),
 		)
@@ -643,6 +648,9 @@ func (p *ProcessLauncher) startPlugin(
 		stderrW := resolveStderrPassthrough(os.Stderr)
 		cmd.Stderr = stderrW
 		cmd.Stdout = io.MultiWriter(stderrW, &stdoutBuf)
+	}
+	if tap != nil {
+		cmd.Stderr = newTappedStderr(cmd.Stderr, tap(pluginNameFromPath(path)))
 	}
 	// Set WaitDelay before Start to avoid race condition with watchCtx goroutine
 	cmd.WaitDelay = processWaitDelay
@@ -730,6 +738,7 @@ func (p *ProcessLauncher) killProcess(cmd *exec.Cmd) {
 	if cmd != nil && cmd.Process != nil {
 		_ = killProcessGroup(cmd)
 		_ = cmd.Wait()
+		closeLogTap(cmd)
 	}
 }
 
@@ -759,6 +768,7 @@ func (p *ProcessLauncher) createCloseFn(
 			pid := cmd.Process.Pid
 			_ = killProcessGroup(cmd)
 			_ = cmd.Wait()
+			closeLogTap(cmd)
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "pluginhost").
@@ -766,5 +776,60 @@ func (p *ProcessLauncher) createCloseFn(
 				Msg("plugin process terminated")
 		}
 		return closeErr
+	}
+}
+
+const pluginBinaryPrefix = "finfocus-plugin-"
+
+// pluginNameFromPath derives the plugin name from its binary path by dropping
+// the directory, a ".exe" suffix, and the "finfocus-plugin-" prefix.
+func pluginNameFromPath(path string) string {
+	base := strings.TrimSuffix(filepath.Base(path), ".exe")
+	return strings.TrimPrefix(base, pluginBinaryPrefix)
+}
+
+func dropEnvKey(environ []string, key string) []string {
+	prefix := key + "="
+	filtered := make([]string, 0, len(environ))
+	for _, entry := range environ {
+		if !strings.HasPrefix(entry, prefix) {
+			filtered = append(filtered, entry)
+		}
+	}
+	return filtered
+}
+
+// tappedStderr copies plugin stderr to its normal destination and to a log tap.
+// A tap failure never reaches the plugin: a failed write would stop the stderr
+// copy and could block the plugin on a full pipe.
+type tappedStderr struct {
+	io.Writer
+
+	tap io.WriteCloser
+	one sync.Once
+}
+
+type bestEffortWriter struct{ w io.Writer }
+
+func (b bestEffortWriter) Write(p []byte) (int, error) {
+	_, _ = b.w.Write(p)
+	return len(p), nil
+}
+
+func newTappedStderr(dest io.Writer, tap io.WriteCloser) *tappedStderr {
+	return &tappedStderr{
+		Writer: io.MultiWriter(dest, bestEffortWriter{w: tap}),
+		tap:    tap,
+	}
+}
+
+func (t *tappedStderr) closeTap() {
+	t.one.Do(func() { _ = t.tap.Close() })
+}
+
+// closeLogTap flushes and closes the log tap once the process has been waited on.
+func closeLogTap(cmd *exec.Cmd) {
+	if ts, ok := cmd.Stderr.(*tappedStderr); ok {
+		ts.closeTap()
 	}
 }

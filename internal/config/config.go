@@ -113,6 +113,9 @@ type Config struct {
 	// Nil means the section is unset.
 	ESC *ESCConfig `yaml:"esc,omitempty" json:"esc,omitempty"`
 
+	// Web configures the dashboard (finfocus --web). Nil means defaults everywhere.
+	Web *WebConfig `yaml:"web,omitempty" json:"web,omitempty"`
+
 	InstalledPlugins []InstalledPlugin `yaml:"installed_plugins,omitempty" json:"installed_plugins,omitempty"`
 
 	// Internal fields
@@ -453,7 +456,7 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for _, key := range []string{keyOutput, keyPlugins, keyLogging, keyAnalyzer, keyPluginHost,
-		keyCost, keyRouting, keyScoring, keyOverview, keyESC, keyPluginDir, keyInstalledPlugin} {
+		keyCost, keyRouting, keyScoring, keyOverview, keyESC, keyWeb, keyPluginDir, keyInstalledPlugin} {
 		delete(keys, key)
 	}
 	c.extraKeys = keys
@@ -619,6 +622,8 @@ func (c *Config) Set(key, value string) error {
 		return c.setOverviewValue(parts[1:], value)
 	case keyESC:
 		return c.setESCValue(parts[1:], value)
+	case keyWeb:
+		return c.setWebValue(parts[1:], value)
 	default:
 		return fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -648,6 +653,8 @@ func (c *Config) Get(key string) (any, error) {
 		return c.getOverviewValue(parts[1:])
 	case keyESC:
 		return c.getESCValue(parts[1:])
+	case keyWeb:
+		return c.getWebValue(parts[1:])
 	default:
 		return nil, fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -666,6 +673,7 @@ func (c *Config) List() map[string]any {
 		keyScoring:    c.Scoring,
 		keyOverview:   c.Overview,
 		keyESC:        c.ESC,
+		keyWeb:        c.Web,
 	}
 }
 

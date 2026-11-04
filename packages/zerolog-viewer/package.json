@@ -1,0 +1,22 @@
+{
+  "name": "@rshade/zerolog-viewer",
+  "version": "0.0.0",
+  "description": "Framework-free browser viewer for zerolog JSON logs: level colours, source separation, filters.",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.js",
+    "./element": "./src/element.js",
+    "./viewer.css": "./src/viewer.css"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./src/element.js",
+    "./src/viewer.css"
+  ]
+}

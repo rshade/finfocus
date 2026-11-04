@@ -12,6 +12,7 @@ FinFocus supports configuration via environment variables.
 | `FINFOCUS_LOG_LEVEL`   | Log verbosity (debug, info, warn, error) | info                      |
 | `FINFOCUS_CONFIG_FILE` | Path to configuration file               | `~/.finfocus/config.yaml` |
 | `FINFOCUS_PLUGIN_DIR`  | Directory for plugins                    | `~/.finfocus/plugins`     |
+| `FINFOCUS_WEB_LOGS`    | Show the Logs view in `finfocus --web` (`1`, `true`, `0`, `false`); overrides `web.logs.enabled` | off |
 
 ## Plugins
 

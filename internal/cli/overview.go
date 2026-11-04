@@ -71,7 +71,7 @@ func NewOverviewCmd() *cobra.Command {
 	var params overviewParams
 
 	cmd := &cobra.Command{
-		Use:     "overview",
+		Use:     overviewCommandName,
 		Aliases: []string{"ov"},
 		Short:   "Unified stack cost dashboard",
 		Long: `Display a unified cost dashboard combining Pulumi state and plan data
@@ -969,6 +969,9 @@ func completeInteractiveOverview(
 	audit.logSuccess(ctx, int(rowCount), 0)
 	return nil
 }
+
+// overviewCommandName is the overview command's name.
+const overviewCommandName = "overview"
 
 // progressReportInterval controls how often enrichment progress is
 // reported to the TUI (every N rows).
