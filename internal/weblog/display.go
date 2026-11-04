@@ -19,13 +19,13 @@ const (
 
 //nolint:gochecknoglobals // Immutable level ordering table.
 var levelRank = map[string]int{
-	"trace":   rankTrace,
-	"debug":   rankDebug,
-	levelInfo: rankInfo,
-	levelWarn: rankWarn,
-	"error":   rankError,
-	"fatal":   rankFatal,
-	"panic":   rankPanic,
+	levelTrace: rankTrace,
+	levelDebug: rankDebug,
+	levelInfo:  rankInfo,
+	levelWarn:  rankWarn,
+	levelError: rankError,
+	levelFatal: rankFatal,
+	levelPanic: rankPanic,
 }
 
 // Display builds the preformatted strings for an entry: local time as

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -142,6 +143,29 @@ func TestStartLogging_BadWebLogsValueIsValidationError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), config.EnvWebLogs)
 	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
+}
+
+//nolint:paralleltest // t.Setenv and global config
+func TestStartLogging_ServedLogsCallLeavesTheLogFileAlone(t *testing.T) {
+	serverCmd, logPath := webLogsTestCmd(t, "finfocus", false)
+	session := setupLogging(serverCmd)
+	t.Cleanup(func() { _ = session.Close() })
+	before, err := os.ReadFile(logPath)
+	require.NoError(t, err)
+
+	root := &cobra.Command{Use: "finfocus"}
+	call := &cobra.Command{Use: logsCommandName, RunE: func(_ *cobra.Command, _ []string) error { return nil }}
+	root.AddCommand(call)
+	call.SetContext(context.Background())
+
+	lifecycle := commandLifecycle{serving: true, session: session}
+	require.NoError(t, lifecycle.startLogging(call))
+
+	after, err := os.ReadFile(logPath)
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "a logs call must not append to the file it reads")
+	assert.Same(t, session, lifecycle.session, "the running server's session must be kept")
+	require.NoError(t, lifecycle.stopLogging())
 }
 
 // Not parallel: t.Setenv and global config.

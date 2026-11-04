@@ -112,11 +112,22 @@ func TestNewEntryOmitsEmptyFields(t *testing.T) {
 
 func TestNewEntryRaw(t *testing.T) {
 	t.Parallel()
-	for _, line := range []string{"plain text", `[1,2]`, `{"a":1} trailing`, `{"broken":`, `null`, `42`} {
+	for _, line := range []string{"plain text", `[1,2]`, `null`, `42`} {
 		e := weblog.NewEntry([]byte(line), "", fixedNow)
 		assert.True(t, e.Raw, line)
 		assert.Equal(t, "info", e.Level, line)
 		assert.Equal(t, line, e.Message, line)
+		assert.Nil(t, e.Fields, line)
+	}
+}
+
+func TestNewEntryRawObjectLookalikeIsWithheld(t *testing.T) {
+	t.Parallel()
+	for _, line := range []string{`{"a":1} trailing`, `{"broken":`} {
+		e := weblog.NewEntry([]byte(line), "", fixedNow)
+		assert.True(t, e.Raw, line)
+		assert.Contains(t, e.Message, "withheld", line)
+		assert.NotContains(t, e.Message, "broken", line)
 		assert.Nil(t, e.Fields, line)
 	}
 }

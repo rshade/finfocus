@@ -261,8 +261,12 @@ start with `__` are removed. The free-text `message` is shown as written.
 A plugin's lines are tagged with its `plugin_name` field when the line has one.
 Otherwise the tag is the plugin's name taken from its binary path, such as
 `aws-public` for `finfocus-plugin-aws-public`. Lines from the host are `core`.
-A line that is not JSON is shown at level `info`, with the tag of the plugin
-that printed it.
+A line in the default text format (`logging.format: text`) is read for its
+time, level, message, and fields, the same as a JSON line. Any other line that
+is not JSON is shown at level `info`, with the tag of the plugin that printed
+it. A line that starts with `{` but is not a complete JSON object, such as one
+cut at 64 KiB, is replaced by a notice, because its fields cannot be checked
+for credentials.
 
 While the view is on, FinFocus does not pass `FINFOCUS_LOG_FILE` to plugins.
 Their log output goes to standard error, and FinFocus copies it to the log

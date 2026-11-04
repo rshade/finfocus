@@ -1250,8 +1250,12 @@ func TestWebUILogsEntryShowsCoreLine(t *testing.T) {
 	webWait(t, page, `() => document.querySelector('.app-nav a[data-route="logs"]')?.hidden === false`)
 	webRoute(t, page, "logs")
 	webWait(t, page, `() => document.querySelector('.zlv-row') !== null`)
-	assert.NotEmpty(t, mustText(t, page, ".zlv-row .zlv-message"))
-	assert.Equal(t, "core", mustText(t, page, ".zlv-row .zlv-source"))
+	message, err := page.Locator(".zlv-row .zlv-message").First().TextContent()
+	require.NoError(t, err)
+	assert.NotEmpty(t, message)
+	kind, err := page.Locator(".zlv-row .zlv-source").First().GetAttribute("data-kind")
+	require.NoError(t, err)
+	assert.Equal(t, "core", kind, "a core line's badge names the component and carries kind core")
 }
 
 func TestWebUILogsEntryHiddenByDefault(t *testing.T) {

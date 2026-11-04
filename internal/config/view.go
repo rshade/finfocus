@@ -554,6 +554,11 @@ func collectEnv(environ []string) map[string]any {
 			out["plugin_host.strict_compatibility"] = value
 		}
 	}
+	if raw := env[EnvWebLogs]; raw != "" {
+		if enabled, err := ResolveWebLogs(func(string) string { return raw }, nil); err == nil {
+			out["web.logs.enabled"] = enabled
+		}
+	}
 	scanPluginEnv(environ, "FINFOCUS_PLUGIN_", out)
 	return out
 }

@@ -1102,7 +1102,7 @@ button:disabled {
 }
 
 .logs-viewer {
-  min-height: 24rem;
+  height: max(24rem, calc(100vh - 20rem));
 }
 
 .logs-viewer .zlv {

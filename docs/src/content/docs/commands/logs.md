@@ -8,7 +8,9 @@ reads the file once and exits. It never modifies the file, never starts a
 plugin, and works whether or not the dashboard Logs view is enabled.
 
 It uses the same parsing, redaction, filters, and display text as the
-dashboard Logs view, so a line looks the same in both places.
+dashboard Logs view, so a line looks the same in both places. It reads both
+JSON lines and the default text format (`logging.format: text`) that ordinary
+runs write.
 
 > **Note:** This is a snapshot, not a follow mode. Run it again, or open the
 > dashboard Logs view, to see newer entries.

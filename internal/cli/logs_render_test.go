@@ -2,9 +2,9 @@ package cli_test
 
 import (
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,12 +14,18 @@ const (
 	ansiEscape = "\x1b["
 )
 
+// clockPattern matches the table's HH:MM:SS.mmm column, which is rendered in the
+// machine's local zone. Goldens mask it so no test has to reassign [time.Local],
+// a process-wide variable that background goroutines read.
+var clockPattern = regexp.MustCompile(`\d{2}:\d{2}:\d{2}\.\d{3}`)
+
+func maskClock(s string) string {
+	return clockPattern.ReplaceAllString(s, "HH:MM:SS.mmm")
+}
+
 func renderLogs(t *testing.T, extra ...string) string {
 	t.Helper()
 	isolatedHome(t)
-	original := time.Local
-	time.Local = time.UTC                       //nolint:reassign // golden times need a fixed zone
-	t.Cleanup(func() { time.Local = original }) //nolint:reassign // restores the zone
 
 	fixture := filepath.Join(testSourceDir(), "testdata", "logs_render.ndjson")
 	result := runLogs(t, append([]string{"--file", fixture, "--tail", "0"}, extra...)...)
@@ -27,7 +33,7 @@ func renderLogs(t *testing.T, extra ...string) string {
 	return string(result.Stdout)
 }
 
-//nolint:paralleltest // root command, t.Setenv, and time.Local
+//nolint:paralleltest // root command and t.Setenv
 func TestLogsRender_PlainTableGolden(t *testing.T) {
 	out := renderLogs(t)
 
@@ -37,17 +43,17 @@ func TestLogsRender_PlainTableGolden(t *testing.T) {
 	}
 	assert.Contains(t, out, "aws-public")
 	assert.Contains(t, out, "resources=12")
-	assertGoldenFile(t, filepath.Join(testSourceDir(), "testdata", "logs_table_nocolor.golden"), out)
+	assertGoldenFile(t, filepath.Join(testSourceDir(), "testdata", "logs_table_nocolor.golden"), maskClock(out))
 }
 
-//nolint:paralleltest // root command, t.Setenv, and time.Local
+//nolint:paralleltest // root command and t.Setenv
 func TestLogsRender_StyledTableGolden(t *testing.T) {
 	out := renderLogs(t, "--color")
 
 	assert.Contains(t, out, ansiEscape)
 	assert.Equal(t, plainText(t, renderLogs(t)), plainText(t, out),
 		"styling adds escapes only; the text is the plain table")
-	assertGoldenFile(t, filepath.Join(testSourceDir(), "testdata", "logs_table.golden"), out)
+	assertGoldenFile(t, filepath.Join(testSourceDir(), "testdata", "logs_table.golden"), maskClock(out))
 }
 
 // Not parallel: t.Setenv and the root command.
@@ -60,7 +66,7 @@ func TestLogsRender_NoColorWins(t *testing.T) {
 	assert.NotContains(t, renderLogs(t, "--plain"), ansiEscape)
 }
 
-//nolint:paralleltest // root command, t.Setenv, and time.Local
+//nolint:paralleltest // root command and t.Setenv
 func TestLogsRender_NotATerminalIsPlain(t *testing.T) {
 	assert.NotContains(t, renderLogs(t), ansiEscape)
 }

@@ -137,7 +137,10 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   `internal/webui` imports it only for the types behind its `LogSource`
   interface. `packages/zerolog-viewer` must stay self-contained (nothing outside
   its `src/`, no network, no `innerHTML`); `packages/zerolog-viewer/test/boundary.test.mjs` enforces it.
-  Redaction covers fields only; `message` is shown as written.
+  Redaction covers fields only; `message` is shown as written. `buildEntry`
+  reads JSON, then `zerolog.ConsoleWriter` text (the default log file format),
+  then raw. A line that starts with `{` and does not parse is withheld, never
+  shown raw, since a cut event hides its credential fields from redaction.
 - `ax.Execute` mounts `--format json|human`, `--dry-run`, `--yes`, and
   `--idempotency-key` on every command, plus `__schema` and `mcp-server`
   (`--mcp` is the stdio alias). A command must not redeclare `--format`;

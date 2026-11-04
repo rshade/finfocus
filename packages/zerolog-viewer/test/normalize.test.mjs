@@ -53,6 +53,13 @@ test('custom fieldMap for another logger', () => {
   assert.deepEqual(entry.fields, { svc: 'api' });
 });
 
+test('a timestamp outside the Date range falls back to arrival time', () => {
+  for (const time of [1e20, -1e20, 'not a date', Infinity]) {
+    const entry = normalizeEntry({ time, level: 'info', message: 'x' }, { now });
+    assert.equal(entry.time, now());
+  }
+});
+
 test('a raw line becomes a raw info entry from unknown', () => {
   const entry = normalizeEntry(new RawLine('plain text'), { now });
   assert.equal(entry.raw, true);

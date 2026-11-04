@@ -18,7 +18,8 @@ function normalizeTime(value, now) {
   let ms = NaN;
   if (typeof value === 'number') ms = value < 1e12 ? value * 1000 : value;
   else if (typeof value === 'string') ms = Date.parse(value);
-  return Number.isNaN(ms) ? now() : new Date(ms).toISOString();
+  const date = new Date(ms);
+  return Number.isNaN(date.getTime()) ? now() : date.toISOString();
 }
 
 /**

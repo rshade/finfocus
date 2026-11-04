@@ -8,8 +8,13 @@ import (
 )
 
 const (
+	levelTrace    = "trace"
+	levelDebug    = "debug"
 	levelInfo     = "info"
 	levelWarn     = "warn"
+	levelError    = "error"
+	levelFatal    = "fatal"
+	levelPanic    = "panic"
 	sourceCore    = "core"
 	sourceUnknown = "unknown"
 )
@@ -24,14 +29,16 @@ func NewEntry(line []byte, tag string, now time.Time) Entry {
 
 func buildEntry(line []byte, tag string, now time.Time, rawFallback string) Entry {
 	e := Entry{Level: levelInfo, Time: now.UTC().Format(time.RFC3339Nano)}
-	var obj map[string]any
-	dec := json.NewDecoder(bytes.NewReader(line))
-	if err := dec.Decode(&obj); err != nil || obj == nil || dec.More() {
-		e.Raw = true
-		e.Message = string(line)
-		e.Source, e.SourceKind = rawSource(tag, rawFallback)
-	} else {
+	obj, ok := decodeObject(line)
+	if !ok {
+		obj, ok = parseConsole(line)
+	}
+	if ok {
 		fillFromObject(&e, obj, tag)
+	} else {
+		e.Raw = true
+		e.Message = rawMessage(line)
+		e.Source, e.SourceKind = rawSource(tag, rawFallback)
 	}
 	if len(e.Message) > MaxLineBytes {
 		e.Message = cutUTF8(e.Message, MaxLineBytes)
@@ -39,6 +46,28 @@ func buildEntry(line []byte, tag string, now time.Time, rawFallback string) Entr
 	}
 	e.Display = Display(e)
 	return e
+}
+
+func decodeObject(line []byte) (map[string]any, bool) {
+	var obj map[string]any
+	dec := json.NewDecoder(bytes.NewReader(line))
+	if err := dec.Decode(&obj); err != nil || obj == nil || dec.More() {
+		return nil, false
+	}
+	return obj, true
+}
+
+const withheldMessage = "structured log line withheld: it is not a complete JSON object, so its fields cannot be redacted"
+
+// rawMessage is the text of a line that is not a JSON object. A line that
+// starts like one but does not parse, such as an event cut at MaxLineBytes, may
+// carry credential fields that redaction can no longer find, so its text is
+// withheld.
+func rawMessage(line []byte) string {
+	if trimmed := bytes.TrimSpace(line); len(trimmed) > 0 && trimmed[0] == '{' {
+		return withheldMessage
+	}
+	return string(line)
 }
 
 func rawSource(tag, fallback string) (string, string) {
@@ -83,7 +112,7 @@ func normalizeLevel(value any) string {
 	switch text {
 	case "warning":
 		return levelWarn
-	case "trace", "debug", levelInfo, levelWarn, "error", "fatal", "panic":
+	case levelTrace, levelDebug, levelInfo, levelWarn, levelError, levelFatal, levelPanic:
 		return text
 	default:
 		return levelInfo
