@@ -14,7 +14,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/pulumi/esc-sdk/sdk v0.14.0
 	github.com/pulumi/pulumi-cloud-sdk/go v1.20261103.0
-	github.com/pulumi/pulumi/sdk/v3 v3.273.0
+	github.com/pulumi/pulumi/sdk/v3 v3.274.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.10.0
 	github.com/rshade/finfocus-spec v0.7.11
