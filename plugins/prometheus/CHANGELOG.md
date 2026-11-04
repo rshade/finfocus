@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/rshade/finfocus/compare/prometheus-v0.1.4...prometheus-v0.1.5) (2026-11-04)
+
+
+### Dependencies
+
+* update go dependencies ([#2004](https://github.com/rshade/finfocus/issues/2004)) ([79c01be](https://github.com/rshade/finfocus/commit/79c01be475df75faeb9dce6b29001eed80284e01))
+
 ## [0.1.4](https://github.com/rshade/finfocus/compare/prometheus-v0.1.3...prometheus-v0.1.4) (2026-10-31)
 
 
