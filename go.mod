@@ -13,11 +13,11 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/pulumi/esc-sdk/sdk v0.14.0
-	github.com/pulumi/pulumi-cloud-sdk/go v1.20261030.1400
+	github.com/pulumi/pulumi-cloud-sdk/go v1.20261103.0
 	github.com/pulumi/pulumi/sdk/v3 v3.273.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.10.0
-	github.com/rshade/finfocus-spec v0.7.10
+	github.com/rshade/finfocus-spec v0.7.11
 	github.com/rshade/goarima v0.4.1-0.20261029015414-6420b7848c38
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
@@ -49,7 +49,7 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.7 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.8 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
