@@ -153,7 +153,7 @@ func TestSelectAnomalies_Selection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			report := SelectAnomalies(tt.build(t))
+			report := SelectAnomalies(tt.build(t), nil)
 
 			assert.Equal(t, tt.wantTotal, report.Considered)
 			require.NotNil(t, report.Anomalies, "an empty list must marshal as [], not null")
@@ -172,7 +172,7 @@ func TestSelectAnomalies_FieldMapping(t *testing.T) {
 	row := anomalyRow(t, "urn:map", "EUR", 480, 730, 10)
 	require.NotNil(t, row.CostDrift)
 
-	report := SelectAnomalies([]OverviewRow{row})
+	report := SelectAnomalies([]OverviewRow{row}, nil)
 	require.Len(t, report.Anomalies, 1)
 	got := report.Anomalies[0]
 
@@ -201,7 +201,7 @@ func TestSelectAnomalies_MissingActualCost(t *testing.T) {
 		},
 	}
 
-	report := SelectAnomalies([]OverviewRow{row})
+	report := SelectAnomalies([]OverviewRow{row}, nil)
 
 	require.Len(t, report.Anomalies, 1)
 	assert.Equal(t, DateRange{}, report.Anomalies[0].Period)
@@ -223,7 +223,7 @@ func TestSelectAnomalies_Ordering(t *testing.T) {
 		{URN: "urn:negative", CostDrift: drift(-80)},
 	}
 
-	report := SelectAnomalies(rows)
+	report := SelectAnomalies(rows, nil)
 
 	got := make([]string, 0, len(report.Anomalies))
 	for _, a := range report.Anomalies {
@@ -241,7 +241,7 @@ func TestSelectAnomalies_DoesNotMutateInput(t *testing.T) {
 		{URN: "urn:y", CostDrift: &CostDriftData{Delta: 90, PercentDrift: 20, IsWarning: true}},
 	}
 
-	_ = SelectAnomalies(rows)
+	_ = SelectAnomalies(rows, nil)
 
 	assert.Equal(t, "urn:z", rows[0].URN)
 	assert.Equal(t, "urn:y", rows[1].URN)

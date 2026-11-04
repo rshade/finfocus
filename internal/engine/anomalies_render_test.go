@@ -59,7 +59,7 @@ func TestRenderAnomaliesAsJSON(t *testing.T) {
 	t.Run("empty list is an array not null", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
-		require.NoError(t, RenderAnomaliesAsJSON(&buf, SelectAnomalies(nil)))
+		require.NoError(t, RenderAnomaliesAsJSON(&buf, SelectAnomalies(nil, nil)))
 
 		assert.JSONEq(t, `{"considered":0,"anomalies":[]}`, buf.String())
 	})
@@ -93,7 +93,7 @@ func TestRenderAnomaliesAsNDJSON(t *testing.T) {
 	t.Run("empty list writes nothing", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
-		require.NoError(t, RenderAnomaliesAsNDJSON(&buf, SelectAnomalies(nil)))
+		require.NoError(t, RenderAnomaliesAsNDJSON(&buf, SelectAnomalies(nil, nil)))
 
 		assert.Empty(t, buf.String())
 	})
