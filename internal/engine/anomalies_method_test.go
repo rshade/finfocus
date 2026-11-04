@@ -44,7 +44,7 @@ func dailyAmounts(urn, currency string, amounts map[int]float64) []history.Daily
 
 // methodBaseline builds the 80..145 progression on offsets 0..13 (fourteen
 // earlier points) with the observation on offset 14.
-func methodBaseline(urn, currency string, amount float64) map[int]float64 {
+func methodBaseline(amount float64) map[int]float64 {
 	amounts := make(map[int]float64, 15)
 	for offset := 0; offset < 14; offset++ {
 		amounts[offset] = 80 + 5*float64(offset)
@@ -55,7 +55,7 @@ func methodBaseline(urn, currency string, amount float64) map[int]float64 {
 
 // driftAnomalyRow returns a row carrying a real warning-level drift, so the
 // fallback path is the one the overview computes.
-func driftAnomalyRow(urn, currency string, delta float64) OverviewRow {
+func driftAnomalyRow(urn string, delta float64) OverviewRow {
 	return OverviewRow{
 		URN:  urn,
 		Type: "aws:ec2/instance:Instance",
@@ -63,7 +63,7 @@ func driftAnomalyRow(urn, currency string, delta float64) OverviewRow {
 			ExtrapolatedMonthly: 100 + delta, Projected: 100, Delta: delta, PercentDrift: delta, IsWarning: true,
 		},
 		ActualCost: &ActualCostData{
-			Currency: currency,
+			Currency: "USD",
 			Period:   DateRange{Start: testDay(), End: day(14)},
 		},
 	}
@@ -73,7 +73,7 @@ func TestSelectAnomaliesRobustMedian_QualifyingRowHasMethod(t *testing.T) {
 	t.Parallel()
 
 	observed := medianFixture + 137.5 // z = 0.6745 * 137.5 / 17.5 ~= 5.29
-	series := dailyAmounts("urn:spike", "USD", methodBaseline("urn:spike", "USD", observed))
+	series := dailyAmounts("urn:spike", "USD", methodBaseline(observed))
 	// No drift at all: the row exists only because the daily series qualifies.
 	row := OverviewRow{URN: "urn:spike", Type: "aws:ec2/instance:Instance"}
 
@@ -114,7 +114,7 @@ func TestSelectAnomaliesRobustMedian_AtAndOverTheCutoff(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			baseline := methodBaseline("urn:edge", "USD", medianFixture+boundary*(1+tt.offset))
+			baseline := methodBaseline(medianFixture + boundary*(1+tt.offset))
 			series := dailyAmounts("urn:edge", "USD", baseline)
 			report := SelectAnomalies([]OverviewRow{{URN: "urn:edge"}}, series)
 			got := make([]string, 0, len(report.Anomalies))
@@ -163,7 +163,7 @@ func TestSelectAnomaliesRobustMedian_MinimumHistory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			rows := []OverviewRow{driftAnomalyRow("urn:short", "USD", 50)}
+			rows := []OverviewRow{driftAnomalyRow("urn:short", 50)}
 			series := build(tt.offsets)
 			report := SelectAnomalies(rows, series)
 			require.Len(t, report.Anomalies, 1)
@@ -215,7 +215,7 @@ func TestSelectAnomaliesRobustMedian_GapFallsUnderTheMinimum(t *testing.T) {
 	amounts[14] = 500
 	series := dailyAmounts("urn:shortgap", "USD", amounts)
 
-	report := SelectAnomalies([]OverviewRow{OverviewRow{URN: "urn:shortgap"}}, series)
+	report := SelectAnomalies([]OverviewRow{{URN: "urn:shortgap"}}, series)
 	assert.Empty(t, report.Anomalies)
 }
 
@@ -238,12 +238,12 @@ func TestSelectAnomaliesRobustMedian_ZeroMADStaysSilent(t *testing.T) {
 	}{
 		{
 			name:       "the drift row survives a flat series",
-			rows:       []OverviewRow{driftAnomalyRow("urn:flat", "USD", 50)},
+			rows:       []OverviewRow{driftAnomalyRow("urn:flat", 50)},
 			wantMethod: AnomalyMethodDrift,
 		},
 		{
 			name: "no drift row and no statistical row means no rows",
-			rows: []OverviewRow{OverviewRow{URN: "urn:flat"}},
+			rows: []OverviewRow{{URN: "urn:flat"}},
 		},
 	}
 	for _, tt := range tests {
@@ -268,7 +268,7 @@ func TestSelectAnomaliesRobustMedian_PricingFailureIsNotScored(t *testing.T) {
 	// stored daily series may still qualify. The row's costs are missing, so
 	// neither method may report it.
 	observed := medianFixture + 137.5
-	series := dailyAmounts("urn:unpriced", "USD", methodBaseline("urn:unpriced", "USD", observed))
+	series := dailyAmounts("urn:unpriced", "USD", methodBaseline(observed))
 	row := OverviewRow{
 		URN:                    "urn:unpriced",
 		Type:                   "aws:ec2/instance:Instance",
@@ -312,7 +312,7 @@ func TestSelectAnomaliesRobustMedian_ZeroMedianOmitsPercentDrift(t *testing.T) {
 	require.NoError(t, json.NewDecoder(strings.NewReader(anomalyJSON(t, report))).Decode(&decoded))
 	require.Len(t, decoded.Anomalies, 1)
 	assert.NotContains(t, decoded.Anomalies[0], "percentDrift")
-	assert.Equal(t, float64(100), decoded.Anomalies[0]["deviation"])
+	assert.InDelta(t, 100, decoded.Anomalies[0]["deviation"], 1e-9)
 }
 
 func TestRenderAnomaliesRobustMedianFields(t *testing.T) {
@@ -321,10 +321,10 @@ func TestRenderAnomaliesRobustMedianFields(t *testing.T) {
 	t.Run("json carries the baseline window and omits it on drift rows", func(t *testing.T) {
 		t.Parallel()
 		observed := medianFixture + 137.5
-		series := dailyAmounts("urn:render", "USD", methodBaseline("urn:render", "USD", observed))
+		series := dailyAmounts("urn:render", "USD", methodBaseline(observed))
 		rows := []OverviewRow{
-			OverviewRow{URN: "urn:render", Type: "aws:ec2/instance:Instance"},
-			driftAnomalyRow("urn:still", "USD", 50),
+			{URN: "urn:render", Type: "aws:ec2/instance:Instance"},
+			driftAnomalyRow("urn:still", 50),
 		}
 		report := SelectAnomalies(rows, series)
 		require.Len(t, report.Anomalies, 2)
@@ -359,7 +359,7 @@ func TestRenderAnomaliesRobustMedianFields(t *testing.T) {
 	t.Run("ndjson writes one robust-median line", func(t *testing.T) {
 		t.Parallel()
 		observed := medianFixture + 137.5
-		series := dailyAmounts("urn:nd", "USD", methodBaseline("urn:nd", "USD", observed))
+		series := dailyAmounts("urn:nd", "USD", methodBaseline(observed))
 		report := SelectAnomalies([]OverviewRow{{URN: "urn:nd"}}, series)
 
 		var buf strings.Builder
@@ -420,7 +420,7 @@ func TestSelectAnomaliesRobustMedian_NegativeSpike(t *testing.T) {
 	t.Parallel()
 
 	observed := medianFixture - 87.5 // |z| = 0.6745 * 87.5 / 17.5 ~= 3.37 -> under
-	series := dailyAmounts("urn:under", "USD", methodBaseline("urn:under", "USD", observed))
+	series := dailyAmounts("urn:under", "USD", methodBaseline(observed))
 	report := SelectAnomalies([]OverviewRow{{URN: "urn:under"}}, series)
 	assert.Empty(t, report.Anomalies)
 }
@@ -429,8 +429,8 @@ func TestSelectAnomaliesRobustMedian_ReplacesDriftRowWithoutSecondRow(t *testing
 	t.Parallel()
 
 	observed := medianFixture + 137.5
-	series := dailyAmounts("urn:both", "USD", methodBaseline("urn:both", "USD", observed))
-	rows := []OverviewRow{driftAnomalyRow("urn:both", "USD", 50)}
+	series := dailyAmounts("urn:both", "USD", methodBaseline(observed))
+	rows := []OverviewRow{driftAnomalyRow("urn:both", 50)}
 
 	report := SelectAnomalies(rows, series)
 
@@ -445,11 +445,11 @@ func TestSelectAnomaliesRobustMedian_ReplacesDriftRowWithoutSecondRow(t *testing
 func TestSelectAnomaliesRobustMedian_KeepsDriftRowWhenSeriesFallsShort(t *testing.T) {
 	t.Parallel()
 
-	amounts := methodBaseline("urn:fallback", "USD", medianFixture+137.5)
+	amounts := methodBaseline(medianFixture + 137.5)
 	delete(amounts, 13) // thirteen earlier points
 	series := dailyAmounts("urn:fallback", "USD", amounts)
 
-	report := SelectAnomalies([]OverviewRow{driftAnomalyRow("urn:fallback", "USD", 50)}, series)
+	report := SelectAnomalies([]OverviewRow{driftAnomalyRow("urn:fallback", 50)}, series)
 	require.Len(t, report.Anomalies, 1)
 	assert.Equal(t, AnomalyMethodDrift, report.Anomalies[0].Method)
 }
@@ -458,10 +458,10 @@ func TestSelectAnomaliesRobustMedian_SecondRowNeverAppears(t *testing.T) {
 	t.Parallel()
 
 	observed := medianFixture + 137.5
-	series := dailyAmounts("urn:one-row", "USD", methodBaseline("urn:one-row", "USD", observed))
+	series := dailyAmounts("urn:one-row", "USD", methodBaseline(observed))
 	rows := []OverviewRow{
-		driftAnomalyRow("urn:one-row", "USD", 50),
-		driftAnomalyRow("urn:one-row", "USD", 80), // duplicated URN edge
+		driftAnomalyRow("urn:one-row", 50),
+		driftAnomalyRow("urn:one-row", 80), // duplicated URN edge
 	}
 
 	report := SelectAnomalies(rows, series)
@@ -474,11 +474,11 @@ func TestSelectAnomalies_EqualInputsGiveEqualOutput(t *testing.T) {
 	t.Parallel()
 
 	rows := []OverviewRow{
-		driftAnomalyRow("urn:a", "USD", 50),
-		driftAnomalyRow("urn:b", "USD", 80),
+		driftAnomalyRow("urn:a", 50),
+		driftAnomalyRow("urn:b", 80),
 	}
 	observed := medianFixture + 137.5
-	series := dailyAmounts("urn:a", "USD", methodBaseline("urn:a", "USD", observed))
+	series := dailyAmounts("urn:a", "USD", methodBaseline(observed))
 
 	first := SelectAnomalies(rows, series)
 	second := SelectAnomalies(rows, series)
@@ -493,8 +493,8 @@ func TestSelectAnomalies_EmptySeriesMatchesDriftOutput(t *testing.T) {
 	t.Parallel()
 
 	rows := []OverviewRow{
-		driftAnomalyRow("urn:drift", "USD", 50),
-		OverviewRow{URN: "urn:plain"},
+		driftAnomalyRow("urn:drift", 50),
+		{URN: "urn:plain"},
 	}
 	withSeries := SelectAnomalies(rows, []history.DailyPoint{})
 	withoutSeries := SelectAnomalies(rows, []history.DailyPoint{})

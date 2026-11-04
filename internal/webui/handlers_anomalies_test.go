@@ -194,14 +194,22 @@ func TestAnomaliesHandlerReportsSeriesFailure(t *testing.T) {
 	t.Parallel()
 	session := NewSession(context.Background(), SessionOptions{
 		DailyPoints: func(context.Context) ([]history.DailyPoint, error) {
-			return nil, errors.New("daily actuals boom") // a real read failure, e.g. a corrupt store
+			return nil, errors.New("statting daily actuals: stat /home/me/p@dev.daily.db: permission denied")
 		},
 	})
 	session.Ready(anomalyFixtureRows())
 	s := newRunningServer(t, Options{Session: session})
 
 	response := overviewRequest(t, s, http.MethodGet, "/api/overview/anomalies", "")
-	assert.Equal(t, http.StatusInternalServerError, response.StatusCode)
+	require.Equal(t, http.StatusInternalServerError, response.StatusCode)
+	var failure struct {
+		Error string `json:"error"`
+		Code  string `json:"code"`
+	}
+	require.NoError(t, json.NewDecoder(response.Body).Decode(&failure))
+	assert.Equal(t, "daily_actuals", failure.Code)
+	assert.Equal(t, "daily actuals unavailable", failure.Error)
+	assert.NotContains(t, failure.Error, "/home/me", "a local path never reaches the browser")
 }
 
 func TestAnomaliesRequireSessionAuthentication(t *testing.T) {

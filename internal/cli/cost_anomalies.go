@@ -218,10 +218,17 @@ func anomalyReport(
 	result OverviewPipelineResult,
 	cmd *cobra.Command,
 ) (engine.AnomalyReport, error) {
+	stack := anomalySeriesStack(params.stack, "")
+	if stack == "" {
+		stack = anomalySeriesStackFromRows(result.Rows)
+	}
+	if stack == "" {
+		stack = anomalySeriesStack("", result.StackName)
+	}
 	series, err := loadAnomalySeries(
 		ctx,
 		deps,
-		anomalySeriesStack(params.stack, result.StackName),
+		stack,
 		anomalySeriesProject(result.Rows),
 		dailySeriesWindow(params, dateRange),
 		explicitPulumiInput(cmd),
@@ -241,6 +248,18 @@ func anomalySeriesStack(flagStack, resolvedStack string) string {
 		return stack
 	}
 	return strings.TrimSpace(resolvedStack)
+}
+
+// anomalySeriesStackFromRows returns the stack named in the loaded Pulumi
+// URNs. It applies after --stack and before the resolved stack, whose name is
+// a file name for a saved state and empty when the stack could not be read.
+func anomalySeriesStackFromRows(rows []engine.OverviewRow) string {
+	for i := range rows {
+		if stack := history.StackFromURN(rows[i].URN); stack != "" {
+			return stack
+		}
+	}
+	return ""
 }
 
 // anomalySeriesProject names the project whose daily actuals the command

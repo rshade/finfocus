@@ -111,7 +111,13 @@ func TestDailySeriesTarget(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			target, ok, err := dailySeriesTarget(t.Context(), "testdata/daily-series-none", tt.stack, tt.loadedProject, tt.explicitPulumi)
+			target, ok, err := dailySeriesTarget(
+				t.Context(),
+				"testdata/daily-series-none",
+				tt.stack,
+				tt.loadedProject,
+				tt.explicitPulumi,
+			)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -166,10 +172,12 @@ func TestReadDailySeries_AnUnformattedStoreIsNotAdopted(t *testing.T) {
 }
 
 func TestReadDailySeries_ReturnsStoredPoints(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", []history.DailyPoint{onePoint(0, 90)})
+	seedDailyStore(t, dir, name, []history.DailyPoint{onePoint(0, 90)})
 
 	target := historyTarget{
 		Path:    filepath.Join(dir, name),
@@ -227,11 +235,12 @@ func TestTrimDailySeries(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // loadDailyAnomalySeries reads the process-wide config singleton
 func TestLoadDailyAnomalySeries_TrimmedEndToEnd(t *testing.T) {
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", []history.DailyPoint{
+	seedDailyStore(t, dir, name, []history.DailyPoint{
 		onePoint(0, 80),
 		onePoint(2, 90), // today: dropped
 	})

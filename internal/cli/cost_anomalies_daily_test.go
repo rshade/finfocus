@@ -44,9 +44,9 @@ func dailySpikeAmounts() []history.DailyPoint {
 
 // seedDailyStore writes points into `<name>` under dir through the real
 // store, then closes it, so the reader exercises the file like collect left it.
-func seedDailyStore(t *testing.T, dir, name, project, stack string, points []history.DailyPoint) {
+func seedDailyStore(t *testing.T, dir, name string, points []history.DailyPoint) {
 	t.Helper()
-	db, err := history.OpenDailyDB(filepath.Join(dir, name), project, stack)
+	db, err := history.OpenDailyDB(filepath.Join(dir, name), "myproj", "dev")
 	require.NoError(t, err)
 	require.NoError(t, db.Replace(points))
 	require.NoError(t, db.Close())
@@ -101,7 +101,7 @@ func TestCostAnomalies_FixtureStoreShowsRobustMedianMethod(t *testing.T) {
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
+	seedDailyStore(t, dir, name, dailySpikeAmounts())
 
 	rows := dailySpikeRow()
 
@@ -176,7 +176,7 @@ func TestCostAnomalies_StoredHistoryIsNotTruncatedByTheDefaultWindow(t *testing.
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
+	seedDailyStore(t, dir, name, dailySpikeAmounts())
 
 	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
 	deps.dailySeries = dailySeriesReader(dir)
@@ -200,7 +200,7 @@ func TestCostAnomalies_ExplicitWindowBoundsTheStoredSeries(t *testing.T) {
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
+	seedDailyStore(t, dir, name, dailySpikeAmounts())
 
 	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
 	deps.dailySeries = dailySeriesReader(dir)
@@ -225,7 +225,7 @@ func TestCostAnomalies_UsesTheResolvedStackWithoutStackFlag(t *testing.T) {
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
+	seedDailyStore(t, dir, name, dailySpikeAmounts())
 
 	var seen anomalySeriesIdentity
 	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
@@ -289,6 +289,38 @@ func TestAnomalySeriesStack(t *testing.T) {
 	}
 }
 
+// TestCostAnomalies_LoadedURNStackWinsOverTheResolvedName keeps the read on
+// the stack that produced the rows. A saved state file resolves to a name taken
+// from the file, not from the stack, so the series would be read from a store
+// no collector wrote; the loaded URNs name the real stack.
+func TestCostAnomalies_LoadedURNStackWinsOverTheResolvedName(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+
+	var seen anomalySeriesIdentity
+	deps := anomaliesTestDeps(func(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
+		data, err := fakePipelineLoader(dailySpikeRow())(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		data.StackName = "state"
+		return data, nil
+	})
+	deps.dailySeries = func(
+		_ context.Context,
+		stack, project string,
+		_ engine.DateRange,
+		_ time.Time,
+	) ([]history.DailyPoint, error) {
+		seen.stack, seen.project = stack, project
+		return nil, nil
+	}
+
+	_, err := runAnomaliesTest(t, deps, "--output", "json")
+	require.NoError(t, err)
+
+	assert.Equal(t, "dev", seen.stack, "the loaded URNs name the stack, not the state file")
+}
+
 // TestCostAnomalies_LearnedRowsProjectReachesTheSeriesRead keeps the read on
 // the store the collector wrote: the loaded rows' URNs name the Pulumi
 // project, so without --stack the daily read still opens
@@ -300,7 +332,7 @@ func TestCostAnomalies_LearnedRowsProjectReachesTheSeriesRead(t *testing.T) {
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
+	seedDailyStore(t, dir, name, dailySpikeAmounts())
 
 	var seen anomalySeriesIdentity
 	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
@@ -326,7 +358,7 @@ func TestCostAnomalies_BareStackFlagResolvesTheStoredProject(t *testing.T) {
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
+	seedDailyStore(t, dir, name, dailySpikeAmounts())
 
 	var seen anomalySeriesIdentity
 	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
