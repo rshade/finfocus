@@ -154,14 +154,22 @@ func TestRenderAnomaliesAsTable(t *testing.T) {
 		defined := sampleAnomalyReport().Anomalies[0]
 		report := AnomalyReport{
 			Considered: 2,
-			Anomalies:  []Anomaly{zeroBaselineAnomaly("urn:pulumi:dev::app::aws:ec2/instance:Instance::zeromed"), defined},
+			Anomalies: []Anomaly{
+				zeroBaselineAnomaly("urn:pulumi:dev::app::aws:ec2/instance:Instance::zeromed"),
+				defined,
+			},
 		}
 		var buf bytes.Buffer
 		require.NoError(t, RenderAnomaliesAsTable(&buf, report))
 		out := buf.String()
 
 		assert.NotContains(t, out, "+0.0%", "an undefined drift never prints as a baked zero")
-		assert.Contains(t, out, unavailableAnomalyDrift, "a zero-baseline robust-median row marks the drift unavailable")
+		assert.Contains(
+			t,
+			out,
+			unavailableAnomalyDrift,
+			"a zero-baseline robust-median row marks the drift unavailable",
+		)
 		assert.Contains(t, out, "+50.0%", "a defined drift keeps its sign and precision")
 	})
 }

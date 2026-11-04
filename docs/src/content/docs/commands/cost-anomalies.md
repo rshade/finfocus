@@ -113,7 +113,8 @@ same rows `n/a`.
 ## The robust-median method
 
 A resource whose stored daily actuals cover at least 14 earlier days in one
-currency gets its drift row replaced. The latest complete UTC day of the
+currency is scored. Its drift row is replaced only when the latest complete
+UTC day crosses the cutoff below. The latest complete UTC day of the
 series is the observation; the current partial day is not an observation.
 The baseline is the median of those earlier points, and the observation day is
 not part of the median, so the day under test cannot pull the median toward
@@ -141,8 +142,9 @@ it. The method therefore works as soon as the store holds fifteen days of one
 currency, instead of only in the second half of a month.
 
 The series belongs to one stack, and the command reads the stack it just
-priced: `--stack` names it when given, and the stack the overview resolved
-does otherwise. A stack that has never been collected has no series, so every
+priced: `--stack` names it when given, and the stack named in the loaded
+resources does otherwise (the stack the overview resolved is the last
+fallback). A stack that has never been collected has no series, so every
 resource keeps its drift row.
 
 Two things stay silent by design:

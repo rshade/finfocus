@@ -90,15 +90,25 @@ func (d *webData) historyResource(ctx context.Context, id string) ([]webui.Histo
 // same function the CLI command applies. A stack without a daily file is an
 // empty series, not a failure.
 func (d *webData) dailyPoints(ctx context.Context) ([]history.DailyPoint, error) {
-	stack, err := d.historyStack(ctx)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	unlock, err := d.lock(ctx)
 	if err != nil {
 		return nil, err
 	}
+	// The stack and the project come from one snapshot, read under one hold of
+	// the gate: a preview can replace the snapshot between two holds.
+	stack := d.forecastStack()
 	// The project comes from the loaded snapshot's Pulumi URNs, the same rule
 	// the CLI command reads from its loaded rows: a fully qualified stack
 	// carries its own project anyway, and a bare one would otherwise miss the
 	// file the collector wrote and fall back to a legacy name.
-	return loadDailyAnomalySeries(ctx, d.historyDirOverride, stack, d.snapshotProject(), engine.DateRange{}, time.Now(), false)
+	project := d.snapshotProject()
+	unlock()
+	return loadDailyAnomalySeries(
+		ctx, d.historyDirOverride, stack, project, engine.DateRange{}, time.Now(), false,
+	)
 }
 
 // snapshotProject names the project the session's loaded snapshot identifies:

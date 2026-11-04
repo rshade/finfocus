@@ -339,7 +339,7 @@ func TestWebSessionOptions_WiresDailyPoints(t *testing.T) {
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", []history.DailyPoint{{
+	seedDailyStore(t, dir, name, []history.DailyPoint{{
 		ResourceID: "urn:pulumi:dev::myproj::aws:ec2/instance:Instance::spiky",
 		Day:        time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
 		Currency:   "USD",
@@ -367,7 +367,7 @@ func TestWebDailyPoints_BareStackLearnsTheProjectFromTheSnapshot(t *testing.T) {
 	dir := t.TempDir()
 	name, err := history.DailyFileNameFor("myproj", "dev")
 	require.NoError(t, err)
-	seedDailyStore(t, dir, name, "myproj", "dev", []history.DailyPoint{{
+	seedDailyStore(t, dir, name, []history.DailyPoint{{
 		ResourceID: "urn:pulumi:dev::myproj::aws:ec2/instance:Instance::spiky",
 		Day:        time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
 		Currency:   "USD",
