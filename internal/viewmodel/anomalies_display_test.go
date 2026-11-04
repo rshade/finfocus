@@ -72,6 +72,17 @@ func TestBuildAnomalyDisplay(t *testing.T) {
 			},
 		},
 		{
+			name: "a zero-baseline robust-median row has no defined drift",
+			anomaly: engine.Anomaly{
+				Period: period, Baseline: 0, Observed: 90, Deviation: 90, Currency: "USD",
+				Method: engine.AnomalyMethodRobustMedian,
+			},
+			want: AnomalyDisplay{
+				Baseline: "$0.00", Observed: "$90.00", Deviation: "+$90.00",
+				Drift: unavailableAnomalyDrift, Period: "Oct 1 – Oct 11, 2026",
+			},
+		},
+		{
 			name: "period across a year boundary names both years",
 			anomaly: engine.Anomaly{
 				Period: engine.DateRange{

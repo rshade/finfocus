@@ -206,12 +206,19 @@ Full page: [cost forecast](../commands/forecast.md)
 
 ## Cost Anomalies
 
-`cost anomalies` lists the resources whose month-to-date run-rate has
-diverged from the projected month by more than 10%, using the overview's own
-drift calculation. Each row has a baseline and an observed monthly figure,
-the deviation, and the percent drift. JSON output also reports how many rows
-were considered, so an empty list is not mistaken for a failed run. It is also
-available to MCP clients as `finfocus-cost-anomalies`.
+`cost anomalies` lists resources whose costs broke from their reference by
+more than a documented cutoff. A resource with 14 or more stored daily actuals
+in one currency gets `method: robust-median`: its latest complete UTC day is
+scored against the median of the days before it, and a day whose robust
+z-score reaches 3.5 replaces the resource's drift row. A resource without
+that much daily history keeps `method: drift`, the overview's own calculation:
+its month-to-date run-rate has diverged from the projected month by more than
+10%. Each row has a baseline and an observed figure, the deviation, and the
+percent drift (omitted when a robust-median median is 0). JSON output also
+reports how many rows were considered, so an empty list is not mistaken for a
+failed run. The daily series belongs to one stack: `--stack` names it, and the
+stack the overview resolved does otherwise. It is also available to MCP clients
+as `finfocus-cost-anomalies`.
 
 ```bash
 finfocus cost anomalies --stack prod

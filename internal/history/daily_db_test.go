@@ -130,6 +130,151 @@ func TestCostDB_UnsupportedSchemaStillReported(t *testing.T) {
 	require.ErrorContains(t, err, "unsupported cost history schema version 2")
 }
 
+func TestOpenDailyDBRead_ReturnsStoredPoints(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "demo@dev.daily.db")
+	db := openDaily(t, path)
+	written := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, db.Replace([]DailyPoint{
+		{ResourceID: "urn:a", Day: day1, Currency: "USD", Amount: 3, WrittenAt: written},
+	}))
+	require.NoError(t, db.Close())
+
+	reader, err := OpenDailyDBRead(path, "demo", "dev")
+	require.NoError(t, err)
+	points, err := reader.Points()
+	require.NoError(t, err)
+	require.NoError(t, reader.Close())
+	require.Len(t, points, 1)
+	assert.Equal(t, "urn:a", points[0].ResourceID)
+	assert.Equal(t, day1, points[0].Day)
+	assert.Equal(t, "USD", points[0].Currency)
+	assert.InDelta(t, 3, points[0].Amount, 0)
+}
+
+func TestOpenDailyDBRead_ChecksTheOwner(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "demo@dev.daily.db")
+	db := openDaily(t, path)
+	require.NoError(t, db.Close())
+
+	_, err := OpenDailyDBRead(path, "demo", "prod")
+	require.ErrorContains(t, err, `daily actuals database stack "dev" does not match "prod"`)
+
+	_, err = OpenDailyDBRead(path, "other", "dev")
+	require.ErrorContains(t, err, `daily actuals database belongs to project "demo", not "other"`)
+
+	// A store that never recorded a project is not another project's file.
+	unclaimedPath := filepath.Join(t.TempDir(), "dev.daily.db")
+	unclaimed, err := OpenDailyDB(unclaimedPath, "", "dev")
+	require.NoError(t, err)
+	require.NoError(t, unclaimed.Close())
+
+	reader, err := OpenDailyDBRead(unclaimedPath, "demo", "dev")
+	require.NoError(t, err)
+	require.NoError(t, reader.Close())
+}
+
+func TestOpenDailyDBRead_RefusesTheOtherStore(t *testing.T) {
+	t.Parallel()
+
+	timelinePath := filepath.Join(t.TempDir(), "demo@dev.history.db")
+	timeline, err := OpenCostDBFor(timelinePath, "demo", "dev")
+	require.NoError(t, err)
+	require.NoError(t, timeline.Close())
+
+	_, err = OpenDailyDBRead(timelinePath, "demo", "dev")
+	require.ErrorIs(t, err, ErrTimelineAsDaily)
+}
+
+func TestOpenDailyDBRead_RejectsAnUnsupportedSchema(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "demo@dev.daily.db")
+	db, err := bolt.Open(path, dbFilePermissions, &bolt.Options{Timeout: time.Second})
+	require.NoError(t, err)
+	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
+		meta, createErr := tx.CreateBucket([]byte(costBucketMeta))
+		if createErr != nil {
+			return createErr
+		}
+		return putUint64(meta, metaKeyDailySchema, dailySchemaVersion+1)
+	}))
+	require.NoError(t, db.Close())
+
+	_, err = OpenDailyDBRead(path, "demo", "dev")
+	require.ErrorContains(t, err, "unsupported daily actuals schema version 2")
+}
+
+func TestOpenDailyDBRead_RejectsAStoreWithoutBuckets(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "demo@dev.daily.db")
+	db, err := bolt.Open(path, dbFilePermissions, &bolt.Options{Timeout: time.Second})
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	_, err = OpenDailyDBRead(path, "demo", "dev")
+	require.Error(t, err, "a read validates the schema, it never adopts an empty store")
+
+	db, err = bolt.Open(path, dbFilePermissions, &bolt.Options{Timeout: time.Second})
+	require.NoError(t, err)
+	buckets := 0
+	require.NoError(t, db.View(func(tx *bolt.Tx) error {
+		return tx.ForEach(func(_ []byte, _ *bolt.Bucket) error {
+			buckets++
+			return nil
+		})
+	}))
+	require.NoError(t, db.Close())
+	assert.Zero(t, buckets, "a rejected daily read must not initialize buckets")
+}
+
+func TestOpenDailyDBRead_NeverWrites(t *testing.T) {
+	t.Parallel()
+
+	t.Run("an unformatted file stays untouched", func(t *testing.T) {
+		t.Parallel()
+		path := filepath.Join(t.TempDir(), "demo@dev.daily.db")
+		require.NoError(t, os.WriteFile(path, nil, 0o600))
+
+		_, err := OpenDailyDBRead(path, "demo", "dev")
+		require.Error(t, err, "a read validates, never initializes, an unformatted file")
+		body, readErr := os.ReadFile(path)
+		require.NoError(t, readErr)
+		assert.Empty(t, body, "the read-only open must not initialize the file")
+	})
+
+	t.Run("an initialized store is left byte-identical", func(t *testing.T) {
+		t.Parallel()
+		path := filepath.Join(t.TempDir(), "demo@dev.daily.db")
+		db := openDaily(t, path)
+		require.NoError(t, db.Replace([]DailyPoint{{
+			ResourceID: "urn:a",
+			Day:        time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+			Currency:   "USD",
+			Amount:     4,
+			WrittenAt:  time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC),
+		}}))
+		require.NoError(t, db.Close())
+		before, readErr := os.ReadFile(path)
+		require.NoError(t, readErr)
+
+		reader, err := OpenDailyDBRead(path, "demo", "dev")
+		require.NoError(t, err)
+		_, err = reader.Points()
+		require.NoError(t, err)
+		require.NoError(t, reader.Close())
+
+		after, readErr := os.ReadFile(path)
+		require.NoError(t, readErr)
+		assert.Equal(t, before, after, "a daily read is never a write")
+	})
+}
+
 func openDaily(t *testing.T, path string) *DailyDB {
 	t.Helper()
 	db, err := OpenDailyDB(path, "demo", "dev")

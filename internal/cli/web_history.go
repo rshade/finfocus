@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/tui/detail"
 	"github.com/rshade/finfocus/internal/webui"
@@ -81,6 +83,48 @@ func (d *webData) historyResource(ctx context.Context, id string) ([]webui.Histo
 		out[i] = webui.HistoryPoint{Timestamp: point.Timestamp, Amount: point.Amount, Currency: point.Currency}
 	}
 	return out, nil
+}
+
+// dailyPoints reads the session stack's stored daily actuals, complete UTC
+// days only: the web handler passes them through engine.SelectAnomalies, the
+// same function the CLI command applies. A stack without a daily file is an
+// empty series, not a failure.
+func (d *webData) dailyPoints(ctx context.Context) ([]history.DailyPoint, error) {
+	stack, err := d.historyStack(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// The project comes from the loaded snapshot's Pulumi URNs, the same rule
+	// the CLI command reads from its loaded rows: a fully qualified stack
+	// carries its own project anyway, and a bare one would otherwise miss the
+	// file the collector wrote and fall back to a legacy name.
+	return loadDailyAnomalySeries(ctx, d.historyDirOverride, stack, d.snapshotProject(), engine.DateRange{}, time.Now(), false)
+}
+
+// snapshotProject names the project the session's loaded snapshot identifies:
+// the first Pulumi URN among its state, component, and step entries. It is
+// empty when the session loaded no snapshot with URNs. The gate is already
+// held when this runs.
+func (d *webData) snapshotProject() string {
+	if d.snapshot == nil {
+		return ""
+	}
+	for i := range d.snapshot.State {
+		if project := history.ProjectFromURN(d.snapshot.State[i].URN); project != "" {
+			return project
+		}
+	}
+	for _, urn := range d.snapshot.ComponentURNs {
+		if project := history.ProjectFromURN(urn); project != "" {
+			return project
+		}
+	}
+	for i := range d.snapshot.Steps {
+		if project := history.ProjectFromURN(d.snapshot.Steps[i].URN); project != "" {
+			return project
+		}
+	}
+	return ""
 }
 
 // historyStack reads the session stack under the query gate and releases the

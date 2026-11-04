@@ -20,8 +20,14 @@ func RenderAnomaliesAsTable(w io.Writer, report AnomalyReport) error {
 	tw := tabwriter.NewWriter(w, 0, 0, defaultTabPadding, ' ', 0)
 	fmt.Fprintln(tw, "RESOURCE\tTYPE\tBASELINE\tOBSERVED\tDEVIATION\tDRIFT %\tCURRENCY")
 	for _, a := range report.Anomalies {
-		fmt.Fprintf(tw, "%s\t%s\t%.2f\t%.2f\t%+.2f\t%+.1f%%\t%s\n",
-			a.Resource, a.Type, a.Baseline, a.Observed, a.Deviation, a.PercentDrift, a.Currency)
+		drift := fmt.Sprintf("%+.1f%%", a.PercentDrift)
+		if a.Method == AnomalyMethodRobustMedian && a.Baseline == 0 {
+			// A zero median cannot produce a percent: show that no value
+			// exists instead of a computed zero.
+			drift = unavailableAnomalyDrift
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%.2f\t%.2f\t%+.2f\t%s\t%s\n",
+			a.Resource, a.Type, a.Baseline, a.Observed, a.Deviation, drift, a.Currency)
 	}
 	fmt.Fprintf(tw, "\n%d of %d resources\n", len(report.Anomalies), report.Considered)
 	if err := tw.Flush(); err != nil {

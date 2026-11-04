@@ -12,6 +12,10 @@ const (
 	anomalyDateLayout     = "Jan 2"
 	anomalyDateYearLayout = "Jan 2, 2006"
 	anomalyPeriodJoiner   = " – "
+	// unavailableAnomalyDrift is what the browser shows for a robust-median
+	// anomaly whose baseline is zero: the percent would be a division by
+	// zero, so no percent exists to show.
+	unavailableAnomalyDrift = "n/a"
 )
 
 // AnomalyDisplay is the text the web page shows for one anomaly. The browser
@@ -31,9 +35,20 @@ func BuildAnomalyDisplay(a engine.Anomaly) AnomalyDisplay {
 		Baseline:  anomalyAmount(a.Baseline, a.Currency, false),
 		Observed:  anomalyAmount(a.Observed, a.Currency, false),
 		Deviation: anomalyAmount(a.Deviation, a.Currency, true),
-		Drift:     fmt.Sprintf("%+.1f%%", a.PercentDrift),
+		Drift:     anomalyDrift(a),
 		Period:    anomalyPeriod(a.Period),
 	}
+}
+
+// anomalyDrift renders the drift text. A robust-median anomaly whose baseline
+// (the median) is zero has no defined percent — that is why its JSON leaves
+// percentDrift out — so the page shows that no value exists instead of a
+// computed zero.
+func anomalyDrift(a engine.Anomaly) string {
+	if a.Method == engine.AnomalyMethodRobustMedian && a.Baseline == 0 {
+		return unavailableAnomalyDrift
+	}
+	return fmt.Sprintf("%+.1f%%", a.PercentDrift)
 }
 
 // AnomalySummary is the count line shared by the web status line.

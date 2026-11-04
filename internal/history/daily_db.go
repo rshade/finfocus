@@ -54,6 +54,77 @@ func OpenDailyDB(path, project, stack string) (*DailyDB, error) {
 	return store, nil
 }
 
+// OpenDailyDBRead opens an existing daily actuals file read-only. Nothing is
+// created and nothing is initialized: the store kind, the schema version, and
+// the recorded owner are checked as they stand, so a reader can never adopt
+// somebody else's file or seed a stray one with meta. A missing, unformatted,
+// or other-store-kind file is an error, unlike OpenDailyDB, which initializes.
+func OpenDailyDBRead(path, project, stack string) (*DailyDB, error) {
+	if path == "" {
+		return nil, errors.New("daily actuals path is required")
+	}
+	if err := rejectNonRegularDailyFile(path); err != nil {
+		return nil, err
+	}
+	db, err := bolt.Open(path, dbFilePermissions, &bolt.Options{
+		ReadOnly: true, Timeout: time.Second, OpenFile: openDailyFile,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("opening daily actuals: %w", err)
+	}
+	store := &DailyDB{db: db, path: path}
+	if err = store.validate(project, stack); err != nil {
+		_ = store.Close()
+		return nil, err
+	}
+	return store, nil
+}
+
+// validate checks an existing store in a read transaction: a projected
+// timeline is refused, the schema version must be the one the writer puts, the
+// recorded owner must match, and the points bucket must exist. No bucket is
+// created and no meta is written.
+func (d *DailyDB) validate(project, stack string) error {
+	return d.db.View(func(tx *bolt.Tx) error {
+		if err := rejectTimelineFile(tx); err != nil {
+			return err
+		}
+		meta := tx.Bucket([]byte(costBucketMeta))
+		if meta == nil {
+			return errors.New("daily actuals meta bucket is missing")
+		}
+		version := getUint64(meta, metaKeyDailySchema)
+		switch {
+		case version == 0:
+			return errors.New("daily actuals schema version is missing")
+		case version != dailySchemaVersion:
+			return fmt.Errorf("unsupported daily actuals schema version %d", version)
+		}
+		if err := checkDailyOwner(meta, project, stack); err != nil {
+			return err
+		}
+		if tx.Bucket([]byte(dailyBucketPoints)) == nil {
+			return errors.New("daily points bucket is missing")
+		}
+		return nil
+	})
+}
+
+// checkDailyOwner compares the recorded owner without writing. A stack
+// mismatch is the same error the writing open reports; a project mismatch
+// reports the daily store the reader opened.
+func checkDailyOwner(meta *bolt.Bucket, project, stack string) error {
+	existing := string(meta.Get([]byte(metaKeyStack)))
+	if stack != "" && existing != "" && existing != stack {
+		return fmt.Errorf("daily actuals database stack %q does not match %q", existing, stack)
+	}
+	stored := string(meta.Get([]byte(metaKeyProject)))
+	if project != "" && stored != "" && stored != project {
+		return fmt.Errorf("daily actuals database belongs to project %q, not %q", stored, project)
+	}
+	return nil
+}
+
 // openDailyFile is the only place the path is resolved for the open: it refuses
 // a symlink at the final component and a non-regular file, so a link swapped in
 // after rejectNonRegularDailyFile cannot send the database elsewhere. The Lstat

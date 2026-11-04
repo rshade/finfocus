@@ -17,6 +17,7 @@ import (
 	"github.com/rshade/ax-go"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/history"
 )
 
 func anomalyTestRows() []engine.OverviewRow {
@@ -47,12 +48,17 @@ func anomalyTestRows() []engine.OverviewRow {
 	}
 }
 
+// anomaliesTestDeps stubs every external stage, including the daily series:
+// tests inject the series they need instead of reading the history directory.
 func anomaliesTestDeps(loader OverviewPipelineLoader) anomaliesDeps {
 	return anomaliesDeps{
 		loader:      loader,
 		openPlugins: fakeOpenPlugins,
 		newEngine:   fakeNewEngine,
 		enrichRows:  passThroughEnrichment,
+		dailySeries: func(context.Context, string, string, engine.DateRange, time.Time) ([]history.DailyPoint, error) {
+			return nil, nil
+		},
 	}
 }
 
@@ -60,6 +66,10 @@ func runAnomaliesTest(t *testing.T, deps anomaliesDeps, args ...string) (string,
 	t.Helper()
 	var buf bytes.Buffer
 	cmd := newCostAnomaliesCmd(deps)
+	// In production --stack is a persistent flag of the root command and the
+	// command reads it through the merged flag set; a standalone command needs
+	// it registered the same way so ParseFlags accepts it.
+	cmd.PersistentFlags().String("stack", "", "")
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
 	cmd.SetContext(context.Background())
@@ -95,7 +105,7 @@ func TestCostAnomalies_JSONMatchesSharedFunction(t *testing.T) {
 	require.NoError(t, err)
 
 	var want bytes.Buffer
-	require.NoError(t, engine.RenderAnomaliesAsJSON(&want, engine.SelectAnomalies(rows)))
+	require.NoError(t, engine.RenderAnomaliesAsJSON(&want, engine.SelectAnomalies(rows, nil)))
 	assert.JSONEq(t, want.String(), out)
 
 	var decoded engine.AnomalyReport

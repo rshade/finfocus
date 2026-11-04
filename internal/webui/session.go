@@ -54,9 +54,14 @@ type SessionOptions struct {
 	// stored cost history read-only. history.IsNoHistory errors mean nothing
 	// is stored yet, history.IsQueryError is the caller's mistake, and any
 	// other error means the store could not be read.
-	HistoryView           func(context.Context, HistoryViewQuery) (HistoryViewResult, error)
-	HistoryDiff           func(context.Context, HistoryDiffQuery) (history.DiffDocument, error)
-	HistoryResource       func(context.Context, string) ([]HistoryPoint, error)
+	HistoryView     func(context.Context, HistoryViewQuery) (HistoryViewResult, error)
+	HistoryDiff     func(context.Context, HistoryDiffQuery) (history.DiffDocument, error)
+	HistoryResource func(context.Context, string) ([]HistoryPoint, error)
+	// DailyPoints reads the session stack's daily actuals, complete UTC days
+	// only, so the anomalies handler can score a day against its own recent
+	// days. A nil provider means no daily series: the drift rows stand, and
+	// a stack that has never been collected is an empty series, not an error.
+	DailyPoints           func(context.Context) ([]history.DailyPoint, error)
 	Trends                func() (map[string]string, string)
 	DayOfMonth            int
 	Preview               func(context.Context) ([]engine.OverviewRow, error)

@@ -442,6 +442,7 @@ func webSessionOptions(
 		HistoryView:           data.historyView,
 		HistoryDiff:           data.historyDiff,
 		HistoryResource:       data.historyResource,
+		DailyPoints:           data.dailyPoints,
 		Preview: func(previewCtx context.Context) ([]engine.OverviewRow, error) {
 			pipe.emitPhase(OverviewPhaseRunPreview, overviewPhaseRunPreviewName)
 			rows, previewErr := previewWebRows(previewCtx, pipe, pipeDone)

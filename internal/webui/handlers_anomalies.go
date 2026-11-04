@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
@@ -24,15 +25,25 @@ type AnomalyPage struct {
 }
 
 // handleAnomalies serves the same anomaly list as `finfocus cost anomalies`.
-// It selects from the session's current overview rows and starts no pipeline.
-// Drift is set during enrichment, so before the session is ready an empty list
-// would be wrong, and the handler answers not_ready instead.
-func (s *Server) handleAnomalies(w http.ResponseWriter, _ *http.Request) {
+// It selects from the session's current overview rows and the session stack's
+// daily actuals and starts no pipeline. Drift is set during enrichment, so
+// before the session is ready an empty list would be wrong, and the handler
+// answers not_ready instead.
+func (s *Server) handleAnomalies(w http.ResponseWriter, r *http.Request) {
 	if !s.session.IsReady() {
 		s.writeError(w, http.StatusServiceUnavailable, "not_ready", "overview data is loading")
 		return
 	}
-	report := engine.SelectAnomalies(s.session.Rows())
+	var series []history.DailyPoint
+	if s.session.opts.DailyPoints != nil {
+		points, err := s.session.opts.DailyPoints(r.Context())
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, "daily_actuals", "reading daily actuals: "+err.Error())
+			return
+		}
+		series = points
+	}
+	report := engine.SelectAnomalies(s.session.Rows(), series)
 	page := AnomalyPage{
 		Considered: report.Considered,
 		Summary:    viewmodel.AnomalySummary(len(report.Anomalies), report.Considered),
