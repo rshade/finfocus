@@ -207,8 +207,8 @@ Full page: [cost forecast](../commands/forecast.md)
 ## Cost Anomalies
 
 `cost anomalies` lists resources whose costs broke from their reference by
-more than a documented cutoff. A resource with 14 or more stored daily actuals
-in one currency is scored: its latest complete UTC day is compared with the
+more than a documented cutoff. A resource with 15 or more stored daily actuals
+in one currency (14 earlier days plus the day under test) is scored: its latest complete UTC day is compared with the
 median of the days before it. The resource gets `method: robust-median` only
 when the median absolute deviation of those days is not zero and the day's
 robust z-score reaches 3.5; that row replaces the resource's drift row. A

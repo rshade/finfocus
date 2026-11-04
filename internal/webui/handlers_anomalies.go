@@ -38,7 +38,7 @@ func (s *Server) handleAnomalies(w http.ResponseWriter, r *http.Request) {
 	if s.session.opts.DailyPoints != nil {
 		points, err := s.session.opts.DailyPoints(r.Context())
 		if err != nil {
-			s.logger.Warn().Str("component", "webui").Err(err).Msg("reading daily actuals")
+			s.logger.Warn().Str("component", "webui").Str("operation", "anomalies").Err(err).Msg("reading daily actuals")
 			s.writeError(w, http.StatusInternalServerError, "daily_actuals", "daily actuals unavailable")
 			return
 		}
