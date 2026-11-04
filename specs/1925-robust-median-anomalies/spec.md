@@ -104,6 +104,11 @@ as `observed`, and `severity: "warning"`.
   (the current month, which the drift comparison needs) never truncates the
   stored history, or the method would be silent in the first half of every
   month. The daily store is already a rolling history of its stack.
+- **FR-3b** The series belongs to one stack. `--stack` names it when given,
+  and the stack the overview resolved names it otherwise, so the method also
+  works for a bare `finfocus cost anomalies` and for an MCP client that
+  passes no stack. A stack with no stored series keeps every resource's
+  drift row.
 - **FR-4** Minimum history: 14 qualifying earlier points in one currency.
   Gaps do not count and are not filled.
 - **FR-5** Score: robust z = `0.6745 * (observed - median) / MAD`, MAD being

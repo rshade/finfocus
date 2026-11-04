@@ -94,7 +94,37 @@ func (d *webData) dailyPoints(ctx context.Context) ([]history.DailyPoint, error)
 	if err != nil {
 		return nil, err
 	}
-	return loadDailyAnomalySeries(ctx, d.historyDirOverride, stack, engine.DateRange{}, time.Now(), false)
+	// The project comes from the loaded snapshot's Pulumi URNs, the same rule
+	// the CLI command reads from its loaded rows: a fully qualified stack
+	// carries its own project anyway, and a bare one would otherwise miss the
+	// file the collector wrote and fall back to a legacy name.
+	return loadDailyAnomalySeries(ctx, d.historyDirOverride, stack, d.snapshotProject(), engine.DateRange{}, time.Now(), false)
+}
+
+// snapshotProject names the project the session's loaded snapshot identifies:
+// the first Pulumi URN among its state, component, and step entries. It is
+// empty when the session loaded no snapshot with URNs. The gate is already
+// held when this runs.
+func (d *webData) snapshotProject() string {
+	if d.snapshot == nil {
+		return ""
+	}
+	for i := range d.snapshot.State {
+		if project := history.ProjectFromURN(d.snapshot.State[i].URN); project != "" {
+			return project
+		}
+	}
+	for _, urn := range d.snapshot.ComponentURNs {
+		if project := history.ProjectFromURN(urn); project != "" {
+			return project
+		}
+	}
+	for i := range d.snapshot.Steps {
+		if project := history.ProjectFromURN(d.snapshot.Steps[i].URN); project != "" {
+			return project
+		}
+	}
+	return ""
 }
 
 // historyStack reads the session stack under the query gate and releases the

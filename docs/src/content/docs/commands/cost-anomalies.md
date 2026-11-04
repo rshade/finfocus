@@ -106,7 +106,9 @@ A robust-median row carries the baseline window instead of a projected month:
 Rows are ordered by absolute deviation, largest first, then by URN. NDJSON
 prints one anomaly per line and nothing when the list is empty. The table
 prints a `N of M resources` line and never a total, because rows can be in
-different currencies.
+different currencies. Its `DRIFT %` column shows `n/a` for a robust-median row
+whose median is 0, because that percentage is undefined; the web page marks the
+same rows `n/a`.
 
 ## The robust-median method
 
@@ -137,6 +139,11 @@ used: the daily store is already a rolling history, and the default cost
 window (the current month, which the drift comparison needs) never truncates
 it. The method therefore works as soon as the store holds fifteen days of one
 currency, instead of only in the second half of a month.
+
+The series belongs to one stack, and the command reads the stack it just
+priced: `--stack` names it when given, and the stack the overview resolved
+does otherwise. A stack that has never been collected has no series, so every
+resource keeps its drift row.
 
 Two things stay silent by design:
 

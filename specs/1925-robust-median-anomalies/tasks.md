@@ -46,6 +46,10 @@ precedes the scoring code it covers and must fail first. Use testify only.
   explicit `--from` or `--to` clips the stored history, and the implicit
   default cost window (the current month) does not, so the method does not go
   silent in the first half of every month. Two CLI tests cover both sides.
+- [x] T005b Name the series' stack: `--stack` wins, and the stack the
+  overview resolved is the fallback, so the method also works for a bare
+  `finfocus cost anomalies` and for an MCP client that passes no stack. The
+  CLI test asserts the resolved stack reaches the reader.
 
 ## Phase 3: Web parity
 

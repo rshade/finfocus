@@ -260,6 +260,27 @@ func TestSelectAnomaliesRobustMedian_ZeroMADStaysSilent(t *testing.T) {
 	}
 }
 
+func TestSelectAnomaliesRobustMedian_PricingFailureIsNotScored(t *testing.T) {
+	t.Parallel()
+
+	// Enrichment records a plugin pricing failure through
+	// ProjectedPricingFailed while row.Error stays nil, and the resource's
+	// stored daily series may still qualify. The row's costs are missing, so
+	// neither method may report it.
+	observed := medianFixture + 137.5
+	series := dailyAmounts("urn:unpriced", "USD", methodBaseline("urn:unpriced", "USD", observed))
+	row := OverviewRow{
+		URN:                    "urn:unpriced",
+		Type:                   "aws:ec2/instance:Instance",
+		ProjectedPricingFailed: true,
+	}
+
+	report := SelectAnomalies([]OverviewRow{row}, series)
+
+	assert.Empty(t, report.Anomalies, "a row the engines never priced is no statistical anomaly")
+	assert.Equal(t, 1, report.Considered)
+}
+
 func TestSelectAnomaliesRobustMedian_ZeroMedianOmitsPercentDrift(t *testing.T) {
 	t.Parallel()
 

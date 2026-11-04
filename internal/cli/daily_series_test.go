@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ func TestDailySeriesTarget(t *testing.T) {
 	tests := []struct {
 		name           string
 		stack          string
+		loadedProject  string
 		explicitPulumi bool
 		wantOk         bool
 		wantPath       string
@@ -31,6 +33,28 @@ func TestDailySeriesTarget(t *testing.T) {
 			wantPath: "prod.daily.db",
 			wantOwner: historyTarget{
 				Project: "",
+				Stack:   "prod",
+			},
+		},
+		{
+			name:          "a bare stack falls back to the loaded rows' project",
+			stack:         "dev",
+			loadedProject: "myproj",
+			wantOk:        true,
+			wantPath:      "myproj@dev.daily.db",
+			wantOwner: historyTarget{
+				Project: "myproj",
+				Stack:   "dev",
+			},
+		},
+		{
+			name:          "a qualified stack keeps the project it names",
+			stack:         "myorg/other/prod",
+			loadedProject: "myproj",
+			wantOk:        true,
+			wantPath:      "other@prod.daily.db",
+			wantOwner: historyTarget{
+				Project: "other",
 				Stack:   "prod",
 			},
 		},
@@ -66,6 +90,18 @@ func TestDailySeriesTarget(t *testing.T) {
 			},
 		},
 		{
+			name:           "an explicit Pulumi input falls back to the loaded rows' project",
+			stack:          "dev",
+			loadedProject:  "myproj",
+			explicitPulumi: true,
+			wantOk:         true,
+			wantPath:       "myproj@dev.daily.db",
+			wantOwner: historyTarget{
+				Project: "myproj",
+				Stack:   "dev",
+			},
+		},
+		{
 			name:           "an explicit Pulumi input with no stack is no series",
 			stack:          "  ",
 			explicitPulumi: true,
@@ -75,7 +111,7 @@ func TestDailySeriesTarget(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			target, ok, err := dailySeriesTarget(t.Context(), "testdata/daily-series-none", tt.stack, tt.explicitPulumi)
+			target, ok, err := dailySeriesTarget(t.Context(), "testdata/daily-series-none", tt.stack, tt.loadedProject, tt.explicitPulumi)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -111,6 +147,22 @@ func TestReadDailySeries_MissingFileIsEmpty(t *testing.T) {
 	points, err := readDailySeries(target)
 	require.NoError(t, err)
 	assert.Nil(t, points, "a stack that has never been collected is no series")
+}
+
+// TestReadDailySeries_AnUnformattedStoreIsNotAdopted keeps the read a read: a
+// file that holds no daily store fails validation and is left untouched, so a
+// stray or truncated file is never silently initialized into a store.
+func TestReadDailySeries_AnUnformattedStoreIsNotAdopted(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "myproj@dev.daily.db")
+	require.NoError(t, os.WriteFile(path, nil, 0o600))
+
+	_, err := readDailySeries(historyTarget{Path: path, Project: "myproj", Stack: "dev"})
+	require.Error(t, err, "a daily read validates the store, it never initializes one")
+	body, readErr := os.ReadFile(path)
+	require.NoError(t, readErr)
+	assert.Empty(t, body, "the read left the file untouched")
 }
 
 func TestReadDailySeries_ReturnsStoredPoints(t *testing.T) {
@@ -185,7 +237,7 @@ func TestLoadDailyAnomalySeries_TrimmedEndToEnd(t *testing.T) {
 	})
 
 	now := time.Date(2026, 10, 3, 9, 0, 0, 0, time.UTC)
-	points, err := loadDailyAnomalySeries(t.Context(), dir, "myorg/myproj/dev", engine.DateRange{}, now, false)
+	points, err := loadDailyAnomalySeries(t.Context(), dir, "myorg/myproj/dev", "", engine.DateRange{}, now, false)
 	require.NoError(t, err)
 	require.Len(t, points, 1)
 	assert.Equal(t, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), points[0].Day)

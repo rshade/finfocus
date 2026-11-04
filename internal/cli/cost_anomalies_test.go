@@ -56,7 +56,7 @@ func anomaliesTestDeps(loader OverviewPipelineLoader) anomaliesDeps {
 		openPlugins: fakeOpenPlugins,
 		newEngine:   fakeNewEngine,
 		enrichRows:  passThroughEnrichment,
-		dailySeries: func(context.Context, engine.DateRange, time.Time) ([]history.DailyPoint, error) {
+		dailySeries: func(context.Context, string, string, engine.DateRange, time.Time) ([]history.DailyPoint, error) {
 			return nil, nil
 		},
 	}
@@ -66,6 +66,10 @@ func runAnomaliesTest(t *testing.T, deps anomaliesDeps, args ...string) (string,
 	t.Helper()
 	var buf bytes.Buffer
 	cmd := newCostAnomaliesCmd(deps)
+	// In production --stack is a persistent flag of the root command and the
+	// command reads it through the merged flag set; a standalone command needs
+	// it registered the same way so ParseFlags accepts it.
+	cmd.PersistentFlags().String("stack", "", "")
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
 	cmd.SetContext(context.Background())

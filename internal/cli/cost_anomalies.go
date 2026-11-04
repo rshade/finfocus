@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -30,7 +31,12 @@ type anomaliesDeps struct {
 	// dailySeries reads the stack's stored daily actuals for the window,
 	// dropping the current partial day. nil selects the production reader
 	// over the history directory, and a nil result keeps the drift rows.
-	dailySeries func(ctx context.Context, window engine.DateRange, now time.Time) ([]history.DailyPoint, error)
+	dailySeries func(
+		ctx context.Context,
+		stack, project string,
+		window engine.DateRange,
+		now time.Time,
+	) ([]history.DailyPoint, error)
 }
 
 // NewCostAnomaliesCmd returns `cost anomalies`. It runs the overview pipeline
@@ -80,12 +86,12 @@ month, and drift observed is the extrapolated monthly run-rate, not the raw
 month-to-date spend. A row whose cost lookup failed is not an anomaly.
 
 Without --pulumi-json the command reads the deployed state and does not run
-pulumi preview. The daily series loads only when the stack is named through
---stack or a Terraform workspace; when it is not, every resource keeps its
-drift row. JSON output includes considered, the number of rows the overview
-produced, so an empty list differs from a failed load. Table, JSON, and
-NDJSON are supported. The command prices through the overview pipeline and
-is as slow as finfocus overview --output json.`,
+pulumi preview. The daily series follows the stack the overview resolved, so
+--stack is not needed to use the method; a stack that has never been collected
+keeps every resource's drift row. JSON output includes considered, the number
+of rows the overview produced, so an empty list differs from a failed load.
+Table, JSON, and NDJSON are supported. The command prices through the overview
+pipeline and is as slow as finfocus overview --output json.`,
 		Example: `  finfocus cost anomalies
   finfocus cost anomalies --stack prod --output json
   finfocus cost anomalies --pulumi-state state.json --filter provider=aws
@@ -169,23 +175,24 @@ func runCostAnomalies(cmd *cobra.Command, params overviewParams, deps anomaliesD
 	})
 
 	var (
-		report engine.AnomalyReport
-		ready  bool
+		report    engine.AnomalyReport
+		ready     bool
+		seriesErr error
 	)
-	// The series loads before the pipeline runs so OnReady can apply both
-	// methods at once. A series read failure is a real failure: the stored
-	// daily costs are half the evidence this command reports.
-	series, seriesErr := loadAnomalySeries(ctx, deps, params.stack, dailySeriesWindow(params, dateRange), explicitPulumiInput(cmd))
-	if seriesErr != nil {
-		audit.logFailure(ctx, seriesErr)
-		return seriesErr
-	}
+	// The series loads once the pipeline has resolved the stack, so OnReady
+	// applies both methods at once and the method also works without
+	// --stack. A series read failure is a real failure: the stored daily
+	// costs are half the evidence this command reports.
 	pipe.OnReady = func(result OverviewPipelineResult) {
-		report = engine.SelectAnomalies(result.Rows, series)
-		ready = true
+		report, seriesErr = anomalyReport(ctx, deps, params, dateRange, result, cmd)
+		ready = seriesErr == nil
 	}
 	if runErr := runOverviewPipeline(ctx, pipe); runErr != nil {
 		return runErr
+	}
+	if seriesErr != nil {
+		audit.logFailure(ctx, seriesErr)
+		return seriesErr
 	}
 	if !ready {
 		return errors.New("overview finished without producing rows")
@@ -197,6 +204,57 @@ func runCostAnomalies(cmd *cobra.Command, params overviewParams, deps anomaliesD
 	}
 	audit.logSuccess(ctx, report.Considered, 0)
 	return nil
+}
+
+// anomalyReport applies both methods to the overview rows: the drift rows of
+// #1590 and the robust-median rows of the stack's stored daily actuals. The
+// series belongs to the stack the overview priced, and the loaded rows name
+// its project, so --stack is not needed to use the method.
+func anomalyReport(
+	ctx context.Context,
+	deps anomaliesDeps,
+	params overviewParams,
+	dateRange engine.DateRange,
+	result OverviewPipelineResult,
+	cmd *cobra.Command,
+) (engine.AnomalyReport, error) {
+	series, err := loadAnomalySeries(
+		ctx,
+		deps,
+		anomalySeriesStack(params.stack, result.StackName),
+		anomalySeriesProject(result.Rows),
+		dailySeriesWindow(params, dateRange),
+		explicitPulumiInput(cmd),
+	)
+	if err != nil {
+		return engine.AnomalyReport{}, err
+	}
+	return engine.SelectAnomalies(result.Rows, series), nil
+}
+
+// anomalySeriesStack names the stack whose stored daily actuals the command
+// reads. The --stack flag wins; without one the stack the overview resolved
+// does, so a bare `finfocus cost anomalies` scores the series of the stack it
+// just priced. An empty name means no series, and the drift rows stand.
+func anomalySeriesStack(flagStack, resolvedStack string) string {
+	if stack := strings.TrimSpace(flagStack); stack != "" {
+		return stack
+	}
+	return strings.TrimSpace(resolvedStack)
+}
+
+// anomalySeriesProject names the project whose daily actuals the command
+// reads. The loaded rows' Pulumi URNs carry the project the pipeline priced,
+// so a bare --stack (or no --stack at all) still finds the file the collector
+// wrote as `<project>@<stack>.daily.db`. Non-Pulumi URNs are ignored, and a
+// stack value that names its own project wins over this fallback.
+func anomalySeriesProject(rows []engine.OverviewRow) string {
+	for i := range rows {
+		if project := history.ProjectFromURN(rows[i].URN); project != "" {
+			return project
+		}
+	}
+	return ""
 }
 
 // dailySeriesWindow returns the window the daily reader scores inside. The
@@ -221,17 +279,22 @@ func dailySeriesWindow(params overviewParams, resolved engine.DateRange) engine.
 func loadAnomalySeries(
 	ctx context.Context,
 	deps anomaliesDeps,
-	stack string,
+	stack, project string,
 	window engine.DateRange,
 	explicitPulumi bool,
 ) ([]history.DailyPoint, error) {
 	loader := deps.dailySeries
 	if loader == nil {
-		loader = func(listCtx context.Context, listWindow engine.DateRange, now time.Time) ([]history.DailyPoint, error) {
-			return loadDailyAnomalySeries(listCtx, "", stack, listWindow, now, explicitPulumi)
+		loader = func(
+			listCtx context.Context,
+			listStack, listProject string,
+			listWindow engine.DateRange,
+			now time.Time,
+		) ([]history.DailyPoint, error) {
+			return loadDailyAnomalySeries(listCtx, "", listStack, listProject, listWindow, now, explicitPulumi)
 		}
 	}
-	return loader(ctx, window, time.Now())
+	return loader(ctx, stack, project, window, time.Now())
 }
 
 func renderAnomalies(cmd *cobra.Command, output string, report engine.AnomalyReport) error {

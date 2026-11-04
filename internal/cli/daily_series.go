@@ -15,12 +15,16 @@ import (
 // dailySeriesTarget resolves the daily actuals file for stack the way
 // `cost history collect-daily` names it: an explicit Pulumi input names the
 // stack the caller asked for, a Terraform directory's identity wins next,
-// then the fully qualified stack name, then the current Pulumi project, and
-// a bare legacy name is the last resort. ok is false when the caller gave
-// no stack to name a file with.
-func dailySeriesTarget(ctx context.Context, dir, stack string, explicitPulumi bool) (historyTarget, bool, error) {
+// then the fully qualified stack name, then the project the loaded pipeline
+// identified, and a bare legacy name is the last resort. ok is false when the
+// caller gave no stack to name a file with.
+func dailySeriesTarget(
+	ctx context.Context,
+	dir, stack, loadedProject string,
+	explicitPulumi bool,
+) (historyTarget, bool, error) {
 	if explicitPulumi {
-		return explicitDailyTarget(dir, stack)
+		return explicitDailyTarget(dir, stack, loadedProject)
 	}
 	if target, ok, err := terraformHistoryTargetContext(ctx, dir, terraformWorkspaceFromConfig()); ok || err != nil {
 		if err != nil {
@@ -40,7 +44,7 @@ func dailySeriesTarget(ctx context.Context, dir, stack string, explicitPulumi bo
 	}
 	project, short := history.SplitStack(stack)
 	if project == "" {
-		project = currentProjectName()
+		project = strings.TrimSpace(loadedProject)
 	}
 	var (
 		name string
@@ -63,16 +67,16 @@ func dailySeriesTarget(ctx context.Context, dir, stack string, explicitPulumi bo
 
 // explicitDailyTarget names the daily file of the stack an explicit Pulumi
 // input asked for, the way `cost history collect-daily` stores one: the
-// project comes from the stack value or the current project, and the file
-// lives in the history directory.
-func explicitDailyTarget(dir, stack string) (historyTarget, bool, error) {
+// project comes from the stack value or the loaded pipeline's rows, and the
+// file lives in the history directory.
+func explicitDailyTarget(dir, stack, loadedProject string) (historyTarget, bool, error) {
 	stack = strings.TrimSpace(stack)
 	if stack == "" {
 		return historyTarget{}, false, nil
 	}
 	project, short := history.SplitStack(stack)
 	if project == "" {
-		project = currentProjectName()
+		project = strings.TrimSpace(loadedProject)
 	}
 	name, err := history.DailyFileNameFor(project, short)
 	if err != nil {
@@ -94,7 +98,7 @@ func readDailySeries(target historyTarget) ([]history.DailyPoint, error) {
 		}
 		return nil, fmt.Errorf("statting daily actuals: %w", err)
 	}
-	db, err := history.OpenDailyDB(target.Path, target.Project, target.Stack)
+	db, err := history.OpenDailyDBRead(target.Path, target.Project, target.Stack)
 	if err != nil {
 		return nil, fmt.Errorf("opening daily actuals: %w", err)
 	}
@@ -145,12 +149,12 @@ func trimDailySeries(points []history.DailyPoint, window engine.DateRange, now t
 // empty store all give an empty series, and the drift rows stand alone.
 func loadDailyAnomalySeries(
 	ctx context.Context,
-	dir, stack string,
+	dir, stack, loadedProject string,
 	window engine.DateRange,
 	now time.Time,
 	explicitPulumi bool,
 ) ([]history.DailyPoint, error) {
-	target, ok, err := dailySeriesTarget(ctx, dir, stack, explicitPulumi)
+	target, ok, err := dailySeriesTarget(ctx, dir, stack, loadedProject, explicitPulumi)
 	if err != nil || !ok {
 		return nil, err
 	}

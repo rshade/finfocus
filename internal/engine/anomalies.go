@@ -18,6 +18,10 @@ const (
 	// own recent daily actuals: the latest complete day against the median of
 	// the days before it.
 	AnomalyMethodRobustMedian = "robust-median"
+	// unavailableAnomalyDrift is what human-facing renderers print for a
+	// robust-median anomaly whose baseline is zero: the percent would be a
+	// division by zero, so no percent exists to show.
+	unavailableAnomalyDrift = "n/a"
 )
 
 const (
@@ -84,15 +88,18 @@ type AnomalyReport struct {
 // most once. A row with an error is never an anomaly, and neither is a row a
 // preview marks for deletion: it has no forward projection, but enrichment
 // still prices it and a web preview can change a row's status after its drift
-// was set, so the status is checked here. The result is ordered by absolute
-// deviation, largest first, then by resource URN. Neither input is modified.
+// was set, so the status is checked here. A row whose projected pricing
+// failed in a plugin call is excluded by the flag alone, because enrichment
+// can leave row.Error unset while the costs are still missing. The result is
+// ordered by absolute deviation, largest first, then by resource URN. Neither
+// input is modified.
 func SelectAnomalies(rows []OverviewRow, series []history.DailyPoint) AnomalyReport {
 	report := AnomalyReport{Considered: len(rows), Anomalies: []Anomaly{}}
 	statistical := scoreDailyAnomalies(series)
 	presented := make(map[string]struct{}, len(rows))
 	for i := range rows {
 		row := &rows[i]
-		if row.Error != nil || row.Status == StatusDeleting {
+		if row.Error != nil || row.ProjectedPricingFailed || row.Status == StatusDeleting {
 			continue
 		}
 		urn := row.URN

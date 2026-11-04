@@ -15,10 +15,11 @@ least 3.5 replaces the resource's drift row with one `method: robust-median`
 row. Series are split by currency, gaps are never zeros, and a MAD of 0 or a
 short history leaves the drift row standing. The stored series is a rolling
 history of the stack: an explicit `--from` or `--to` bounds it and the
-implicit default cost window does not. The CLI reads the series from the
-#1862 store through its history-directory reader; the web handler calls the
-same function with the session's points. No new command, flag, MCP tool,
-config key, web page, or scorer.
+implicit default cost window does not. The series belongs to one stack:
+`--stack` names it, and the stack the overview resolved does otherwise. The
+CLI reads the series from the #1862 store through its history-directory
+reader; the web handler calls the same function with the session's points. No
+new command, flag, MCP tool, config key, web page, or scorer.
 
 ## Technical Context
 
@@ -89,7 +90,7 @@ internal/engine/
 ├── anomalies_method_test.go  # the table tests for this feature
 
 internal/cli/
-├── cost_anomalies.go         # series parameter passed through OnReady
+├── cost_anomalies.go         # series parameter, read inside OnReady
 ├── daily_series.go           # window trim, gap behavior, stack targeting
 ├── cost_anomalies_daily_test.go
 ├── daily_series_test.go

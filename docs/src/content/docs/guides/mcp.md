@@ -206,8 +206,20 @@ tools map to built-in tools as follows:
 | `validate_plugin` / `health_check`   | `finfocus-plugin-validate`                                                        |
 | `get_recommendations`                | `finfocus-cost-recommendations`                                                   |
 | `track_budget`                       | `budgets` in `finfocus-overview` JSON; `finfocus-cost-projected` with `exit-on-threshold` |
-| `detect_anomalies`                   | `finfocus-cost-anomalies` (drift rows; no robust-median method yet)               |
+| `detect_anomalies`                   | `finfocus-cost-anomalies` (`method: drift` rows, or `method: robust-median` day-spike rows when a stored daily series qualifies)               |
 | `forecast_costs`                     | Partial: `ExtrapolatedMonthly` in `finfocus-overview` JSON                        |
+
+`finfocus-cost-anomalies` returns the same rows as the command. A `method`
+value is either `drift` (the overview's monthly run-rate comparison) or
+`robust-median` (the resource's latest complete UTC day against the median of
+its own earlier days). The statistical method needs at least 14 earlier daily
+points in one currency, excludes the observation day from the median, and
+emits a row when the absolute robust z-score, `0.6745 * (observed - median) /
+MAD`, reaches 3.5. Severity stays `warning`, and neither the 14-day minimum nor
+the 3.5 cutoff is a config key. A flat series (MAD of 0) emits no statistical
+row, so the drift row remains: that hole is documented rather than covered by a
+second threshold. Missing days are gaps, never zeros, and currencies are never
+pooled into one median.
 
 ## Troubleshooting
 

@@ -52,6 +52,50 @@ func seedDailyStore(t *testing.T, dir, name, project, stack string, points []his
 	require.NoError(t, db.Close())
 }
 
+// dailySeriesReader returns a series seam that reads the fixture store in dir
+// for the stack the tests collected, the way the command's own reader does.
+func dailySeriesReader(dir string) func(
+	context.Context,
+	string,
+	string,
+	engine.DateRange,
+	time.Time,
+) ([]history.DailyPoint, error) {
+	return func(
+		ctx context.Context,
+		_ string,
+		_ string,
+		window engine.DateRange,
+		now time.Time,
+	) ([]history.DailyPoint, error) {
+		return loadDailyAnomalySeries(ctx, dir, "myorg/myproj/dev", "", window, now, false)
+	}
+}
+
+// dailyProjectReader watches the stack and project identity the command hands
+// its series reader, then reads the fixture store as the production reader
+// would with them.
+func dailyProjectReader(
+	dir string,
+	seen *anomalySeriesIdentity,
+) func(context.Context, string, string, engine.DateRange, time.Time) ([]history.DailyPoint, error) {
+	return func(
+		ctx context.Context,
+		stack, project string,
+		window engine.DateRange,
+		now time.Time,
+	) ([]history.DailyPoint, error) {
+		seen.stack, seen.project = stack, project
+		return loadDailyAnomalySeries(ctx, dir, stack, project, window, now, false)
+	}
+}
+
+// anomalySeriesIdentity records what the command resolved before a series read.
+type anomalySeriesIdentity struct {
+	stack   string
+	project string
+}
+
 func TestCostAnomalies_FixtureStoreShowsRobustMedianMethod(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	dir := t.TempDir()
@@ -62,9 +106,7 @@ func TestCostAnomalies_FixtureStoreShowsRobustMedianMethod(t *testing.T) {
 	rows := dailySpikeRow()
 
 	deps := anomaliesTestDeps(fakePipelineLoader(rows))
-	deps.dailySeries = func(ctx context.Context, window engine.DateRange, now time.Time) ([]history.DailyPoint, error) {
-		return loadDailyAnomalySeries(ctx, dir, "myorg/myproj/dev", window, now, false)
-	}
+	deps.dailySeries = dailySeriesReader(dir)
 
 	out, err := runAnomaliesTest(t, deps,
 		"--from", "2026-10-01", "--to", "2026-10-31", "--output", "json")
@@ -90,9 +132,7 @@ func TestCostAnomalies_MissingStoreKeepsDriftRows(t *testing.T) {
 	rows := anomalyTestRows()
 
 	deps := anomaliesTestDeps(fakePipelineLoader(rows))
-	deps.dailySeries = func(ctx context.Context, window engine.DateRange, now time.Time) ([]history.DailyPoint, error) {
-		return loadDailyAnomalySeries(ctx, dir, "myorg/myproj/dev", window, now, false)
-	}
+	deps.dailySeries = dailySeriesReader(dir)
 
 	out, err := runAnomaliesTest(t, deps, "--output", "json")
 	require.NoError(t, err)
@@ -139,9 +179,7 @@ func TestCostAnomalies_StoredHistoryIsNotTruncatedByTheDefaultWindow(t *testing.
 	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
 
 	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
-	deps.dailySeries = func(ctx context.Context, window engine.DateRange, now time.Time) ([]history.DailyPoint, error) {
-		return loadDailyAnomalySeries(ctx, dir, "myorg/myproj/dev", window, now, false)
-	}
+	deps.dailySeries = dailySeriesReader(dir)
 
 	out, err := runAnomaliesTest(t, deps, "--output", "json")
 	require.NoError(t, err)
@@ -165,9 +203,7 @@ func TestCostAnomalies_ExplicitWindowBoundsTheStoredSeries(t *testing.T) {
 	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
 
 	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
-	deps.dailySeries = func(ctx context.Context, window engine.DateRange, now time.Time) ([]history.DailyPoint, error) {
-		return loadDailyAnomalySeries(ctx, dir, "myorg/myproj/dev", window, now, false)
-	}
+	deps.dailySeries = dailySeriesReader(dir)
 
 	// October 8 through October 15 holds seven earlier days: too few for the
 	// method, so the drift row of the same resource remains the result.
@@ -179,4 +215,130 @@ func TestCostAnomalies_ExplicitWindowBoundsTheStoredSeries(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &decoded))
 	require.Len(t, decoded.Anomalies, 1)
 	assert.Equal(t, "drift", decoded.Anomalies[0].Method)
+}
+
+// TestCostAnomalies_UsesTheResolvedStackWithoutStackFlag keeps the method
+// usable without --stack: the stack the overview resolved names the stored
+// series, so a bare `finfocus cost anomalies` still scores the day spikes.
+func TestCostAnomalies_UsesTheResolvedStackWithoutStackFlag(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	dir := t.TempDir()
+	name, err := history.DailyFileNameFor("myproj", "dev")
+	require.NoError(t, err)
+	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
+
+	var seen anomalySeriesIdentity
+	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
+	deps.dailySeries = dailyProjectReader(dir, &seen)
+
+	out, err := runAnomaliesTest(t, deps, "--output", "json")
+	require.NoError(t, err)
+
+	assert.Equal(t, "dev", seen.stack, "the stack the pipeline resolved names the series")
+	var decoded engine.AnomalyReport
+	require.NoError(t, json.Unmarshal([]byte(out), &decoded))
+	require.Len(t, decoded.Anomalies, 1)
+	assert.Equal(t, "robust-median", decoded.Anomalies[0].Method)
+}
+
+// TestCostAnomalies_StackFlagWinsOverTheResolvedStack keeps the caller's
+// choice authoritative: the flag names the series even when the pipeline
+// resolved another stack.
+func TestCostAnomalies_StackFlagWinsOverTheResolvedStack(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+
+	var seen anomalySeriesIdentity
+	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
+	deps.dailySeries = func(
+		_ context.Context,
+		stack, project string,
+		_ engine.DateRange,
+		_ time.Time,
+	) ([]history.DailyPoint, error) {
+		seen.stack, seen.project = stack, project
+		return nil, nil
+	}
+
+	cmd := newCostAnomaliesCmd(deps)
+	cmd.PersistentFlags().String("stack", "", "")
+	require.NoError(t, cmd.ParseFlags([]string{"--stack", "myorg/myproj/prod"}))
+	require.NoError(t, cmd.RunE(cmd, nil))
+
+	assert.Equal(t, "myorg/myproj/prod", seen.stack)
+}
+
+func TestAnomalySeriesStack(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		flag     string
+		resolved string
+		want     string
+	}{
+		{name: "the flag wins", flag: "myorg/myproj/dev", resolved: "other", want: "myorg/myproj/dev"},
+		{name: "the resolved stack is the fallback", flag: "", resolved: "dev", want: "dev"},
+		{name: "a blank flag falls back", flag: "   ", resolved: "dev", want: "dev"},
+		{name: "no stack at all is no series", flag: "", resolved: "", want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, anomalySeriesStack(tt.flag, tt.resolved))
+		})
+	}
+}
+
+// TestCostAnomalies_LearnedRowsProjectReachesTheSeriesRead keeps the read on
+// the store the collector wrote: the loaded rows' URNs name the Pulumi
+// project, so without --stack the daily read still opens
+// `<project>@<stack>.daily.db` the way "cost history collect-daily" names it,
+// even when the working directory is not the project's and the resolved stack
+// name alone would only ever find a legacy-named file.
+func TestCostAnomalies_LearnedRowsProjectReachesTheSeriesRead(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	dir := t.TempDir()
+	name, err := history.DailyFileNameFor("myproj", "dev")
+	require.NoError(t, err)
+	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
+
+	var seen anomalySeriesIdentity
+	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
+	deps.dailySeries = dailyProjectReader(dir, &seen)
+
+	out, err := runAnomaliesTest(t, deps, "--output", "json")
+	require.NoError(t, err)
+
+	assert.Equal(t, "dev", seen.stack, "the stack the pipeline resolved names the series")
+	assert.Equal(t, "myproj", seen.project, "the loaded rows' URNs name the project")
+	var decoded engine.AnomalyReport
+	require.NoError(t, json.Unmarshal([]byte(out), &decoded))
+	require.Len(t, decoded.Anomalies, 1, "one row per resource")
+	assert.Equal(t, "robust-median", decoded.Anomalies[0].Method)
+}
+
+// TestCostAnomalies_BareStackFlagResolvesTheStoredProject keeps --stack dev
+// reading the same file the collector wrote: a bare stack value carries no
+// project, so the project comes from the loaded rows' URNs instead of the
+// working directory, and a legacy-name miss can never happen.
+func TestCostAnomalies_BareStackFlagResolvesTheStoredProject(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	dir := t.TempDir()
+	name, err := history.DailyFileNameFor("myproj", "dev")
+	require.NoError(t, err)
+	seedDailyStore(t, dir, name, "myproj", "dev", dailySpikeAmounts())
+
+	var seen anomalySeriesIdentity
+	deps := anomaliesTestDeps(fakePipelineLoader(dailySpikeRow()))
+	deps.dailySeries = dailyProjectReader(dir, &seen)
+
+	out, err := runAnomaliesTest(t, deps, "--stack", "dev", "--output", "json")
+	require.NoError(t, err)
+
+	assert.Equal(t, "dev", seen.stack, "the asked-for stack names the series")
+	assert.Equal(t, "myproj", seen.project, "the loaded rows' URNs name the project")
+	var decoded engine.AnomalyReport
+	require.NoError(t, json.Unmarshal([]byte(out), &decoded))
+	require.Len(t, decoded.Anomalies, 1, "one row per resource")
+	assert.Equal(t, "robust-median", decoded.Anomalies[0].Method)
 }

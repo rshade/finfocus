@@ -110,6 +110,19 @@ func TestSelectAnomalies_Selection(t *testing.T) {
 			wantTotal: 1,
 		},
 		{
+			name: "a row the pricing lost is not listed even when its error is still nil",
+			build: func(t *testing.T) []OverviewRow {
+				// enrichProjectedCost flags a plugin failure through
+				// ProjectedPricingFailed while row.Error stays nil, and the
+				// drift computed elsewhere on the row survives.
+				row := anomalyRow(t, "urn:unpriced", "USD", steadyMTD*2, projected, 10)
+				row.ProjectedPricingFailed = true
+				return []OverviewRow{row}
+			},
+			wantURNs:  []string{},
+			wantTotal: 1,
+		},
+		{
 			name: "row a preview marks for deletion is not listed even with drift",
 			build: func(t *testing.T) []OverviewRow {
 				row := anomalyRow(t, "urn:deleting", "USD", steadyMTD*2, projected, 10)

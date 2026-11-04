@@ -13,6 +13,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
+	"github.com/rshade/finfocus/internal/stackload"
 	"github.com/rshade/finfocus/internal/webui"
 )
 
@@ -327,6 +328,65 @@ func TestWebSessionOptions_WiresHistory(t *testing.T) {
 	assert.NotNil(t, options.HistoryView)
 	assert.NotNil(t, options.HistoryDiff)
 	assert.NotNil(t, options.HistoryResource)
+}
+
+// TestWebSessionOptions_WiresDailyPoints keeps the anomalies dashboard on the
+// robust-median method: the session must hand the handler the session stack's
+// stored daily actuals, not nothing (drift rows only) or a reader for some
+// other stack.
+func TestWebSessionOptions_WiresDailyPoints(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	name, err := history.DailyFileNameFor("myproj", "dev")
+	require.NoError(t, err)
+	seedDailyStore(t, dir, name, "myproj", "dev", []history.DailyPoint{{
+		ResourceID: "urn:pulumi:dev::myproj::aws:ec2/instance:Instance::spiky",
+		Day:        time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+		Currency:   "USD",
+		Amount:     9,
+	}})
+
+	data := historyWebData(dir, "myorg/myproj/dev", nil)
+	options := webSessionOptions(context.Background(), data, nil, nil, nil)
+	require.NotNil(t, options.DailyPoints, "the anomalies handler scores the session's stored daily actuals")
+
+	points, err := options.DailyPoints(context.Background())
+	require.NoError(t, err)
+	require.Len(t, points, 1)
+	assert.Equal(t, "urn:pulumi:dev::myproj::aws:ec2/instance:Instance::spiky", points[0].ResourceID)
+	assert.Equal(t, "USD", points[0].Currency)
+}
+
+// TestWebDailyPoints_BareStackLearnsTheProjectFromTheSnapshot keeps the web
+// dashboard on the store the collector wrote: a bare session stack carries its
+// project nowhere, so the project comes from the loaded snapshot's Pulumi URNs
+// the same way the CLI command reads it from the loaded rows, and a legacy
+// `dev.daily.db` miss can never happen.
+func TestWebDailyPoints_BareStackLearnsTheProjectFromTheSnapshot(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	name, err := history.DailyFileNameFor("myproj", "dev")
+	require.NoError(t, err)
+	seedDailyStore(t, dir, name, "myproj", "dev", []history.DailyPoint{{
+		ResourceID: "urn:pulumi:dev::myproj::aws:ec2/instance:Instance::spiky",
+		Day:        time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+		Currency:   "USD",
+		Amount:     9,
+	}})
+
+	data := historyWebData(dir, "dev", nil)
+	data.snapshot = &stackload.Snapshot{
+		StackName: "dev",
+		State: []engine.StateResource{{
+			URN:  "urn:pulumi:dev::myproj::aws:ec2/instance:Instance::spiky",
+			Type: "aws:ec2/instance:Instance",
+		}},
+	}
+
+	points, err := data.dailyPoints(context.Background())
+	require.NoError(t, err)
+	require.Len(t, points, 1, "the snapshot's URNs name the project behind the bare stack")
+	assert.Equal(t, "USD", points[0].Currency)
 }
 
 func TestWebHistoryView_NoHistoryBeforeDateErrorsLikeCLI(t *testing.T) {
