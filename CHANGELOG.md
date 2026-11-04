@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5](https://github.com/rshade/finfocus/compare/v0.5.4...v0.5.5) (2026-11-04)
+
+
+### Added
+
+* **analyzer:** show the spot label in diagnostics and fix two spot display gaps ([#2012](https://github.com/rshade/finfocus/issues/2012)) ([7ca074e](https://github.com/rshade/finfocus/commit/7ca074e4fe3914a04ee8a5349959453518f12022))
+* **cli:** add robust-median method to cost anomalies ([#2022](https://github.com/rshade/finfocus/issues/2022)) ([515ba26](https://github.com/rshade/finfocus/commit/515ba263905982849ba653cb91f450abd87a9340))
+* **cluster:** split cluster spend by capacity type ([#2006](https://github.com/rshade/finfocus/issues/2006)) ([bfb827d](https://github.com/rshade/finfocus/commit/bfb827d341991ede04611fb2b9e7fc6f5e9429f5))
+* **engine:** report spot share and weighted interruption risk in totals ([#1837](https://github.com/rshade/finfocus/issues/1837)) ([#2008](https://github.com/rshade/finfocus/issues/2008)) ([1fec31a](https://github.com/rshade/finfocus/commit/1fec31a922fcc7628f3ffc489e10587bf68d8928))
+* **engine:** show spot pricing and interruption risk on every cost surface ([#2007](https://github.com/rshade/finfocus/issues/2007)) ([aca65c0](https://github.com/rshade/finfocus/commit/aca65c0869982ee4e5f3e8ee03765a77e190e248))
+* **engine:** show spot savings vs on-demand from the plugin's equivalent ([#1838](https://github.com/rshade/finfocus/issues/1838)) ([#2009](https://github.com/rshade/finfocus/issues/2009)) ([30c2de3](https://github.com/rshade/finfocus/commit/30c2de3e0f59424f37d13224af46eabc3bbc83cc))
+* **history:** store a daily actual-cost series per stack ([#1996](https://github.com/rshade/finfocus/issues/1996)) ([8bdc91e](https://github.com/rshade/finfocus/commit/8bdc91eb5451c7e13e8d8667f0078169c5d6852d))
+* **web:** add opt-in Logs view and finfocus logs command ([#2017](https://github.com/rshade/finfocus/issues/2017)) ([b7452de](https://github.com/rshade/finfocus/commit/b7452de824f6600f5a918bf49960471bef4f533c))
+
+
+### Fixed
+
+* **anomalies:** read the daily series from the loaded stack and harden the web path ([#2023](https://github.com/rshade/finfocus/issues/2023)) ([6569a56](https://github.com/rshade/finfocus/commit/6569a56bf4e444a60b58570054795dc6b8329e77))
+* **cli:** count a Pulumi replacement once in the estimate and recommendations inventory ([#1995](https://github.com/rshade/finfocus/issues/1995)) ([0a38614](https://github.com/rshade/finfocus/commit/0a38614241f9413bd9ed7e1de08cc2cc41f33750))
+* **cli:** warn when a project config shadows a value config set just wrote ([#1994](https://github.com/rshade/finfocus/issues/1994)) ([d2f8168](https://github.com/rshade/finfocus/commit/d2f8168d0436610fe36021fecc4273d869e6376f))
+* **forecast:** forecast the whole live stack, not only the preview's changes ([#2001](https://github.com/rshade/finfocus/issues/2001)) ([d9092df](https://github.com/rshade/finfocus/commit/d9092df523157a4195855b35a70a163f4306be45))
+* **terraform:** resolve symlinks before comparing a directory with the git root ([#1992](https://github.com/rshade/finfocus/issues/1992)) ([8eec3bd](https://github.com/rshade/finfocus/commit/8eec3bd3753d8182bdf30ac784817a6c94e43e95))
+* **webui:** drop the doubled period after Use scorer and match the budget percentages ([#1993](https://github.com/rshade/finfocus/issues/1993)) ([42393c8](https://github.com/rshade/finfocus/commit/42393c8b67228ef8149384de67cc2cffe1c31670))
+* **webui:** say why the forecast is empty when unchanged resources were left out ([#1999](https://github.com/rshade/finfocus/issues/1999)) ([c34251b](https://github.com/rshade/finfocus/commit/c34251bc5455bae9a806509244b09eccc3a8bb41))
+
+
+### Dependencies
+
+* update go dependencies ([#2004](https://github.com/rshade/finfocus/issues/2004)) ([79c01be](https://github.com/rshade/finfocus/commit/79c01be475df75faeb9dce6b29001eed80284e01))
+
+
+### Documentation
+
+* **readme:** add a Support section that says where to open issues ([#1976](https://github.com/rshade/finfocus/issues/1976)) ([9f44eee](https://github.com/rshade/finfocus/commit/9f44eee564aa5133850cdb6b846da1b741bce5bc))
+
 ## [0.5.4](https://github.com/rshade/finfocus/compare/v0.5.3...v0.5.4) (2026-10-31)
 
 

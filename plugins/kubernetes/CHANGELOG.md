@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.9...kubernetes-v0.1.10) (2026-11-04)
+
+
+### Dependencies
+
+* update go dependencies ([#2004](https://github.com/rshade/finfocus/issues/2004)) ([79c01be](https://github.com/rshade/finfocus/commit/79c01be475df75faeb9dce6b29001eed80284e01))
+
 ## [0.1.9](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.8...kubernetes-v0.1.9) (2026-10-31)
 
 
