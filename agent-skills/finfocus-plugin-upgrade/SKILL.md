@@ -151,3 +151,4 @@ review.
 | [to-v0.7.8.md](references/to-v0.7.8.md) | Additive; optional `ParsedResource.action` hint |
 | [to-v0.7.9.md](references/to-v0.7.9.md) | Additive; conformance honors declared capabilities |
 | [to-v0.7.10.md](references/to-v0.7.10.md) | Additive; optional `GetCarbonEmissions` and `HISTORICAL_CARBON` |
+| [to-v0.7.11.md](references/to-v0.7.11.md) | Additive; optional spot category and risk on `Recommendation` |
