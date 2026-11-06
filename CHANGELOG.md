@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6](https://github.com/rshade/finfocus/compare/v0.5.5...v0.5.6) (2026-11-06)
+
+
+### Dependencies
+
+* update go dependencies ([#2027](https://github.com/rshade/finfocus/issues/2027)) ([54ec590](https://github.com/rshade/finfocus/commit/54ec590dd9345caadea086616e6ea4996c6d6d7f))
+* update go dependencies ([#2034](https://github.com/rshade/finfocus/issues/2034)) ([a2690ce](https://github.com/rshade/finfocus/commit/a2690ce34b819cf9b04fc4f12e5b302af559def1))
+* update module github.com/pulumi/pulumi/sdk/v3 to v3.274.0 ([#2032](https://github.com/rshade/finfocus/issues/2032)) ([a8ee448](https://github.com/rshade/finfocus/commit/a8ee448932fd3da4412f9fecbe2352583fcfa28a))
+
 ## [0.5.5](https://github.com/rshade/finfocus/compare/v0.5.4...v0.5.5) (2026-11-04)
 
 
