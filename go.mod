@@ -13,8 +13,8 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/pulumi/esc-sdk/sdk v0.14.0
-	github.com/pulumi/pulumi-cloud-sdk/go v1.20261103.0
-	github.com/pulumi/pulumi/sdk/v3 v3.274.0
+	github.com/pulumi/pulumi-cloud-sdk/go v1.20261105.0
+	github.com/pulumi/pulumi/sdk/v3 v3.274.1
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.10.0
 	github.com/rshade/finfocus-spec v0.7.11
@@ -49,7 +49,7 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.8 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.9 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
@@ -72,8 +72,8 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/xo/terminfo v1.3.0 // indirect
+	github.com/spf13/pflag v1.1.0 // indirect
+	github.com/xo/terminfo v1.3.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.72.0 // indirect
