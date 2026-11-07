@@ -48,7 +48,7 @@ async function setup() {
   const statusNode = { textContent: '', dataset: {} };
   const main = document.createElement('main');
   main.id = 'main';
-  document.getElementById = (id) => (id === 'view' ? view : id === 'main' ? main : id === 'connection-status' ? statusNode : null);
+  document.getElementById = (id) => (id === 'view' ? view : id === 'main' ? main : id === 'connection-status' ? statusNode : id === 'view-announcer' ? { textContent: '' } : null);
   class EventSource {
     static CONNECTING = 0;
     static OPEN = 1;

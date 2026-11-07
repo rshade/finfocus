@@ -395,6 +395,7 @@ function updateNav(active) {
 
 const viewContainer = document.getElementById('view');
 const statusNode = document.getElementById('connection-status');
+const announcer = document.getElementById('view-announcer');
 const stream = new OverviewStream('/api/overview/stream', statusNode);
 
 const ctx = {
@@ -422,9 +423,12 @@ function focusHeading(focusGainsAtStart) {
   }
 }
 
+// showViewError announces through the persistent #view-announcer region, which
+// outlives the view swap, so the section itself carries no live-region role.
 function showViewError(title, message, focusGainsAtStart) {
+  announcer.textContent = `${title}. ${message}`;
   viewContainer.replaceChildren(
-    el('section', { class: 'view-unavailable', role: 'alert' },
+    el('section', { class: 'view-unavailable' },
       el('h2', { tabindex: '-1', text: title }),
       el('p', { text: message }),
     ),
@@ -440,6 +444,7 @@ async function renderRoute() {
     history.replaceState(null, '', `#/${DEFAULT_ROUTE}`);
   }
   updateNav(name);
+  announcer.textContent = '';
 
   if (activeView && typeof activeView.unmount === 'function') {
     try {

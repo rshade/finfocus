@@ -52,12 +52,13 @@ async function setup() {
   view.replaceChildren = (...nodes) => replaced.push(...nodes);
   const main = element();
   const statusNode = { textContent: '', dataset: {} };
+  const announcer = element();
   const documentListeners = new Map();
   const document = {
     activeElement: body,
     body,
     createElement: element,
-    getElementById: (id) => (id === 'view' ? view : id === 'main' ? main : id === 'connection-status' ? statusNode : null),
+    getElementById: (id) => (id === 'view' ? view : id === 'main' ? main : id === 'connection-status' ? statusNode : id === 'view-announcer' ? announcer : null),
     querySelector: () => null,
     querySelectorAll: () => [],
     addEventListener: (name, fn) => documentListeners.set(name, fn),
@@ -116,6 +117,7 @@ async function setup() {
   await flush();
   return {
     document,
+    announcer,
     body,
     navLink,
     heading,
@@ -199,12 +201,13 @@ test('an open dialog in the view keeps focus off the heading', async () => {
   assert.equal(t.heading.focusCount, 0);
 });
 
-test('a mount failure renders an alert and focuses its heading', async () => {
+test('a mount failure announces through the persistent region and focuses its heading', async () => {
   const t = await setup();
   t.mounts[0].reject(new Error('boom'));
   await flush();
   const section = t.replaced.at(-1);
-  assert.equal(section.attrs.role, 'alert');
+  assert.equal(section.attrs.role, undefined);
+  assert.match(t.announcer.textContent, /^View failed to load\. .*boom$/);
   assert.equal(t.heading.focusCount, 1);
 });
 

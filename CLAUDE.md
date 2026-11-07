@@ -594,7 +594,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   overview mount must not steal focus from a user who already tabbed, or the
   e2e `webRoute` Enter lands on the heading (CI flake in
   `TestWebUIEstimatePicker` and `TestWebUIForecast`). Load and mount failures
-  render a `role="alert"` section through the same guard. Pinned by
+  render a section through the same guard and announce through the persistent
+  `#view-announcer` (`role="alert"`, outside `#view`, so a view swap cannot drop it);
+  the section carries no live-region role, or the error is read twice. Pinned by
   `frontendtest/route_focus.test.mjs`.
   Web overview learns state-only from `pipe.OnStateOnly`
   (`Session.SetStateOnly`). The three flags are one `webui.RunStatus` on the
