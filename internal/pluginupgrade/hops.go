@@ -168,6 +168,15 @@ var hops = []Hop{
 		},
 		Guide: "to-v0.7.10.md",
 	},
+	{
+		To:      "v0.7.11",
+		Summary: "Additive release; optional spot category and interruption risk on Recommendation",
+		Manual: []string{
+			"Plugins that recommend spot capacity: set Recommendation.pricing_category to DYNAMIC and, when known, " +
+				"spot_interruption_risk_score above 0 and at most 1.0; a non-zero score is valid only with DYNAMIC",
+		},
+		Guide: "to-v0.7.11.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.
