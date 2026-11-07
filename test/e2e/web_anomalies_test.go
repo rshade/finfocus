@@ -37,7 +37,12 @@ func driftFixture(t *testing.T, root string) (state, plan string) {
 
 func anomaliesLoaded(t *testing.T, page playwright.Page) {
 	t.Helper()
-	webWait(t, page, `() => document.querySelector('.anomalies-table')?.getAttribute('aria-busy') === 'false'`)
+	webWait(
+		t,
+		page,
+		`() => document.querySelector('.anomalies-table')?.getAttribute('aria-busy') === 'false' && `+
+			`!/^Waiting for stack data/.test(document.querySelector('#view [role=status]')?.textContent ?? '')`,
+	)
 }
 
 func assertAnomaliesLayout(t *testing.T, page playwright.Page) {
