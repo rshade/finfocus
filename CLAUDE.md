@@ -588,10 +588,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   server errors, `400 invalid_pricing_mode`, and recalculate failures stay a
   plain `{error, code}` 4xx/5xx.
   `renderRoute` (`static/app.js`) moves focus to the new view's `h2` after an
-  async mount only if `document.activeElement` is still what it was when the
-  route started (or `body`). A slow overview mount must not steal focus from a
-  user who already tabbed, or the e2e `webRoute` Enter lands on the heading
-  (CI flake in `TestWebUIEstimatePicker` and `TestWebUIForecast`). Pinned by
+  async mount only if no `focusin` fired since the route started (a document
+  counter, so focus that left and came back still counts as moved; focus lost
+  to `body` when the old view is removed fires no event and does not). A slow
+  overview mount must not steal focus from a user who already tabbed, or the
+  e2e `webRoute` Enter lands on the heading (CI flake in
+  `TestWebUIEstimatePicker` and `TestWebUIForecast`). Load and mount failures
+  render a `role="alert"` section through the same guard. Pinned by
   `frontendtest/route_focus.test.mjs`.
   Web overview learns state-only from `pipe.OnStateOnly`
   (`Session.SetStateOnly`). The three flags are one `webui.RunStatus` on the

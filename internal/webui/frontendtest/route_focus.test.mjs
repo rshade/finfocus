@@ -6,40 +6,53 @@ import vm from 'node:vm';
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 function deferred() {
-  let resolve;
-  const promise = new Promise((yes) => {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => {
     resolve = yes;
+    reject = no;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 async function setup() {
   const body = { name: 'body' };
   const navLink = { name: 'nav-link' };
+  const state = { openDialog: false };
   const heading = {
     focusCount: 0,
     setAttribute() {},
     focus() {
       this.focusCount += 1;
-      document.activeElement = this;
+      focusTo(this);
     },
   };
   const element = () => ({
     id: '',
+    attrs: {},
+    dataset: {},
     children: [],
     append() {},
     replaceChildren() {},
     querySelector: () => null,
     querySelectorAll: () => [],
     addEventListener() {},
-    setAttribute() {},
+    setAttribute(key, value) {
+      this.attrs[key] = value;
+    },
     removeAttribute() {},
     focus() {},
   });
   const view = element();
-  view.querySelector = (selector) => (selector === 'h2' ? heading : null);
+  view.querySelector = (selector) => {
+    if (selector === 'h2') return heading;
+    if (selector === 'dialog[open]') return state.openDialog ? {} : null;
+    return null;
+  };
+  const replaced = [];
+  view.replaceChildren = (...nodes) => replaced.push(...nodes);
   const main = element();
   const statusNode = { textContent: '', dataset: {} };
+  const documentListeners = new Map();
   const document = {
     activeElement: body,
     body,
@@ -47,8 +60,12 @@ async function setup() {
     getElementById: (id) => (id === 'view' ? view : id === 'main' ? main : id === 'connection-status' ? statusNode : null),
     querySelector: () => null,
     querySelectorAll: () => [],
-    addEventListener() {},
+    addEventListener: (name, fn) => documentListeners.set(name, fn),
   };
+  function focusTo(target) {
+    document.activeElement = target;
+    documentListeners.get('focusin')?.();
+  }
   class EventSource {
     static CONNECTING = 0;
     static OPEN = 1;
@@ -59,14 +76,14 @@ async function setup() {
     addEventListener() {}
     close() {}
   }
-  const listeners = new Map();
+  const windowListeners = new Map();
   const mounts = [];
   const context = vm.createContext({
     document,
-    window: { addEventListener: (name, fn) => listeners.set(name, fn) },
+    window: { addEventListener: (name, fn) => windowListeners.set(name, fn) },
     location: { hash: '#/overview' },
     history: { replaceState() {} },
-    console,
+    console: { ...console, error() {} },
     EventSource,
     MessageEvent: class {},
     AbortController,
@@ -97,14 +114,43 @@ async function setup() {
   await app.link(() => {});
   await app.evaluate();
   await flush();
-  return { document, body, navLink, heading, mounts, hashchange: () => listeners.get('hashchange')() };
+  return {
+    document,
+    body,
+    navLink,
+    heading,
+    mounts,
+    state,
+    replaced,
+    focusTo,
+    loseFocusToBody: () => {
+      document.activeElement = body;
+    },
+    hashchange: () => windowListeners.get('hashchange')(),
+  };
 }
 
 test('a slow mount does not pull focus back after the user moved it', async () => {
   const t = await setup();
   assert.equal(t.mounts.length, 1);
-  t.document.activeElement = t.navLink;
+  t.focusTo(t.navLink);
   t.mounts[0].resolve();
+  await flush();
+  assert.equal(t.heading.focusCount, 0);
+  assert.equal(t.document.activeElement, t.navLink);
+});
+
+test('focus that leaves and returns to the starting link during a mount is not stolen', async () => {
+  const t = await setup();
+  t.mounts[0].resolve();
+  await flush();
+  t.focusTo(t.navLink);
+  t.hashchange();
+  await flush();
+  t.heading.focusCount = 0;
+  t.focusTo({ name: 'elsewhere' });
+  t.focusTo(t.navLink);
+  t.mounts[1].resolve();
   await flush();
   assert.equal(t.heading.focusCount, 0);
   assert.equal(t.document.activeElement, t.navLink);
@@ -122,11 +168,51 @@ test('navigating from a focused nav link still moves focus to the new heading', 
   t.mounts[0].resolve();
   await flush();
   t.heading.focusCount = 0;
-  t.document.activeElement = t.navLink;
+  t.focusTo(t.navLink);
   t.hashchange();
   await flush();
   assert.equal(t.mounts.length, 2);
   t.mounts[1].resolve();
   await flush();
   assert.equal(t.heading.focusCount, 1);
+});
+
+test('focus lost to body without a focus event, as when the old view is removed, still gets the heading', async () => {
+  const t = await setup();
+  t.mounts[0].resolve();
+  await flush();
+  t.heading.focusCount = 0;
+  t.focusTo(t.navLink);
+  t.hashchange();
+  await flush();
+  t.loseFocusToBody();
+  t.mounts[1].resolve();
+  await flush();
+  assert.equal(t.heading.focusCount, 1);
+});
+
+test('an open dialog in the view keeps focus off the heading', async () => {
+  const t = await setup();
+  t.state.openDialog = true;
+  t.mounts[0].resolve();
+  await flush();
+  assert.equal(t.heading.focusCount, 0);
+});
+
+test('a mount failure renders an alert and focuses its heading', async () => {
+  const t = await setup();
+  t.mounts[0].reject(new Error('boom'));
+  await flush();
+  const section = t.replaced.at(-1);
+  assert.equal(section.attrs.role, 'alert');
+  assert.equal(t.heading.focusCount, 1);
+});
+
+test('a mount failure does not steal focus the user already moved', async () => {
+  const t = await setup();
+  t.focusTo(t.navLink);
+  t.mounts[0].reject(new Error('boom'));
+  await flush();
+  assert.equal(t.heading.focusCount, 0);
+  assert.equal(t.document.activeElement, t.navLink);
 });

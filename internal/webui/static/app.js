@@ -408,10 +408,33 @@ const ctx = {
 
 let activeView = null;
 let routeVersion = 0;
+let focusGains = 0;
+document.addEventListener('focusin', () => {
+  focusGains += 1;
+});
+
+function focusHeading(focusGainsAtStart) {
+  if (focusGains !== focusGainsAtStart) return;
+  const heading = viewContainer.querySelector('h2');
+  if (heading && !viewContainer.querySelector('dialog[open]')) {
+    heading.setAttribute('tabindex', '-1');
+    heading.focus();
+  }
+}
+
+function showViewError(title, message, focusGainsAtStart) {
+  viewContainer.replaceChildren(
+    el('section', { class: 'view-unavailable', role: 'alert' },
+      el('h2', { tabindex: '-1', text: title }),
+      el('p', { text: message }),
+    ),
+  );
+  focusHeading(focusGainsAtStart);
+}
 
 async function renderRoute() {
   const version = ++routeVersion;
-  const focusAtStart = document.activeElement;
+  const focusGainsAtStart = focusGains;
   const name = routeFromHash();
   if (!location.hash) {
     history.replaceState(null, '', `#/${DEFAULT_ROUTE}`);
@@ -436,11 +459,10 @@ async function renderRoute() {
   } catch (err) {
     if (version !== routeVersion) return;
     console.error(`failed to load view "${name}"`, err);
-    viewContainer.replaceChildren(
-      el('section', { class: 'view-unavailable' },
-        el('h2', { tabindex: '-1', text: 'View unavailable' }),
-        el('p', { text: `The "${name}" view could not be loaded. It may not be built yet.` }),
-      ),
+    showViewError(
+      'View unavailable',
+      `The "${name}" view could not be loaded. It may not be built yet.`,
+      focusGainsAtStart,
     );
     return;
   }
@@ -461,21 +483,11 @@ async function renderRoute() {
   } catch (err) {
     if (version !== routeVersion) return;
     console.error(`view "${name}" failed to mount`, err);
-    viewContainer.replaceChildren(
-      el('section', { class: 'view-unavailable' },
-        el('h2', { tabindex: '-1', text: 'View failed to load' }),
-        el('p', { text: err instanceof Error ? err.message : String(err) }),
-      ),
-    );
+    showViewError('View failed to load', err instanceof Error ? err.message : String(err), focusGainsAtStart);
     return;
   }
 
-  const focusUntouched = document.activeElement === focusAtStart || document.activeElement === document.body;
-  const heading = viewContainer.querySelector('h2');
-  if (heading && focusUntouched && !viewContainer.querySelector('dialog[open]')) {
-    heading.setAttribute('tabindex', '-1');
-    heading.focus();
-  }
+  focusHeading(focusGainsAtStart);
 }
 
 window.addEventListener('hashchange', renderRoute);
