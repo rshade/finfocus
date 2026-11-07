@@ -587,6 +587,17 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   editor must treat the marker as a failure, not a success. Request and
   server errors, `400 invalid_pricing_mode`, and recalculate failures stay a
   plain `{error, code}` 4xx/5xx.
+  `renderRoute` (`static/app.js`) moves focus to the new view's `h2` after an
+  async mount only if no `focusin` fired since the route started (a document
+  counter, so focus that left and came back still counts as moved; focus lost
+  to `body` when the old view is removed fires no event and does not). A slow
+  overview mount must not steal focus from a user who already tabbed, or the
+  e2e `webRoute` Enter lands on the heading (CI flake in
+  `TestWebUIEstimatePicker` and `TestWebUIForecast`). Load and mount failures
+  render a section through the same guard and announce through the persistent
+  `#view-announcer` (`role="alert"`, outside `#view`, so a view swap cannot drop it);
+  the section carries no live-region role, or the error is read twice. Pinned by
+  `frontendtest/route_focus.test.mjs`.
   Web overview learns state-only from `pipe.OnStateOnly`
   (`Session.SetStateOnly`). The three flags are one `webui.RunStatus` on the
   session (browser: `mergeRunStatus` in `app.js`); the snapshot and the

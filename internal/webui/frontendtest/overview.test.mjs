@@ -49,7 +49,9 @@ async function setup({ routeModules = {} } = {}) {
   document.createElement = (tag) => new Node(tag, document);
   const view = document.createElement('div'); view.id = 'view';
   const status = document.createElement('span'); status.id = 'connection-status';
-  const main = document.createElement('main'); main.id = 'main'; main.append(view); document.append(main, status);
+  const main = document.createElement('main'); main.id = 'main'; main.append(view);
+  const announcer = document.createElement('div'); announcer.id = 'view-announcer';
+  document.append(main, status, announcer);
   document.getElementById = (id) => document.querySelector(`#${id}`);
   const window = new Node('window', document);
   const location = { hash: '#/overview' };

@@ -395,6 +395,7 @@ function updateNav(active) {
 
 const viewContainer = document.getElementById('view');
 const statusNode = document.getElementById('connection-status');
+const announcer = document.getElementById('view-announcer');
 const stream = new OverviewStream('/api/overview/stream', statusNode);
 
 const ctx = {
@@ -408,14 +409,42 @@ const ctx = {
 
 let activeView = null;
 let routeVersion = 0;
+let focusGains = 0;
+document.addEventListener('focusin', () => {
+  focusGains += 1;
+});
+
+function focusHeading(focusGainsAtStart) {
+  if (focusGains !== focusGainsAtStart) return;
+  const heading = viewContainer.querySelector('h2');
+  if (heading && !viewContainer.querySelector('dialog[open]')) {
+    heading.setAttribute('tabindex', '-1');
+    heading.focus();
+  }
+}
+
+// showViewError announces through the persistent #view-announcer region, which
+// outlives the view swap, so the section itself carries no live-region role.
+function showViewError(title, message, focusGainsAtStart) {
+  announcer.textContent = `${title}. ${message}`;
+  viewContainer.replaceChildren(
+    el('section', { class: 'view-unavailable' },
+      el('h2', { tabindex: '-1', text: title }),
+      el('p', { text: message }),
+    ),
+  );
+  focusHeading(focusGainsAtStart);
+}
 
 async function renderRoute() {
   const version = ++routeVersion;
+  const focusGainsAtStart = focusGains;
   const name = routeFromHash();
   if (!location.hash) {
     history.replaceState(null, '', `#/${DEFAULT_ROUTE}`);
   }
   updateNav(name);
+  announcer.textContent = '';
 
   if (activeView && typeof activeView.unmount === 'function') {
     try {
@@ -435,11 +464,10 @@ async function renderRoute() {
   } catch (err) {
     if (version !== routeVersion) return;
     console.error(`failed to load view "${name}"`, err);
-    viewContainer.replaceChildren(
-      el('section', { class: 'view-unavailable' },
-        el('h2', { tabindex: '-1', text: 'View unavailable' }),
-        el('p', { text: `The "${name}" view could not be loaded. It may not be built yet.` }),
-      ),
+    showViewError(
+      'View unavailable',
+      `The "${name}" view could not be loaded. It may not be built yet.`,
+      focusGainsAtStart,
     );
     return;
   }
@@ -460,20 +488,11 @@ async function renderRoute() {
   } catch (err) {
     if (version !== routeVersion) return;
     console.error(`view "${name}" failed to mount`, err);
-    viewContainer.replaceChildren(
-      el('section', { class: 'view-unavailable' },
-        el('h2', { tabindex: '-1', text: 'View failed to load' }),
-        el('p', { text: err instanceof Error ? err.message : String(err) }),
-      ),
-    );
+    showViewError('View failed to load', err instanceof Error ? err.message : String(err), focusGainsAtStart);
     return;
   }
 
-  const heading = viewContainer.querySelector('h2');
-  if (heading && !viewContainer.querySelector('dialog[open]')) {
-    heading.setAttribute('tabindex', '-1');
-    heading.focus();
-  }
+  focusHeading(focusGainsAtStart);
 }
 
 window.addEventListener('hashchange', renderRoute);
