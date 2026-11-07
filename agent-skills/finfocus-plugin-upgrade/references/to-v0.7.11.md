@@ -22,8 +22,8 @@ needs no change.
 Set `pricing_category` to `DYNAMIC` and, when known, a score above 0 and at most
 1.0. A non-zero score is valid only with `DYNAMIC`, and it must be finite.
 `action_type` stays `MODIFY` or `MIGRATE`; there is no spot action type, and
-savings stay in `impact`. Hosts annotate a recommendation with the risk and do
-not reorder by it.
+savings stay in `impact`. Current core does not display these fields on
+recommendations.
 
 ## Plugins that do not recommend spot capacity
 
