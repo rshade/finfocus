@@ -411,6 +411,7 @@ let routeVersion = 0;
 
 async function renderRoute() {
   const version = ++routeVersion;
+  const focusAtStart = document.activeElement;
   const name = routeFromHash();
   if (!location.hash) {
     history.replaceState(null, '', `#/${DEFAULT_ROUTE}`);
@@ -469,8 +470,9 @@ async function renderRoute() {
     return;
   }
 
+  const focusUntouched = document.activeElement === focusAtStart || document.activeElement === document.body;
   const heading = viewContainer.querySelector('h2');
-  if (heading && !viewContainer.querySelector('dialog[open]')) {
+  if (heading && focusUntouched && !viewContainer.querySelector('dialog[open]')) {
     heading.setAttribute('tabindex', '-1');
     heading.focus();
   }
