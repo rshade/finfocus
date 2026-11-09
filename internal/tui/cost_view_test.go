@@ -550,7 +550,7 @@ func TestRenderRecommendationsSection(t *testing.T) {
 			},
 			contains: []string{
 				"RECOMMENDATIONS",
-				"[RIGHTSIZE] Switch to t3.small ($5.00 USD/mo savings)",
+				"[Rightsize] Switch to t3.small ($5.00 USD/mo savings)",
 			},
 		},
 		{
@@ -558,7 +558,7 @@ func TestRenderRecommendationsSection(t *testing.T) {
 			recs: []engine.Recommendation{
 				{Type: "TERMINATE", Description: "Resource is idle during weekends"},
 			},
-			contains:    []string{"[TERMINATE] Resource is idle during weekends"},
+			contains:    []string{"[Terminate] Resource is idle during weekends"},
 			notContains: []string{"savings"},
 		},
 		{
@@ -569,9 +569,9 @@ func TestRenderRecommendationsSection(t *testing.T) {
 				{Type: "RIGHTSIZE", Description: "Downsize", EstimatedSavings: 5.0, Currency: "USD"},
 			},
 			contains: []string{
-				"[MIGRATE] Graviton ($8.00 USD/mo savings)",
-				"[RIGHTSIZE] Downsize ($5.00 USD/mo savings)",
-				"[TERMINATE] Idle ($2.00 USD/mo savings)",
+				"[Migrate] Graviton ($8.00 USD/mo savings)",
+				"[Rightsize] Downsize ($5.00 USD/mo savings)",
+				"[Terminate] Idle ($2.00 USD/mo savings)",
 			},
 		},
 		{
@@ -584,7 +584,7 @@ func TestRenderRecommendationsSection(t *testing.T) {
 				},
 			},
 			contains: []string{
-				"[MIGRATE] Switch to Graviton ($8.00 USD/mo savings)",
+				"[Migrate] Switch to Graviton ($8.00 USD/mo savings)",
 				"Ensure application compatibility with ARM64 architecture",
 			},
 		},
@@ -611,6 +611,22 @@ func TestRenderRecommendationsSection(t *testing.T) {
 				{Type: "UNKNOWN_TYPE", Description: "Some action"},
 			},
 			contains: []string{"[UNKNOWN_TYPE] Some action"},
+		},
+		{
+			name: "recommendation without an action type has no bracket label",
+			recs: []engine.Recommendation{
+				{Description: "Untyped action"},
+			},
+			contains:    []string{"- Untyped action"},
+			notContains: []string{"[]"},
+		},
+		{
+			name: "proto enum names render as the shared action label",
+			recs: []engine.Recommendation{
+				{Type: "RECOMMENDATION_ACTION_TYPE_MODIFY", Description: "Move to spot"},
+			},
+			contains:    []string{"[Modify] Move to spot"},
+			notContains: []string{"RECOMMENDATION_ACTION_TYPE"},
 		},
 		{
 			name: "10+ recommendations all render without truncation",
@@ -702,7 +718,7 @@ func TestRenderDetailViewRecommendations(t *testing.T) {
 			width: 100,
 			contains: []string{
 				"RECOMMENDATIONS",
-				"[RIGHTSIZE] Switch to t3.small",
+				"[Rightsize] Switch to t3.small",
 			},
 			expectOrder: []string{"SUSTAINABILITY", "RECOMMENDATIONS", "NOTES"},
 		},

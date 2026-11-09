@@ -156,7 +156,7 @@ func TestRenderRecommendationsSection_SpotLabel(t *testing.T) {
 	assert.Contains(
 		t,
 		plain,
-		"- [RECOMMENDATION_ACTION_TYPE_MODIFY] Move batch-worker to spot capacity ($62.00 USD/mo savings)  SPOT · risk 0.12\n",
+		"- [Modify] Move batch-worker to spot capacity ($62.00 USD/mo savings)  SPOT · risk 0.12\n",
 	)
-	assert.Contains(t, plain, "- [RIGHTSIZE] Downsize ($5.00 USD/mo savings)\n")
+	assert.Contains(t, plain, "- [Rightsize] Downsize ($5.00 USD/mo savings)\n")
 }

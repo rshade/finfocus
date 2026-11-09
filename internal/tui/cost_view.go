@@ -441,6 +441,10 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 
 	for _, linked := range viewmodel.LinkedCostRecommendations(recommendations) {
 		rec := linked.Recommendation
+		actionStr := ""
+		if linked.ActionDisplay != "" {
+			actionStr = "[" + linked.ActionDisplay + "] "
+		}
 		savingsStr := ""
 		if linked.SavingsDisplay != "" {
 			savingsStr = " (" + linked.SavingsDisplay + "/mo savings)"
@@ -449,8 +453,8 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 		if linked.SpotDisplay != "" {
 			spotStr = "  " + linked.SpotDisplay
 		}
-		fmt.Fprintf(content, "- [%s] %s%s%s\n",
-			rec.Type, rec.Description, savingsStr, spotStr)
+		fmt.Fprintf(content, "- %s%s%s%s\n",
+			actionStr, rec.Description, savingsStr, spotStr)
 
 		for _, reason := range rec.Reasoning {
 			fmt.Fprintf(content, "    %s\n",
