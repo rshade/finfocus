@@ -1113,3 +1113,82 @@ func TestCapabilityIgnored_LegacyPluginUnchanged(t *testing.T) {
 	assert.Equal(t, 1, projectedCalls)
 	assert.Equal(t, 1, actualCalls)
 }
+
+// TestActualBatch_AsksActualCapability covers the #2079 review: actual-cost
+// batch grouping must ask the ACTUAL_COSTS question. A preferred plugin that
+// declines projected cost and serves actual cost must keep the resource, not
+// lose it to a batch-capable fallback that answers the projected question.
+func TestActualBatch_AsksActualCapability(t *testing.T) {
+	t.Parallel()
+
+	preferred := &capabilitySupportsClient{projectedDecline: "actual cost only"}
+	fallbackBatches := 0
+	fallback := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			fallbackBatches++
+			results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+			for i, res := range in.GetResources() {
+				results[i] = &pbc.ResourceCostResult{
+					Resource: res,
+					Result: &pbc.ResourceCostResult_CostData{CostData: &pbc.CostData{
+						Data: &pbc.CostData_ActualCost{ActualCost: &pbc.ActualCostData{
+							Results: []*pbc.ActualCostResult{{Cost: 99, Source: "fallback"}},
+						}},
+					}},
+				}
+			}
+			return &pbc.BatchCostResponse{Results: results}, nil
+		},
+	}
+	e := New([]*pluginhost.Client{
+		{Name: "a-ce", API: preferred},
+		makeBatchCapableClient("b-batch", fallback),
+	}, nil)
+
+	from := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC)
+	actual, err := e.GetActualCost(context.Background(), makeTestResources(1), from, to)
+	require.NoError(t, err)
+	require.Len(t, actual, 1)
+	assert.Equal(t, "a-ce", actual[0].Adapter)
+	assert.InDelta(t, 4.2, actual[0].TotalCost, 1e-9)
+	assert.Zero(t, fallbackBatches, "the fallback batch must not replace the preferred plugin")
+
+	asked, projectedCalls, actualCalls := preferred.snapshot()
+	assert.Zero(t, projectedCalls)
+	assert.Equal(t, 1, actualCalls)
+	assert.NotContains(t, asked, pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
+		"an actual-cost query never asks the projected question")
+}
+
+// TestProjectedBatch_StillAsksProjectedCapability keeps projected batches on
+// the projected question: the fallback batch serves a resource the preferred
+// plugin declines for projected cost.
+func TestProjectedBatch_StillAsksProjectedCapability(t *testing.T) {
+	t.Parallel()
+
+	preferred := &capabilitySupportsClient{projectedDecline: "actual cost only"}
+	fallback := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+			for i, res := range in.GetResources() {
+				results[i] = projectedBatchResult(res, 12, 0)
+			}
+			return &pbc.BatchCostResponse{Results: results}, nil
+		},
+	}
+	e := New([]*pluginhost.Client{
+		{Name: "a-ce", API: preferred},
+		makeBatchCapableClient("b-batch", fallback),
+	}, nil)
+
+	projected, err := e.GetProjectedCost(context.Background(), makeTestResources(1))
+	require.NoError(t, err)
+	require.Len(t, projected, 1)
+	assert.Equal(t, "b-batch", projected[0].Adapter)
+	assert.InDelta(t, 12.0, projected[0].Monthly, 1e-9)
+
+	asked, projectedCalls, _ := preferred.snapshot()
+	assert.Zero(t, projectedCalls)
+	assert.Contains(t, asked, pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS)
+}

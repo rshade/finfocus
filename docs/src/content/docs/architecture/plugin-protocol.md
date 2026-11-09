@@ -99,8 +99,9 @@ message SupportsRequest {
 ```
 
 FinFocus sets `capability` to the operation it is about to call:
-`PLUGIN_CAPABILITY_PROJECTED_COSTS` for projected and batch cost,
-`PLUGIN_CAPABILITY_ACTUAL_COSTS`, `PLUGIN_CAPABILITY_CARBON`, or
+`PLUGIN_CAPABILITY_PROJECTED_COSTS` for projected cost and projected batches,
+`PLUGIN_CAPABILITY_ACTUAL_COSTS` for actual cost and actual batches,
+`PLUGIN_CAPABILITY_CARBON`, or
 `PLUGIN_CAPABILITY_RECOMMENDATIONS`.
 `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability. A plugin can decline one
 capability and support another for the same resource, for example decline

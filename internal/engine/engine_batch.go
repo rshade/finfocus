@@ -115,10 +115,14 @@ const (
 // groupResourcesByPlugin groups resources by their primary plugin match for batch cost.
 // Resources matching no plugin are excluded (same behavior as current per-resource path for
 // internal Pulumi types). Each plugin group records whether it supports batch.
+// Routing matches the BatchCost feature for every query type; the Supports
+// check asks the question queryType answers (batchSupportsFeature).
 func (e *Engine) groupResourcesByPlugin(
 	ctx context.Context,
 	resources []ResourceDescriptor,
+	queryType pbc.CostQueryType,
 ) map[string]*pluginBatch {
+	supportsFeature := batchSupportsFeature(queryType)
 	groups := make(map[string]*pluginBatch)
 	log := logging.FromContext(ctx)
 
@@ -128,7 +132,7 @@ func (e *Engine) groupResourcesByPlugin(
 			continue
 		}
 
-		matches, _ := e.selectPluginMatchesForResource(ctx, resource, batchCostFeature)
+		matches, _ := e.selectPluginMatches(ctx, resource, batchCostFeature, supportsFeature)
 		if len(matches) == 0 {
 			log.Debug().
 				Ctx(ctx).
@@ -156,6 +160,17 @@ func (e *Engine) groupResourcesByPlugin(
 		})
 	}
 	return groups
+}
+
+// batchSupportsFeature is the feature a batch's Supports check uses. An actual
+// batch replaces the per-resource actual path, so it asks the ActualCosts
+// question and shares that path's cache entries. A projected batch keeps
+// BatchCost, which asks PROJECTED_COSTS.
+func batchSupportsFeature(queryType pbc.CostQueryType) string {
+	if queryType == pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
+		return actualCostsFeature
+	}
+	return batchCostFeature
 }
 
 // executeBatchForPlugin sends batch cost requests to a single plugin, chunking by

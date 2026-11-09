@@ -541,7 +541,11 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 		eng := New([]*pluginhost.Client{client}, nil)
 
 		resources := makeTestResources(5)
-		groups := eng.groupResourcesByPlugin(context.Background(), resources)
+		groups := eng.groupResourcesByPlugin(
+			context.Background(),
+			resources,
+			pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED,
+		)
 
 		require.Len(t, groups, 1)
 		batch, ok := groups["aws-plugin"]
@@ -575,7 +579,11 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 			{Type: "aws:s3:Bucket", ID: "b-1", Provider: "aws", Properties: map[string]interface{}{}},
 		}
 
-		groups := eng.groupResourcesByPlugin(context.Background(), resources)
+		groups := eng.groupResourcesByPlugin(
+			context.Background(),
+			resources,
+			pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED,
+		)
 
 		// Without a router, all resources go to all clients (first client wins).
 		// Both plugins will be in the matches for each resource, but grouping uses primary (first).
@@ -601,7 +609,11 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 			{Type: "pulumi:providers:aws", ID: "provider", Provider: "pulumi", Properties: map[string]interface{}{}},
 		}
 
-		groups := eng.groupResourcesByPlugin(context.Background(), resources)
+		groups := eng.groupResourcesByPlugin(
+			context.Background(),
+			resources,
+			pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED,
+		)
 
 		// Only the ec2 resource should be included, pulumi internals are filtered
 		total := 0
@@ -621,7 +633,11 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 		eng := New([]*pluginhost.Client{batchClient, nonBatchClient}, nil)
 		resources := makeTestResources(1)
 
-		groups := eng.groupResourcesByPlugin(context.Background(), resources)
+		groups := eng.groupResourcesByPlugin(
+			context.Background(),
+			resources,
+			pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED,
+		)
 		// Both clients match (no router), but first client is used for primary grouping
 		require.NotEmpty(t, groups)
 		for _, batch := range groups {
@@ -887,7 +903,11 @@ func TestBatchProjectedCostIntegration(t *testing.T) {
 		resources := makeTestResources(50)
 
 		// Group, then execute batch
-		groups := eng.groupResourcesByPlugin(context.Background(), resources)
+		groups := eng.groupResourcesByPlugin(
+			context.Background(),
+			resources,
+			pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED,
+		)
 		require.NotEmpty(t, groups)
 
 		for _, batch := range groups {
@@ -948,7 +968,11 @@ func TestBatchActualCostIntegration(t *testing.T) {
 		eng := New([]*pluginhost.Client{client}, nil)
 
 		resources := makeTestResources(5)
-		groups := eng.groupResourcesByPlugin(context.Background(), resources)
+		groups := eng.groupResourcesByPlugin(
+			context.Background(),
+			resources,
+			pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED,
+		)
 
 		for _, batch := range groups {
 			results, err := eng.executeBatchForPlugin(
