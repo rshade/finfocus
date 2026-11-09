@@ -150,6 +150,23 @@ func TestLogs_TailDefaultsToTwoHundredAndZeroMeansAll(t *testing.T) {
 }
 
 //nolint:paralleltest // root command and t.Setenv
+func TestLogs_TailFilterReachesOlderMatches(t *testing.T) {
+	isolatedHome(t)
+	file := filepath.Join(t.TempDir(), "filtered.log")
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, `{"level":"error","message":"the error"}`)
+	for i := 1; i <= 50; i++ {
+		fmt.Fprintf(&buf, "{\"level\":\"info\",\"message\":\"later %d\"}\n", i)
+	}
+	require.NoError(t, os.WriteFile(file, buf.Bytes(), 0o600))
+
+	got := ndjsonEntries(t, runLogs(t, "--file", file, "--output", "ndjson", "--level", "error", "--tail", "1").Stdout)
+	require.Len(t, got, 1)
+	assert.Equal(t, "the error", got[0].Message)
+	assert.Equal(t, "error", got[0].Level)
+}
+
+//nolint:paralleltest // root command and t.Setenv
 func TestLogs_FiltersCombine(t *testing.T) {
 	isolatedHome(t)
 	file := filepath.Join(t.TempDir(), "s.log")

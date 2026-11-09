@@ -9,7 +9,7 @@ One captured log line after parsing and redaction.
 
 | Field | Type | Rules |
 | --- | --- | --- |
-| `seq` | uint64 | Starts at 1, strictly increasing, never reused. Also the SSE `id`. |
+| `seq` | uint64 | Starts at 1 and increases within one hub or one `Decode`. The hub never reuses a number, and that number is the SSE `id`. A positive `finfocus logs --tail` numbers `seq` inside the decoded suffix, unless a line longer than 64 KiB forces a decode from the start of the file. |
 | `time` | string | RFC 3339 UTC. Taken from the line's `time` field when it parses; otherwise the receive time. |
 | `level` | string | One of `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `panic`. Unknown or missing becomes `info`. |
 | `source` | string | See Source. Never empty. |
@@ -88,8 +88,13 @@ the Go and the JavaScript tests so the two implementations cannot disagree.
 
 `weblog.Decode(r io.Reader, tag string)` streams a log file through the same line
 assembler and entry builder as the live writers and yields entries in file
-order. `finfocus logs` wraps it with a tail ring of N entries. Memory is
-bounded by N and the line cap, not by file size.
+order. `finfocus logs --tail 0` reads the whole file that way. A positive
+`--tail` calls `weblog.TailDecode`, which seeks backward until it has N
+matching entries and then `Decode`s only that suffix. Memory for a tail is
+bounded by N and the line cap, not by file size. `seq` on a tailed read is
+the position in that suffix, because the prefix is not scanned. A line longer
+than 64 KiB inside the window is decoded from byte 0, and `seq` then stays
+the whole-file index.
 
 ## Viewer state (browser, per tab)
 

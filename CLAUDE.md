@@ -518,7 +518,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   flags also change `internal/cli/testdata/schema-root.golden.json`.
 - `finfocus logs` is a one-shot snapshot of the log file through `internal/weblog`
   (same parsing, redaction, and display strings as the web Logs view). It opens
-  no logging session (`readsLogFile`) and is not a follow mode.
+  no logging session (`readsLogFile`) and is not a follow mode. A positive
+  `--tail` uses `weblog.TailDecode` (seek from the end, then `Decode` only that
+  suffix) so a 500 MB file stays inside the SC-010 5 second bound (#2020).
+  `--tail 0` still scans forward with `Decode`. A line longer than
+  `MaxLineBytes` falls back to that forward scan so truncation matches
+  `Decode`, and `seq` then stays that whole-file index. Otherwise `seq` on a
+  tailed read is the position in the suffix.
 - `cost anomalies` (`specs/1923-cost-anomalies/`) runs the overview pipeline
   and lists rows whose `CostDrift` is set through `engine.SelectAnomalies`,
   the one selector the CLI, MCP tool, and web handler share. It adds no rule

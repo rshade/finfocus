@@ -39,6 +39,13 @@ level, and contain the text. `--tail` applies after the filters, so
 `--level error --tail 20` shows the last 20 errors. `--grep` is a plain
 substring match, not a regular expression.
 
+A positive `--tail` reads from the end of the file and stops once it has
+enough matching entries, so a large log stays fast. `--tail 0` reads the
+whole file. In JSON and ndjson, `seq` on a tail is the position within the
+entries decoded for that tail. A line longer than 64 KiB inside that window
+is decoded from the start of the file, and `seq` then stays the index from
+the start of the file.
+
 `NO_COLOR` turns colors off. Level names are always printed as text, so the
 table is readable without color.
 

@@ -175,6 +175,10 @@ func TestDecodeLargeInputWithTailRing(t *testing.T) {
 // ./internal/weblog/` to see MB/s; each iteration decodes 100,000 lines.
 // Recorded 2026-11-02 (AMD Ryzen AI 7 PRO 350, WSL2): about 18 MB/s, roughly
 // 220 ms per 100,000 short JSON lines.
+// Recorded 2026-11-09 (QEMU Virtual CPU): 13.63 MB/s, 293 ms/op.
+// At either rate a forward scan of a 500 MB file takes well over 5 seconds.
+// BenchmarkTailDecode is the seek-from-the-end path: about 2.4 ms to keep the
+// last 200 lines of a 20,000-line file on that same QEMU CPU (2026-11-09).
 func BenchmarkDecodeTail(b *testing.B) {
 	const lines = 100_000
 	probe := &generatedLines{total: lines}

@@ -191,8 +191,10 @@ package directories. `pluginhost` gains only a generic "tap" seam in
   through `resolveOutputFormat`. It never redeclares `--format`. The default
   file is the resolved `logging.file`; a missing default exits 1 with the path
   it tried, a missing `--file` or bad flag value goes through
-  `toValidationError` (exit 2). It streams with `weblog.Decode` into a ring of
-  N, applies `weblog.Filter`, and renders the table from `weblog.Display`
+  `toValidationError` (exit 2). A positive `--tail` uses `weblog.TailDecode`,
+  which seeks backward and then calls `weblog.Decode` on that suffix.
+  `--tail 0` streams the whole file with `weblog.Decode`. Both apply
+  `weblog.Filter` and render the table from `weblog.Display`
   with the badge colours in `internal/tui` styles (colour off under
   `NO_COLOR`, resolved with `tui.DetectResolvedOutputMode`). It is a snapshot,
   so it is exposed as an MCP tool and listed in `tools.golden`; no
