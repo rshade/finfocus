@@ -152,3 +152,4 @@ review.
 | [to-v0.7.9.md](references/to-v0.7.9.md) | Additive; conformance honors declared capabilities |
 | [to-v0.7.10.md](references/to-v0.7.10.md) | Additive; optional `GetCarbonEmissions` and `HISTORICAL_CARBON` |
 | [to-v0.7.11.md](references/to-v0.7.11.md) | Additive; optional spot category and risk on `Recommendation` |
+| [to-v0.7.12.md](references/to-v0.7.12.md) | Additive; `SupportsRequest.capability`; client errors keep gRPC status |

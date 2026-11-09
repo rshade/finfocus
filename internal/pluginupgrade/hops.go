@@ -177,6 +177,17 @@ var hops = []Hop{
 		},
 		Guide: "to-v0.7.11.md",
 	},
+	{
+		To:      "v0.7.12",
+		Summary: "Additive release; Supports can read the capability the host asks about",
+		Manual: []string{
+			"Plugins whose support differs by operation: read pluginsdk.RequestedCapability(req) in " +
+				"SupportsProvider.Supports and answer for that capability; UNSPECIFIED still means any capability",
+			"Plugins that declare PLUGIN_CAPABILITY_RECOMMENDATIONS: serve GetRecommendations, " +
+				"because the conformance spot check now fails a declared capability that returns Unimplemented",
+		},
+		Guide: "to-v0.7.12.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.
