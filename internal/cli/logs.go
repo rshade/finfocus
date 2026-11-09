@@ -109,11 +109,19 @@ func runLogs(cmd *cobra.Command, params logsParams) error {
 	defer f.Close()
 
 	sink := newLogsSink(cmd, params.output)
-	entries := weblog.Decode(bufio.NewReader(f), "")
 	if params.tail == 0 {
-		return streamLogs(entries, filter, sink)
+		return streamLogs(weblog.Decode(bufio.NewReader(f), ""), filter, sink)
 	}
-	return tailLogs(entries, filter, params.tail, sink)
+	entries, err := weblog.TailDecode(f, params.tail, "", filter.Match)
+	if err != nil {
+		return fmt.Errorf("reading log file: %w", err)
+	}
+	for _, e := range entries {
+		if writeErr := sink.write(e); writeErr != nil {
+			return writeErr
+		}
+	}
+	return sink.close()
 }
 
 func logsFilter(params logsParams) (weblog.Filter, error) {
@@ -174,33 +182,6 @@ func streamLogs(entries func(func(weblog.Entry, error) bool), filter weblog.Filt
 	}
 	if failure != nil {
 		return fmt.Errorf("reading log file: %w", failure)
-	}
-	return sink.close()
-}
-
-// tailLogs keeps only the last n matching entries in a ring, so memory is
-// bounded by n and not by the file.
-func tailLogs(entries func(func(weblog.Entry, error) bool), filter weblog.Filter, n int, sink *logsSink) error {
-	ring := make([]weblog.Entry, n)
-	var count int
-	for e, err := range entries {
-		if err != nil {
-			return fmt.Errorf("reading log file: %w", err)
-		}
-		if !filter.Match(e) {
-			continue
-		}
-		ring[count%n] = e
-		count++
-	}
-	start, total := 0, count
-	if count > n {
-		start, total = count%n, n
-	}
-	for i := range total {
-		if err := sink.write(ring[(start+i)%n]); err != nil {
-			return err
-		}
 	}
 	return sink.close()
 }

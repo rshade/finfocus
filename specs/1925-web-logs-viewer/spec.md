@@ -202,8 +202,9 @@ confirm only that plugin's warn-and-above lines print, with badges, and that
 
 ### Edge Cases
 
-- `finfocus logs` on a very large file: it streams the file and keeps only the
-  requested tail, never loading the whole file.
+- `finfocus logs` on a very large file: a positive `--tail` reads from the
+  end until it has the requested entries and keeps only those. `--tail 0`
+  reads the whole file one line at a time and never loads it all at once.
 - A line in the file cut off at the end by a crash: shown as a raw line.
 - A burst of lines faster than the browser can show: the view stays
   responsive, keeps the newest lines, and says that older ones were dropped.
@@ -297,8 +298,12 @@ confirm only that plugin's warn-and-above lines print, with badges, and that
   combined as in FR-006.
 - **FR-021**: `finfocus logs` and the dashboard stream MUST use the same
   parsing, source resolution, redaction, filtering, and display strings, so the
-  same line yields the same entry in both. The dashboard handler MUST call the
-  same Go methods and add no logic of its own.
+  same line yields the same entry in both. On a positive `--tail`, `seq` is the
+  position in the decoded suffix. A line longer than 64 KiB inside that window
+  is decoded from the start of the file, and `seq` then stays the whole-file
+  index. `--tail 0` numbers `seq` from the start of the file, which is what the
+  parity check compares to the dashboard stream. The dashboard handler MUST
+  call the same Go methods and add no logic of its own.
 - **FR-022**: `finfocus logs` MUST work whether or not logs are enabled for the
   dashboard, MUST NOT modify the file, and MUST stream the file rather than
   load it whole.
@@ -400,11 +405,17 @@ confirm only that plugin's warn-and-above lines print, with badges, and that
   the boundary test fails when an outside import is added.
 - **SC-008**: A line split across any number of writes appears exactly once,
   in order.
-- **SC-009**: For a shared fixture file, `finfocus logs --output ndjson` and the
-  dashboard stream produce identical entries (same fields, same redaction).
+- **SC-009**: For a shared fixture file, `finfocus logs --tail 0 --output ndjson`
+  and the dashboard stream produce identical entries (same fields, same
+  redaction). A positive `--tail` numbers `seq` inside its suffix, unless a
+  line longer than 64 KiB in that window forces a decode from the start of
+  the file, in which case `seq` stays the whole-file index.
 - **SC-010**: `finfocus logs` prints the last 200 entries of a 500 MB log file
-  while holding no more than the requested entries and one line in memory, and
-  a recorded benchmark reports its throughput. (Maintainer call pending: the
-  original "under 5 seconds" was relaxed because parsing every line may not
-  meet it; a backward-seek tail reader is the option if a time limit is
-  required.)
+  in under 5 seconds, while holding no more than the requested entries and one
+  line in memory. A positive `--tail` reads backward from the end of a
+  seekable file until it has that many matching entries, then decodes only
+  that suffix. `--tail 0` still reads the whole file, because it prints every
+  matching entry. `BenchmarkDecodeTail` records forward-scan throughput.
+  Decision (#2020): the time limit stays. A forward scan at the recorded rate
+  takes well over 5 seconds on a 500 MB file, and that wait grows with the
+  file.

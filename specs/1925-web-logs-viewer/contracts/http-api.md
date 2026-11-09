@@ -17,7 +17,7 @@ the same entry builder, so one line yields one entry everywhere:
 
 | Surface | Go method |
 | --- | --- |
-| `finfocus logs` | `weblog.Decode`, `weblog.Filter.Match`, and `weblog.Display` (used only for an entry that carries no display strings) |
+| `finfocus logs` | `weblog.TailDecode` for a positive `--tail` (it seeks from the end and calls `weblog.Decode` on the suffix), `weblog.Decode` for `--tail 0`, `weblog.Filter.Match`, and `weblog.Display` (used only for an entry that carries no display strings) |
 | `GET /api/logs/status` | `weblog.(*Hub).Status` when logs are on. A nil `Options.Logs` answers a fixed disabled status and does not call the hub |
 | `GET /api/logs/stream` | `weblog.(*Hub).Subscribe` (entries built by `weblog.NewEntry`, which wraps the same unexported builder `Decode` uses; both fill `Entry.Display` through `weblog.Display`) |
 
