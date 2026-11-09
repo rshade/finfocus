@@ -186,7 +186,7 @@ func TestGetRecommendationsForResources_BatchedPathFollowsPageTokens(t *testing.
 	assert.Equal(t, 4, plugin.calls(), "two batches, each with two pages")
 }
 
-func TestGetRecommendationsForResources_BatchFailureDropsPluginRows(t *testing.T) {
+func TestGetRecommendationsForResources_BatchFailureKeepsCompletedBatches(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -209,6 +209,9 @@ func TestGetRecommendationsForResources_BatchFailureDropsPluginRows(t *testing.T
 	require.NoError(t, err)
 
 	require.Len(t, result.Errors, 1)
+	assert.Equal(t, "p", result.Errors[0].PluginName)
 	assert.Contains(t, result.Errors[0].Error, "batch 1 failed")
-	assert.Empty(t, result.Recommendations, "rows from the batch that succeeded are dropped with the plugin")
+	assert.Equal(t, []string{"rec-first-batch"}, recIDs(result.Recommendations),
+		"the completed first batch is kept; its rows are not dropped with the failed batch")
+	assert.Equal(t, 2, plugin.calls(), "the batch after the failure does not run")
 }
