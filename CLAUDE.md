@@ -892,6 +892,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   (`ProjectedCosts` and `BatchCost` send PROJECTED_COSTS; `ActualCosts`,
   `Carbon`, `Recommendations`, `PricingSpec` their own; anything else
   UNSPECIFIED). The feature already fixes the cache key, so no new suffix.
+  Batch grouping routes on `BatchCost` for both query types, but an actual
+  batch checks Supports as `ActualCosts` (`batchSupportsFeature`), or a
+  batch-capable fallback would take an actual-only plugin's resources.
   EstimateCost does not call Supports. A plugin may decline projected and
   support actual for one type (aws-ce, #2072).
 - Plugin `expires_at` sets a per-entry TTL (capped at 7 days; a past time skips

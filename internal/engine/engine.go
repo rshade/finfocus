@@ -332,14 +332,16 @@ func (e *Engine) checkPluginSupports(
 // supportsCapability maps an engine feature to the capability sent in
 // SupportsRequest, so a plugin can answer per operation. The cache key already
 // carries the feature, which fixes the capability. BatchCost asks the projected
-// question because a batch result replaces per-resource projected pricing.
+// question because a projected batch replaces per-resource projected pricing.
+// An actual batch routes on BatchCost but checks ActualCosts
+// (batchSupportsFeature).
 // Features with no capability send UNSPECIFIED, which a plugin answers as
 // "any capability", as it did before the field existed.
 func supportsCapability(feature string) pbc.PluginCapability {
 	switch feature {
 	case "ProjectedCosts", batchCostFeature:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS
-	case "ActualCosts":
+	case actualCostsFeature:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS
 	case carbonFeature:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON
@@ -630,6 +632,19 @@ func (e *Engine) selectPluginMatchesForResource(
 	resource ResourceDescriptor,
 	feature string,
 ) ([]PluginMatch, []pluginDecline) {
+	return e.selectPluginMatches(ctx, resource, feature, feature)
+}
+
+// selectPluginMatches routes on feature and filters the matches with the
+// Supports question for supportsFeature. Batch grouping routes on BatchCost
+// and asks the question of the query it serves; every other caller passes the
+// same feature twice.
+func (e *Engine) selectPluginMatches(
+	ctx context.Context,
+	resource ResourceDescriptor,
+	feature string,
+	supportsFeature string,
+) ([]PluginMatch, []pluginDecline) {
 	log := logging.FromContext(ctx)
 
 	// If no router is configured, offer clients that advertise this provider.
@@ -654,7 +669,7 @@ func (e *Engine) selectPluginMatchesForResource(
 			Int("client_count", len(candidates)).
 			Msg("no router configured, using clients that advertise the provider")
 
-		return e.filterUnsupportedPlugins(ctx, automaticMatches(candidates), resource, feature)
+		return e.filterUnsupportedPlugins(ctx, automaticMatches(candidates), resource, supportsFeature)
 	}
 
 	// Use router for intelligent plugin selection
@@ -680,7 +695,7 @@ func (e *Engine) selectPluginMatchesForResource(
 			Int("client_count", len(candidates)).
 			Msg("router returned no matches, falling back to clients that advertise the provider")
 
-		return e.filterUnsupportedPlugins(ctx, automaticMatches(candidates), resource, feature)
+		return e.filterUnsupportedPlugins(ctx, automaticMatches(candidates), resource, supportsFeature)
 	}
 
 	// Strip after the empty check. An explicit route that names only a
@@ -697,7 +712,7 @@ func (e *Engine) selectPluginMatchesForResource(
 		Int("matched_count", len(matches)).
 		Msg("router selected plugins")
 
-	return e.filterUnsupportedPlugins(ctx, matches, resource, feature)
+	return e.filterUnsupportedPlugins(ctx, matches, resource, supportsFeature)
 }
 
 func (e *Engine) getWorkerCount(jobCount int) int {
@@ -765,7 +780,7 @@ func (e *Engine) GetProjectedCost(
 
 	// BatchCostRequest has no usage profile. A set profile must use the unary RPC.
 	if e.hasBatchCapableClient() && e.usageProfile == pbc.UsageProfile_USAGE_PROFILE_UNSPECIFIED {
-		batchGroups := e.groupResourcesByPlugin(ctx, resources)
+		batchGroups := e.groupResourcesByPlugin(ctx, resources, pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED)
 		for _, pluginBatch := range batchGroups {
 			if !pluginBatch.hasBatch {
 				continue // Non-batch plugins go through per-resource worker pool
@@ -1313,7 +1328,7 @@ func (e *Engine) GetActualCostWithOptions(
 	rateLimitedPlugins := make(map[int]string)
 
 	if e.hasBatchCapableClient() {
-		batchGroups := e.groupResourcesByPlugin(ctx, request.Resources)
+		batchGroups := e.groupResourcesByPlugin(ctx, request.Resources, pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL)
 		for _, pb := range batchGroups {
 			if !pb.hasBatch {
 				continue // Non-batch plugins go through per-resource worker pool
@@ -1439,7 +1454,7 @@ func (e *Engine) GetActualCostWithOptions(
 			var partialErr error
 
 			// Select plugin matches using router (if configured) or all clients
-			selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
+			selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, actualCostsFeature)
 			if selectedMatches == nil {
 				// Send nil result to preserve index alignment in resultsChan.
 				// Downstream consumers expect one result per worker slot; the
@@ -1809,7 +1824,7 @@ func (e *Engine) getActualCostForResource(
 	log := logging.FromContext(ctx)
 
 	// Select plugin matches using router (if configured) or all clients
-	selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
+	selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, actualCostsFeature)
 	if selectedMatches == nil {
 		return nil, nil // Resource intentionally filtered (e.g., internal Pulumi type)
 	}
@@ -4420,6 +4435,9 @@ func loadExcludedRecommendationIDs(ctx context.Context, existing *config.Dismiss
 
 // recommendationsFeature is the router feature name used to select recommendation plugins.
 const recommendationsFeature = "Recommendations"
+
+// actualCostsFeature is the router feature name used to select actual cost plugins.
+const actualCostsFeature = "ActualCosts"
 
 // capabilityRecommendations is the capability string for recommendation support.
 const capabilityRecommendations = "recommendations"

@@ -342,7 +342,11 @@ func TestScorerOnly_ActualAndBatchOmitScorer(t *testing.T) {
 	assert.NotContains(t, results[0].Notes, "jev")
 	assertNoCostRPCs(t, jevAPI)
 
-	groups := e.groupResourcesByPlugin(context.Background(), []ResourceDescriptor{resource})
+	groups := e.groupResourcesByPlugin(
+		context.Background(),
+		[]ResourceDescriptor{resource},
+		pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED,
+	)
 	assert.Empty(t, groups)
 	assertNoCostRPCs(t, jevAPI)
 }
