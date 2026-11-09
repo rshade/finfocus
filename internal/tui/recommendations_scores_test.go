@@ -15,7 +15,7 @@ func TestRenderRecommendation_UnscoredRowIsUnchanged(t *testing.T) {
 
 	rec := engine.Recommendation{ResourceID: "r1", Type: "RIGHTSIZE", Description: "d", EstimatedSavings: 10}
 
-	assert.NotContains(t, renderRecommendation(rec, false), "risk")
+	assert.NotContains(t, renderRecommendation(rec), "risk")
 }
 
 func TestRenderRecommendation_ShowsRiskAndReviewMarker(t *testing.T) {
@@ -26,7 +26,7 @@ func TestRenderRecommendation_ShowsRiskAndReviewMarker(t *testing.T) {
 		Scores: &engine.RecommendationScores{Risk: scoreVal(0.42), NeedsReview: true, DuplicateGroupID: "dup-1"},
 	}
 
-	row := renderRecommendation(rec, false)
+	row := renderRecommendation(rec)
 
 	assert.Contains(t, row, "risk 0.42")
 	assert.Contains(t, row, "REVIEW")
@@ -41,7 +41,7 @@ func TestRenderRecommendation_ScoredWithoutRisk(t *testing.T) {
 		Scores: &engine.RecommendationScores{Priority: scoreVal(2)},
 	}
 
-	row := renderRecommendation(rec, false)
+	row := renderRecommendation(rec)
 
 	assert.Contains(t, row, "risk -")
 	assert.NotContains(t, row, "REVIEW")

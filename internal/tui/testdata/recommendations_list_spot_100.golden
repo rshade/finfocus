@@ -1,0 +1,17 @@
+Profile: default                                                                                    
+RECOMMENDATIONS SUMMARY                                                                             
+=======================                                                                             
+Total: 3 recommendations                                                                            
+Potential Savings: $129.00                                                                          
+                                                                                                    
+By Action Type:                                                                                     
+  RECOMMENDATION_ACTION_TYPE_MODIFY: 2 ($124.00)                                                    
+  RIGHTSIZE: 1 ($5.00)                                                                              
+                                                                                                    
+Resource                             Action                Savings  Pricing              Description
+────────────────────────────────────────────────────────────────────────────────────────────────────
+i-spot                               RECOMMENDATI...        $62.00  SPOT · risk 0.12     Move bat...
+i-unknown                            RECOMMENDATI...        $62.00  SPOT · risk unknown  Move bat...
+i-plain                              RIGHTSIZE               $5.00                       Downsize...
+                                                                                                    
+[/] Filter  [s] Sort  [↑↓/jk] Navigate  [Enter] Details  [q] Quit                                   
