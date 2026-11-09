@@ -22,15 +22,18 @@ func TestResourceDescriptorJSONOmitsProviderRegion(t *testing.T) {
 			proto.ProviderRegionProperty: "us-east-1",
 			"instanceType":               "t3.micro",
 		},
+		OldProperties: map[string]any{
+			proto.ProviderRegionProperty: "us-east-1",
+			"instanceType":               "t3.nano",
+		},
 	}
 
 	data, err := json.Marshal(desc)
 	require.NoError(t, err)
 	var decoded map[string]any
 	require.NoError(t, json.Unmarshal(data, &decoded))
-	props, ok := decoded["properties"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, map[string]any{"instanceType": "t3.micro"}, props)
+	assert.Equal(t, map[string]any{"instanceType": "t3.micro"}, decoded["properties"])
+	assert.Equal(t, map[string]any{"instanceType": "t3.nano"}, decoded["oldProperties"])
 	assert.Equal(
 		t,
 		"us-east-1",
@@ -55,7 +58,7 @@ func TestRecommendationsCacheKeyChangesWithProviderRegion(t *testing.T) {
 	assert.NotEqual(t, east, e.generateRecommendationsCacheKey([]ResourceDescriptor{descriptorIn("us-west-2")}, nil))
 }
 
-func TestRenderOverviewAsJSONOmitsProviderRegion(t *testing.T) {
+func TestRenderOverviewOmitsProviderRegion(t *testing.T) {
 	t.Parallel()
 	result := OverviewResult{Rows: []OverviewRowResult{{
 		Source: OverviewRow{
@@ -69,9 +72,21 @@ func TestRenderOverviewAsJSONOmitsProviderRegion(t *testing.T) {
 		},
 	}}}
 
-	var buf bytes.Buffer
-	require.NoError(t, RenderOverviewAsJSON(context.Background(), &buf, result, StackContext{}, nil))
-	assert.NotContains(t, buf.String(), proto.ProviderRegionProperty)
-	assert.Contains(t, buf.String(), "instanceType")
-	assert.Equal(t, "us-east-1", result.Rows[0].Source.Properties[proto.ProviderRegionProperty])
+	renderers := map[string]func(*bytes.Buffer) error{
+		"json": func(buf *bytes.Buffer) error {
+			return RenderOverviewAsJSON(context.Background(), buf, result, StackContext{}, nil)
+		},
+		"ndjson": func(buf *bytes.Buffer) error { return RenderOverviewAsNDJSON(buf, result) },
+	}
+	for name, render := range renderers {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var buf bytes.Buffer
+			require.NoError(t, render(&buf))
+			assert.NotContains(t, buf.String(), proto.ProviderRegionProperty)
+			assert.Contains(t, buf.String(), "instanceType")
+			assert.Equal(t, "us-east-1", result.Rows[0].Source.Properties[proto.ProviderRegionProperty])
+			assert.Equal(t, "us-east-1", result.Rows[0].Source.ProjectedProperties[proto.ProviderRegionProperty])
+		})
+	}
 }

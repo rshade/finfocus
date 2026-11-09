@@ -345,7 +345,7 @@ func RenderOverviewAsJSON(
 // row's Source OverviewRow, which carries the pre-computed ComputedDelta.
 func RenderOverviewAsNDJSON(w io.Writer, result OverviewResult) error {
 	for _, row := range result.Rows {
-		data, marshalErr := json.Marshal(row.Source)
+		data, marshalErr := json.Marshal(withoutProviderRegionRow(row.Source))
 		if marshalErr != nil {
 			return fmt.Errorf("marshaling row: %w", marshalErr)
 		}

@@ -7,13 +7,14 @@ import (
 	"github.com/rshade/finfocus/internal/proto"
 )
 
-// MarshalJSON omits the provider region core adds to Properties. It is a
-// pricing input, not a property the resource declares, so user-facing JSON
-// does not show it.
+// MarshalJSON omits the provider region core adds to Properties and
+// OldProperties. It is a pricing input, not a property the resource declares,
+// so user-facing JSON does not show it.
 func (r ResourceDescriptor) MarshalJSON() ([]byte, error) {
 	type plain ResourceDescriptor
 	out := plain(r)
 	out.Properties = withoutProviderRegion(r.Properties)
+	out.OldProperties = withoutProviderRegion(r.OldProperties)
 	return json.Marshal(out)
 }
 
@@ -29,7 +30,7 @@ func withoutProviderRegion(props map[string]any) map[string]any {
 }
 
 // withoutProviderRegionRow returns row with the provider region removed from
-// both property maps, for JSON output. The row's maps stay as they were.
+// both property maps, for JSON and NDJSON output. The row's maps stay as they were.
 func withoutProviderRegionRow(row OverviewRow) OverviewRow {
 	row.Properties = withoutProviderRegion(row.Properties)
 	row.ProjectedProperties = withoutProviderRegion(row.ProjectedProperties)
