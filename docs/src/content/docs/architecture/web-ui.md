@@ -83,6 +83,39 @@ does not rewrite root-relative `/api` or `/static` URLs or `import()` calls. New
 frontend code must not pass an absolute `/api` or `/static` literal to a network
 call; `frontendtest/base.test.mjs` fails if it does.
 
+## One runtime per stack
+
+`runWebSession` builds its stack through `newWebStack`, which owns that stack's
+query data, overview pipeline, session, passphrase channel, and ESC source. The
+multi-stack `--stack` list (#2039) is meant to build one `webStack` per name the
+same way; today `finfocus --web` builds exactly one.
+
+- **Shared stores.** The cost cache and the resource history are opened once per
+  process by `openSharedStores` and injected into every stack's engine and
+  pipeline. Bolt takes a file lock per open handle, so a second open in the same
+  process would time out and that stack would silently run with no cache and no
+  history. The stores are closed once, after the last stack stops. A stack's
+  cleanup never closes them.
+- **ESC per stack.** Each stack's source takes the global and per-plugin ESC
+  configuration from the command's source and the stack environments from that
+  stack's own `Pulumi.<stack>.yaml` (`stackESCSource`), keyed by the stack the
+  pipeline was given. The command-level source is still built from the raw
+  `--stack` flag, which names no settings file for a list value such as
+  `dev,tailscale`, so a per-stack source replaces it. A run with no named stack
+  keeps the command's source.
+- **Passphrase per stack.** A stack's pipeline reads its own channel, and its
+  session's `/api/passphrase` handler writes to that channel only. A prompt and
+  its answer cannot cross stacks.
+- **Still shared.** The log hub, audit context, and dismissals are process-wide.
+  The config editor and plugin catalog callbacks are stateless, but a plugin
+  install or removal reloads only the plugin set of the stack whose session made
+  the request. Plugin sets stay per stack because ESC-derived environment differs
+  per stack.
+
+`pulumi.ListStacks` and `pulumi.ValidateStacks` are the helpers the multi-stack
+caller will use to report a misspelled stack name, with the available names,
+before any pipeline starts. Nothing calls them in production yet.
+
 ## Security model
 
 A server on `127.0.0.1` is unreachable from other machines, but it is still

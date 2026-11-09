@@ -412,6 +412,22 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   tees plugin stderr into the log hub next to the existing destination. Keep the
   variable when logs are off. The hub tags a plugin by its binary path name
   (`pluginNameFromPath`); a `plugin_name` field in the line wins.
+- Web stores and per-stack state (`specs/2013-per-stack-web-data/`): the cache
+  and resource history are opened once per process (`openSharedStores`) and
+  injected into the engine (`newEngineWithStores`) and the pipeline
+  (`overviewPipelineConfig.stores`); nothing in the web path opens either file
+  itself, because a second Bolt open in one process times out and the stack
+  silently loses its cache and history. A pipeline given stores uses them even
+  when one is nil, and with none it opens per call as the CLI does. Stack
+  cleanup never closes them. ESC is per stack: `stackESCSource` keeps the root
+  source's global and per-plugin options and reads the stack environments from
+  that stack's `Pulumi.<stack>.yaml`, keyed by the pipeline's stack name; an
+  empty stack keeps the root source. The command-level source is still built
+  from the raw `--stack` flag, so multi-stack callers must go through
+  `bindStackESC`, never the flag value.
+  `webStack` (`newWebStack`) owns the passphrase channel, so a prompt and its
+  answer stay inside one stack. `LoadStackContext("")` reads the workspace
+  stack, which is why the empty case must not rebuild a source.
 - Dashboard settings apply on the next `NewClient`. The first reload must not
   close the overview pipeline's original clients. Later reloads close only
   the set the previous reload opened. `closeReloaded` runs before

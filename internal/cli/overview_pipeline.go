@@ -14,6 +14,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
@@ -148,6 +149,9 @@ type overviewPipelineConfig struct {
 	// delta on the per-row events instead, so it leaves this false to keep
 	// the expansion replacement semantics unchanged.
 	dismissalRows bool
+	// stores supplies the process-wide cache and history. Nil keeps the
+	// single-run behavior: the pipeline opens and closes history per call.
+	stores *sharedStores
 
 	openPlugins    func(ctx context.Context, adapter string, audit *auditContext) ([]*pluginhost.Client, func(), error)
 	newEngine      func(ctx context.Context, cmd *cobra.Command, clients []*pluginhost.Client) (*engine.Engine, func())
@@ -596,6 +600,17 @@ func (p *OverviewPipeline) openPlugins(ctx context.Context) ([]*pluginhost.Clien
 	return openPlugins(ctx, p.cfg.params.adapter, p.cfg.audit)
 }
 
+// openHistory returns the history store the pipeline records into and its
+// cleanup. With injected stores it returns the shared handle with a no-op
+// cleanup, even when that handle is nil, so a stack never opens the file a
+// second time. Without them it opens and closes the file per call.
+func (p *OverviewPipeline) openHistory(ctx context.Context, cfg *config.Config) (history.Store, func()) {
+	if p.cfg.stores != nil {
+		return p.cfg.stores.historyStore(), func() {}
+	}
+	return initHistoryFromConfig(ctx, cfg, config.GetResolvedProjectDir())
+}
+
 // newEngine runs the configured (or production) engine constructor.
 func (p *OverviewPipeline) newEngine(ctx context.Context, clients []*pluginhost.Client) (*engine.Engine, func()) {
 	if p.cfg.newEngine != nil {
@@ -854,7 +869,7 @@ func pulumiTUIOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvie
 	stateResources, manifestTime, projectDir, stackName := snapshot.State, snapshot.ManifestTime, snapshot.ProjectDir, snapshot.StackName
 
 	// Record state resources to history store (fire-and-forget).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
+	historyStore, historyCleanup := p.openHistory(ctx, params.cfg)
 	defer historyCleanup()
 	recordHistorySnapshot(ctx, historyStore, stateResources)
 
@@ -971,7 +986,7 @@ func plainOverviewLoader(ctx context.Context, p *OverviewPipeline) (*OverviewPip
 	stateResources, planSteps, stackName := snapshot.State, snapshot.Steps, snapshot.StackName
 
 	// Record state resources and plan lineage to history store (fire-and-forget).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
+	historyStore, historyCleanup := p.openHistory(ctx, params.cfg)
 	defer historyCleanup()
 	recordHistorySnapshot(ctx, historyStore, stateResources)
 	if !isStateOnly {
@@ -1151,7 +1166,7 @@ func (p *OverviewPipeline) previewAttempt(
 	if p.OnGraph != nil {
 		p.OnGraph(snapshot.Graph())
 	}
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, p.cfg.params.cfg, config.GetResolvedProjectDir())
+	historyStore, historyCleanup := p.openHistory(ctx, p.cfg.params.cfg)
 	recordHistoryPlanLineage(ctx, historyStore, snapshot.Steps)
 	historyCleanup()
 	hasChanges, changeCount := snapshot.PendingChanges(ctx)

@@ -186,30 +186,16 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		return err
 	}
 
-	pipeCtx, pipeCancel := context.WithCancel(ctx)
-	defer pipeCancel()
-	passphrases := make(chan string)
-	data := newWebData(cmd, params, dateRange, audit).withMergedConfig(config.InitializedGlobalConfig())
-	pipe := newOverviewPipeline(overviewPipelineConfig{
-		cmd: cmd, params: data.params, dateRange: dateRange, audit: audit, loader: autoDetectOverviewLoader,
-		passphrases: passphrases, wantBudget: true, budgetLive: true, budgetFallback: true, dismissalRows: true,
-		retryPassphrase: true, transientPassphrase: true, newEngine: data.newEngine,
-	})
-	pipeDone := make(chan struct{})
-	options := webSessionOptions(pipeCtx, data, pipe, pipeDone, passphrases)
-	wireConfigEditor(ctx, &options, cmd, audit)
-	wirePlugins(ctx, &options, cmd, data)
-	session := webui.NewSession(pipeCtx, options)
-	defer session.Close()
-	bindWebPipeline(ctx, pipe, session, params, dateRange)
-	data.publishGraph = session.SetDependencyGraph
-	data.bindPipelineSource(pipeCtx, pipe)
-	webPipelineHook(pipe)
-	srv, err := listenAndPrintWeb(ctx, cmd, flags, session, audit)
+	stores := openSharedStores(ctx, cmd, params.cfg)
+	defer stores.Close(ctx)
+	stack := newWebStack(ctx, cmd, params, dateRange, audit, stores)
+	defer stack.cancel()
+	defer stack.session.Close()
+	srv, err := listenAndPrintWeb(ctx, cmd, flags, stack.session, audit)
 	if err != nil {
 		return err
 	}
-	go func() { defer close(pipeDone); _ = pipe.Run(pipeCtx) }()
+	stack.start()
 
 	if !flags.noBrowser {
 		waitForBrowserRelay(ctx)
@@ -224,22 +210,13 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	}
 
 	serveErr := srv.ServeUntilInterrupt(ctx)
-	session.Close()
-
-	// Stop the pipeline before releasing plugins so enrichment gRPC calls are
-	// not torn down mid-flight (same race as the TUI cleanup, issue #716).
-	pipeCancel()
-	<-pipeDone
-	data.closeReloaded()
-	if cleanup := pipe.Cleanup(); cleanup != nil {
-		cleanup()
-	}
+	stack.stop()
 
 	if serveErr != nil {
 		audit.logFailure(ctx, serveErr)
 		return fmt.Errorf("web server: %w", serveErr)
 	}
-	audit.logSuccess(ctx, pipe.Result().RowsEnriched, 0)
+	audit.logSuccess(ctx, stack.pipe.Result().RowsEnriched, 0)
 	return nil
 }
 

@@ -23,6 +23,9 @@ var (
 	// ErrNoCurrentStack indicates no stack is marked as current.
 	ErrNoCurrentStack = errors.New("no active Pulumi stack")
 
+	// ErrStackNotFound indicates a requested stack is not in the project's stack list.
+	ErrStackNotFound = errors.New("unknown Pulumi stack")
+
 	// ErrPreviewFailed indicates pulumi preview returned a non-zero exit code.
 	ErrPreviewFailed = errors.New("pulumi preview failed")
 
