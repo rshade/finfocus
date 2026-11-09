@@ -10,12 +10,14 @@ import (
 func (s *Snapshot) Descriptors() []engine.ResourceDescriptor {
 	var result []engine.ResourceDescriptor
 	seen := make(map[string]bool)
+	scope := inventoryProviderScope(s.RawState, s.Plan)
 	if s.Plan != nil {
 		result, _ = ingest.MapResources(s.Plan.GetResources())
 	}
 	for i := range result {
 		seen[result[i].ID] = true
 		copyDescriptorProperties(&result[i])
+		result[i].Properties = scope.withProviderRegion(result[i].Properties, result[i].ID, result[i].Type)
 	}
 	for _, raw := range s.RawState {
 		if seen[raw.URN] {
@@ -27,16 +29,21 @@ func (s *Snapshot) Descriptors() []engine.ResourceDescriptor {
 			desc.Origin = engine.OriginState
 		}
 		copyDescriptorProperties(&desc)
+		desc.Properties = scope.withProviderRegion(desc.Properties, desc.ID, desc.Type)
 		result = append(result, desc)
 	}
 	return result
 }
 
 // DeployedDescriptors returns exactly the deployed state mapping, as independent values.
+// Provider regions come from deployed state alone: a preview's provider change
+// has not been applied to what is deployed.
 func (s *Snapshot) DeployedDescriptors() []engine.ResourceDescriptor {
 	result, _ := ingest.MapStateResources(s.RawState) // Mapping functions cannot currently fail.
+	scope := stateProviderScope(s.RawState)
 	for i := range result {
 		copyDescriptorProperties(&result[i])
+		result[i].Properties = scope.withProviderRegion(result[i].Properties, result[i].ID, result[i].Type)
 	}
 	return result
 }

@@ -67,7 +67,7 @@ type ResourceDescriptor struct {
 //   - Properties count does not exceed maximum
 //   - Property keys are valid identifiers and within length limits
 //   - Property values do not exceed size limits
-func (r *ResourceDescriptor) Validate() error {
+func (r ResourceDescriptor) Validate() error {
 	// Validate Type (required)
 	if r.Type == "" {
 		return fmt.Errorf("%w: resource type is required", ErrResourceValidation)

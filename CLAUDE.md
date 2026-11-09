@@ -304,6 +304,18 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   tags (`specs/618-cross-resource-refs/`). The unknown sentinel
   `04da6b54-80e4-46f7-96ec-b56ff0331ba9` is never sent as a tag, SKU, or
   region. A referenced SKU is never copied into the child's `Sku`.
+- **AWS region from the provider resource** (`internal/stackload/provider_region.go`):
+  an AWS resource gets the `region` input, else the output, of the
+  `pulumi:providers:aws` resource its provider reference (`<urn>::<id>`) names,
+  stored as `proto.ProviderRegionProperty` (`__providerRegion`). The adapter
+  reads it after the resource's own region, availabilityZone, and ARN and before
+  `AWS_REGION`/`AWS_DEFAULT_REGION`. Deployed descriptors use state only; the
+  inventory (`Descriptors`, overview `State`/`Steps`) lets a preview's provider
+  create or update win. A secret or unknown-sentinel region gives nothing.
+  It rides in tags, so projected, recommendation, and actual cache keys cover it.
+  The `__` prefix keeps it out of `BuildAttributes`, web redaction, and the
+  estimate property list. Plan-only runs see the provider only when the preview
+  creates or updates it.
 - **No credential or Pulumi secret reaches a plugin.** One rule each:
   `config.IsCredentialName` (which `engine.isCredentialKey` calls) /
   `skipDottedSegment` for names and `history.IsPulumiSecret`
@@ -750,7 +762,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   error.
 - A failed plugin call keeps the gRPC status as `<Code>: <message>`
   (`pluginRPCError`). Only an empty projected result is `no cost data
-  available`. Core does not read `aws:region` from provider or stack config.
+  available`. AWS region precedence is in Pulumi Integration (the resource's own
+  region, availabilityZone, or ARN, then its provider's region, then
+  `AWS_REGION`/`AWS_DEFAULT_REGION`); core never reads stack config directly.
   A fixed-cost type with no SKU property, including
   `aws:ec2/natGateway:NatGateway`, gets one from `skus.ResolveSKU`. An empty
   SKU is rejected before pricing (`resource.sku is required`) and the row
