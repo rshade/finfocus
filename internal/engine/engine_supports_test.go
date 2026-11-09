@@ -937,3 +937,179 @@ func TestClassifySupports(t *testing.T) {
 		})
 	}
 }
+
+// capabilitySupportsClient records the capability of every Supports request.
+// With projectedDecline set it declines only PROJECTED_COSTS, like aws-ce;
+// without it, it supports everything, the way a plugin built before the
+// field answers.
+type capabilitySupportsClient struct {
+	mockCostSourceClient
+
+	mu               sync.Mutex
+	projectedDecline string
+	asked            []pbc.PluginCapability
+	projected        int
+	actual           int
+}
+
+func (c *capabilitySupportsClient) Supports(
+	_ context.Context, req *pbc.SupportsRequest, _ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.asked = append(c.asked, req.GetCapability())
+	if c.projectedDecline != "" &&
+		pluginsdk.RequestedCapability(req) == pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS {
+		return &pbc.SupportsResponse{Supported: false, Reason: c.projectedDecline}, nil
+	}
+	return &pbc.SupportsResponse{Supported: true}, nil
+}
+
+func (c *capabilitySupportsClient) GetProjectedCost(
+	_ context.Context, _ *proto.GetProjectedCostRequest, _ ...grpc.CallOption,
+) (*proto.GetProjectedCostResponse, error) {
+	c.mu.Lock()
+	c.projected++
+	c.mu.Unlock()
+	return &proto.GetProjectedCostResponse{Results: []*proto.CostResult{{
+		Currency: "USD", MonthlyCost: 30, HourlyCost: 30 / hoursPerMonth,
+	}}}, nil
+}
+
+func (c *capabilitySupportsClient) GetActualCost(
+	_ context.Context, _ *proto.GetActualCostRequest, _ ...grpc.CallOption,
+) (*proto.GetActualCostResponse, error) {
+	c.mu.Lock()
+	c.actual++
+	c.mu.Unlock()
+	return &proto.GetActualCostResponse{Results: []*proto.ActualCostResult{{
+		Currency: "USD", TotalCost: 4.2,
+	}}}, nil
+}
+
+func (c *capabilitySupportsClient) snapshot() ([]pbc.PluginCapability, int, int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]pbc.PluginCapability(nil), c.asked...), c.projected, c.actual
+}
+
+func TestCheckPluginSupports_SendsCapabilityPerFeature(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		feature string
+		want    pbc.PluginCapability
+	}{
+		{"ProjectedCosts", pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS},
+		{batchCostFeature, pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS},
+		{"ActualCosts", pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS},
+		{carbonFeature, pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON},
+		{recommendationsFeature, pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS},
+		{"PricingSpec", pbc.PluginCapability_PLUGIN_CAPABILITY_PRICING_SPEC},
+		{"DryRun", pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED},
+		{"", pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED},
+	}
+	for _, tt := range tests {
+		t.Run(tt.feature, func(t *testing.T) {
+			t.Parallel()
+
+			api := &capabilitySupportsClient{}
+			e, client := supportsEngine(api)
+			ok, _ := e.checkPluginSupports(context.Background(), client, ResourceDescriptor{
+				Type: "aws:ec2/instance:Instance", ID: "web", Provider: "aws",
+			}, tt.feature)
+
+			assert.True(t, ok)
+			asked, _, _ := api.snapshot()
+			assert.Equal(t, []pbc.PluginCapability{tt.want}, asked)
+		})
+	}
+}
+
+// TestCheckPluginSupports_CapabilityAnswersCachedPerFeature pins that one
+// feature's answer is never reused for another: the cache key carries the
+// feature, and the feature fixes the capability.
+func TestCheckPluginSupports_CapabilityAnswersCachedPerFeature(t *testing.T) {
+	t.Parallel()
+
+	api := &capabilitySupportsClient{projectedDecline: "no list price"}
+	e, client := supportsEngine(api)
+	res := ResourceDescriptor{Type: "aws:s3/bucket:Bucket", ID: "logs", Provider: "aws"}
+
+	for range 2 {
+		projected, reason := e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts")
+		assert.False(t, projected)
+		assert.Equal(t, "no list price", reason)
+		actual, reason := e.checkPluginSupports(context.Background(), client, res, "ActualCosts")
+		assert.True(t, actual)
+		assert.Empty(t, reason)
+	}
+	asked, _, _ := api.snapshot()
+	assert.Equal(t, []pbc.PluginCapability{
+		pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
+		pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS,
+	}, asked, "each feature asks once and is then served from cache")
+}
+
+// TestCapabilitySplit_ProjectedDeclinedActualServed covers #2072: a plugin
+// such as aws-ce that can bill a type but not list-price it declines the
+// projected question and still serves actual cost for the same resource.
+func TestCapabilitySplit_ProjectedDeclinedActualServed(t *testing.T) {
+	t.Parallel()
+
+	const reason = "actual cost only: no list price for this type"
+	api := &capabilitySupportsClient{projectedDecline: reason}
+	e := New([]*pluginhost.Client{{Name: "aws-ce", API: api}}, nil)
+	resources := []ResourceDescriptor{{Type: "aws:s3/bucket:Bucket", ID: "logs", Provider: "aws"}}
+
+	projected, err := e.GetProjectedCost(context.Background(), resources)
+	require.NoError(t, err)
+	require.Len(t, projected, 1)
+	assert.Equal(t, adapterNone, projected[0].Adapter)
+	assert.Contains(t, projected[0].Notes, "aws-ce: "+reason)
+	require.NotNil(t, projected[0].Error)
+	assert.Equal(t, ErrCodeNoCostData, projected[0].Error.Code)
+
+	from := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC)
+	actual, err := e.GetActualCost(context.Background(), resources, from, to)
+	require.NoError(t, err)
+	require.Len(t, actual, 1)
+	assert.Equal(t, "aws-ce", actual[0].Adapter)
+	assert.InDelta(t, 4.2, actual[0].TotalCost, 1e-9)
+	assert.NotContains(t, actual[0].Notes, reason)
+
+	asked, projectedCalls, actualCalls := api.snapshot()
+	assert.Zero(t, projectedCalls, "a projected decline must not be followed by a pricing RPC")
+	assert.Equal(t, 1, actualCalls)
+	assert.Contains(t, asked, pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS)
+	assert.Contains(t, asked, pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS)
+}
+
+// TestCapabilityIgnored_LegacyPluginUnchanged: a plugin built before the
+// field ignores it and gives one answer for every capability, so projected
+// and actual cost both reach it as before.
+func TestCapabilityIgnored_LegacyPluginUnchanged(t *testing.T) {
+	t.Parallel()
+
+	api := &capabilitySupportsClient{}
+	e := New([]*pluginhost.Client{{Name: "legacy", API: api}}, nil)
+	resources := []ResourceDescriptor{{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"}}
+
+	projected, err := e.GetProjectedCost(context.Background(), resources)
+	require.NoError(t, err)
+	require.Len(t, projected, 1)
+	assert.Equal(t, "legacy", projected[0].Adapter)
+	assert.InDelta(t, 30.0, projected[0].Monthly, 1e-9)
+
+	from := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC)
+	actual, err := e.GetActualCost(context.Background(), resources, from, to)
+	require.NoError(t, err)
+	require.Len(t, actual, 1)
+	assert.Equal(t, "legacy", actual[0].Adapter)
+
+	_, projectedCalls, actualCalls := api.snapshot()
+	assert.Equal(t, 1, projectedCalls)
+	assert.Equal(t, 1, actualCalls)
+}
