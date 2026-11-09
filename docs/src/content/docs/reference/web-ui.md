@@ -218,8 +218,10 @@ continues. A checksum that does not match stops the install.
 
 ### Logs view
 
-The Logs view is off by default. When it is off, the header has no Logs link,
-nothing is captured, and the `/api/logs/` routes do not exist.
+The Logs view is off by default. When it is off, the header has no Logs link
+and nothing is captured. `GET /api/logs/status` still answers `200` with
+`enabled` false, so the page can hide the link without a failed request.
+`GET /api/logs/stream` does not exist.
 
 | Setting | Effect |
 | --- | --- |
@@ -344,9 +346,11 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST /api/forecast/query` before the session has loaded | 503 | `not_ready` | `forecast data is loading` |
 | `POST /api/forecast/query` whose pricing fails | 502 | `forecast_unavailable` | `forecast data unavailable` |
 | `GET /api/logs/status` | 200 | - | `enabled`, `capacity`, `retained`, `dropped`, and `sources` (each with `name` and `kind`, `core` or `plugin`). |
+| `GET /api/logs/status` while web logs are off | 200 | - | `enabled` is false. `capacity`, `retained`, and `dropped` are 0. `sources` is an empty list. |
 | `GET /api/logs/stream` | 200 | - | Server-sent events: `snapshot` (`entries`, `sources`, `dropped`, `capacity`), then `log` for each new entry, and `gap` (`missed`) when entries were lost between a reconnect and its replay. Each frame's `id` is the entry's `seq`; send `Last-Event-ID` to resume. A comment line is sent every 15 seconds. |
-| Any `/api/logs/` path while web logs are off | 404 | `not_found` | `unknown path` |
-| `/api/logs/status` or `/api/logs/stream` with a method other than `GET` | 405 | `method_not_allowed` | `GET only` |
+| `GET /api/logs/stream` while web logs are off | 404 | `not_found` | `unknown path` |
+| `/api/logs/status` with a method other than `GET` | 405 | `method_not_allowed` | `GET only`. This applies whether or not web logs are on. |
+| `/api/logs/stream` with a method other than `GET`, while web logs are on | 405 | `method_not_allowed` | `GET only`. While web logs are off the route is not registered, so the response is `404` `not_found`. |
 | `GET /api/history/view` | 200 | - | The `cost history view --output json` document for the session stack (`stack`, `snapshots`, `annotations`, `currency_warning`), plus `status: "ok"`, `budget` when a global budget is set, and `display` strings. Optional `from` and `to` (`YYYY-MM-DD` or RFC 3339), `currency`, and `strict` (`true` or `false`) work like the flags. |
 | `GET /api/history/diff?from=<selector>` | 200 | - | The `cost history diff --output json` document, plus `status: "ok"` and `display` strings. `from` and `to` take `v35` or `YYYY-MM-DD`; an empty `to` is the newest snapshot. `threshold` hides changes at or below that monthly amount. |
 | `GET /api/history/resource?id=<id>` | 200 | - | One resource's stored series, the points the terminal detail view loads: `status: "ok"`, `id`, `points` (`timestamp`, `amount`, `currency`), and `display.points`. |

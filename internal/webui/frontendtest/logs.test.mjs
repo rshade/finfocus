@@ -68,6 +68,20 @@ test('probe leaves the nav entry hidden on 404 and shows it on 200', async () =>
   assert.equal(link200.hidden, false);
 });
 
+test('probe and mount stay idle when status says logs are off', async () => {
+  const off = await setup();
+  off.api.get = async () => ({ enabled: false, capacity: 0, retained: 0, dropped: 0, sources: [] });
+  const link = new Node('a');
+  link.hidden = true;
+  assert.equal(await off.mod.namespace.probeLogs(off.api, link), false);
+  assert.equal(link.hidden, true);
+
+  await off.mod.namespace.mount(off.container, { api: off.api }, off.deps);
+  assert.equal(FakeSource.all.length, 0);
+  const status = off.container.children.find((child) => child.className === 'logs-status');
+  assert.equal(status.textContent, 'Logs are not enabled for this session.');
+});
+
 test('mount forwards snapshot, log and gap events to the viewer', async () => {
   const t = await setup();
   await t.mod.namespace.mount(t.container, { api: t.api }, t.deps);

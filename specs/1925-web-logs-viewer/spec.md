@@ -93,7 +93,8 @@ neither appears in the page or the stream.
 
 1. **Given** neither the environment variable nor the config key is set,
    **When** the dashboard loads, **Then** there is no Logs entry in the
-   navigation and a request for the log stream returns not found.
+   navigation, `GET /api/logs/status` reports that logs are not enabled, and
+   a request for the log stream returns not found.
 2. **Given** `web.logs.enabled` is true in the config, **When** the dashboard
    loads, **Then** the Logs view is available.
 3. **Given** the config key is true and `FINFOCUS_WEB_LOGS=0`, **When** the
@@ -372,8 +373,9 @@ confirm only that plugin's warn-and-above lines print, with badges, and that
 - **SC-001**: With logs enabled, a person can find the plugin that failed
   during a load, by source and level, in under 30 seconds without leaving the
   browser.
-- **SC-002**: With logs off, 100% of dashboard runs show no Logs entry and
-  return not found for the log stream, with no logs captured.
+- **SC-002**: With logs off, 100% of dashboard runs show no Logs entry,
+  `GET /api/logs/status` reports that logs are not enabled, and the log
+  stream returns not found, with no logs captured.
 - **SC-003**: In seeded tests with credential-named fields and Pulumi secret
   values, 0 secret values appear in the stream, the page, or a download.
 - **SC-004**: Turning the view on changes nothing in the existing log file,

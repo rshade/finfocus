@@ -16,8 +16,10 @@ cd ../finfocus-demo
 PULUMI_CONFIG_PASSPHRASE='' ../finfocus/bin/finfocus --web --no-browser --port <port>
 ```
 
-Open the printed URL. Expect no Logs entry in the navigation. From the same
-shell, with the session cookie, `GET /api/logs/status` returns `404`.
+Open the printed URL. Expect no Logs entry in the navigation, and no failed
+request in the browser console. From the same shell, with the session cookie,
+`GET /api/logs/status` returns `200` with `"enabled": false`, and
+`GET /api/logs/stream` returns `404`.
 
 ## 2. On through the environment
 
