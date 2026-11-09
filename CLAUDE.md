@@ -889,6 +889,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - Recommendations: `Recommendation.ID` is the dismissal id. The cache key hashes
   inputs plus dismissed ids; `--include-dismissed` still sends excluded ids and
   adds `/include-dismissed`.
+- Recommendations page through every plugin call (`fetchRecommendationPages`,
+  `maxRecommendationPages` = 100). A repeated token, a page past the cap, or a
+  page error records one plugin error and drops that plugin's rows, including
+  earlier pages and earlier batches. A cancelled context stops between pages.
 - `cost recommendations history` (`specs/1729-recommendation-history/`) merges
   plugin `GetRecommendationHistory` events with the local dismissal record.
   It queries every connected plugin, including when that id has no local
@@ -938,8 +942,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   savings column states the amount; every surface renders it. The dismissal
   snapshot carries both fields (`NewRecommendationSnapshot`,
   `RecommendationFromSnapshot`). The recommendations cache key ends in
-  `/recs-v1` (before the profile suffix) because the stored result JSON
-  changed; bump it when a stored field is added. Risk never reorders.
+  `/recs-v2` (before the profile suffix) because the stored result JSON
+  changed; bump it when a stored field is added, or when what a key holds
+  changes (`/recs-v2` retired entries holding only page one). Risk never reorders.
 - Scoring (`internal/scoring`, off by default) pseudonymizes identifiers by
   default, only warns on failure, and never dismisses or hides anything.
   Scorer-only plugins are dropped from cost features before `Supports`.

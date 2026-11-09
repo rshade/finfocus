@@ -3813,13 +3813,15 @@ func (e *Engine) fetchRecommendationsFromTarget(
 		Bool("batch_processing", useBatchProcessing).
 		Msg("fetching recommendations from plugin")
 
+	var recs []*proto.Recommendation
 	var err error
 	if useBatchProcessing {
-		err = e.fetchRecommendationsWithBatching(ctx, client, target.resources, result, excludedIDs, includeDismissed)
+		recs, err = e.fetchRecommendationsWithBatching(ctx, client, target.resources, excludedIDs, includeDismissed)
 	} else {
-		err = e.fetchRecommendationsSequential(ctx, client, target.resources, result, excludedIDs, includeDismissed)
+		recs, err = e.fetchRecommendationsSequential(ctx, client, target.resources, excludedIDs, includeDismissed)
 	}
 	if err == nil {
+		appendRecommendations(result, recs)
 		return
 	}
 
@@ -3873,9 +3875,10 @@ func (e *Engine) recommendationsCacheKey(
 }
 
 // recommendationsCacheFormat versions the stored RecommendationsResult JSON. It
-// changes when a stored field is added, so an entry written by an earlier
-// release (without the spot fields, for example) is never read.
-const recommendationsCacheFormat = "/recs-v1"
+// changes when a stored field is added, or when what a key holds changes, so an
+// entry written by an earlier release is never read. /recs-v2 retires entries
+// that held only each plugin's first page.
+const recommendationsCacheFormat = "/recs-v2"
 
 // isScorerOnly reports whether a plugin advertises recommendation scoring without
 // recommendations. Such a plugin rates recommendations; it does not produce them.
@@ -3947,67 +3950,109 @@ func (e *Engine) recommendationsRequest(
 	return req
 }
 
-// fetchRecommendationsSequential fetches recommendations without batching (for small datasets).
-func (e *Engine) fetchRecommendationsSequential(
+// maxRecommendationPages bounds how many pages one plugin request may return. A plugin
+// that keeps issuing tokens cannot hold a recommendations run open indefinitely.
+const maxRecommendationPages = 100
+
+// fetchRecommendationPages returns every recommendation for one request by following
+// NextPageToken until it is empty. A token that repeats or a page past the cap is a
+// misbehaving plugin and fails the whole request, as does an error on any page.
+func (e *Engine) fetchRecommendationPages(
 	ctx context.Context,
 	client *pluginhost.Client,
-	resources []ResourceDescriptor,
-	result *RecommendationsResult,
-	excludedIDs []string,
-	includeDismissed bool,
-) error {
-	log := logging.FromContext(ctx)
+	req *proto.GetRecommendationsRequest,
+) ([]*proto.Recommendation, error) {
+	var recs []*proto.Recommendation
+	seenTokens := make(map[string]bool)
+	for page := 1; page <= maxRecommendationPages; page++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		resp, err := client.API.GetRecommendations(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("page %d: %w", page, err)
+		}
+		recs = append(recs, resp.Recommendations...)
 
-	req := e.recommendationsRequest(resources, excludedIDs, includeDismissed)
+		next := resp.NextPageToken
+		if next == "" {
+			return recs, nil
+		}
+		if seenTokens[next] {
+			return nil, fmt.Errorf("page %d: plugin repeated page token", page)
+		}
+		seenTokens[next] = true
 
-	resp, err := client.API.GetRecommendations(ctx, req)
-	if err != nil {
-		return err
+		nextReq := *req
+		nextReq.PageToken = next
+		req = &nextReq
 	}
+	return nil, fmt.Errorf("recommendations exceed %d-page limit", maxRecommendationPages)
+}
 
-	log.Info().
-		Ctx(ctx).
-		Str("component", "engine").
-		Str("plugin", client.Name).
-		Int("recommendation_count", len(resp.Recommendations)).
-		Msg("received recommendations from plugin")
-
-	for _, rec := range resp.Recommendations {
+// appendRecommendations converts plugin recommendations and appends them to result.
+// The first non-empty currency seen across plugins becomes the result currency.
+func appendRecommendations(result *RecommendationsResult, recs []*proto.Recommendation) {
+	for _, rec := range recs {
 		engineRec := convertProtoRecommendation(rec)
 		if result.Currency == defaultCurrency && engineRec.Currency != "" {
 			result.Currency = engineRec.Currency
 		}
 		result.Recommendations = append(result.Recommendations, engineRec)
 	}
+}
 
-	return nil
+// fetchRecommendationsSequential fetches recommendations without batching (for small datasets).
+func (e *Engine) fetchRecommendationsSequential(
+	ctx context.Context,
+	client *pluginhost.Client,
+	resources []ResourceDescriptor,
+	excludedIDs []string,
+	includeDismissed bool,
+) ([]*proto.Recommendation, error) {
+	log := logging.FromContext(ctx)
+
+	req := e.recommendationsRequest(resources, excludedIDs, includeDismissed)
+	recs, err := e.fetchRecommendationPages(ctx, client, req)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("plugin", client.Name).
+		Int("recommendation_count", len(recs)).
+		Msg("received recommendations from plugin")
+
+	return recs, nil
 }
 
 // fetchRecommendationsWithBatching fetches recommendations using batch processing for large datasets.
+// Each batch pages through its own request. The caller keeps nothing from a plugin whose
+// batches do not all succeed, so a failure never leaves a partial plugin result behind.
 func (e *Engine) fetchRecommendationsWithBatching(
 	ctx context.Context,
 	client *pluginhost.Client,
 	resources []ResourceDescriptor,
-	result *RecommendationsResult,
 	excludedIDs []string,
 	includeDismissed bool,
-) error {
+) ([]*proto.Recommendation, error) {
 	log := logging.FromContext(ctx)
 
-	// Create batch processor with threshold-sized batches
 	processor, err := batch.NewProcessor[ResourceDescriptor](batchProcessingThreshold)
 	if err != nil {
-		return fmt.Errorf("failed to create batch processor: %w", err)
+		return nil, fmt.Errorf("failed to create batch processor: %w", err)
 	}
 
-	// Process resources in batches
+	var recs []*proto.Recommendation
 	err = processor.Process(
 		ctx,
 		resources,
 		func(ctx context.Context, batchResources []ResourceDescriptor, batchIndex int) error {
 			req := e.recommendationsRequest(batchResources, excludedIDs, includeDismissed)
 
-			resp, recErr := client.API.GetRecommendations(ctx, req)
+			batchRecs, recErr := e.fetchRecommendationPages(ctx, client, req)
 			if recErr != nil {
 				log.Warn().
 					Ctx(ctx).
@@ -4025,34 +4070,25 @@ func (e *Engine) fetchRecommendationsWithBatching(
 				Str("component", "engine").
 				Str("plugin", client.Name).
 				Int("batch_index", batchIndex).
-				Int("recommendation_count", len(resp.Recommendations)).
+				Int("recommendation_count", len(batchRecs)).
 				Msg("received recommendations for batch")
 
-			// Aggregate results (thread-safe append)
-			for _, rec := range resp.Recommendations {
-				engineRec := convertProtoRecommendation(rec)
-				if result.Currency == defaultCurrency && engineRec.Currency != "" {
-					result.Currency = engineRec.Currency
-				}
-				result.Recommendations = append(result.Recommendations, engineRec)
-			}
-
+			recs = append(recs, batchRecs...)
 			return nil
 		},
 	)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info().
 		Ctx(ctx).
 		Str("component", "engine").
 		Str("plugin", client.Name).
-		Int("total_recommendations", len(result.Recommendations)).
+		Int("total_recommendations", len(recs)).
 		Msg("completed batch processing")
 
-	return nil
+	return recs, nil
 }
 
 // MergeRecommendations merges recommendations into CostResults by matching ResourceID.
