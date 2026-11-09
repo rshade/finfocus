@@ -262,6 +262,9 @@ type RecommendationsViewModel struct {
 	// rowLayout is the column layout of the current list.
 	rowLayout recRowLayout
 
+	// pluginErrors lists plugins whose recommendations query failed.
+	pluginErrors []engine.RecommendationError
+
 	// Error handling
 	err error
 }
@@ -314,6 +317,13 @@ func NewRecommendationsViewModelWithLoading(
 			return recommendationsLoadingMsg{recommendations: recs, err: err}
 		},
 	}
+	return m
+}
+
+// WithPluginErrors records plugins whose query failed, so the list shows them
+// instead of reading as a complete result.
+func (m *RecommendationsViewModel) WithPluginErrors(errs []engine.RecommendationError) *RecommendationsViewModel {
+	m.pluginErrors = errs
 	return m
 }
 
@@ -543,7 +553,7 @@ func (m *RecommendationsViewModel) View() tea.View {
 
 func (m *RecommendationsViewModel) renderListView() string {
 	summary := "Profile: " + displayedRecommendationProfile(m.profile) + "\n" +
-		RenderRecommendationsSummaryTUI(m.summary, m.width)
+		RenderRecommendationsSummaryTUI(m.summary, m.width) + renderRecommendationPluginErrors(m.pluginErrors)
 
 	// Render the virtual list
 	var listView string
@@ -689,4 +699,18 @@ func writeScoreDetail(sb *strings.Builder, scores *engine.RecommendationScores) 
 		}
 		fmt.Fprintf(sb, "%-17s%s\n", field.Name+":", field.Value)
 	}
+}
+
+// renderRecommendationPluginErrors lists failed plugins below the summary, or
+// returns "" when every plugin answered.
+func renderRecommendationPluginErrors(errs []engine.RecommendationError) string {
+	if len(errs) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("\n" + CriticalStyle.Render("PLUGIN ERRORS") + "\n")
+	for _, e := range errs {
+		fmt.Fprintf(&sb, "  %s: %s\n", e.PluginName, e.Error)
+	}
+	return sb.String()
 }
