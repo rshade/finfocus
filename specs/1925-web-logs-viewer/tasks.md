@@ -41,7 +41,7 @@ together; US4 to US6 add on.
 - [x] T002 [P] Create `packages/zerolog-viewer/LICENSE` with the repo's Apache-2.0 text copied from `LICENSE`
 - [x] T003 [P] Create `internal/weblog/doc.go` with the package comment: purpose, the rule that it must not import `cli`, `webui`, `registry`, or `pluginhost`, and that all state is in memory
 - [x] T004 [P] Create `internal/weblog/testdata/sample.ndjson`: core lines with `component`, SDK plugin lines with `plugin_name`, a plain-text line, a line with an `api_token` field, a line with a Pulumi secret envelope value, a `__defaults` key, a line with an unknown level, and a line whose message is over 64 KiB
-- [x] T005 [P] Create `internal/weblog/testdata/filter_cases.json`: array of `{name, entries, filter, expectSeq}` covering source sets, every level threshold, text on message, text on a field value, case-insensitivity, and combined filters; read by both the Go and the JavaScript tests
+- [x] T005 [P] Create `internal/weblog/testdata/filter_cases.json`: array of `{name, entries, filter, expectSeq}` covering source sets, every level threshold, text on message, text on a field value, case-insensitivity, and combined filters; Go tests read it, and the JavaScript tests read the vendored copy under `packages/zerolog-viewer/test/fixtures/`
 
 ---
 
@@ -121,7 +121,7 @@ time, level badge, source, and message.
 the level to warn, search a word, download, and confirm the file matches what
 is visible.
 
-- [x] T040 [P] [US2] `packages/zerolog-viewer/test/filters.test.mjs`: runs `internal/weblog/testdata/filter_cases.json` through the viewer's filter; source chips list sources from the snapshot before any line matches; pause keeps scroll and counts new lines; resume jumps to newest; clear empties and keeps only later lines; download builds NDJSON of the visible entries
+- [x] T040 [P] [US2] `packages/zerolog-viewer/test/filters.test.mjs`: runs `test/fixtures/filter_cases.json` through the viewer's filter; source chips list sources from the snapshot before any line matches; pause keeps scroll and counts new lines; resume jumps to newest; clear empties and keeps only later lines; download builds NDJSON of the visible entries
 - [x] T041 [US2] Create `packages/zerolog-viewer/src/filters.js` and wire it into `viewer.js`: source set, minimum level, case-insensitive text over message and field values, combined; `setFilters` API
 - [x] T042 [US2] Edit `packages/zerolog-viewer/src/viewer.js` and `viewer.css`: controls row (source chips, level select, search, follow toggle, clear, download), status line ("N shown of M, K new while paused", dropped notice), and the NDJSON download through a `Blob`
 - [x] T043 [US2] Edit `internal/webui/static/views/logs.js` to render the viewer's controls in the dashboard's controls-row and status-line slots, and extend `internal/webui/frontendtest/logs.test.mjs` for the slots

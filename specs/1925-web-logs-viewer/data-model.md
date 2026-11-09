@@ -81,8 +81,11 @@ Shared by `finfocus logs` (Go) and mirrored by the viewer package (JavaScript).
 set means all); the level rank is at least `MinLevel`; and, when `Text` is
 set, a case-insensitive substring of the message or any field value matches.
 Level order: `trace` < `debug` < `info` < `warn` < `error` < `fatal` < `panic`.
-A shared fixture, `internal/weblog/testdata/filter_cases.json`, is read by both
-the Go and the JavaScript tests so the two implementations cannot disagree.
+A shared fixture, `internal/weblog/testdata/filter_cases.json`, is the canonical
+copy. The viewer package vendors it, and `sample.ndjson`, under
+`packages/zerolog-viewer/test/fixtures/`. `TestVendoredViewerFixturesMatch`
+fails when a copy differs, so the two implementations cannot disagree and the
+package tests still run with no finfocus source present.
 
 ## Decoder
 

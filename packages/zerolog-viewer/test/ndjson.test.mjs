@@ -38,7 +38,7 @@ test('a very long unterminated tail is flushed as a raw line', () => {
 });
 
 test('the shared sample fixture parses to one item per non-blank line', async () => {
-  const text = await readFile(new URL('../../../internal/weblog/testdata/sample.ndjson', import.meta.url), 'utf8');
+  const text = await readFile(new URL('./fixtures/sample.ndjson', import.meta.url), 'utf8');
   const lines = text.split('\n').filter((l) => l.trim() !== '');
   const items = parseNDJSON(text);
   assert.equal(items.length, lines.length);
