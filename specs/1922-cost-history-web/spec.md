@@ -231,6 +231,15 @@ with a failure that has no path in it.
   `strict=maybe` was 400, and a missing id was 400. Both detail panels have
   room for a `Cost history` section after their last block, and the Cost
   view has the slot-7 area below its table for the chart.
+- **Render evidence**: 2026-11-09, web fixture project `web-fixture`, stack
+  `dev`, seeded snapshots v35 ($8.00) and v36 ($12.50) with annotations
+  `baseline` and `resized`, and a $120.00 USD global budget.
+  `TestWebUICostHistory` opened the Overview detail and the Cost detail and
+  both showed a Cost history table of the display date and amount. The Cost
+  view showed the series table, the budget line text, both annotations, and
+  the v35-to-v36 diff with the display delta and the word "increase". Light
+  and dark at 1280px and 390px passed the contrast and overflow checks, and
+  keyboard focus reached the From control.
 - **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
   accessibility). No engine, API, redaction, or data-shape work. Filed as
   #1939.

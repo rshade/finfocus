@@ -1178,3 +1178,71 @@ button:disabled {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
+
+/* Cost history. Points and series tables sit in the narrow detail dialog. */
+.history-panel {
+  margin-top: 1.5rem;
+}
+
+.history-points,
+.history-series {
+  min-width: 0;
+}
+
+.history-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: var(--accent);
+}
+
+.history-budget-line {
+  stroke: var(--warn);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+.history-marker circle {
+  fill: var(--bg);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.history-marker text {
+  fill: var(--fg);
+  font-size: 10px;
+}
+
+.history-budget {
+  margin: 0.75rem 0;
+  padding-left: 0.6rem;
+  border-left: 4px solid var(--warn);
+}
+
+.history-annotations {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.25rem;
+  list-style: none;
+}
+
+.warn-banner {
+  margin: 0.5rem 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.field-error {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--error);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.delta-flat {
+  color: var(--fg-muted);
+}

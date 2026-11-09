@@ -890,6 +890,34 @@ test('a dependent that no longer exists keeps Back available', async () => {
   t.mounted.unmount();
 });
 
+test('resource detail appends cost history after blast radius and budget', async () => {
+  const t = await setup();
+  t.calls[0].resolve(page([row('alpha')])); await flush();
+  t.container.querySelector('.resource-link').dispatch('click');
+  t.calls.at(-1).resolve({
+    row: row('alpha', { displayName: 'Alpha' }),
+    blastRadius: radius([]),
+    budgetDisplay: { details: [{ name: 'Global', healthDisplay: 'OK', currentSpendDisplay: '$1.00', limitDisplay: '$120.00' }] },
+  });
+  await flush();
+  const historyCall = t.calls.at(-1);
+  assert.match(historyCall.path, /^\/api\/history\/resource\?id=/);
+  historyCall.resolve({
+    status: 'ok',
+    points: [{ amount: 8 }],
+    display: { points: [{ date: '2026-09-01', amount: 'EIGHT' }] },
+  });
+  await flush();
+  const panel = t.container.querySelector('.detail-panel');
+  assert.deepEqual(panel.querySelectorAll('h4').map((node) => node.textContent).slice(-3), ['Blast radius', 'Budget status', 'Cost history']);
+  assert.match(panel.querySelector('.history-points').textContent, /EIGHT/);
+  assert.doesNotMatch(panel.querySelector('.history-points').textContent, /\$8|8\.00/);
+  t.container.querySelector('.detail-close').dispatch('click');
+  assert.equal(t.container.querySelector('.detail-panel').hidden, true);
+  assert.equal(t.container.querySelector('.history-points'), null);
+  t.mounted.unmount();
+});
+
 test('a left-out note follows the scroll container so it can wrap', async () => {
   const t = await openBlast(radius([dependent('a', 1, 'root')], { noteDisplay: '1 deleted dependent is not in the total' }));
   const scroll = t.container.querySelector('.blast-scroll');

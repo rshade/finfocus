@@ -1,5 +1,6 @@
 import { el } from '../app.js';
 import { spotBadge } from '../spot.js';
+import { appendResourceHistory, mountCostHistoryPanel } from '../history.js';
 
 // All totals, grouping, filtering, sorting, and sparkline coordinates come from Go.
 export function mount(container, { api, stream }) {
@@ -32,7 +33,8 @@ export function mount(container, { api, stream }) {
   const close = el('button', { type: 'button', text: 'Close details' });
   const dialog = el('dialog', { class: 'detail-panel passphrase-dialog', 'aria-labelledby': 'cost-detail-title' },
     el('h3', { id: 'cost-detail-title', text: 'Actual cost details' }), close, detailContent);
-  container.append(heading, form, error, status, summary, el('div', { class: 'table-wrap' }, table), pagination, dialog);
+  const history = mountCostHistoryPanel({ api });
+  container.append(heading, form, error, status, summary, el('div', { class: 'table-wrap' }, table), pagination, history.element, dialog);
 
   function closeDetails() {
     detailVersion += 1; detailAbort?.abort();
@@ -73,6 +75,12 @@ export function mount(container, { api, stream }) {
         for (const reason of linked.recommendation.reasoning ?? []) detailContent.append(el('p', { text: reason }));
       }
       if (detail.notesDisplay) detailContent.append(el('h4', { text: 'Notes' }), el('p', { text: detail.notesDisplay }));
+      appendResourceHistory(detailContent, {
+        get: (path, options) => api.get(path, options),
+        id: row.id,
+        signal: detailAbort.signal,
+        current: () => alive && current === detailVersion && dialog.open,
+      });
     } catch (err) {
       if (alive && current === detailVersion && err.name !== 'AbortError') detailContent.replaceChildren(el('p', { role: 'alert', text: err.message }));
     }
@@ -140,7 +148,9 @@ export function mount(container, { api, stream }) {
   form.addEventListener('submit', event => { event.preventDefault(); reset(); });
   for (const input of [group, sort, tag, filter]) input.addEventListener('change', reset);
   previous.addEventListener('click', () => { page -= 1; query(); }); next.addEventListener('click', () => { page += 1; query(); });
-  const unsubs = [stream.on('ready', query), stream.on('snapshot', snapshot => { if (snapshot.ready) query(); })];
+  function refresh() { query(); history.retry(); }
+  const unsubs = [stream.on('ready', refresh), stream.on('snapshot', snapshot => { if (snapshot.ready) refresh(); })];
   query();
-  return { unmount() { alive = false; version += 1; detailVersion += 1; queryAbort?.abort(); detailAbort?.abort(); for (const off of unsubs) off(); if (dialog.open) dialog.close(); } };
+  history.load();
+  return { unmount() { alive = false; version += 1; detailVersion += 1; queryAbort?.abort(); detailAbort?.abort(); history.unmount(); for (const off of unsubs) off(); if (dialog.open) dialog.close(); } };
 }

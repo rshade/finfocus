@@ -12,6 +12,7 @@
 // page, expanded set).
 
 import { el, mergeRunStatus } from '../app.js';
+import { appendResourceHistory } from '../history.js';
 import { spotBadge } from '../spot.js';
 
 // Sort cycle matches viewmodel.SortField order (cost, name, type, delta) and
@@ -72,6 +73,7 @@ export function mount(container, ctx) {
   let currentDetail = null;
   let queryVersion = 0;
   let detailVersion = 0;
+  let historyAbort;
   let queryTimer = null;
   let budgetVersion = 0;
 
@@ -541,6 +543,7 @@ export function mount(container, ctx) {
 
   function openDetail(urn, { from, back } = {}) {
     const version = ++detailVersion;
+    historyAbort?.abort();
     if (from) {
       detailTrail.push(from);
     } else if (!back) {
@@ -553,7 +556,10 @@ export function mount(container, ctx) {
     api
       .get(`/api/overview/resource?urn=${encodeURIComponent(urn)}`, { signal: aborter.signal })
       .then((resp) => {
-        if (!aborter.signal.aborted && version === detailVersion) renderDetail(resp, urn);
+        if (!aborter.signal.aborted && version === detailVersion) {
+          renderDetail(resp, urn);
+          showResourceHistory(urn, version);
+        }
       })
       .catch((err) => {
         if (err.name === 'AbortError' || aborter.signal.aborted || version !== detailVersion) return;
@@ -588,8 +594,20 @@ export function mount(container, ctx) {
     });
   }
 
+  function showResourceHistory(urn, version) {
+    historyAbort?.abort();
+    historyAbort = new AbortController();
+    appendResourceHistory(detailPanel, {
+      get: (path, options) => api.get(path, options),
+      id: urn,
+      signal: historyAbort.signal,
+      current: () => version === detailVersion && !detailPanel.hidden,
+    });
+  }
+
   function closeDetail() {
     detailVersion += 1;
+    historyAbort?.abort();
     detailTrail.length = 0;
     detailPanel.hidden = true;
     detailPanel.replaceChildren();
@@ -1186,6 +1204,7 @@ export function mount(container, ctx) {
       clearTimeout(queryTimer);
       stopPreviewTimer();
       aborter.abort();
+      historyAbort?.abort();
       if (passphraseDialog.isOpen) passphraseDialog.dialog.close();
     },
   };
