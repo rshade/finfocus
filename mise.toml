@@ -13,7 +13,7 @@
 go = "1.27.3"
 
 # Terraform-compatible plan generation uses the MPL-2.0 OpenTofu distribution.
-opentofu = "1.13.2"
+opentofu = "1.13.9"
 
 # The Makefile reads GOLANGCI_LINT_VERSION from this line. The golangci-lint
 # action in .github/workflows/ci.yml pins the same version; change both together.
