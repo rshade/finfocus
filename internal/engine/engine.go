@@ -3820,8 +3820,8 @@ func (e *Engine) fetchRecommendationsFromTarget(
 	} else {
 		recs, err = e.fetchRecommendationsSequential(ctx, client, target.resources, excludedIDs, includeDismissed)
 	}
+	appendRecommendations(result, recs)
 	if err == nil {
-		appendRecommendations(result, recs)
 		return
 	}
 
@@ -4029,8 +4029,9 @@ func (e *Engine) fetchRecommendationsSequential(
 }
 
 // fetchRecommendationsWithBatching fetches recommendations using batch processing for large datasets.
-// Each batch pages through its own request. The caller keeps nothing from a plugin whose
-// batches do not all succeed, so a failure never leaves a partial plugin result behind.
+// Batches are independent requests over disjoint resources. Each batch pages to completion or
+// fails as a whole, and the batches that completed before a failure are returned with the error;
+// later batches do not run.
 func (e *Engine) fetchRecommendationsWithBatching(
 	ctx context.Context,
 	client *pluginhost.Client,
@@ -4078,7 +4079,7 @@ func (e *Engine) fetchRecommendationsWithBatching(
 		},
 	)
 	if err != nil {
-		return nil, err
+		return recs, err
 	}
 
 	log.Info().
