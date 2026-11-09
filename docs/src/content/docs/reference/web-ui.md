@@ -13,6 +13,7 @@ the reasoning behind the security model, see
 ```bash
 finfocus --web [--port N] [--no-browser] [--pulumi-json FILE] [--pulumi-state FILE]
                [--stack NAME] [--from DATE] [--to DATE] [--adapter NAME] [--filter EXPR]...
+               [--allowed-host NAME]... [--trusted-proxy --allowed-user LOGIN...]
 ```
 
 - `--web` and its companion flags are root-local: they exist only on the root
@@ -21,6 +22,9 @@ finfocus --web [--port N] [--no-browser] [--pulumi-json FILE] [--pulumi-state FI
 - With no source flag, the Pulumi project, stack, and state are detected from
   the working directory, as for `finfocus overview`.
 - `--terraform-state` is not accepted.
+- `--allowed-host`, `--trusted-proxy`, and `--allowed-user` serve the dashboard
+  behind an HTTPS proxy on the same machine; see
+  [Serve behind a proxy](../guides/web-ui.md#serve-behind-a-proxy).
 
 The flag table, with defaults, is in the
 [CLI Commands Reference](cli-commands.md#options-web).
@@ -29,8 +33,8 @@ The flag table, with defaults, is in the
 
 | Stream | Content |
 | --- | --- |
-| stdout | One line: the session URL, `http://127.0.0.1:<port>/?token=<token>`. The token is 128 random bits as 32 hex characters. |
-| stderr | Diagnostics and one request log line per request that passes the `Host` check: method, path without the query string, and status. Tokens and request bodies are never logged. |
+| stdout | One line: the session URL, `http://127.0.0.1:<port>/?token=<token>`. The token is 128 random bits as 32 hex characters. With `--trusted-proxy`, a second line holds `https://<first allowed host>/`. |
+| stderr | With `--trusted-proxy`, a warning that any local process can forge the identity header. Diagnostics and one request log line per request that passes the `Host` check: method, path without the query string, and status. Tokens and request bodies are never logged. |
 
 Unless `--no-browser` is set, FinFocus opens the URL with the platform opener
 (`open` on macOS, `rundll32` on Windows, `xdg-open` elsewhere). A failure to

@@ -495,6 +495,16 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
 - The overview docs page is `docs/src/content/docs/commands/overview.md`.
+- Web proxy access (`specs/2011-web-allowed-host-trusted-proxy/`): `--allowed-host`
+  (exact normalized names, no wildcard or IP; `StringArray`, not `StringSlice`,
+  so an empty value reaches validation) widens `hostCheck` and `isOwnOrigin`;
+  the bind stays `127.0.0.1`. `--trusted-proxy` plus `--allowed-user` admits a
+  request in `authenticate` with no cookie when the peer is loopback, the
+  `Host` is allowed, and `Tailscale-User-Login` appears once and is listed. It
+  issues no cookie and skips no hardening check. `webui.ValidateAccess` is the
+  one rule, shared by `webFlagValues.validate` (exit 2) and `webui.New`. Whether
+  Tailscale Serve keeps `Host` and streams SSE is unverified live. New root
+  flags also change `internal/cli/testdata/schema-root.golden.json`.
 - `finfocus logs` is a one-shot snapshot of the log file through `internal/weblog`
   (same parsing, redaction, and display strings as the web Logs view). It opens
   no logging session (`readsLogFile`) and is not a follow mode.

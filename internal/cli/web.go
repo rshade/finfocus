@@ -46,6 +46,7 @@ var wslBrowserOpenDelay = 1500 * time.Millisecond
 var webCompanionFlags = []string{
 	"port", "no-browser", flagPulumiJSON, flagPulumiState,
 	"stack", "from", "to", "adapter", "filter",
+	"allowed-host", "trusted-proxy", "allowed-user",
 }
 
 // webPipelineHook observes the pipeline a web session builds, just before it
@@ -91,6 +92,10 @@ type webFlagValues struct {
 	to          string
 	adapter     string
 	filter      []string
+
+	allowedHosts []string
+	trustedProxy bool
+	allowedUsers []string
 }
 
 // registerWebFlags defines --web and its companions as root-local flags on
@@ -117,6 +122,14 @@ func registerWebFlags(cmd *cobra.Command, flags *webFlagValues) {
 		"restrict to a specific adapter plugin (only valid with --web)")
 	cmd.Flags().StringSliceVar(&flags.filter, "filter", nil,
 		"resource filters (only valid with --web)")
+	cmd.Flags().StringArrayVar(&flags.allowedHosts, "allowed-host", nil,
+		"accept this public host name behind an HTTPS proxy on this machine, such as tailscale serve; "+
+			"repeatable, exact names only (only valid with --web)")
+	cmd.Flags().BoolVar(&flags.trustedProxy, "trusted-proxy", false,
+		"admit requests that carry an allowed Tailscale-User-Login without the session token; "+
+			"needs --allowed-host and --allowed-user (only valid with --web)")
+	cmd.Flags().StringArrayVar(&flags.allowedUsers, "allowed-user", nil,
+		"tailnet login admitted by --trusted-proxy; repeatable (only valid with --web)")
 }
 
 // validate enforces the --web flag combination rules: --web and --mcp are
@@ -126,7 +139,7 @@ func (f *webFlagValues) validate(cmd *cobra.Command) error {
 		if mcp, _ := cmd.Flags().GetBool(mcpFlag); mcp {
 			return fmt.Errorf("--%s and --%s are mutually exclusive", webFlag, mcpFlag)
 		}
-		return nil
+		return webui.ValidateAccess(f.allowedHosts, f.trustedProxy, f.allowedUsers)
 	}
 	for _, name := range webCompanionFlags {
 		if cmd.Flags().Changed(name) {
@@ -361,24 +374,50 @@ func listenAndPrintWeb(
 	audit *auditContext,
 ) (*webui.Server, error) {
 	srv, err := webui.New(webui.Options{
-		Port:    flags.port,
-		Session: session,
-		Logs:    weblog.HubFromContext(ctx),
+		Port:         flags.port,
+		Session:      session,
+		Logs:         weblog.HubFromContext(ctx),
+		AllowedHosts: flags.allowedHosts,
+		TrustedProxy: flags.trustedProxy,
+		AllowedUsers: flags.allowedUsers,
 	})
 	if err != nil {
-		return nil, err
+		return nil, toValidationError(ctx, err)
 	}
 	if listenErr := srv.Listen(); listenErr != nil {
 		audit.logFailure(ctx, listenErr)
 		return nil, listenErr
 	}
-	if _, printErr := fmt.Fprintln(cmd.OutOrStdout(), srv.URL()); printErr != nil {
+	if printErr := printWebStartup(cmd, srv, flags.trustedProxy); printErr != nil {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), webShutdownTimeout)
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 		return nil, fmt.Errorf("printing web UI URL: %w", printErr)
 	}
 	return srv, nil
+}
+
+// trustedProxyWarning is shown at startup in identity mode. The listener is
+// loopback, so any local process can send a request with a forged login.
+const trustedProxyWarning = "WARNING: --trusted-proxy admits any request from this machine that carries an " +
+	"allowed Tailscale-User-Login, with no session token. Any local process can reach the loopback " +
+	"port and forge that header, so run this only on a machine whose local users you trust."
+
+// printWebStartup prints the session URL, and in trusted-proxy mode the
+// spoofing warning (stderr) and the token-free proxy URL (stdout). Without
+// trusted-proxy the output is the single token URL line, as before.
+func printWebStartup(cmd *cobra.Command, srv *webui.Server, trustedProxy bool) error {
+	if _, err := fmt.Fprintln(cmd.OutOrStdout(), srv.URL()); err != nil {
+		return err
+	}
+	if !trustedProxy {
+		return nil
+	}
+	if _, err := fmt.Fprintln(cmd.ErrOrStderr(), trustedProxyWarning); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintln(cmd.OutOrStdout(), srv.ProxyURL())
+	return err
 }
 
 // wireConfigEditor serves the configuration page from the global and project

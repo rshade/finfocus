@@ -54,6 +54,14 @@ Plugins are executable binaries that run as separate processes and communicate o
 - **Browser dashboard**: `finfocus --web` binds `127.0.0.1` only, with no option to
   bind elsewhere, and requires a per-session token. See
   [Web UI design](../architecture/web-ui.md#security-model).
+- **Dashboard behind an HTTPS proxy**: `--allowed-host` accepts exact public
+  host names for a proxy on the same machine, such as `tailscale serve`; the
+  listener stays on loopback and the token still applies. `--trusted-proxy`
+  with `--allowed-user` replaces the token with the proxy's
+  `Tailscale-User-Login` for listed users. Any local process can reach the
+  loopback port and forge that header, so enable it only on a machine whose
+  local users you trust. Tailscale Funnel traffic carries no identity header.
+  See [Serve behind a proxy](../guides/web-ui.md#serve-behind-a-proxy).
 - **No outbound requirement**: Core FinFocus functionality does not require external network
   access.
 - **Plugin networking**: Plugins may call external APIs (for example, Vantage) when configured.

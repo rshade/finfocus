@@ -61,6 +61,19 @@ type Options struct {
 	// Logs supplies captured log lines for the Logs page. Nil disables the
 	// feature: its routes are not registered.
 	Logs LogSource
+	// AllowedHosts are extra public names the Host and Origin checks accept,
+	// for a same-machine HTTPS proxy such as `tailscale serve`. Each is a plain
+	// DNS name with an optional port; wildcards and IP literals are refused.
+	// The listener stays on loopback regardless.
+	AllowedHosts []string
+	// TrustedProxy admits a request without the session token when it comes
+	// from a loopback peer, for an allowed host, with a Tailscale-User-Login
+	// listed in AllowedUsers. It requires AllowedHosts and AllowedUsers.
+	TrustedProxy bool
+	// AllowedUsers are the logins TrustedProxy admits. Any local process can
+	// reach the loopback port and forge the header, so listing users narrows
+	// who the proxy admits, not who can spoof.
+	AllowedUsers []string
 }
 
 // Server is the localhost-only web UI HTTP server. A per-session token,
@@ -72,6 +85,10 @@ type Server struct {
 	token   string
 	logger  zerolog.Logger
 	logs    LogSource
+
+	allowedHosts []allowedHost
+	trustedProxy bool
+	allowedUsers []string
 
 	reqPort    int
 	actualPort atomic.Int32
@@ -90,14 +107,22 @@ func New(opts Options) (*Server, error) {
 	if opts.Port < 0 || opts.Port > maxPort {
 		return nil, fmt.Errorf("webui: port %d out of range (0-%d): %w", opts.Port, maxPort, ErrInvalidPort)
 	}
+	hosts, users, err := normalizeAccess(opts.AllowedHosts, opts.TrustedProxy, opts.AllowedUsers)
+	if err != nil {
+		return nil, fmt.Errorf("webui: %w", err)
+	}
 	raw := make([]byte, tokenBytes)
-	if _, err := rand.Read(raw); err != nil {
+	if _, err = rand.Read(raw); err != nil {
 		return nil, fmt.Errorf("webui: generate session token: %w", err)
 	}
 	s := &Server{
 		token:   hex.EncodeToString(raw),
 		session: opts.Session,
 		reqPort: opts.Port,
+
+		allowedHosts: hosts,
+		trustedProxy: opts.TrustedProxy,
+		allowedUsers: users,
 	}
 	if opts.Logs != nil && !isNilLogSource(opts.Logs) {
 		s.logs = opts.Logs
@@ -317,7 +342,8 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 }
 
 // hostCheck rejects requests whose Host header is not exactly this server's
-// 127.0.0.1:<port> or localhost:<port> (DNS-rebinding defense).
+// 127.0.0.1:<port> or localhost:<port>, or an exact allowed proxy host
+// (DNS-rebinding defense).
 func (s *Server) hostCheck(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		port := strconv.Itoa(s.Port())
@@ -325,6 +351,10 @@ func (s *Server) hostCheck(next http.Handler) http.Handler {
 		case net.JoinHostPort(loopbackAddr, port), net.JoinHostPort("localhost", port):
 			next.ServeHTTP(w, r)
 		default:
+			if matchAllowedHost(s.allowedHosts, r.Host) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			s.writeError(w, http.StatusForbidden, "forbidden", "host header is not this server")
 		}
 	})
@@ -374,10 +404,15 @@ func (s *Server) requestLog(next http.Handler) http.Handler {
 // authenticate guards every route with the per-port session cookie. The one
 // exception is the token bootstrap: GET / with a ?token= query, which
 // handleRoot validates. The token stays valid for the server's lifetime so a
-// second tab or a reload with the printed URL works.
+// second tab or a reload with the printed URL works. With TrustedProxy, a
+// request that passes identityAuthenticated needs no cookie.
 func (s *Server) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.URL.Path == "/" && r.URL.Query().Has("token") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if s.identityAuthenticated(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -431,11 +466,12 @@ func (s *Server) requestHardening(next http.Handler) http.Handler {
 }
 
 // isOwnOrigin reports whether origin is this server's own origin on either
-// loopback hostname.
+// loopback hostname, or the HTTPS origin of an allowed proxy host.
 func (s *Server) isOwnOrigin(origin string) bool {
 	port := strconv.Itoa(s.Port())
 	return origin == "http://"+net.JoinHostPort(loopbackAddr, port) ||
-		origin == "http://"+net.JoinHostPort("localhost", port)
+		origin == "http://"+net.JoinHostPort("localhost", port) ||
+		matchAllowedOrigin(s.allowedHosts, origin)
 }
 
 // handleRoot serves the SPA shell. With a ?token= query it validates the
@@ -459,13 +495,14 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 				"unauthorized", "invalid session token; open the URL printed in the terminal")
 			return
 		}
-		//nolint:gosec // G124: no Secure attribute by design — the server is plaintext
-		// HTTP on loopback only, so Secure would break the session (http-api.md).
+		//nolint:gosec // G124: Secure is set only behind an HTTPS proxy (X-Forwarded-Proto).
+		// Plain loopback HTTP would drop the session if it were always set (http-api.md).
 		http.SetCookie(w, &http.Cookie{
 			Name:     s.cookieName(),
 			Value:    s.token,
 			Path:     "/",
 			HttpOnly: true,
+			Secure:   s.forwardedHTTPS(r),
 			SameSite: http.SameSiteStrictMode,
 		})
 		http.Redirect(w, r, "/", http.StatusSeeOther)

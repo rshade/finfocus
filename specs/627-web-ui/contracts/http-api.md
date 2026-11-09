@@ -32,7 +32,16 @@
   no third-party origins; the SPA loads nothing from a CDN).
 - Server binds to `127.0.0.1` only and has no option to bind elsewhere
   (FR-016a). No TLS (localhost); the cookie carries no `Secure` attribute
-  for that reason.
+  for that reason, except behind an HTTPS proxy (below).
+- Optional proxy access (spec 2011): `--allowed-host` adds exact public host
+  names to the `Host` check and their `https://` origins to the `Origin`
+  check; the cookie gains `Secure` when `X-Forwarded-Proto` is `https` (only with an
+  allowed host set);
+  `--trusted-proxy` admits a request without the cookie when the peer is
+  loopback, the `Host` is allowed, and `Tailscale-User-Login` (exactly one
+  value) names an `--allowed-user`. No cookie is issued for that path and the
+  Origin, `Sec-Fetch-Site`, and Content-Type checks still apply. Details:
+  `specs/2011-web-allowed-host-trusted-proxy/contracts/http-api.md`.
 - The token and request bodies (passphrase, estimate overrides) are never
   logged; request logging records method, path without query, and status.
 - Payloads are redacted by the shared rules named in FR-018 before they are
