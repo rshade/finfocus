@@ -1970,6 +1970,63 @@ func TestResolveSKUAndRegion_AWSRegionFallbackScope(t *testing.T) {
 	}
 }
 
+func TestResolveSKUAndRegion_ProviderRegionPrecedence(t *testing.T) {
+	tests := []struct {
+		name       string
+		provider   string
+		properties map[string]string
+		want       string
+	}{
+		{
+			name:       "region input wins over provider region",
+			provider:   "aws",
+			properties: map[string]string{"region": "us-west-2", ProviderRegionProperty: "us-east-1"},
+			want:       "us-west-2",
+		},
+		{
+			name:       "availability zone wins over provider region",
+			provider:   "aws",
+			properties: map[string]string{"availabilityZone": "ap-south-1a", ProviderRegionProperty: "us-east-1"},
+			want:       "ap-south-1",
+		},
+		{
+			name:     "arn wins over provider region",
+			provider: "aws",
+			properties: map[string]string{
+				propARNPulumi:          "arn:aws:ec2:sa-east-1:123456789012:instance/i-1",
+				ProviderRegionProperty: "us-east-1",
+			},
+			want: "sa-east-1",
+		},
+		{
+			name:       "provider region wins over environment",
+			provider:   "aws",
+			properties: map[string]string{ProviderRegionProperty: "us-east-1"},
+			want:       "us-east-1",
+		},
+		{
+			name:       "blank provider region falls back to environment",
+			provider:   "aws",
+			properties: map[string]string{ProviderRegionProperty: ""},
+			want:       "eu-central-1",
+		},
+		{
+			name:       "azure ignores provider region",
+			provider:   "azure",
+			properties: map[string]string{ProviderRegionProperty: "us-east-1"},
+			want:       "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("AWS_REGION", "eu-central-1")
+			t.Setenv("AWS_DEFAULT_REGION", "eu-north-1")
+			_, region := resolveSKUAndRegion(context.Background(), tt.provider, "", tt.properties)
+			assert.Equal(t, tt.want, region)
+		})
+	}
+}
+
 // T011: TestGetActualCost_ValidationFailure_InvalidTimeRange verifies that
 // requests with end time before start time trigger pre-flight validation failure.
 func TestGetActualCost_ValidationFailure_InvalidTimeRange(t *testing.T) {

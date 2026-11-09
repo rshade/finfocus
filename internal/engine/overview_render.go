@@ -292,7 +292,7 @@ func RenderOverviewAsJSON(
 	// Initialize resources to empty slice so JSON produces [] instead of null.
 	resources := make([]OverviewRow, len(result.Rows))
 	for i := range result.Rows {
-		resources[i] = result.Rows[i].Source
+		resources[i] = withoutProviderRegionRow(result.Rows[i].Source)
 	}
 
 	// Ensure errors is non-nil for consistent JSON output.

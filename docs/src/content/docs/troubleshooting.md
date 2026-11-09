@@ -456,15 +456,22 @@ order core checks them:
 1. A `region` input on the resource.
 2. An `availabilityZone` input on the resource (e.g. `us-west-2a`).
 3. An ARN property on the resource (the region segment is parsed from it).
-4. The `AWS_REGION` or `AWS_DEFAULT_REGION` environment variable:
+4. The region of the resource's AWS provider: the `region` input of its
+   `pulumi:providers:aws` resource, or that resource's `region` output. Core
+   finds it through the resource's provider reference in the stack state or the
+   preview. A `--pulumi-json` run inside a Pulumi project also reads the stack
+   state. Without state, the provider is seen only when the preview creates or
+   updates it.
+5. The `AWS_REGION` or `AWS_DEFAULT_REGION` environment variable:
 
    ```bash
    AWS_REGION=us-west-2 finfocus cost projected --pulumi-json plan.json
    ```
 
-Core does not read the Pulumi provider resource or stack configuration
-(`aws:region`), so set one of the sources above even when the stack has a
-region configured.
+Core reads a region from the provider resource, not from stack configuration
+(`aws:region`) directly. Stack configuration reaches the provider resource's
+`region` input, so a stack with a region configured resolves through step 4
+once its state or preview includes the provider.
 
 A regionless S3 bucket is expected to price at `$0.00` without an error: the
 plugin accepts it, and bucket contents cannot be measured from a plan.

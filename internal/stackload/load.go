@@ -96,6 +96,7 @@ func LoadState(ctx context.Context, src Source) (*Snapshot, error) {
 	result.stateGraph = BuildDependencyGraph(state.Deployment.Resources)
 	result.graph = result.stateGraph
 	result.State = convertStateResources(result.RawState)
+	stateProviderScope(result.RawState).annotateStates(result.State)
 	result.ManifestTime = state.Deployment.Manifest.Time
 	result.StateStatus = Status{Loaded: true, Reason: ReasonNone}
 	if result.StackName == "" {

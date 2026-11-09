@@ -63,6 +63,25 @@ const (
 	propARNTerraform     = "terraform:arn"
 )
 
+// ProviderRegionProperty carries the AWS region configured by a resource's
+// Pulumi provider. Core sets it, not Pulumi, on an AWS resource that names no
+// region itself (internal/stackload). The "__" prefix keeps it out of
+// attributes and the web and estimate property views, like other internal keys.
+const ProviderRegionProperty = "__providerRegion"
+
+// awsResourceRegion returns the region an AWS resource names through its
+// region or availabilityZone input, the region segment of its ARN, or the
+// region of its Pulumi provider, in that order.
+func awsResourceRegion(properties map[string]string) string {
+	if region := mapping.ExtractAWSRegion(properties); region != "" {
+		return region
+	}
+	if region := awsutil.RegionFromARN(firstNonEmptyValue(properties, propARNPulumi, propARNTerraform)); region != "" {
+		return region
+	}
+	return firstNonEmptyValue(properties, ProviderRegionProperty)
+}
+
 // ErrorDetail captures information about a failed resource cost calculation.
 type ErrorDetail struct {
 	ResourceType string
@@ -1289,10 +1308,11 @@ func ResolveSKUAndRegion(
 //
 //  1. Resource inputs: the region property, then availabilityZone.
 //  2. The region segment of an ARN property.
-//  3. AWS_REGION, then AWS_DEFAULT_REGION environment variables.
+//  3. ProviderRegionProperty, the region of the resource's Pulumi provider.
+//  4. AWS_REGION, then AWS_DEFAULT_REGION environment variables.
 //
-// The Pulumi provider resource and stack configuration (aws:region) are not
-// consulted.
+// Stack configuration (aws:region) is not read here; the engine reads a
+// provider's region from state and preview into ProviderRegionProperty.
 func resolveSKUAndRegion(
 	ctx context.Context,
 	provider, resourceType string,
@@ -1312,11 +1332,7 @@ func resolveSKUAndRegion(
 			// (e.g., EKS clusters have $0.10/hr but no SKU property in state)
 			sku = skus.ResolveSKU(provider, resourceType, properties)
 		}
-		region = mapping.ExtractAWSRegion(properties)
-		if region == "" {
-			// Fallback: parse region from ARN (arn:aws:service:region:account:...)
-			region = awsutil.RegionFromARN(firstNonEmptyValue(properties, propARNPulumi, propARNTerraform))
-		}
+		region = awsResourceRegion(properties)
 	case "azure":
 		sku = mapping.ExtractAzureSKU(properties)
 		region = mapping.ExtractAzureRegion(properties)
