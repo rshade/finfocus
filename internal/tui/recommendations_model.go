@@ -172,8 +172,7 @@ func renderRecommendationRow(rec engine.Recommendation, selected bool, layout re
 		resourceID = resourceID[:recColWidthResource-3] + "..."
 	}
 
-	// Format action type
-	actionType := rec.Type
+	actionType := FormatActionType(rec.Type)
 	if len(actionType) > recColWidthAction {
 		actionType = actionType[:recColWidthAction-3] + "..."
 	}
@@ -642,18 +641,24 @@ func RenderRecommendationsSummaryTUI(summary *RecommendationsSummary, _ int) str
 	if len(summary.CountByAction) > 0 {
 		_, _ = sb.WriteString("\nBy Action Type:\n")
 
-		// Sort action types for deterministic output
-		actionTypes := make([]string, 0, len(summary.CountByAction))
-		for actionType := range summary.CountByAction {
-			actionTypes = append(actionTypes, actionType)
+		// Plugins spell one action differently (RIGHTSIZE or its full enum name), so
+		// lines are merged by display label.
+		counts := make(map[string]int, len(summary.CountByAction))
+		savingsByLabel := make(map[string]float64, len(summary.CountByAction))
+		for actionType, count := range summary.CountByAction {
+			label := FormatActionType(actionType)
+			counts[label] += count
+			savingsByLabel[label] += summary.SavingsByAction[actionType]
 		}
-		sort.Strings(actionTypes)
+		labels := make([]string, 0, len(counts))
+		for label := range counts {
+			labels = append(labels, label)
+		}
+		sort.Strings(labels)
 
 		currencySymbol := getCurrencySymbol(currency)
-		for _, actionType := range actionTypes {
-			count := summary.CountByAction[actionType]
-			savings := summary.SavingsByAction[actionType]
-			fmt.Fprintf(&sb, "  %s: %d (%s%.2f)\n", actionType, count, currencySymbol, savings)
+		for _, label := range labels {
+			fmt.Fprintf(&sb, "  %s: %d (%s%.2f)\n", label, counts[label], currencySymbol, savingsByLabel[label])
 		}
 	}
 
@@ -673,7 +678,7 @@ func RenderRecommendationDetail(rec engine.Recommendation, width int) string {
 	_, _ = sb.WriteString("RECOMMENDATION DETAIL\n")
 	_, _ = sb.WriteString("=====================\n\n")
 	fmt.Fprintf(&sb, "Resource:    %s\n", rec.ResourceID)
-	fmt.Fprintf(&sb, "Action Type: %s\n", rec.Type)
+	fmt.Fprintf(&sb, "Action Type: %s\n", FormatActionType(rec.Type))
 	fmt.Fprintf(&sb, "Savings:     %s%.2f %s\n",
 		getCurrencySymbol(currency), rec.EstimatedSavings, currency)
 	if spot := rec.SpotDisplay(); spot != "" {

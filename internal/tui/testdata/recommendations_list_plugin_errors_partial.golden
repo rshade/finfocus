@@ -5,13 +5,13 @@ Total: 1 recommendations
 Potential Savings: $5.00                                                                          
                                                                                                   
 By Action Type:                                                                                   
-  RIGHTSIZE: 1 ($5.00)                                                                            
+  Rightsize: 1 ($5.00)                                                                            
                                                                                                   
 PLUGIN ERRORS                                                                                     
   aws-ce: rpc error: code = DataLoss desc = invalid AWS recommendation data: rightsizing          
                                                                                                   
 Resource                             Action                Savings  Description                   
 ──────────────────────────────────────────────────────────────────────────────────────────────────
-i-plain                              RIGHTSIZE               $5.00  Downsize                      
+i-plain                              Rightsize               $5.00  Downsize                      
                                                                                                   
 [/] Filter  [s] Sort  [↑↓/jk] Navigate  [Enter] Details  [q] Quit                                 

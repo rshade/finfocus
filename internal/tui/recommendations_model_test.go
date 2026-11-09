@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -470,7 +471,7 @@ func TestRenderRecommendationDetail(t *testing.T) {
 		output := RenderRecommendationDetail(rec, 80)
 
 		assert.Contains(t, output, "aws:ec2:Instance/i-0abc123")
-		assert.Contains(t, output, "RIGHTSIZE")
+		assert.Contains(t, output, "Action Type: Rightsize")
 		assert.Contains(t, output, "87.60")
 		assert.Contains(t, output, "USD")
 		assert.Contains(t, output, "downsizing")
@@ -509,8 +510,8 @@ func TestRenderRecommendationsSummaryTUI(t *testing.T) {
 
 		assert.Contains(t, output, "5 recommendations")
 		assert.Contains(t, output, "250.00")
-		assert.Contains(t, output, "RIGHTSIZE")
-		assert.Contains(t, output, "TERMINATE")
+		assert.Contains(t, output, "Rightsize: 3 ($150.00)")
+		assert.Contains(t, output, "Terminate: 2 ($100.00)")
 	})
 }
 
@@ -667,7 +668,7 @@ func TestRecommendationsViewModel_ViewStates(t *testing.T) {
 
 		output := model.View().Content
 		assert.Contains(t, output, "r1")
-		assert.Contains(t, output, "RIGHTSIZE")
+		assert.Contains(t, output, "Action Type: Rightsize")
 	})
 
 	t.Run("renders detail view bounds check", func(t *testing.T) {
@@ -765,4 +766,19 @@ func TestRecommendationsViewModel_SetVerbose(t *testing.T) {
 
 	model.SetVerbose(false)
 	assert.False(t, model.verbose)
+}
+
+func TestRenderRecommendationsSummaryTUI_MergesActionSpellings(t *testing.T) {
+	t.Parallel()
+
+	summary := NewRecommendationsSummary([]engine.Recommendation{
+		{Type: "RIGHTSIZE", EstimatedSavings: 10, Currency: "USD"},
+		{Type: "RECOMMENDATION_ACTION_TYPE_RIGHTSIZE", EstimatedSavings: 5, Currency: "USD"},
+		{Type: "RECOMMENDATION_ACTION_TYPE_MODIFY", EstimatedSavings: 2, Currency: "USD"},
+	})
+	output := RenderRecommendationsSummaryTUI(summary, defaultWidth)
+
+	assert.Contains(t, output, "  Modify: 1 ($2.00)\n  Rightsize: 2 ($15.00)\n")
+	assert.Equal(t, 1, strings.Count(output, "Rightsize:"))
+	assert.NotContains(t, output, "RECOMMENDATION_ACTION_TYPE")
 }
