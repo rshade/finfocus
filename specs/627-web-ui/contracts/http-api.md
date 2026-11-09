@@ -89,6 +89,11 @@ helpers for direct browser rendering.
 |--------|------|----------|
 | GET | `/` (with valid token) | `index.html` + session cookie |
 | GET | `/static/*` | Embedded assets (cookie-authenticated) |
+| any | `/s/<stack>/...` | A registered stack's tree, prefix stripped (spec 2012). Same cookie; unknown stack `404`, unauthenticated `401`. `/s/<stack>` redirects to `/s/<stack>/`. |
+
+`index.html` carries `<meta name="finfocus-base" content="">`, filled with
+`/s/<stack>` when served under a stack, and references its assets by relative
+URL.
 
 ## Overview
 

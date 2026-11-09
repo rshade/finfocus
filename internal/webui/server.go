@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io/fs"
 	"mime"
 	"net"
@@ -100,6 +101,15 @@ type Server struct {
 
 	opsOnce sync.Once
 	ops     *pluginOps
+
+	// parent and prefix are set on a stack's child server (see AddStack). A
+	// child never listens; it holds a session and a handler tree only.
+	parent *Server
+	prefix string
+
+	stacksMu     sync.RWMutex
+	stacks       map[string]*Server
+	stacksClosed bool
 }
 
 // New creates a Server with a fresh 128-bit crypto/rand session token.
@@ -203,6 +213,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.listenerMu.Unlock()
 	s.dropPluginOps()
 	s.session.Close()
+	s.closeStacks()
 	s.httpServer.SetKeepAlivesEnabled(false)
 	err := s.httpServer.Shutdown(ctx)
 	// Shutdown first marks net/http closed, so racing Serve returns ErrServerClosed.
@@ -267,6 +278,9 @@ func (s *Server) ServeUntilInterrupt(ctx context.Context) error {
 
 // Port returns the actual bound port. It is 0 until Listen has run.
 func (s *Server) Port() int {
+	if s.parent != nil {
+		return s.parent.Port()
+	}
 	return int(s.actualPort.Load())
 }
 
@@ -298,35 +312,40 @@ func (s *Server) cookieName() string {
 // security headers (every response) → Host check → request log → session
 // auth → Origin/Content-Type checks → routes.
 func (s *Server) handler() http.Handler {
-	mux := s.mux
-	if mux == nil {
-		mux = http.NewServeMux()
-		s.mux = mux
-		s.registerOverview(mux)
-		s.registerCost(mux)
-		s.registerCarbon(mux)
-		s.registerEstimate(mux)
-		s.registerRecommendations(mux)
-		s.registerForecast(mux)
-		s.registerHistory(mux)
-		s.registerConfig(mux)
-		s.registerPlugins(mux)
-		s.registerLogs(mux)
-		mux.HandleFunc("/", s.handleRoot)
-		mux.Handle("/static/zerolog-viewer/",
-			http.StripPrefix("/static/zerolog-viewer/", http.FileServerFS(viewerFiles())))
-		mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(staticFiles())))
+	if s.mux == nil {
+		s.mux = s.buildMux()
 	}
 
 	return s.securityHeaders(
 		s.hostCheck(
 			s.requestLog(
 				s.authenticate(
-					s.requestHardening(mux),
+					s.requestHardening(s.dispatch(s.mux)),
 				),
 			),
 		),
 	)
+}
+
+// buildMux registers every route on a fresh mux. The root server and each
+// stack's child server get their own tree over their own session.
+func (s *Server) buildMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	s.registerOverview(mux)
+	s.registerCost(mux)
+	s.registerCarbon(mux)
+	s.registerEstimate(mux)
+	s.registerRecommendations(mux)
+	s.registerForecast(mux)
+	s.registerHistory(mux)
+	s.registerConfig(mux)
+	s.registerPlugins(mux)
+	s.registerLogs(mux)
+	mux.HandleFunc("/", s.handleRoot)
+	mux.Handle("/static/zerolog-viewer/",
+		http.StripPrefix("/static/zerolog-viewer/", http.FileServerFS(viewerFiles())))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(staticFiles())))
+	return mux
 }
 
 // securityHeaders sets the contract response headers on every response,
@@ -384,7 +403,7 @@ func (r *statusRecorder) Unwrap() http.ResponseWriter {
 // passphrases and estimate overrides, so neither is ever logged (FR-016).
 func (s *Server) requestLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, logsPathPrefix) {
+		if strings.HasPrefix(stackRoutePath(r.URL.Path), logsPathPrefix) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -408,7 +427,7 @@ func (s *Server) requestLog(next http.Handler) http.Handler {
 // request that passes identityAuthenticated needs no cookie.
 func (s *Server) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == "/" && r.URL.Query().Has("token") {
+		if r.Method == http.MethodGet && s.isBootstrapPath(r.URL.Path) && r.URL.Query().Has("token") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -474,6 +493,11 @@ func (s *Server) isOwnOrigin(origin string) bool {
 		matchAllowedOrigin(s.allowedHosts, origin)
 }
 
+// basePlaceholder is the empty prefix meta tag in index.html. The frontend
+// reads it to build every network URL (CSP forbids an inline script), and
+// handleRoot fills it with the stack prefix, which is empty at the root.
+const basePlaceholder = `<meta name="finfocus-base" content="">`
+
 // handleRoot serves the SPA shell. With a ?token= query it validates the
 // token (constant-time) and answers 303 to / with the session cookie set, so
 // the token leaves the address bar and browser history. Without a query it
@@ -489,10 +513,8 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Has("token") {
-		candidate := r.URL.Query().Get("token")
-		if subtle.ConstantTimeCompare([]byte(candidate), []byte(s.token)) != 1 {
-			s.writeError(w, http.StatusUnauthorized,
-				"unauthorized", "invalid session token; open the URL printed in the terminal")
+		if !s.validToken(r.URL.Query().Get("token")) {
+			s.rejectInvalidToken(w)
 			return
 		}
 		//nolint:gosec // G124: Secure is set only behind an HTTPS proxy (X-Forwarded-Proto).
@@ -509,12 +531,23 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data, err := fs.ReadFile(staticFiles(), "index.html")
-	if err != nil {
+	if err != nil || !bytes.Contains(data, []byte(basePlaceholder)) {
 		s.writeError(w, http.StatusInternalServerError, "internal", "SPA shell unavailable")
 		return
 	}
+	data = bytes.Replace(data, []byte(basePlaceholder),
+		[]byte(`<meta name="finfocus-base" content="`+html.EscapeString(s.prefix)+`">`), 1)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(data))
+}
+
+func (s *Server) validToken(candidate string) bool {
+	return subtle.ConstantTimeCompare([]byte(candidate), []byte(s.token)) == 1
+}
+
+func (s *Server) rejectInvalidToken(w http.ResponseWriter) {
+	s.writeError(w, http.StatusUnauthorized,
+		"unauthorized", "invalid session token; open the URL printed in the terminal")
 }
 
 // apiError is the contract error shape: { error, code }.
@@ -534,4 +567,5 @@ func (s *Server) writeError(w http.ResponseWriter, status int, code, message str
 
 // Handle registers additional engine-backed endpoints before Serve starts.
 // Every registered handler receives the same authentication and hardening middleware.
+// It targets the root tree only; a stack's tree is built by AddStack.
 func (s *Server) Handle(pattern string, handler http.Handler) { s.mux.Handle(pattern, handler) }

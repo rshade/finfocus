@@ -27,7 +27,8 @@ const notFound = () => Object.assign(new Error('not found'), { status: 404 });
 async function setup({ failure } = {}) {
   FakeSource.all = [];
   const context = vm.createContext({ console });
-  const app = new vm.SyntheticModule(['el'], function () {
+  const app = new vm.SyntheticModule(['el', 'withBase'], function () {
+    this.setExport('withBase', (path) => (globalThis.__prefix ?? '') + path);
     this.setExport('el', (tag, attrs = {}, ...children) => {
       const node = new Node(tag);
       for (const [k, v] of Object.entries(attrs)) {
@@ -80,6 +81,17 @@ test('probe and mount stay idle when status says logs are off', async () => {
   assert.equal(FakeSource.all.length, 0);
   const status = off.container.children.find((child) => child.className === 'logs-status');
   assert.equal(status.textContent, 'Logs are not enabled for this session.');
+});
+
+test('mount opens the log stream under the page prefix', async () => {
+  globalThis.__prefix = '/s/dev';
+  try {
+    const t = await setup();
+    await t.mod.namespace.mount(t.container, { api: t.api }, t.deps);
+    assert.equal(FakeSource.all[0].url, '/s/dev/api/logs/stream');
+  } finally {
+    delete globalThis.__prefix;
+  }
 });
 
 test('mount forwards snapshot, log and gap events to the viewer', async () => {

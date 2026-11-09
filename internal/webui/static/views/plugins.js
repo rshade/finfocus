@@ -1,7 +1,7 @@
 // Plugins view (specs/629-web-plugin-page). The server plans installs and
 // owns setting values. This module confirms those plans and never copies a
 // secret value into the page.
-import { el } from '../app.js';
+import { el, withBase } from '../app.js';
 
 function setHidden(node, hidden) {
   node.hidden = hidden;
@@ -240,7 +240,7 @@ export function mount(container, { api }) {
     closeOperation();
     const Source = globalThis.EventSource;
     if (typeof Source !== 'function') return;
-    const source = new Source(`/api/plugins/operations/${encodeURIComponent(operationId)}/stream`);
+    const source = new Source(withBase(`/api/plugins/operations/${encodeURIComponent(operationId)}/stream`));
     operationSource = source;
     let sawEvent = false;
     const onNamed = (ev) => {
