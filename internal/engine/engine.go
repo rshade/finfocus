@@ -3977,8 +3977,10 @@ func (e *Engine) recommendationsRequest(
 const maxRecommendationPages = 100
 
 // recommendationPageTimeout bounds one GetRecommendations page RPC. A plugin that returns
-// a token and then stalls fails its request instead of hanging the run.
-var recommendationPageTimeout = perResourceTimeout //nolint:gochecknoglobals // tests shorten it
+// a token and then stalls fails its request instead of hanging the run. It is deliberately
+// far above perResourceTimeout: one page covers up to batchProcessingThreshold targets and
+// every plugin source, so a legitimate page takes seconds (aws-ce measured 2.7s for 3 targets).
+var recommendationPageTimeout = 2 * time.Minute //nolint:gochecknoglobals // tests shorten it
 
 // fetchRecommendationPages returns every recommendation for one request by following
 // NextPageToken until it is empty. A token that repeats or a page past the cap is a
