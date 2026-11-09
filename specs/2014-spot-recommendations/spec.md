@@ -1,6 +1,8 @@
 # Feature Specification: Spot Recommendations from Plugins
 
 **Feature Branch**: `2013-spot-recommendations`
+**Renumbered**: 2026-11-08 from `specs/2013-spot-recommendations/`, which
+collided with `specs/2013-per-stack-web-data/` (merged first).
 **Created**: 2026-11-08
 **Status**: Implemented
 **Input**: User description: "Spot recommendations from plugins (GitHub
