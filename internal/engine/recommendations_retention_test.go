@@ -29,6 +29,9 @@ type recordingRecClient struct {
 	mu   sync.Mutex
 	reqs []*proto.GetRecommendationsRequest
 	recs func(req *proto.GetRecommendationsRequest) []*proto.Recommendation
+	// respond, when set, replaces recs and returns the whole response, including
+	// NextPageToken and errors, for paging tests.
+	respond func(req *proto.GetRecommendationsRequest) (*proto.GetRecommendationsResponse, error)
 }
 
 func (c *recordingRecClient) GetRecommendations(
@@ -39,6 +42,9 @@ func (c *recordingRecClient) GetRecommendations(
 	c.mu.Lock()
 	c.reqs = append(c.reqs, in)
 	c.mu.Unlock()
+	if c.respond != nil {
+		return c.respond(in)
+	}
 	resp := &proto.GetRecommendationsResponse{}
 	if c.recs != nil {
 		resp.Recommendations = c.recs(in)
