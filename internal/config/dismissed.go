@@ -57,12 +57,16 @@ type DismissalRecord struct {
 }
 
 // LastKnownRecommendation captures recommendation details at the time of dismissal.
+// PricingCategory and SpotInterruptionRisk are omitted when empty, so files
+// written before they existed load unchanged.
 type LastKnownRecommendation struct {
-	Description      string  `json:"description"`
-	EstimatedSavings float64 `json:"estimated_savings"`
-	Currency         string  `json:"currency"`
-	Type             string  `json:"type"`
-	ResourceID       string  `json:"resource_id"`
+	Description          string  `json:"description"`
+	EstimatedSavings     float64 `json:"estimated_savings"`
+	Currency             string  `json:"currency"`
+	Type                 string  `json:"type"`
+	ResourceID           string  `json:"resource_id"`
+	PricingCategory      string  `json:"pricing_category,omitempty"`
+	SpotInterruptionRisk float64 `json:"spot_interruption_risk,omitempty"`
 }
 
 // LifecycleEvent is a timestamped action in a recommendation's history.

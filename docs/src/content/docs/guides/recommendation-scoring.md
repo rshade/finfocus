@@ -62,9 +62,10 @@ Opt in per scorer in `config.hujson`:
 | `scoring.needs_review.dead_band`             | Width of the band around each threshold that is still flagged | `0.1`           |
 
 Valid `field_allowlist` names are `category`, `action_type`, `resource`, `impact`, `priority`, `confidence_score`,
-`description`, `reasoning`, `source`, `created_at`, `metadata`, `action_detail`, `primary_reason` and
-`secondary_reasons`. The `resource` field carries tags and utilization; `action_detail` carries the provider-specific
-action detail (right-size targets, termination detail, commitment terms, Kubernetes adjustments or config changes).
+`description`, `reasoning`, `source`, `created_at`, `metadata`, `action_detail`, `primary_reason`,
+`secondary_reasons`, `pricing_category` and `spot_interruption_risk_score`. The `resource` field carries tags and
+utilization; `action_detail` carries the provider-specific action detail (right-size targets, termination detail,
+commitment terms, Kubernetes adjustments or config changes).
 The recommendation id is always sent, as an opaque value (see [Data handling](#data-handling)).
 
 You can also set values with `finfocus config set`. Set `scoring.plugin` before `scoring.enabled`, because the
@@ -192,7 +193,8 @@ example to a hosted model. Treat the scorer as you would any service that receiv
 **What is sent.** A `ScoreRecommendations` request carries the recommendations as plugins returned them, limited by
 `field_allowlist`: category, action type, impact and cost detail, resource information (provider, type, region, SKU, tags,
 utilization), description, reasoning, source, metadata, priority, confidence, creation time, the provider-specific
-`action_detail`, and the `primary_reason` and `secondary_reasons` codes.
+`action_detail`, the `primary_reason` and `secondary_reasons` codes, and, for a move to spot, the target
+`pricing_category` and `spot_interruption_risk_score`.
 
 **Identifiers.** Core applies `identifier_mode` before the request leaves the host, so a scorer never has to be trusted
 to do it:

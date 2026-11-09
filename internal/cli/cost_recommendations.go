@@ -814,12 +814,17 @@ func renderRecommendationsTableWithVerbose(
 	// Detect if any recommendations have status annotations
 	hasStatus := hasStatusAnnotations(displayRecs)
 	showScores := hasScores(displayRecs)
+	showPricing := hasSpotRecommendations(displayRecs)
 
 	// Header
 	header, rule := "RESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS", "--------\t-----------\t-----------\t-------"
 	if hasStatus {
 		header = "STATUS\t" + header
 		rule = "------\t" + rule
+	}
+	if showPricing {
+		header += "\tPRICING"
+		rule += "\t-------"
 	}
 	if showScores {
 		header += "\tRISK\tFALSE POS\tWORTH\tPRIORITY\tREVIEW\tGROUP"
@@ -830,7 +835,9 @@ func renderRecommendationsTableWithVerbose(
 
 	// Recommendations (top 5 or all in verbose)
 	for _, rec := range displayRecs {
-		writeRecommendationRow(tw, rec, hasStatus, showScores)
+		writeRecommendationRow(tw, rec, recommendationColumns{
+			status: hasStatus, pricing: showPricing, scores: showScores,
+		})
 	}
 
 	if err := tw.Flush(); err != nil {
@@ -858,8 +865,18 @@ func renderRecommendationsTableWithVerbose(
 	return nil
 }
 
+type recommendationColumns struct {
+	status  bool
+	pricing bool
+	scores  bool
+}
+
+func hasSpotRecommendations(recs []engine.Recommendation) bool {
+	return slices.ContainsFunc(recs, func(r engine.Recommendation) bool { return r.PricingCategory.IsSpot() })
+}
+
 // writeRecommendationRow writes a single recommendation row to the tabwriter.
-func writeRecommendationRow(tw *tabwriter.Writer, rec engine.Recommendation, hasStatus, showScores bool) {
+func writeRecommendationRow(tw *tabwriter.Writer, rec engine.Recommendation, cols recommendationColumns) {
 	savings := ""
 	if rec.EstimatedSavings > 0 {
 		savings = fmt.Sprintf("%.2f %s", rec.EstimatedSavings, rec.Currency)
@@ -874,14 +891,17 @@ func writeRecommendationRow(tw *tabwriter.Writer, rec engine.Recommendation, has
 
 	row := fmt.Sprintf("%s\t%s\t%s\t%s",
 		rec.ResourceID, formatActionTypeLabel(rec.Type), description, savings)
-	if hasStatus {
+	if cols.status {
 		status := rec.Status
 		if status == "" {
 			status = statusActive
 		}
 		row = fmt.Sprintf("%s\t%s", status, row)
 	}
-	if showScores {
+	if cols.pricing {
+		row += "\t" + rec.SpotDisplay()
+	}
+	if cols.scores {
 		row += "\t" + scoreCells(rec.Scores)
 	}
 	fmt.Fprintln(tw, row)
@@ -1054,22 +1074,16 @@ func mergeDismissalRecordsIntoResult(records map[string]*config.DismissalRecord,
 			status = engine.RecommendationStatusSnoozed
 		}
 
-		// Convert LastKnown snapshot to Recommendation
-		rec := engine.Recommendation{
-			ID:     record.RecommendationID,
-			Status: status,
-		}
-
+		var rec engine.Recommendation
 		if record.LastKnown != nil {
-			rec.ResourceID = record.LastKnown.ResourceID
-			rec.Type = record.LastKnown.Type
-			rec.Description = record.LastKnown.Description
-			rec.EstimatedSavings = record.LastKnown.EstimatedSavings
-			rec.Currency = record.LastKnown.Currency
+			rec = engine.RecommendationFromSnapshot(record.RecommendationID, status, record.LastKnown)
 		} else {
-			// Minimal info when no LastKnown snapshot exists
-			rec.ResourceID = record.RecommendationID
-			rec.Description = fmt.Sprintf("%s recommendation (no details available)", status)
+			rec = engine.Recommendation{
+				ID:          record.RecommendationID,
+				Status:      status,
+				ResourceID:  record.RecommendationID,
+				Description: fmt.Sprintf("%s recommendation (no details available)", status),
+			}
 		}
 
 		result.Recommendations = append(result.Recommendations, rec)
@@ -1123,6 +1137,9 @@ type recommendationJSON struct {
 	Impact          *recommendationImpactJSON   `json:"impact,omitempty"`
 	Resource        *recommendationResourceJSON `json:"resource,omitempty"`
 	Scores          *recommendationScoresJSON   `json:"scores,omitempty"`
+
+	PricingCategory      string  `json:"pricing_category,omitempty"`
+	SpotInterruptionRisk float64 `json:"spot_interruption_risk,omitempty"`
 }
 
 type recommendationImpactJSON struct {
@@ -1171,6 +1188,9 @@ func newRecommendationJSON(rec engine.Recommendation) recommendationJSON {
 		Metadata:         rec.Metadata,
 		Reasoning:        rec.Reasoning,
 		Scores:           newScoresJSON(rec.Scores),
+
+		PricingCategory:      string(rec.PricingCategory),
+		SpotInterruptionRisk: rec.SpotInterruptionRisk,
 	}
 
 	if d := rec.ImpactDetail; d != nil {

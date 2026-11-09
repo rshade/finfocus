@@ -37,16 +37,24 @@ func (c PricingCategory) IsSpot() bool {
 // never 0%. It returns "" for any other category, so a caller shows it only
 // when it is not empty.
 func SpotDisplay(category PricingCategory, risk float64, savingsPercent *float64) string {
+	label := SpotRiskDisplay(category, risk)
+	if label == "" {
+		return ""
+	}
+	return label + spotSeparator + spotSavingsDisplay(savingsPercent)
+}
+
+// SpotRiskDisplay is the tag and risk part of the spot label shared by every
+// surface: "SPOT · risk 0.12", or "SPOT · risk unknown" when the score is 0.0.
+// It returns "" for any category other than DYNAMIC.
+func SpotRiskDisplay(category PricingCategory, risk float64) string {
 	if !category.IsSpot() {
 		return ""
 	}
-	label := spotTag + spotSeparator
 	if risk <= 0 {
-		label += spotRiskUnknown
-	} else {
-		label += "risk " + formatSpotRiskValue(risk)
+		return spotTag + spotSeparator + spotRiskUnknown
 	}
-	return label + spotSeparator + spotSavingsDisplay(savingsPercent)
+	return spotTag + spotSeparator + "risk " + formatSpotRiskValue(risk)
 }
 
 func formatSpotRiskValue(risk float64) string {
@@ -62,4 +70,11 @@ func (r *CostResult) SpotDisplay() string {
 		return ""
 	}
 	return SpotDisplay(r.PricingCategory, r.SpotInterruptionRisk, r.SpotSavingsPercent)
+}
+
+// SpotDisplay is the spot label of a recommendation whose target is spot, or ""
+// otherwise. It has no savings part: a recommendation states its saving as an
+// amount of its own.
+func (r Recommendation) SpotDisplay() string {
+	return SpotRiskDisplay(r.PricingCategory, r.SpotInterruptionRisk)
 }

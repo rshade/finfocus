@@ -26,6 +26,7 @@ type RecommendationPage struct {
 	ItemKeys       []string                     `json:"itemKeys"`
 	ItemActions    []string                     `json:"itemActions"`
 	ItemSavings    []string                     `json:"itemSavings"`
+	ItemSpot       []string                     `json:"itemSpot"`
 	Actions        []ActionSummary              `json:"actions"`
 	Scoring        *engine.ScoringSummary       `json:"scoring,omitempty"`
 	Page           int                          `json:"page"`
@@ -60,6 +61,7 @@ func BuildRecommendationPage(
 		Errors:         result.Errors,
 		Scoring:        result.Scoring,
 		ItemSavings:    []string{},
+		ItemSpot:       []string{},
 		Actions:        []ActionSummary{},
 		SavingsDisplay: FormatRecommendationSavings(summary.TotalSavings, summary.Currency),
 	}
@@ -69,6 +71,7 @@ func BuildRecommendationPage(
 	for _, rec := range page.Items {
 		page.ItemActions = append(page.ItemActions, proto.ActionTypeLabelFromString(rec.Type))
 		page.ItemSavings = append(page.ItemSavings, RecommendationSavingsDisplay(rec))
+		page.ItemSpot = append(page.ItemSpot, rec.SpotDisplay())
 		page.ItemKeys = append(page.ItemKeys, RecommendationDetailKey(rec))
 	}
 	actions := make([]string, 0, len(summary.CountByActionType))

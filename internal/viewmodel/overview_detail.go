@@ -11,6 +11,8 @@ import (
 type OverviewDetailRecommendation struct {
 	Recommendation engine.Recommendation `json:"recommendation"`
 	SavingsDisplay string                `json:"savingsDisplay"`
+	// SpotDisplay is the recommendation's spot label, omitted when it does not target spot.
+	SpotDisplay string `json:"spotDisplay,omitempty"`
 }
 
 // OverviewDetailRecommendations selects the active recommendations shown in the
@@ -26,6 +28,7 @@ func OverviewDetailRecommendations(recs []engine.Recommendation) []OverviewDetai
 			OverviewDetailRecommendation{
 				Recommendation: rec,
 				SavingsDisplay: engine.FormatOverviewCurrency(rec.EstimatedSavings),
+				SpotDisplay:    rec.SpotDisplay(),
 			},
 		)
 	}

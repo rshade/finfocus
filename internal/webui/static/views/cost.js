@@ -1,4 +1,5 @@
 import { el } from '../app.js';
+import { spotBadge } from '../spot.js';
 
 // All totals, grouping, filtering, sorting, and sparkline coordinates come from Go.
 export function mount(container, { api, stream }) {
@@ -68,7 +69,7 @@ export function mount(container, { api, stream }) {
       }
       if (detail.recommendations?.length) detailContent.append(el('h4', { text: 'Linked recommendations' }));
       for (const linked of detail.recommendations ?? []) {
-        detailContent.append(el('p', { text: `[${linked.recommendation.type}] ${linked.recommendation.description}${linked.savingsDisplay ? ` (${linked.savingsDisplay}/mo savings)` : ''}` }));
+        detailContent.append(el('p', { text: `[${linked.recommendation.type}] ${linked.recommendation.description}${linked.savingsDisplay ? ` (${linked.savingsDisplay}/mo savings)` : ''}` }, spotBadge(linked.spotDisplay)));
         for (const reason of linked.recommendation.reasoning ?? []) detailContent.append(el('p', { text: reason }));
       }
       if (detail.notesDisplay) detailContent.append(el('h4', { text: 'Notes' }), el('p', { text: detail.notesDisplay }));

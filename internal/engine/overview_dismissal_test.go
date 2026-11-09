@@ -1,6 +1,7 @@
 package engine_test
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -278,4 +279,77 @@ func TestCountRecsActiveAndDismissed(t *testing.T) {
 			assert.Equal(t, tt.wantDismissed, dismissed, "dismissed count mismatch")
 		})
 	}
+}
+
+func TestApplyDismissalDeltaToRow_SpotSnapshotKeepsLabel(t *testing.T) {
+	t.Parallel()
+
+	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-789", Type: "aws:ec2:Instance"}
+	records := map[string]*config.DismissalRecord{
+		"rec-spot": {
+			RecommendationID: "rec-spot",
+			Status:           config.StatusDismissed,
+			LastKnown: &config.LastKnownRecommendation{
+				ResourceID:           "i-789",
+				Type:                 "RECOMMENDATION_ACTION_TYPE_MODIFY",
+				EstimatedSavings:     62,
+				Currency:             "USD",
+				PricingCategory:      "DYNAMIC",
+				SpotInterruptionRisk: 0.12,
+			},
+		},
+	}
+	engine.ApplyDismissalDeltaToRow(&row, records)
+	require.Len(t, row.Recommendations, 1)
+	assert.Equal(t, "rec-spot", row.Recommendations[0].ID)
+	assert.Equal(t, "SPOT · risk 0.12", row.Recommendations[0].SpotDisplay())
+}
+
+func TestRecommendationSnapshotRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	rec := engine.Recommendation{
+		ID:                   "rec-spot",
+		ResourceID:           "i-789",
+		Type:                 "RECOMMENDATION_ACTION_TYPE_MODIFY",
+		Description:          "Move to spot",
+		EstimatedSavings:     62,
+		Currency:             "USD",
+		PricingCategory:      engine.PricingCategoryDynamic,
+		SpotInterruptionRisk: 0.12,
+	}
+	snap := engine.NewRecommendationSnapshot(&rec)
+	require.NotNil(t, snap)
+
+	data, err := json.Marshal(snap)
+	require.NoError(t, err)
+	var decoded config.LastKnownRecommendation
+	require.NoError(t, json.Unmarshal(data, &decoded))
+
+	got := engine.RecommendationFromSnapshot("rec-spot", engine.RecommendationStatusDismissed, &decoded)
+	assert.Equal(t, rec.ResourceID, got.ResourceID)
+	assert.Equal(t, rec.Description, got.Description)
+	assert.Equal(t, engine.RecommendationStatusDismissed, got.Status)
+	assert.Equal(t, "SPOT · risk 0.12", got.SpotDisplay())
+
+	assert.Nil(t, engine.NewRecommendationSnapshot(nil))
+}
+
+func TestLastKnownRecommendation_OldFileHasNoSpot(t *testing.T) {
+	t.Parallel()
+
+	var snap config.LastKnownRecommendation
+	require.NoError(t, json.Unmarshal(
+		[]byte(
+			`{"description":"Downsize","estimated_savings":5,"currency":"USD","type":"RIGHTSIZE","resource_id":"i-1"}`,
+		),
+		&snap,
+	))
+	got := engine.RecommendationFromSnapshot("rec-old", engine.RecommendationStatusDismissed, &snap)
+	assert.Empty(t, got.SpotDisplay())
+
+	data, err := json.Marshal(config.LastKnownRecommendation{Type: "RIGHTSIZE"})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "pricing_category")
+	assert.NotContains(t, string(data), "spot_interruption_risk")
 }

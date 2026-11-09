@@ -169,6 +169,12 @@ func toProto(rec engine.Recommendation, ids *identifiers) (*pbc.Recommendation, 
 		Priority:         enumValue(pbc.RecommendationPriority_value, rec.Priority, pbc.RecommendationPriority(0)),
 		PrimaryReason:    enumValue(pbc.RecommendationReason_value, rec.PrimaryReason, pbc.RecommendationReason(0)),
 		SecondaryReasons: reasonValues(rec.SecondaryReasons),
+		PricingCategory: enumValue(
+			pbc.FocusPricingCategory_value,
+			"FOCUS_PRICING_CATEGORY_"+string(rec.PricingCategory),
+			pbc.FocusPricingCategory(0),
+		),
+		SpotInterruptionRiskScore: rec.SpotInterruptionRisk,
 	}
 	out.ConfidenceScore = rec.ConfidenceScore
 	if rec.CreatedAt != nil {
@@ -366,6 +372,12 @@ func applyAllowlist(rec *pbc.Recommendation, allowlist []string) {
 	}
 	if !keep("secondary_reasons") {
 		rec.SecondaryReasons = nil
+	}
+	if !keep("pricing_category") {
+		rec.PricingCategory = 0
+	}
+	if !keep("spot_interruption_risk_score") {
+		rec.SpotInterruptionRiskScore = 0
 	}
 }
 

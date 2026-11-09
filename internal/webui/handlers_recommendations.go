@@ -117,16 +117,16 @@ func (s *Server) handleRecommendationItem(w http.ResponseWriter, r *http.Request
 	}
 	for _, rec := range items {
 		if recommendationMatches(r, rec, id) {
-			s.WriteJSON(
-				w,
-				http.StatusOK,
-				map[string]any{
-					"item":           rec,
-					"savingsDisplay": viewmodel.RecommendationSavingsDisplay(rec),
-					"actionDisplay":  proto.ActionTypeLabelFromString(rec.Type),
-					"scoreDisplay":   viewmodel.ScoreDisplay(rec.Scores),
-				},
-			)
+			body := map[string]any{
+				"item":           rec,
+				"savingsDisplay": viewmodel.RecommendationSavingsDisplay(rec),
+				"actionDisplay":  proto.ActionTypeLabelFromString(rec.Type),
+				"scoreDisplay":   viewmodel.ScoreDisplay(rec.Scores),
+			}
+			if spot := rec.SpotDisplay(); spot != "" {
+				body["spotDisplay"] = spot
+			}
+			s.WriteJSON(w, http.StatusOK, body)
 			return
 		}
 	}

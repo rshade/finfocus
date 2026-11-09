@@ -445,8 +445,12 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 		if linked.SavingsDisplay != "" {
 			savingsStr = " (" + linked.SavingsDisplay + "/mo savings)"
 		}
-		fmt.Fprintf(content, "- [%s] %s%s\n",
-			rec.Type, rec.Description, savingsStr)
+		spotStr := ""
+		if linked.SpotDisplay != "" {
+			spotStr = "  " + linked.SpotDisplay
+		}
+		fmt.Fprintf(content, "- [%s] %s%s%s\n",
+			rec.Type, rec.Description, savingsStr, spotStr)
 
 		for _, reason := range rec.Reasoning {
 			fmt.Fprintf(content, "    %s\n",

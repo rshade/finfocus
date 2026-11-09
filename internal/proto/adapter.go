@@ -687,6 +687,14 @@ type Recommendation struct {
 	// SecondaryReasons are the proto RecommendationReason enum names of contributing
 	// factors; unspecified entries are dropped.
 	SecondaryReasons []string
+
+	// PricingCategory is the pricing model of the recommended target state
+	// (PricingCategoryLabel); "DYNAMIC" means a move to spot. Empty when unspecified.
+	PricingCategory string
+
+	// SpotInterruptionRisk is the target's interruption probability (0.0-1.0),
+	// kept only for a DYNAMIC target (SpotRisk). 0 means unknown.
+	SpotInterruptionRisk float64
 }
 
 // RecommendationActionDetail carries the provider-specific detail behind a
@@ -2029,6 +2037,9 @@ func (c *clientAdapter) GetRecommendations(
 			PrimaryReason:    reasonName(rec.GetPrimaryReason()),
 			SecondaryReasons: reasonNames(rec.GetSecondaryReasons()),
 			ActionDetail:     convertRecommendationActionDetail(rec),
+
+			PricingCategory:      PricingCategoryLabel(rec.GetPricingCategory()),
+			SpotInterruptionRisk: SpotRisk(rec.GetPricingCategory(), rec.GetSpotInterruptionRiskScore()),
 		}
 
 		if rec.ConfidenceScore != nil {
