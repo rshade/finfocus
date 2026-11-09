@@ -167,8 +167,8 @@ effect.
   Action cell of the Recommendations table, as a `Pricing` line in the
   recommendation detail dialog, and after the savings in the Overview detail
   list and the Cost detail's linked recommendations. The browser formats nothing.
-- **Completion**: A UX-only `web-ui` follow-up issue is filed for layout and
-  copy review of the badge on the Recommendations page.
+- **Completion**: UX-only `web-ui` follow-up #2054 covers layout and copy
+  review of the badge on the Recommendations, Overview, and Cost views.
 
 ## Assumptions
 
