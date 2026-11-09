@@ -761,7 +761,8 @@ func evaluateBudgetStatusWithRender(
 // createRouterForEngine creates an engine.Router from the user's routing
 // configuration. It returns nil when cfg is nil, cfg.Routing is nil, or when
 // router creation fails (logged at WARN level). A nil return is safe:
-// engine.WithRouter(nil) preserves the default "query all plugins" behaviour.
+// the engine then offers each resource only to clients that advertise its
+// provider, or that advertise no providers.
 //
 // ctx is used for logging and cancellation.
 // cfg is the application config; callers that already hold one should pass it to
@@ -782,7 +783,7 @@ func createRouterForEngine(ctx context.Context, cfg *config.Config, clients []*p
 		log.Warn().Ctx(ctx).Err(err).
 			Str("component", "cli").
 			Str("operation", "create_router").
-			Msg("failed to create router, falling back to all-plugin mode")
+			Msg("failed to create router, using advertised-provider matching")
 		return nil
 	}
 

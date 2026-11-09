@@ -140,9 +140,10 @@ func TestRecorderPlugin_Integration(t *testing.T) {
 
 // TestRecorderPlugin_RecordsRedactedAttributes checks that core puts a
 // resource's nested inputs on the wire as attributes, without credentials or
-// Pulumi secrets. The recorder declines Supports and has no batch capability,
-// so through the engine it receives only Supports; a direct GetProjectedCost
-// covers the projected descriptor.
+// Pulumi secrets. The recorder advertises only the test provider and declines
+// Supports, and it has no batch capability, so through the engine it receives
+// only Supports for a test: resource. A direct GetProjectedCost covers the
+// projected descriptor.
 func TestRecorderPlugin_RecordsRedactedAttributes(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	binPath := filepath.Join(filepath.Dir(filename), "../..", "bin", "finfocus-plugin-recorder")
@@ -176,7 +177,7 @@ func TestRecorderPlugin_RecordsRedactedAttributes(t *testing.T) {
 		},
 	}
 	resource := engine.ResourceDescriptor{
-		ID: "urn:deploy", Type: "kubernetes:apps/v1:Deployment", Provider: "kubernetes", Properties: props,
+		ID: "urn:deploy", Type: "test:apps/v1:Deployment", Provider: "test", Properties: props,
 	}
 
 	_, err = engine.New([]*pluginhost.Client{client}, nil).GetProjectedCost(ctx, []engine.ResourceDescriptor{resource})

@@ -125,9 +125,10 @@ func TestCostCluster_NoPluginsInstalled(t *testing.T) {
 
 // TestKubernetesPlugin_DoesNotPolluteCostProjected installs the real
 // kubernetes plugin (built from plugins/kubernetes) and verifies that
-// `cost projected` for AWS resources records no per-resource errors from it:
-// the plugin declines Supports and is never called for pricing. The engine's
-// deliberate "declined by kubernetes: ..." note documents the skip.
+// `cost projected` does not let it price or annotate another cloud. The
+// plugin advertises only kubernetes, so the engine never calls Supports
+// for an AWS resource and the output has no decline note. A kubernetes
+// type the plugin does not price still records that decline.
 //
 //nolint:paralleltest // isolatedClusterHome uses t.Setenv
 func TestKubernetesPlugin_DoesNotPolluteCostProjected(t *testing.T) {
@@ -147,12 +148,13 @@ func TestKubernetesPlugin_DoesNotPolluteCostProjected(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, out, "not supported")
 	assert.NotContains(t, out, "ERROR:")
-	assert.Contains(t, out, "declined by kubernetes",
-		"the kubernetes plugin must decline AWS resources via Supports, not price them")
+	assert.NotContains(t, out, "declined by kubernetes",
+		"the kubernetes plugin advertises only kubernetes and must not be asked about AWS resources")
+	assert.Contains(t, out, "No pricing information available")
 
-	// The instance's note carries the decline suffix with the plugin installed,
-	// as it did before workload pricing, so it is compared with a rate-free run
-	// in full and with a plugin-free run on its cost fields.
+	// A ConfigMap is a kubernetes type, so Supports still declines it. The
+	// EC2 instance is another cloud: the plugin is not asked, and its entry
+	// matches a run with the plugin absent.
 	t.Run("other resources in a workload plan are unchanged", func(t *testing.T) {
 		withoutRates := projectedEntries(t)
 		setKubernetesRates(t)
@@ -166,14 +168,15 @@ func TestKubernetesPlugin_DoesNotPolluteCostProjected(t *testing.T) {
 		assert.Equal(t, withoutRates["settings"], withRates["settings"])
 		assert.Equal(t, withoutRates["bastion"], withRates["bastion"],
 			"pricing workloads must not change the EC2 instance's entry")
-		assert.Contains(t, withRates["bastion"].Notes,
-			"declined by kubernetes: kubernetes plugin prices only kubernetes:* resources")
+		assert.NotContains(t, withRates["bastion"].Notes, "declined by kubernetes",
+			"an EC2 instance is not a kubernetes resource, so the plugin is not asked")
 
 		isolatedClusterHome(t)
 		noPlugin := projectedEntries(t)["bastion"]
 		bastion := withRates["bastion"]
 		assert.Equal(t, noPlugin.Adapter, bastion.Adapter)
 		assert.Equal(t, noPlugin.Currency, bastion.Currency)
+		assert.Equal(t, noPlugin.Notes, bastion.Notes)
 		assert.InDelta(t, noPlugin.Monthly, bastion.Monthly, 1e-9)
 		assert.Equal(t, noPlugin.Error, bastion.Error)
 	})

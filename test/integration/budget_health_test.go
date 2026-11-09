@@ -133,6 +133,17 @@ func (m *mockCostSourceClient) GetPricingSpec(
 	return &pbc.GetPricingSpecResponse{}, nil
 }
 
+func advertiseBudgets(clients []*pluginhost.Client) {
+	for _, client := range clients {
+		if client == nil || client.Metadata != nil {
+			continue
+		}
+		client.Metadata = &proto.PluginMetadata{
+			Capabilities: []string{pluginhost.CapabilityBudgets},
+		}
+	}
+}
+
 func (m *mockCostSourceClient) GetRecommendationHistory(
 	_ context.Context,
 	_ *proto.GetRecommendationHistoryRequest,
@@ -183,6 +194,7 @@ func TestBudgetHealth_EndToEnd(t *testing.T) {
 		},
 	}
 
+	advertiseBudgets(clients)
 	eng := engine.New(clients, nil)
 
 	// 3. Execute GetBudgets (No Filter)

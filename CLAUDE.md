@@ -229,6 +229,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `GOMODCACHE`/`GOCACHE` (see `scaffold_build_test.go`). Reproduce with
   `env -u GOPATH go test ...`.
 - `config.yaml` fixtures are intentional legacy input for auto-migration.
+- A plugin that advertises a provider list is not asked about another
+  cloud. `cost projected` therefore has no `declined by kubernetes` note
+  for an AWS resource when only the kubernetes plugin is installed. A
+  kubernetes type that plugin does not price, such as a ConfigMap, still
+  carries the decline. The recorder advertises only `test`, so an engine
+  path that must reach it uses a `test:` type.
 
 ## Releases
 
@@ -314,7 +320,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 ## Plugins
 
 - **Recorder** (reference/contract plugin): `FINFOCUS_RECORDER_OUTPUT_DIR`
-  (default `./recorded_data`), `FINFOCUS_RECORDER_MOCK_RESPONSE`.
+  (default `./recorded_data`), `FINFOCUS_RECORDER_MOCK_RESPONSE`. It
+  advertises only the `test` provider, so the engine fallback does not
+  send it a resource of another cloud.
 - **Recommendation scorer** (`plugins/scorer/`): opt-in; `SCORER_BACKEND=jev|clef`
   defaults to Jev. `SCORER_API_KEY` is the selected backend token; it
   never appears in logs, errors, tests, or files. The recommendation id never
@@ -389,6 +397,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `started.idempotentClose()`.
 - Secrets never appear in logs, errors, or another plugin's environment.
   Credential names stay on `config.IsCredentialName`.
+- gRPC client interceptors (`TraceInterceptor`, `LoggedInterceptor`) log
+  `InvalidArgument` and `Unimplemented` at debug. Those statuses are handled
+  declines. Other failures stay at warn.
 - While web logs are on, `startPlugin` drops `FINFOCUS_LOG_FILE` from the
   plugin environment (the SDK would write to the file and bypass stderr) and
   tees plugin stderr into the log hub next to the existing destination. Keep the
@@ -679,8 +690,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 ### Router (`internal/router/`)
 
 - A `$0.00` result is valid and does not fall back; only nil/empty does.
-- Higher priority number wins. No routing config means no router (all
-  plugins are queried).
+- Higher priority number wins. No routing config means no router. The engine
+  then asks every client whose advertised providers include the resource, or
+  that advertise none. The same filter applies when a configured router returns
+  no matches. The match uses the provider extracted from the type. When
+  `ResourceDescriptor.Provider` differs, that name counts too: Terraform labels
+  an unmapped type `custom`. An empty `SupportedProviders` list or `*` still
+  receives the fallback. Do not add a provider-name table; comparison uses
+  `resourcetype.NormalizeProvider`.
 - Provider means the billing cloud. `resourcetype.NormalizeProvider` holds the
   only alias table (`aws-native`→`aws`, `azure-native`/`azurerm`→`azure`,
   `google-native`/`google`→`gcp`); never split a type token for a provider
@@ -818,6 +835,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   Bolt in `cache.TieredStore`.
 - Budget health: OK < 80%, WARNING 80-89%, CRITICAL 90-100%, EXCEEDED > 100%;
   aggregation takes the worst.
+- `GetBudgets` skips a client that does not advertise `budgets`
+  (`pluginhost.CapabilityBudgets`). `Unimplemented` is logged at debug and
+  adds nothing to `BudgetResult.Errors`. Any other plugin error is still
+  recorded and, when no budget comes back, fails the call.
 - Recommendations: `Recommendation.ID` is the dismissal id. The cache key hashes
   inputs plus dismissed ids; `--include-dismissed` still sends excluded ids and
   adds `/include-dismissed`.

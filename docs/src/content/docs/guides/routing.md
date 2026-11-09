@@ -95,6 +95,13 @@ entry. Group by type to see packages separately.
 
 **Global Plugins**: Plugins reporting `["*"]` or empty providers match ALL resources (e.g., debugging plugins).
 
+That rule also applies when there is no routing configuration, and when a
+configured router returns no plugin. Core does not ask a plugin whose
+provider list is non-empty and does not name the resource's cloud. A
+descriptor provider that differs from the type prefix also counts: Terraform
+labels an unmapped type `custom`. Plugins with an empty list or `*` are
+still asked.
+
 **Metadata-Aware Binary Selection**: When a plugin is installed with
 `--metadata="region=us-west-2"`, the registry writes a `plugin.metadata.json`
 file alongside the binary.
