@@ -1066,9 +1066,10 @@ func TestWebUISharedPresentation(t *testing.T) {
 	)
 	detail, err := page.Locator("dialog[open]").TextContent()
 	require.NoError(t, err)
-	for _, text := range []string{"Provider: aws", "aws:", "2026-10-01 - 2026-10-07", "$12.3456", "12.23 kgCO2e", "Verify memory before resizing", "RIGHTSIZE"} {
+	for _, text := range []string{"Provider: aws", "aws:", "2026-10-01 - 2026-10-07", "$12.3456", "12.23 kgCO2e", "Verify memory before resizing", "[Rightsize] Choose a smaller fixture instance"} {
 		assert.Contains(t, detail, text)
 	}
+	assert.NotContains(t, detail, "RIGHTSIZE")
 	require.NoError(t, page.Keyboard().Press("Escape"))
 	_, err = page.Locator("#cost-group").
 		SelectOption(playwright.SelectOptionValues{Values: playwright.StringSlice("daily")})

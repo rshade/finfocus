@@ -147,6 +147,12 @@ recommendation by risk. Dismissing one works like any other recommendation,
 and `--include-dismissed` still shows it as spot. Which resources qualify, and
 the savings, come from the plugin (aws-ce for AWS).
 
+On the web Recommendations page the label sits under the action in the Action
+column, and each resource is named by the last segment of its URN; the full
+URN is in the button's tooltip and the detail. The detail explains that the
+spot risk is the chance the spot capacity is interrupted, which is separate
+from the scorer's `Risk` signal.
+
 ### 3. (Optional) View Actual Costs
 
 Requires plugin configuration. See [Configuration](#configuration).

@@ -1,6 +1,9 @@
 import { el } from '../app.js';
 import { spotBadge } from '../spot.js';
 
+const SPOT_RISK_NOTE = 'Spot risk is the chance the spot capacity is interrupted, from 0 to 1.';
+const SCORER_RISK_NOTE = " It is separate from the scorer's Risk signal, which rates how risky acting on this recommendation is.";
+
 // This read-only view renders server summaries and complete scorer signals.
 export function mount(container, { api, stream }) {
   let alive = true, version = 0, detailVersion = 0, page = 1, totalPages = 1;
@@ -51,7 +54,10 @@ export function mount(container, { api, stream }) {
       const detail = await api.get(`/api/recommendations/item?id=${encodeURIComponent(item.id || item.resourceId)}&key=${encodeURIComponent(key || '')}`, { signal: detailAbort.signal });
       if (!alive || current !== detailVersion || !dialog.open) return;
       detailContent.replaceChildren(el('p', { text: detail.item.description }), el('p', { text: `Action: ${detail.actionDisplay}` }), el('p', { text: `Potential savings: ${detail.savingsDisplay}` }));
-      if (detail.spotDisplay) detailContent.append(el('p', { text: 'Pricing:' }, spotBadge(detail.spotDisplay)));
+      if (detail.spotDisplay) {
+        detailContent.append(el('p', { text: 'Pricing:' }, spotBadge(detail.spotDisplay)),
+          el('p', { class: 'detail-note', text: SPOT_RISK_NOTE + (detail.scoreDisplay?.length ? SCORER_RISK_NOTE : '') }));
+      }
       if (detail.scoreDisplay?.length) {
         const signals = el('dl');
         for (const field of detail.scoreDisplay) signals.append(el('dt', { text: field.name }), el('dd', { text: field.value }));
@@ -104,9 +110,9 @@ export function mount(container, { api, stream }) {
     summary.append(actions); body.replaceChildren();
     if (result.errors?.length) { error.textContent = 'Some plugin data is unavailable. Available results are shown.'; error.hidden = false; }
     for (const [index, item] of (result.items ?? []).entries()) {
-      const resource = el('button', { type: 'button', class: 'detail-button', dataset: { id: result.itemKeys?.[index] || item.id || item.resourceId, type: item.type }, text: item.resourceId || item.id });
+      const resource = el('button', { type: 'button', class: 'detail-button', dataset: { id: result.itemKeys?.[index] || item.id || item.resourceId, type: item.type }, title: item.resourceId, text: result.itemNames?.[index] || item.resourceId || item.id });
       resource.addEventListener('click', () => showDetail(item, resource, result.itemKeys?.[index]));
-      body.append(el('tr', {}, el('td', {}, resource), el('td', { text: result.itemActions?.[index] }, spotBadge(result.itemSpot?.[index])), el('td', { text: item.description }), el('td', { text: result.itemSavings[index] }), el('td', { text: item.status || 'Active' })));
+      body.append(el('tr', {}, el('td', {}, resource), el('td', { class: 'rec-action' }, result.itemActions?.[index] ?? '', spotBadge(result.itemSpot?.[index])), el('td', { text: item.description }), el('td', { text: result.itemSavings[index] }), el('td', { text: item.status || 'Active' })));
     }
     if (!result.items?.length) body.append(el('tr', {}, el('td', { colspan: '5', text: 'No recommendations match these filters.' })));
     previous.disabled = page <= 1; next.disabled = page >= totalPages; pageLabel.textContent = `Page ${page} of ${totalPages}`; status.textContent = 'Recommendations loaded.';

@@ -169,6 +169,10 @@ effect.
   list and the Cost detail's linked recommendations. The browser formats nothing.
 - **Completion**: UX-only `web-ui` follow-up #2054 covers layout and copy
   review of the badge on the Recommendations, Overview, and Cost views.
+  It needed three more server display strings, which this feature should
+  have shipped: `itemNames[]` on the recommendations query and
+  `actionDisplay` on Overview and Cost detail recommendations, so those lists
+  show `Modify` rather than the raw enum (see `contracts/http-api.md`).
 
 ## Assumptions
 

@@ -17,3 +17,16 @@ Both are a plugin enum label and a number, so the redaction walk passes them
 unchanged.
 
 Label values: `SPOT · risk 0.12`, `SPOT · risk <0.01`, `SPOT · risk unknown`.
+
+## Follow-up #2054 (presentation)
+
+Three more display strings, so the browser still formats nothing:
+
+| Endpoint | New field | Go method |
+| --- | --- | --- |
+| `POST /api/recommendations/query` | `itemNames[]` (one per `items[]` entry) | `viewmodel.BuildRecommendationPage` → `engine.ExtractResourceDisplayName` |
+| `GET /api/overview/resource` | `activeRecommendations[].actionDisplay` | `viewmodel.OverviewDetailRecommendations` → `proto.ActionTypeLabelFromString` |
+| Cost detail (`viewmodel.ActualCostDetail`) | `recommendations[].actionDisplay` | `viewmodel.LinkedCostRecommendations` → `proto.ActionTypeLabelFromString` |
+
+`actionDisplay` is the label the Recommendations page already shows in
+`itemActions[]` (`Modify`, not `RECOMMENDATION_ACTION_TYPE_MODIFY`).

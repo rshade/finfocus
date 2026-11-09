@@ -4,12 +4,14 @@ import (
 	"fmt"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 // OverviewDetailRecommendation pairs an active recommendation with its canonical
 // savings display for both overview detail renderers.
 type OverviewDetailRecommendation struct {
 	Recommendation engine.Recommendation `json:"recommendation"`
+	ActionDisplay  string                `json:"actionDisplay"`
 	SavingsDisplay string                `json:"savingsDisplay"`
 	// SpotDisplay is the recommendation's spot label, omitted when it does not target spot.
 	SpotDisplay string `json:"spotDisplay,omitempty"`
@@ -27,6 +29,7 @@ func OverviewDetailRecommendations(recs []engine.Recommendation) []OverviewDetai
 			result,
 			OverviewDetailRecommendation{
 				Recommendation: rec,
+				ActionDisplay:  proto.ActionTypeLabelFromString(rec.Type),
 				SavingsDisplay: engine.FormatOverviewCurrency(rec.EstimatedSavings),
 				SpotDisplay:    rec.SpotDisplay(),
 			},
