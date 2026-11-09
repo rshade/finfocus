@@ -92,7 +92,7 @@ test('mount forwards snapshot, log and gap events to the viewer', async () => {
   source.emit('gap', { missed: 7 });
   assert.equal(t.pushed.length, 4);
   assert.equal(t.pushed.slice(0, 3).map(e => e.message).join(','), 'a,b,c');
-  assert.ok(t.pushed[3].message.includes('7'));
+  assert.equal(t.pushed[3].message, '7 log lines were dropped from the buffer');
 });
 
 test('entries already shown are not pushed again after a reconnect', async () => {
@@ -116,8 +116,20 @@ test('a recreated stream that skips evicted entries reports the gap once', async
   FakeSource.all[1].emit('snapshot', { entries: [{ seq: 9, message: 'nine' }] });
   const warnings = t.pushed.filter(e => e.level === 'warn');
   assert.equal(warnings.length, 1);
-  assert.ok(warnings[0].message.includes('3'));
+  assert.equal(warnings[0].message, '3 log lines were dropped from the buffer');
   assert.equal(t.pushed.map(e => e.message).includes('nine'), true);
+});
+
+test('a gap of one line uses the singular and a zero gap is silent', async () => {
+  const t = await setup();
+  await t.mod.namespace.mount(t.container, { api: t.api }, t.deps);
+  const source = FakeSource.all[0];
+  source.emit('log', { seq: 1, message: 'one' });
+  source.emit('gap', { missed: 1 });
+  source.emit('gap', { missed: 0 });
+  const warnings = t.pushed.filter(e => e.level === 'warn');
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0].message, '1 log line was dropped from the buffer');
 });
 
 test('the first connection reports no gap even when the first seq is high', async () => {

@@ -12,10 +12,14 @@
   --zlv-error: #cf222e;
   --zlv-fatal: #a40e26;
   --zlv-panic: #a40e26;
+  --zlv-focus: #0969da;
   --zlv-font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
   height: 100%;
   background: var(--zlv-bg);
   color: var(--zlv-fg);
@@ -38,7 +42,13 @@
     --zlv-error: #f85149;
     --zlv-fatal: #ff7b72;
     --zlv-panic: #ff7b72;
+    --zlv-focus: #58a6ff;
   }
+}
+
+.zlv :focus-visible {
+  outline: 2px solid var(--zlv-focus);
+  outline-offset: 1px;
 }
 
 .zlv-toolbar {
@@ -46,12 +56,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
   padding: 6px 8px;
 }
 
 .zlv-search {
-  flex: 1 1 18rem;
-  min-width: 10rem;
+  flex: 1 1 12rem;
+  min-width: min(100%, 8rem);
+  max-width: 100%;
   padding: 4px 8px;
   border: 1px solid var(--zlv-border);
   border-radius: 4px;
@@ -91,19 +103,44 @@
 
 .zlv-list {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   border-top: 1px solid var(--zlv-border);
 }
 
 .zlv-row {
   border-bottom: 1px solid var(--zlv-border);
+  min-width: 0;
+}
+
+.zlv-save-link {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .zlv-line {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: baseline;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
   padding: 2px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 
 .zlv-row[data-expandable="true"] .zlv-line {
@@ -125,10 +162,11 @@
 }
 
 .zlv-source {
+  max-width: 100%;
   background: var(--zlv-badge-bg);
   border-radius: 3px;
   padding: 0 6px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .zlv-source[data-kind="plugin"] {
@@ -136,7 +174,8 @@
 }
 
 .zlv-message {
-  flex: 1;
+  flex: 1 1 8rem;
+  min-width: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -151,15 +190,17 @@
 
 .zlv-fields {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
   gap: 0 12px;
   margin: 0;
+  min-width: 0;
   padding: 2px 8px 4px 24px;
   color: var(--zlv-muted);
 }
 
 .zlv-fields dt {
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .zlv-fields dd {
@@ -176,6 +217,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  max-width: 100%;
 }
 
 .zlv-chip,
@@ -194,7 +236,10 @@
 }
 
 .zlv-chip {
+  max-width: 100%;
   border-radius: 999px;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .zlv-chip[aria-pressed="true"] {

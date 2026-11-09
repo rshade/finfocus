@@ -31,7 +31,10 @@ function setup(options = {}) {
     const node = create(tag);
     if (tag === 'a') {
       node.clickCount = 0;
-      node.click = () => { node.clickCount += 1; };
+      node.click = () => {
+      node.clickCount += 1;
+      node.attachedAtClick = node.parentNode != null;
+    };
       anchors.push(node);
     }
     return node;
@@ -127,10 +130,10 @@ test('the status line reports shown of total', () => {
   const { viewer, status, one } = setup();
   viewer.push(entry({ message: 'alpha' }));
   viewer.push(entry({ message: 'beta' }));
-  assert.match(status(), /2 shown of 2/);
+  assert.match(status(), /Showing 2 of 2 lines/);
   one('zlv-search').value = 'alpha';
   one('zlv-search').dispatch('input');
-  assert.match(status(), /1 shown of 2/);
+  assert.match(status(), /Showing 1 of 2 lines/);
 });
 
 test('pause keeps the scroll position and counts new lines; resume jumps to the newest', () => {
@@ -143,7 +146,7 @@ test('pause keeps the scroll position and counts new lines; resume jumps to the 
   viewer.push(entry());
   viewer.push(entry());
   assert.equal(list().scrollTop, 7);
-  assert.match(status(), /2 new while paused/);
+  assert.match(status(), /2 new lines while paused/);
   assert.equal(follow.attrs['aria-pressed'], 'false');
   follow.dispatch('click');
   assert.equal(list().scrollTop, list().scrollHeight);
@@ -157,7 +160,7 @@ test('lines hidden by the filter do not count as new while paused', () => {
   one('zlv-follow').dispatch('click');
   viewer.push(entry({ message: 'drop' }));
   viewer.push(entry({ message: 'keep' }));
-  assert.match(status(), /1 new while paused/);
+  assert.match(status(), /1 new line while paused/);
 });
 
 test('clear empties the list and keeps only later lines', () => {
@@ -165,7 +168,7 @@ test('clear empties the list and keeps only later lines', () => {
   viewer.push(entry({ message: 'old' }));
   one('zlv-clear').dispatch('click');
   assert.equal(rows().length, 0);
-  assert.match(status(), /0 shown of 0/);
+  assert.match(status(), /Showing 0 of 0 lines/);
   viewer.push(entry({ message: 'new' }));
   assert.equal(rows().length, 1);
   assert.equal(rows()[0].byClass('zlv-message')[0].textContent, 'new');
@@ -180,6 +183,10 @@ test('download builds NDJSON of the shown entries through a Blob link', () => {
   assert.equal(anchors.length, 1);
   const anchor = anchors[0];
   assert.equal(anchor.clickCount, 1);
+  assert.equal(anchor.attachedAtClick, true);
+  assert.equal(anchor.className, 'zlv-save-link');
+  assert.equal(anchor.attrs.tabindex, '-1');
+  assert.equal(anchor.attrs['aria-hidden'], 'true');
   assert.match(anchor.attrs.download, /\.ndjson$/);
   const blob = resolveObjectURL(anchor.href);
   assert.ok(blob, 'href is a blob URL');
@@ -209,5 +216,5 @@ test('download tolerates a document without anchor click support', () => {
   const viewer = createLogViewer(container, { document });
   viewer.push(entry());
   container.byClass('zlv-download')[0].dispatch('click');
-  assert.match(container.byClass('zlv-status')[0].textContent, /1 shown of 1/);
+  assert.match(container.byClass('zlv-status')[0].textContent, /Showing 1 of 1 line/);
 });

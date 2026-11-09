@@ -145,6 +145,9 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   with `enabled` false (#2013). The nav probe shows the entry only when
   `enabled` is true. `/api/logs/stream` stays unregistered when logs are off,
   and the Logs view must not open an `EventSource` against it.
+  A `gap` event counts entries already evicted from the ring
+  (`Snapshot.Missed`). The page says they were dropped from the buffer. The
+  count is the eviction hole, including one noticed after a reconnect.
 - `ax.Execute` mounts `--format json|human`, `--dry-run`, `--yes`, and
   `--idempotency-key` on every command, plus `__schema` and `mcp-server`
   (`--mcp` is the stdio alias). A command must not redeclare `--format`;

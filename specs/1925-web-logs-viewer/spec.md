@@ -330,14 +330,26 @@ confirm only that plugin's warn-and-above lines print, with badges, and that
   Go. The page computes nothing about them beyond filtering what it holds.
 - **Layout fit**: Fills the existing slots: a controls row for source chips,
   minimum level, search, follow toggle, clear, and download; a status line for
-  "N shown of M, K new while paused" and dropped-line notices; and a
-  captioned, scrolling table body for the lines, matching the Overview table's
-  typography and spacing. A detail row expands to show the remaining fields.
+  "Showing N of M lines", "K new lines while paused", and dropped-line notices;
+  and a scrolling list of lines, matching the Overview table's typography and
+  spacing. A row with fields is a button that expands to show them. The list
+  announces new lines while following. While paused, the status line announces
+  the pending count. A buffer hole says "N log lines were dropped from the
+  buffer".
 - **Additions**: Level colour with text badge; source badges; expandable
   field detail; a per-tab follow toggle. No dismiss, edit, or write actions.
-- **Render evidence**: Not captured yet. Before completion, render the nearest
-  existing view (Plugins) with Playwright against `../finfocus-demo` and record
-  stack and date here.
+- **Render evidence**: 2026-11-08, `../finfocus-demo` stack `dev`,
+  `FINFOCUS_WEB_LOGS=1 finfocus --web --no-browser`. Firefox 159 and Chromium
+  158 (Playwright): light and dark schemes, level borders use the level
+  colour, and the focus ring follows the dashboard ring. At 360 px the toolbar
+  wraps, a long plugin chip stays inside the viewport, and the page and list
+  do not scroll sideways. Enter and Space expand and collapse a row's fields.
+  Tab reaches every toolbar control and that row, each with a 2 px solid
+  outline. Opening the fields scrolls them into view and pauses follow.
+  Download saved an NDJSON file. Paused status read "Showing 2 of 2
+  lines, 1 new line while paused"; the list was not live and the status line
+  was. WebKit did not launch on this host (missing libevent, libavif, and
+  libmanette).
 - **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
   accessibility). No engine, API, redaction, or data-shape work.
 

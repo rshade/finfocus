@@ -142,7 +142,9 @@ payloads with the engine's data-keyed rules and drops slow subscribers, which
 suits neither raw log entries nor a replayable buffer. The log stream sends a snapshot of
 the buffer first, then each new entry with its sequence number as the event id,
 so a reconnect resumes without duplicates. The hub keeps a bounded in-memory
-ring (5000 entries) and drops the oldest entry when it is full.
+ring (5000 entries) and drops the oldest entry when it is full. A `gap` event
+counts entries already dropped from that ring. The page says they were dropped
+from the buffer.
 
 When the setting is off, the server still registers `GET /api/logs/status`
 and answers `200` with `enabled` false, so the dashboard's startup probe is

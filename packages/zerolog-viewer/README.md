@@ -7,6 +7,11 @@ process and its plugins), and filters by source, minimum level, and text.
 The package has no dependencies and no build step. It is plain ES modules plus
 one stylesheet.
 
+A row that has fields is a button. Enter or Space expands and collapses those
+fields. The status line reads `Showing N of M lines`, and while paused it adds
+how many new lines arrived. New lines are announced only while the view is
+following.
+
 > This package is not published yet (`private` is `true` in `package.json`).
 > FinFocus ships it embedded in `finfocus --web`, where the Logs page is off by
 > default.

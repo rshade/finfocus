@@ -4,6 +4,7 @@ import { compileFilter, matchesFilter } from './filter.js';
 
 const DEFAULT_MAX_ROWS = 2000;
 const FOLLOW_SLACK_PX = 4;
+let detailSerial = 0;
 const KINDS = [
   ['', 'All sources'],
   ['core', 'Core'],
@@ -122,18 +123,23 @@ export function createLogViewer(container, options = {}) {
     toolbar.appendChild(node);
   }
   const status = make('div', 'zlv-status');
+  status.setAttribute('aria-live', 'off');
+  status.setAttribute('aria-atomic', 'true');
   const list = make('div', 'zlv-list');
   list.setAttribute('role', 'log');
+  list.setAttribute('aria-live', 'polite');
   root.appendChild(toolbar);
   root.appendChild(status);
   root.appendChild(list);
   container.appendChild(root);
 
+  const lineNoun = (count) => (count === 1 ? 'line' : 'lines');
+
   const updateStatus = () => {
-    const parts = [`${shown} shown of ${items.length}`];
-    if (!following && pending > 0) parts.push(`${pending} new while paused`);
+    const parts = [`Showing ${shown} of ${items.length} ${lineNoun(items.length)}`];
+    if (!following && pending > 0) parts.push(`${pending} new ${lineNoun(pending)} while paused`);
     if (dropped > 0) {
-      parts.push(`${dropped} older ${dropped === 1 ? 'entry' : 'entries'} dropped (showing the newest ${maxRows})`);
+      parts.push(`${dropped} older ${lineNoun(dropped)} dropped (showing the newest ${maxRows})`);
     }
     status.textContent = parts.join(', ');
   };
@@ -143,6 +149,10 @@ export function createLogViewer(container, options = {}) {
   const updateFollowButton = () => {
     followButton.textContent = following ? 'Pause' : 'Resume';
     followButton.setAttribute('aria-pressed', following ? 'true' : 'false');
+    // While following, the log region announces each new line. While paused,
+    // that region is quiet and the status line announces the pending count.
+    list.setAttribute('aria-live', following ? 'polite' : 'off');
+    status.setAttribute('aria-live', following ? 'off' : 'polite');
   };
 
   const scrollToEnd = () => {
@@ -159,7 +169,9 @@ export function createLogViewer(container, options = {}) {
     updateStatus();
   };
 
+  let ignoreScroll = false;
   const onScroll = () => {
+    if (ignoreScroll) return;
     const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight <= FOLLOW_SLACK_PX;
     if (atEnd !== following) setFollowing(atEnd);
   };
@@ -189,30 +201,54 @@ export function createLogViewer(container, options = {}) {
     const row = make('div', `zlv-row zlv-level-${entry.level}`);
     row.setAttribute('data-level', entry.level);
     row.setAttribute('data-source', entry.source);
-    const line = make('div', 'zlv-line');
+    const fields = entry.fields && Object.keys(entry.fields).length > 0 ? entry.fields : null;
+    const line = fields ? makeButton('zlv-line') : make('div', 'zlv-line');
+    const levelText = String(display.level).trim();
     line.appendChild(make('span', 'zlv-time', display.time));
-    line.appendChild(make('span', 'zlv-level', String(display.level).trim()));
+    line.appendChild(make('span', 'zlv-level', levelText));
     const badge = make('span', 'zlv-source', display.source);
     badge.setAttribute('data-kind', entry.sourceKind ?? 'core');
     line.appendChild(badge);
     line.appendChild(make('span', 'zlv-message', entry.message ?? ''));
     row.appendChild(line);
 
-    const fields = entry.fields && Object.keys(entry.fields).length > 0 ? entry.fields : null;
     if (fields) {
       row.setAttribute('data-expandable', 'true');
+      const detailId = `zlv-detail-${++detailSerial}`;
+      const name = [display.time, levelText, display.source, entry.message ?? ''].filter((part) => part !== '').join(' ');
+      if (name !== '') line.setAttribute('aria-label', name);
+      line.setAttribute('aria-expanded', 'false');
+      line.setAttribute('aria-controls', detailId);
       let detail = null;
       line.addEventListener('click', () => {
         if (!detail) {
           detail = make('dl', 'zlv-fields');
+          detail.setAttribute('id', detailId);
           for (const [key, value] of Object.entries(fields)) {
             detail.appendChild(make('dt', '', key));
             detail.appendChild(make('dd', '', fieldText(value)));
           }
           row.appendChild(detail);
-          return;
+        } else {
+          detail.hidden = !detail.hidden;
         }
-        detail.hidden = !detail.hidden;
+        const open = !detail.hidden;
+        line.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (!open) return;
+        // Keep the opened fields on screen. A tail row is pinned to the bottom,
+        // so the fields start below the fold, and the next line would cover
+        // them while follow is still on.
+        ignoreScroll = true;
+        if (typeof detail.scrollIntoView === 'function') detail.scrollIntoView({ block: 'nearest' });
+        setFollowing(false);
+        const view = doc.defaultView;
+        if (view && typeof view.requestAnimationFrame === 'function') {
+          view.requestAnimationFrame(() => {
+            view.requestAnimationFrame(() => { ignoreScroll = false; });
+          });
+        } else {
+          ignoreScroll = false;
+        }
       });
     }
     return row;
@@ -221,8 +257,18 @@ export function createLogViewer(container, options = {}) {
   const evictOldest = () => {
     const oldest = items.shift();
     if (oldest.row) {
+      const active = doc.activeElement;
+      const focused = Boolean(active) && typeof oldest.row.contains === 'function' && oldest.row.contains(active);
+      const neighbor = focused
+        ? oldest.row.nextElementSibling?.querySelector?.('button.zlv-line')
+          ?? oldest.row.previousElementSibling?.querySelector?.('button.zlv-line')
+        : null;
       list.removeChild(oldest.row);
       shown -= 1;
+      if (focused) {
+        const target = neighbor ?? followButton;
+        if (typeof target.focus === 'function') target.focus();
+      }
     }
     dropped += 1;
   };
@@ -295,9 +341,19 @@ export function createLogViewer(container, options = {}) {
     const href = urlApi.createObjectURL(new BlobCtor([exportNDJSON()], { type: 'application/x-ndjson' }));
     const link = make('a');
     link.href = href;
+    link.className = 'zlv-save-link';
     link.setAttribute('download', `logs-${new Date().toISOString().replace(/[:.]/g, '-')}.ndjson`);
+    link.setAttribute('tabindex', '-1');
+    link.setAttribute('aria-hidden', 'true');
+    // Safari ignores a download on an anchor that is not in the document, and
+    // revoking the blob URL in the same turn cancels the save. The link stays
+    // out of the tab order and out of the flex layout.
+    root.appendChild(link);
     if (typeof link.click === 'function') link.click();
-    setTimeout(() => urlApi.revokeObjectURL?.(href), 0);
+    setTimeout(() => {
+      if (link.parentNode === root) root.removeChild(link);
+      urlApi.revokeObjectURL?.(href);
+    }, 1500);
   };
 
   const onSearch = () => applyFilters({ ...raw, text: search.value, regex: regexBox.checked });

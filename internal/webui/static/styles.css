@@ -1119,6 +1119,7 @@ button:disabled {
   --zlv-error: var(--error);
   --zlv-fatal: var(--error);
   --zlv-panic: var(--error);
+  --zlv-focus: var(--focus-ring);
 }
 
 .logs-status {
@@ -1144,6 +1145,16 @@ button:disabled {
   color: var(--accent-fg);
 }
 
+.logs-viewer .zlv-line {
+  padding: 2px 8px;
+  border: 0;
+  background: transparent;
+}
+
+.logs-viewer button.zlv-line:hover {
+  background: var(--row-hover);
+}
+
 .logs-viewer .zlv-chip:focus-visible,
 .logs-viewer .zlv-follow:focus-visible,
 .logs-viewer .zlv-clear:focus-visible,
@@ -1151,7 +1162,8 @@ button:disabled {
 .logs-viewer .zlv-kind-select:focus-visible,
 .logs-viewer .zlv-level-select:focus-visible,
 .logs-viewer .zlv-search:focus-visible,
-.logs-viewer .zlv-regex:focus-visible {
+.logs-viewer .zlv-regex:focus-visible,
+.logs-viewer .zlv-line:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
