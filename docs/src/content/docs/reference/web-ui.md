@@ -248,10 +248,22 @@ the initial load are already there when you open the view.
 | **Clear** | Empties the view. The server buffer is not cleared. |
 | **Download NDJSON** | Saves the rows currently shown, after filters, as `logs-<timestamp>.ndjson`. The browser builds the file; there is no download endpoint. |
 
+The status line reads `Showing N of M lines`. While paused it adds
+`K new lines while paused`, with the singular when the count is one. When the
+view drops rows past its newest 2000, the line says how many older lines were
+dropped.
+
 Each row shows the time, a level badge that carries the level name as text, the
-source, the message, and the remaining fields. All text is inserted as text, so
-markup in a message is shown literally. The view keeps the newest 2000 rows
-and counts the older ones it dropped.
+source, and the message. A row that has more fields is a button: Enter or
+Space expands and collapses them. A row with no fields is not a control. All
+text is inserted as text, so markup in a message is shown literally.
+
+While the view is following, new lines are announced as they arrive. While it
+is paused, those lines stay quiet and the status line announces the pending
+count. If the server buffer no longer has lines from before a reconnect, the
+view adds a warning such as `3 log lines were dropped from the buffer`. That
+count is lines the buffer already dropped, including ones noticed after a
+reconnect.
 
 The server keeps the newest 5000 entries in memory. When the buffer is full, the
 oldest entry is dropped and counted. Nothing the viewer captures is written to

@@ -16,7 +16,7 @@ function setup() {
     rows: () => container.byClass('zlv-row'),
     search: container.byClass('zlv-search')[0],
     regex: container.byClass('zlv-regex')[0],
-    count: () => /(\d+ shown of \d+)/.exec(container.byClass('zlv-status')[0].textContent)[1],
+    count: () => /Showing (\d+ of \d+)/.exec(container.byClass('zlv-status')[0].textContent)[1],
     error: () => container.byClass('zlv-filter-error')[0].textContent,
   };
 }
@@ -30,14 +30,14 @@ test('typing in the search box filters rows and updates the match count', () => 
   const { viewer, rows, search, count } = setup();
   viewer.push(entry({ source: 'engine', message: 'enrichment done' }));
   viewer.push(entry({ source: 'aws-public', sourceKind: 'plugin', message: 'router starting' }));
-  assert.equal(count(), '2 shown of 2');
+  assert.equal(count(), '2 of 2');
   type(search, 'router');
   assert.equal(rows().length, 1);
   assert.equal(rows()[0].byClass('zlv-source')[0].textContent, 'aws-public');
-  assert.equal(count(), '1 shown of 2');
+  assert.equal(count(), '1 of 2');
   viewer.push(entry({ source: 'scorer', sourceKind: 'plugin', message: 'router ready' }));
   assert.equal(rows().length, 2);
-  assert.equal(count(), '2 shown of 3');
+  assert.equal(count(), '2 of 3');
   type(search, '');
   assert.equal(rows().length, 3);
 });

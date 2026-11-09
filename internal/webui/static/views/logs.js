@@ -82,11 +82,18 @@ export async function mount(container, ctx, deps = {}) {
     }
   };
   const warnMissed = (missed) => {
+    const count = Number(missed);
+    if (!Number.isInteger(count) || count <= 0) return;
+    // Missed counts entries already evicted from the buffer, including ones
+    // noticed only after a reconnect. It is not a count of a disconnect.
+    const message = count === 1
+      ? '1 log line was dropped from the buffer'
+      : `${count} log lines were dropped from the buffer`;
     viewer.push({
       time: new Date().toISOString(),
       level: 'warn',
       source: 'finfocus',
-      message: `${missed} log lines were missed while disconnected`,
+      message,
       fields: {},
     });
   };

@@ -37,16 +37,89 @@ test('without display the viewer derives the badge text', () => {
 });
 
 test('fields expand on click and toggle', () => {
-  const { viewer, rows } = setup();
-  viewer.push(entry({ fields: { region: 'us-east-1', n: 3, nested: { a: 1 } } }));
+  const { container, viewer, rows } = setup();
+  viewer.push(entry({
+    fields: { region: 'us-east-1', n: 3, nested: { a: 1 } },
+    display: { time: '10:00:00.000', level: 'INFO', source: 'core' },
+  }));
   const row = rows()[0];
+  const line = row.byClass('zlv-line')[0];
+  assert.equal(line.tagName, 'button');
+  assert.equal(line.attrs.type, 'button');
+  assert.equal(line.attrs['aria-label'], '10:00:00.000 INFO core hello');
+  assert.equal(line.attrs['aria-expanded'], 'false');
   assert.equal(row.byClass('zlv-fields').length, 0);
-  row.byClass('zlv-line')[0].dispatch('click');
+  line.dispatch('click');
   const detail = row.byClass('zlv-fields')[0];
+  assert.equal(line.attrs['aria-expanded'], 'true');
+  assert.deepEqual(detail.scrollIntoViewArgs, { block: 'nearest' });
+  assert.equal(container.byClass('zlv-follow')[0].textContent, 'Resume');
+  assert.equal(line.attrs['aria-controls'], detail.attrs.id);
+  assert.match(detail.attrs.id, /^zlv-detail-\d+$/);
   assert.match(detail.textContent, /regionus-east-1/);
   assert.match(detail.textContent, /\{"a":1\}/);
-  row.byClass('zlv-line')[0].dispatch('click');
+  line.dispatch('click');
   assert.equal(detail.hidden, true);
+  assert.equal(line.attrs['aria-expanded'], 'false');
+  line.dispatch('click');
+  assert.equal(detail.hidden, false);
+  assert.deepEqual(detail.scrollIntoViewArgs, { block: 'nearest' });
+});
+
+test('dropping the focused row moves focus to the next row', () => {
+  const { document, container } = mount();
+  const viewer = createLogViewer(container, { document, maxRows: 2 });
+  viewer.push(entry({ message: 'first', fields: { a: '1' } }));
+  viewer.push(entry({ message: 'second', fields: { b: '2' } }));
+  const rows = () => container.byClass('zlv-row');
+  rows()[0].byClass('zlv-line')[0].focus();
+  viewer.push(entry({ message: 'third', fields: { c: '3' } }));
+  assert.equal(rows().length, 2);
+  assert.equal(document.activeElement, rows()[0].byClass('zlv-line')[0]);
+  assert.equal(rows()[0].byClass('zlv-message')[0].textContent, 'second');
+});
+
+test('dropping the only focused row moves focus to pause', () => {
+  const { document, container } = mount();
+  const viewer = createLogViewer(container, { document, maxRows: 1 });
+  viewer.push(entry({ message: 'only', fields: { a: '1' } }));
+  container.byClass('zlv-line')[0].focus();
+  viewer.push(entry({ message: 'next' }));
+  assert.equal(document.activeElement.className, 'zlv-follow');
+  assert.equal(container.byClass('zlv-message')[0].textContent, 'next');
+});
+
+test('field detail ids stay unique across viewers', () => {
+  const { document, container } = mount();
+  const other = document.createElement('div');
+  const first = createLogViewer(container, { document });
+  const second = createLogViewer(other, { document });
+  first.push(entry({ fields: { a: '1' } }));
+  second.push(entry({ fields: { b: '2' } }));
+  const ids = [container, other].map((node) => node.byClass('zlv-line')[0].attrs['aria-controls']);
+  assert.notEqual(ids[0], ids[1]);
+});
+
+test('a row without fields is not a control', () => {
+  const { viewer, rows } = setup();
+  viewer.push(entry());
+  const line = rows()[0].byClass('zlv-line')[0];
+  assert.equal(line.tagName, 'div');
+  assert.equal(line.attrs['aria-expanded'], undefined);
+});
+
+test('new lines are announced only while following', () => {
+  const { container, viewer } = setup();
+  const list = container.byClass('zlv-list')[0];
+  const status = container.byClass('zlv-status')[0];
+  assert.equal(list.attrs.role, 'log');
+  assert.equal(list.attrs['aria-live'], 'polite');
+  assert.equal(status.attrs['aria-live'], 'off');
+  container.byClass('zlv-follow')[0].dispatch('click');
+  assert.equal(list.attrs['aria-live'], 'off');
+  assert.equal(status.attrs['aria-live'], 'polite');
+  viewer.push(entry());
+  assert.equal(status.attrs['aria-live'], 'polite');
 });
 
 test('follow-tail scrolls to the newest row until the user scrolls up', () => {
@@ -64,14 +137,21 @@ test('the row cap drops the oldest and says so', () => {
   const { viewer, rows, status } = setup({ maxRows: 3 });
   for (let i = 1; i <= 5; i += 1) viewer.push(entry({ message: `m${i}` }));
   assert.deepEqual(rows().map((r) => r.byClass('zlv-message')[0].textContent), ['m3', 'm4', 'm5']);
-  assert.match(status(), /2 older entries dropped/);
+  assert.match(status(), /2 older lines dropped \(showing the newest 3\)/);
+});
+
+test('one dropped line uses the singular', () => {
+  const { viewer, status } = setup({ maxRows: 1 });
+  viewer.push(entry({ message: 'a' }));
+  viewer.push(entry({ message: 'b' }));
+  assert.match(status(), /Showing 1 of 1 line, 1 older line dropped \(showing the newest 1\)/);
 });
 
 test('10,000 pushes leave at most 2000 row nodes', () => {
   const { viewer, rows, status } = setup();
   for (let i = 0; i < 10000; i += 1) viewer.push(entry({ message: `m${i}` }));
   assert.equal(rows().length, 2000);
-  assert.match(status(), /8000 older entries dropped/);
+  assert.match(status(), /8000 older lines dropped \(showing the newest 2000\)/);
 });
 
 test('markup in an entry stays inert text', () => {
