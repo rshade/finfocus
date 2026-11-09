@@ -524,7 +524,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `--tail 0` still scans forward with `Decode`. A line longer than
   `MaxLineBytes` falls back to that forward scan so truncation matches
   `Decode`, and `seq` then stays that whole-file index. Otherwise `seq` on a
-  tailed read is the position in the suffix.
+  tailed read is the position in the suffix. The backward walk decodes each
+  line from the probe it already read. When nothing matches, the suffix
+  decode starts at EOF. Fewer than `--tail` matches still decodes from byte 0
+  so `seq` matches `Decode`.
 - `cost anomalies` (`specs/1923-cost-anomalies/`) runs the overview pipeline
   and lists rows whose `CostDrift` is set through `engine.SelectAnomalies`,
   the one selector the CLI, MCP tool, and web handler share. It adds no rule

@@ -7,7 +7,8 @@ import (
 )
 
 // tailProbeSize is how much of the file each backward step reads while
-// searching for the suffix. Those bytes are not retained.
+// searching for the suffix. A line that crosses a step stays in memory
+// until its start is found, and that hold is capped at MaxLineBytes.
 const tailProbeSize = 32 * 1024
 
 // TailDecode returns the last n entries of r for which match returns true,
@@ -51,8 +52,10 @@ func TailDecode(r io.ReadSeeker, n int, tag string, match func(Entry) bool) ([]E
 }
 
 // tailOffset is the file offset where the suffix containing the last n
-// matching entries begins. It is 0 when the file has fewer matches than n,
-// or when a line in that suffix is longer than MaxLineBytes.
+// matching entries begins. It is the file size when nothing matches, so the
+// caller does not decode the file again. It is 0 when the file has some
+// matches but fewer than n, so seq stays Decode's whole-file index, and when
+// a line in the window is longer than MaxLineBytes.
 func tailOffset(r io.ReadSeeker, size int64, n int, tag string, match func(Entry) bool) (int64, error) {
 	if size == 0 {
 		return 0, nil
@@ -60,17 +63,17 @@ func tailOffset(r io.ReadSeeker, size int64, n int, tag string, match func(Entry
 	found := 0
 	offset := int64(0)
 	long := false
-	err := linesBackward(r, size, func(start, end int64) (bool, error) {
+	err := linesBackward(r, size, func(start, end int64, line []byte) (bool, error) {
 		if start == end {
 			return false, nil
 		}
-		if end-start > MaxLineBytes {
+		if line == nil || end-start > MaxLineBytes {
 			long = true
 			return true, nil
 		}
-		matched, err := lineMatches(r, start, end, tag, match)
-		if err != nil {
-			return false, err
+		matched, matchErr := lineMatches(line, tag, match)
+		if matchErr != nil {
+			return false, matchErr
 		}
 		if !matched {
 			return false, nil
@@ -82,55 +85,105 @@ func tailOffset(r io.ReadSeeker, size int64, n int, tag string, match func(Entry
 	if err != nil {
 		return 0, err
 	}
-	if long || found < n {
+	if long || (found > 0 && found < n) {
 		return 0, nil
+	}
+	if found == 0 {
+		return size, nil
 	}
 	return offset, nil
 }
 
 // linesBackward reports each newline-delimited span from the end of the file
 // toward the start. end is exclusive and does not include the newline. A
-// blank line is an empty span. fn returns true to stop.
-func linesBackward(r io.ReadSeeker, size int64, fn func(start, end int64) (bool, error)) error {
+// blank line is an empty span. line is the span's bytes and is valid only for
+// the call. fn returns true to stop.
+func linesBackward(r io.ReadSeeker, size int64, fn func(start, end int64, line []byte) (bool, error)) error {
 	// nextEnd is the exclusive end of the span that still needs its start.
 	nextEnd := size
 	pos := size
-	buf := make([]byte, tailProbeSize)
-	for {
-		if pos == 0 {
-			if nextEnd > 0 {
-				_, err := fn(0, nextEnd)
-				return err
-			}
-			return nil
-		}
+	probe := make([]byte, tailProbeSize)
+	var pending []byte
+	for pos > 0 {
 		step := min(int64(tailProbeSize), pos)
 		pos -= step
-		if err := readFullAt(r, buf[:step], pos); err != nil {
+		if err := readFullAt(r, probe[:step], pos); err != nil {
 			return err
 		}
-		chunk := buf[:step]
-		for {
-			i := bytes.LastIndexByte(chunk, '\n')
-			if i < 0 {
-				break
-			}
-			stop, err := fn(pos+int64(i)+1, nextEnd)
-			if err != nil || stop {
-				return err
-			}
-			nextEnd = pos + int64(i)
-			chunk = chunk[:i]
+		var stop bool
+		var err error
+		pending, nextEnd, stop, err = splitChunk(probe[:step], pos, nextEnd, pending, fn)
+		if err != nil || stop {
+			return err
 		}
 	}
+	if nextEnd > 0 && len(pending) > 0 {
+		_, err := fn(0, nextEnd, pending)
+		return err
+	}
+	return nil
 }
 
-func lineMatches(r io.ReadSeeker, start, end int64, tag string, match func(Entry) bool) (bool, error) {
-	buf := make([]byte, end-start)
-	if err := readFullAt(r, buf, start); err != nil {
-		return false, err
+// splitChunk emits every complete line in chunk and returns the unfinished
+// prefix, joined with pending. pending is the part of that line closer to EOF.
+func splitChunk(
+	chunk []byte,
+	pos, nextEnd int64,
+	pending []byte,
+	fn func(start, end int64, line []byte) (bool, error),
+) ([]byte, int64, bool, error) {
+	rest := chunk
+	for {
+		i := bytes.LastIndexByte(rest, '\n')
+		if i < 0 {
+			break
+		}
+		line := rest[i+1:]
+		if len(pending) > 0 {
+			joined, ok := joinLine(line, pending)
+			if !ok {
+				stop, err := signalLong(fn)
+				return nil, 0, stop, err
+			}
+			line = joined
+		}
+		pending = nil
+		stop, err := fn(pos+int64(i)+1, nextEnd, line)
+		if err != nil || stop {
+			return nil, 0, stop, err
+		}
+		nextEnd = pos + int64(i)
+		rest = rest[:i]
 	}
-	for e, err := range Decode(bytes.NewReader(buf), tag) {
+	if len(rest) == 0 {
+		return pending, nextEnd, false, nil
+	}
+	held, ok := joinLine(rest, pending)
+	if !ok {
+		stop, err := signalLong(fn)
+		return nil, 0, stop, err
+	}
+	return held, nextEnd, false, nil
+}
+
+func signalLong(fn func(start, end int64, line []byte) (bool, error)) (bool, error) {
+	return fn(0, int64(MaxLineBytes)+1, nil)
+}
+
+// joinLine concatenates a line that crossed a probe boundary. The result is
+// false when the line is longer than MaxLineBytes.
+func joinLine(prefix, suffix []byte) ([]byte, bool) {
+	if len(prefix)+len(suffix) > MaxLineBytes {
+		return nil, false
+	}
+	out := make([]byte, len(prefix)+len(suffix))
+	copy(out, prefix)
+	copy(out[len(prefix):], suffix)
+	return out, true
+}
+
+func lineMatches(line []byte, tag string, match func(Entry) bool) (bool, error) {
+	for e, err := range Decode(bytes.NewReader(line), tag) {
 		if err != nil {
 			return false, err
 		}

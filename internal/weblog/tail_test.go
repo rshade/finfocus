@@ -96,6 +96,12 @@ func TestTailDecodeMatchesFullDecode(t *testing.T) {
 			n:     1,
 			match: isError,
 		},
+		{
+			name:  "filter matches nothing",
+			body:  infoLine("a") + infoLine("b") + infoLine("c"),
+			n:     2,
+			match: isError,
+		},
 		{name: "raw text", body: "plain one\nplain two\n", n: 1},
 	}
 	for _, tc := range cases {
@@ -251,6 +257,100 @@ func TestTailDecodeLargeFileDoesNotReadPrefix(t *testing.T) {
 	assert.Equal(t, messages[len(messages)-1], got[tailSize-1].Message)
 	assert.Equal(t, uint64(1), got[0].Seq)
 	assert.Less(t, elapsed, 5*time.Second, "SC-010 allows 5 seconds; took %s", elapsed)
+}
+
+func TestTailDecodeLineAcrossProbe(t *testing.T) {
+	t.Parallel()
+	body := infoLine("before") +
+		`{"level":"info","message":"` + strings.Repeat("q", 40*1024) + "\"}\n" +
+		strings.Repeat("m", weblog.MaxLineBytes) + "\n" +
+		infoLine("after")
+	got, err := weblog.TailDecode(openBody(t, body), 2, "", nil)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, uint64(1), got[0].Seq, "a line of MaxLineBytes stays in the suffix")
+	assert.Equal(t, strings.Repeat("m", weblog.MaxLineBytes), got[0].Message)
+	assert.Equal(t, "after", got[1].Message)
+	assert.Equal(t, uint64(2), got[1].Seq)
+}
+
+func TestTailDecodeNoMatchDoesNotReread(t *testing.T) {
+	t.Parallel()
+	const lines = 4000
+	var body bytes.Buffer
+	for i := 1; i <= lines; i++ {
+		body.WriteString(infoLine(fmt.Sprintf("n%d", i)))
+	}
+	file := &countSeeker{data: body.Bytes()}
+	isError := func(e weblog.Entry) bool { return e.Level == "error" }
+	got, err := weblog.TailDecode(file, 20, "", isError)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+	assert.Equal(t, int64(len(file.data)), file.nbytes)
+	blocks := (len(file.data) + tailProbeForTest - 1) / tailProbeForTest
+	assert.LessOrEqual(t, file.seeks, blocks+3)
+}
+
+func TestTailDecodeSparseFilterSeeksByBlock(t *testing.T) {
+	t.Parallel()
+	const lines = 4000
+	var body bytes.Buffer
+	body.WriteString(errorLine("early"))
+	for i := 1; i < lines; i++ {
+		body.WriteString(infoLine(fmt.Sprintf("n%d", i)))
+	}
+	file := &countSeeker{data: body.Bytes()}
+	isError := func(e weblog.Entry) bool { return e.Level == "error" }
+	got, err := weblog.TailDecode(file, 1, "", isError)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "early", got[0].Message)
+	assert.Equal(t, uint64(1), got[0].Seq)
+	assert.Less(t, file.seeks, lines/10)
+	blocks := (len(file.data) + tailProbeForTest - 1) / tailProbeForTest
+	assert.LessOrEqual(t, file.seeks, 2*blocks+4)
+}
+
+// tailProbeForTest matches tailProbeSize. The seek bounds fail if the search
+// starts reading one line at a time.
+const tailProbeForTest = 32 * 1024
+
+type countSeeker struct {
+	data   []byte
+	off    int64
+	seeks  int
+	nbytes int64
+}
+
+func (c *countSeeker) Seek(offset int64, whence int) (int64, error) {
+	c.seeks++
+	switch whence {
+	case io.SeekStart:
+		c.off = offset
+	case io.SeekCurrent:
+		c.off += offset
+	case io.SeekEnd:
+		c.off = int64(len(c.data)) + offset
+	default:
+		return 0, errors.New("bad whence")
+	}
+	if c.off < 0 || c.off > int64(len(c.data)) {
+		return 0, errors.New("seek out of range")
+	}
+	return c.off, nil
+}
+
+func (c *countSeeker) Read(p []byte) (int, error) {
+	if c.off >= int64(len(c.data)) {
+		return 0, io.EOF
+	}
+	n := copy(p, c.data[c.off:])
+	c.off += int64(n)
+	c.nbytes += int64(n)
+	if c.off >= int64(len(c.data)) {
+		return n, io.EOF
+	}
+	return n, nil
 }
 
 func BenchmarkTailDecode(b *testing.B) {
