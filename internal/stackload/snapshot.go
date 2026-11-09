@@ -55,12 +55,7 @@ func (s *Snapshot) WithPlan(plan *ingest.PulumiPlan) *Snapshot {
 		next.Steps = convertPlanSteps(plan.Steps)
 		next.PlanStatus = Status{Loaded: true, Reason: ReasonNone}
 	}
-	scope := inventoryProviderScope(next.RawState, plan)
-	scope.annotateSteps(next.Steps)
-	if next.StateStatus.Loaded {
-		next.State = convertStateResources(next.RawState)
-		scope.annotateStates(next.State)
-	}
+	inventoryProviderScope(next.RawState, plan).annotateSteps(next.Steps)
 	next.updateMetadata()
 	return &next
 }

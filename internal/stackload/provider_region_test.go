@@ -293,7 +293,7 @@ func TestProviderRegionDeployedStateIgnoresPreviewProviderChange(t *testing.T) {
 			Inputs: map[string]any{"region": "us-west-2"},
 		},
 	}}}
-	snapshot := (&Snapshot{RawState: state, StateStatus: Status{Loaded: true}}).WithPlan(plan)
+	snapshot := loadedSnapshot(state).WithPlan(plan)
 
 	assert.Equal(
 		t,
@@ -302,7 +302,7 @@ func TestProviderRegionDeployedStateIgnoresPreviewProviderChange(t *testing.T) {
 	)
 	assert.Equal(t, "us-west-2", instanceDescriptor(t, snapshot.Descriptors()).Properties[proto.ProviderRegionProperty])
 	require.Len(t, snapshot.State, 2)
-	assert.Equal(t, "us-west-2", snapshot.State[1].Properties[proto.ProviderRegionProperty])
+	assert.Equal(t, "us-east-1", snapshot.State[1].Properties[proto.ProviderRegionProperty])
 }
 
 func TestProviderRegionSkipsDeleteSteps(t *testing.T) {
@@ -326,4 +326,186 @@ func TestProviderRegionSkipsDeleteSteps(t *testing.T) {
 
 	require.Len(t, snapshot.Steps, 1)
 	assert.Nil(t, snapshot.Steps[0].ProjectedProperties)
+}
+
+const (
+	testWestProviderURN = "urn:pulumi:dev::app::pulumi:providers:aws::west"
+	testWestProviderRef = testWestProviderURN + "::west-id"
+)
+
+func instanceState(provider string, inputs map[string]any) *ingest.PulumiState {
+	return &ingest.PulumiState{Type: testInstanceType, URN: testInstanceURN, Provider: provider, Inputs: inputs}
+}
+
+func westProviderCreate() ingest.PulumiStep {
+	return ingest.PulumiStep{
+		Op:  "create",
+		URN: testWestProviderURN,
+		NewState: &ingest.PulumiState{
+			Type: "pulumi:providers:aws", URN: testWestProviderURN,
+			Inputs: map[string]any{"region": "us-west-2"},
+		},
+	}
+}
+
+func loadedSnapshot(state []ingest.StackExportResource) *Snapshot {
+	return &Snapshot{RawState: state, State: convertStateResources(state), StateStatus: Status{Loaded: true}}
+}
+
+func eastState() []ingest.StackExportResource {
+	return []ingest.StackExportResource{
+		awsProviderResource(map[string]any{"region": "us-east-1"}),
+		regionlessInstance(testProviderRef, nil),
+	}
+}
+
+func TestProviderRegionBeforeSideUsesOldProvider(t *testing.T) {
+	tagged := map[string]any{"instanceType": "t3.micro", "tags": map[string]any{"team": "a"}}
+	plain := map[string]any{"instanceType": "t3.micro"}
+	cases := []struct {
+		name      string
+		state     []ingest.StackExportResource
+		steps     []ingest.PulumiStep
+		wantAfter string
+		wantOld   string
+	}{
+		{
+			name:  "tag-only update keeps the provider region on both sides",
+			state: eastState(),
+			steps: []ingest.PulumiStep{{
+				Op: "update", URN: testInstanceURN,
+				OldState: instanceState(testProviderRef, plain),
+				NewState: instanceState(testProviderRef, tagged),
+			}},
+			wantAfter: "us-east-1",
+			wantOld:   "us-east-1",
+		},
+		{
+			name:  "move to another provider prices each side in its own region",
+			state: eastState(),
+			steps: []ingest.PulumiStep{
+				westProviderCreate(),
+				{
+					Op: "update", URN: testInstanceURN,
+					OldState: instanceState(testProviderRef, plain),
+					NewState: instanceState(testWestProviderRef, plain),
+				},
+			},
+			wantAfter: "us-west-2",
+			wantOld:   "us-east-1",
+		},
+		{
+			name:  "replacement takes the new provider forward and the old one back",
+			state: eastState(),
+			steps: []ingest.PulumiStep{
+				westProviderCreate(),
+				{
+					Op: "create-replacement", URN: testInstanceURN,
+					OldState: instanceState(testProviderRef, plain),
+					NewState: instanceState(testWestProviderRef, plain),
+				},
+				{
+					Op: "replace", URN: testInstanceURN,
+					OldState: instanceState(testProviderRef, plain),
+					NewState: instanceState(testWestProviderRef, plain),
+				},
+				{Op: "delete-replaced", URN: testInstanceURN, OldState: instanceState(testProviderRef, plain)},
+			},
+			wantAfter: "us-west-2",
+			wantOld:   "us-east-1",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("AWS_REGION", "us-west-2")
+			snapshot := loadedSnapshot(tc.state).WithPlan(&ingest.PulumiPlan{Steps: tc.steps})
+			desc := instanceDescriptor(t, engine.CollapseReplacements(snapshot.Descriptors()))
+			assert.Equal(t, tc.wantAfter, resolvedRegion(desc))
+			before := desc
+			before.Properties = desc.OldProperties
+			assert.Equal(t, tc.wantOld, resolvedRegion(before))
+
+			rows, err := snapshot.Rows(context.Background())
+			require.NoError(t, err)
+			row := rowFor(t, rows, testInstanceURN)
+			assert.Equal(t, tc.wantOld, row.Properties[proto.ProviderRegionProperty], "current stays deployed")
+			assert.Equal(t, tc.wantAfter, row.ProjectedProperties[proto.ProviderRegionProperty])
+		})
+	}
+}
+
+func TestProviderRegionDeleteUsesDeployedProvider(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-west-2")
+	plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{
+		{
+			Op: "update", URN: testProviderURN,
+			OldState: &ingest.PulumiState{
+				Type: "pulumi:providers:aws", URN: testProviderURN, Inputs: map[string]any{"region": "us-east-1"},
+			},
+			NewState: &ingest.PulumiState{
+				Type: "pulumi:providers:aws", URN: testProviderURN, Inputs: map[string]any{"region": "eu-west-1"},
+			},
+		},
+		{
+			Op: "delete", URN: testInstanceURN,
+			OldState: instanceState(testProviderRef, map[string]any{"instanceType": "t3.micro"}),
+		},
+	}}
+	snapshot := loadedSnapshot(eastState()).WithPlan(plan)
+
+	desc := instanceDescriptor(t, snapshot.Descriptors())
+	assert.Equal(t, "us-east-1", resolvedRegion(desc))
+}
+
+func TestProviderRegionClearedWhenPreviewMakesItUnknown(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-west-2")
+	plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{{
+		Op: "update", URN: testProviderURN,
+		NewState: &ingest.PulumiState{
+			Type: "pulumi:providers:aws", URN: testProviderURN,
+			Inputs: map[string]any{"region": proto.UnknownPulumiValue},
+		},
+	}}}
+	snapshot := loadedSnapshot(eastState()).WithPlan(plan)
+
+	desc := instanceDescriptor(t, snapshot.Descriptors())
+	assert.NotContains(t, desc.Properties, proto.ProviderRegionProperty)
+	assert.Equal(t, "us-west-2", resolvedRegion(desc))
+	deployed := instanceDescriptor(t, snapshot.DeployedDescriptors())
+	assert.Equal(t, "us-east-1", deployed.Properties[proto.ProviderRegionProperty])
+}
+
+func TestProviderRegionRejectedInputDoesNotFallBackToOutput(t *testing.T) {
+	t.Parallel()
+	secret := map[string]any{"4dabf18193072939515e22adb298388d": "1", "ciphertext": "cipher"}
+	cases := []struct {
+		name   string
+		inputs map[string]any
+		want   string
+	}{
+		{name: "absent input uses output", inputs: map[string]any{}, want: "us-east-1"},
+		{name: "valid input wins", inputs: map[string]any{"region": "eu-west-1"}, want: "eu-west-1"},
+		{name: "unknown input", inputs: map[string]any{"region": proto.UnknownPulumiValue}},
+		{name: "secret input", inputs: map[string]any{"region": secret}},
+		{name: "non-string input", inputs: map[string]any{"region": 42}},
+		{name: "blank input", inputs: map[string]any{"region": ""}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := awsProviderRegion("pulumi:providers:aws", tc.inputs, map[string]any{"region": "us-east-1"})
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func rowFor(t *testing.T, rows []engine.OverviewRow, urn string) engine.OverviewRow {
+	t.Helper()
+	for _, row := range rows {
+		if row.URN == urn {
+			return row
+		}
+	}
+	require.Failf(t, "row missing", "no row for %s", urn)
+	return engine.OverviewRow{}
 }
