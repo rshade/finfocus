@@ -268,6 +268,10 @@ the same edit.
   loopback address, and MUST reject state-changing requests that do not come
   from the SPA itself. This protects against other local processes, other
   localhost ports, DNS rebinding, and websites open in the user's browser.
+  Spec 2011 relaxes this only on explicit opt-in: `--allowed-host` adds exact
+  public host names to the `Host` and `Origin` checks, and `--trusted-proxy`
+  lets a loopback peer's `Tailscale-User-Login` stand in for the token for
+  listed users. With neither flag, the rule above holds unchanged.
 - **FR-016a**: The server MUST listen on the loopback interface only. Unlike
   `finfocus mcp-server --transport=http`, which accepts a non-loopback
   `--addr` only with `--allow-non-loopback`, `--web` has no option to bind a
@@ -322,7 +326,8 @@ the same edit.
   value shown in the web UI equals the value the TUI and plain CLI show for
   the same input, with no rounding or formatting difference, and no
   web-specific calculation code exists (FR-011a/FR-011b).
-- **SC-006**: Requests without a valid token, with a foreign `Host`, or with
+- **SC-006**: Requests without a valid token (or, with `--trusted-proxy`, a
+  valid proxy identity from a loopback peer), with a foreign `Host`, or with
   a foreign `Origin` are rejected in 100% of automated test cases, and no
   secret, credential value, or notification URL appears in any response of
   the fixture suite (FR-016, FR-018).

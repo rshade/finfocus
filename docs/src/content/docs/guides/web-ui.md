@@ -295,6 +295,57 @@ reads the log file once, with the same filters and the same redaction.
   disk, and the entries disappear when the session ends. The log file keeps
   receiving the same lines it does with the view off.
 
+## Serve behind a proxy
+
+`finfocus --web` always listens on `127.0.0.1`. To open it from another
+device on your tailnet, run a reverse proxy on the same machine, such as
+`tailscale serve`, and tell FinFocus the public name the proxy uses:
+
+```bash
+finfocus --web --no-browser --port 8765 --allowed-host dash.example.ts.net
+tailscale serve --bg --https=443 http://127.0.0.1:8765
+```
+
+Open `https://dash.example.ts.net/?token=<token>` with the token from the
+printed URL. The session cookie is marked `Secure` because the proxy sends
+`X-Forwarded-Proto: https`.
+
+- `--allowed-host` is repeatable and matches the exact name. Wildcards, IP
+  addresses, and values with a scheme or path are refused at startup. A port is
+  optional; without one, the HTTPS default (443) is assumed. Any other `Host` is
+  still refused with 403.
+- Each request must still carry the token cookie, so the proxy needs no
+  special setup.
+
+### Sign in with your tailnet identity
+
+To skip the token, name the tailnet users who may open the dashboard:
+
+```bash
+finfocus --web --no-browser --port 8765 \
+  --allowed-host dash.example.ts.net \
+  --trusted-proxy --allowed-user alice@example.com
+```
+
+A request is admitted without the token only when it comes from the same
+machine, for an allowed host, with exactly one `Tailscale-User-Login` header
+that names an allowed user (case-insensitive). `--trusted-proxy` needs at
+least one `--allowed-host` and one `--allowed-user`, and `--allowed-user`
+needs `--trusted-proxy`. FinFocus prints a warning to stderr, then the token
+URL and the proxy URL on stdout.
+
+> **Warning:** Identity mode removes the token as a barrier against other
+> users and processes on the same machine. Any local process can reach the
+> loopback port and send the header itself. Use it only on a machine whose
+> local users you trust.
+
+- Tailscale Serve sets `Tailscale-User-Login` for tailnet traffic only and
+  strips client-supplied copies. Tailscale Funnel traffic and tagged devices
+  carry no login, so use the token URL there.
+- Not yet verified live: whether Serve forwards the tailnet `Host` unchanged
+  (if it rewrites it, list the rewritten name) and whether the live event
+  stream survives Serve without buffering.
+
 ## Stop the session
 
 Closing the browser tab does not stop FinFocus. Press `Ctrl+C` in the terminal
@@ -317,8 +368,10 @@ that launched it to shut down the server and its plugins.
 ## Limitations
 
 - Pulumi only. `--terraform-state` is not a `--web` flag.
-- Local only. There is no option to listen on a non-loopback address and no
-  TLS.
+- Loopback listener only. There is no option to listen on a non-loopback
+  address and no built-in TLS. To reach the dashboard from other devices, put
+  an HTTPS proxy on the same machine in front of it
+  ([Serve behind a proxy](#serve-behind-a-proxy)).
 - The browser cannot dismiss, snooze, or undismiss recommendations. Use
   `finfocus cost recommendations dismiss` and its siblings.
 - **Run preview** is offered even when the session already has preview data,

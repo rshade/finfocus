@@ -90,6 +90,9 @@ they fail with an error naming `--web` and exit code 2. Combining `--web` with
 | `--to`           | End date (YYYY-MM-DD or RFC3339)                                   | Now               |
 | `--adapter`      | Restrict to a specific adapter plugin                              | All plugins       |
 | `--filter`       | Resource filters (`type=`, `status=`, `provider=`), repeatable     | None              |
+| `--allowed-host` | Public host name accepted behind an HTTPS proxy on this machine, repeatable | None     |
+| `--trusted-proxy` | Admit an allowed `Tailscale-User-Login` without the token (needs `--allowed-host` and `--allowed-user`) | Off |
+| `--allowed-user` | Tailnet login admitted by `--trusted-proxy`, repeatable            | None              |
 
 ### Examples (--web)
 

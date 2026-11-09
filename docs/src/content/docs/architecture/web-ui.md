@@ -63,15 +63,30 @@ plugin calls and `pulumi preview`, so it defends against each of those paths.
 | Access from another machine | Binds `127.0.0.1` only, with no flag to change it | A local, single-user tool has no reason to accept remote connections. Unlike `finfocus mcp-server --transport=http`, there is no opt-in. |
 | Another local process or user guessing the port | 128-bit random token in the printed URL | The port is easy to find; a 128-bit token cannot be guessed. Treat the printed URL as a secret. |
 | Token leaking through history, logs, or referrers | The token is exchanged once for an `HttpOnly` cookie, followed by a redirect to `/`; request logs omit query strings; `Referrer-Policy: no-referrer` | A token in every URL would end up in browser history and logs on each reconnect. `EventSource` cannot send custom headers, so the cookie carries authentication for the event stream. |
-| DNS rebinding (a hostile domain resolving to `127.0.0.1`) | The `Host` header must be `127.0.0.1:<port>` or `localhost:<port>` | A rebinding page sends its own domain as `Host`, so the check rejects it. |
+| DNS rebinding (a hostile domain resolving to `127.0.0.1`) | The `Host` header must be `127.0.0.1:<port>` or `localhost:<port>`, or an exact `--allowed-host` | A rebinding page sends its own domain as `Host`, so the check rejects it. An allowed host is an exact, normalized name: no wildcards, no IP literals, no suffix matching. |
 | A web page submitting forms or `fetch` calls | `POST` requires the server's own `Origin` and `Content-Type: application/json` | Browsers do not let a cross-origin page send JSON without a preflight, and they always attach `Origin` to such requests. |
 | A page on another localhost port | `SameSite=Strict`, plus refusal of any request whose `Sec-Fetch-Site` is not `same-origin` or `none` | `SameSite` treats all localhost ports as one site, so it does not help here. Some read requests call plugins and record history, and an `<img>` tag on another port could send one with the cookie and no `Origin`. `Sec-Fetch-Site` tells the server where the request really came from. |
 | Two `finfocus --web` sessions overwriting each other | The cookie name includes the port: `finfocus_session_<port>` | Cookies are not isolated by port. |
 | Injected or third-party script | `Content-Security-Policy: default-src 'self'` and no CDN assets | The page runs only the scripts the binary ships. |
 
-The cookie has no `Secure` attribute. The server speaks plain HTTP on
-loopback, and a `Secure` cookie would never be sent back. TLS was rejected as
-disproportionate for a tool that never leaves the machine.
+The cookie has no `Secure` attribute on loopback. The server speaks plain HTTP
+there, and a `Secure` cookie would never be sent back. TLS was rejected as
+disproportionate for a tool that never leaves the machine. Behind an HTTPS
+proxy the cookie is `Secure` when `X-Forwarded-Proto` is `https`, read only
+when an `--allowed-host` is set. A client can forge that header, but it only
+tightens the cookie.
+
+### Behind a proxy
+
+`--allowed-host` widens the `Host` and `Origin` checks to exact public names
+(`https://<name>` for the origin); the listener stays on loopback.
+`--trusted-proxy` adds an identity path in `authenticate`: a request needs no
+token cookie when the TCP peer is loopback, the `Host` is allowed, and the
+`Tailscale-User-Login` header appears once and names an `--allowed-user`. It
+issues no cookie, and the Origin, `Sec-Fetch-Site`, and Content-Type checks
+still run. Because the port is loopback, any local process can send that
+header, so identity mode trades the token barrier against local processes for
+convenience. Both are opt-in. Without them the middleware is unchanged.
 
 ### What the browser can see
 

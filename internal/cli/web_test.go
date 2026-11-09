@@ -60,6 +60,10 @@ func webCompanionArgs() map[string][]string {
 		"to":           {"--to", "2026-01-02"},
 		"adapter":      {"--adapter", "aws"},
 		"filter":       {"--filter", "type=aws:s3/bucket:Bucket"},
+
+		"allowed-host":  {"--allowed-host", "dash.example.ts.net"},
+		"trusted-proxy": {"--trusted-proxy"},
+		"allowed-user":  {"--allowed-user", "alice@example.com"},
 	}
 }
 
@@ -253,15 +257,25 @@ func runWebCommand(
 	t *testing.T, args []string,
 ) (*webOutputBuffer, context.CancelFunc, func() error) {
 	t.Helper()
+	out, _, cancel, wait := runWebCommandCapturingStderr(t, args)
+	return out, cancel, wait
+}
+
+// runWebCommandCapturingStderr is runWebCommand with the command's stderr
+// captured too.
+func runWebCommandCapturingStderr(
+	t *testing.T, args []string,
+) (*webOutputBuffer, *webOutputBuffer, context.CancelFunc, func() error) {
+	t.Helper()
 	root := NewRootCmd("test")
-	var out webOutputBuffer
+	var out, errOut webOutputBuffer
 	root.SetArgs(args)
 	root.SetOut(&out)
-	root.SetErr(&bytes.Buffer{})
+	root.SetErr(&errOut)
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- root.ExecuteContext(ctx) }()
-	return &out, cancelCtx, func() error {
+	return &out, &errOut, cancelCtx, func() error {
 		select {
 		case err := <-done:
 			return err
@@ -632,4 +646,131 @@ func TestWebEncryptedStackRetriesWithoutEcho(t *testing.T) {
 	require.NoError(t, wait())
 	assert.NotContains(t, out.String(), "bad-secret")
 	assert.NotContains(t, out.String(), "correct-secret")
+}
+
+// TestWebProxyFlagValidation rejects bad --allowed-host, --trusted-proxy, and
+// --allowed-user combinations with the validation exit code before any
+// server binds.
+//
+// Not parallel: NewRootCmd mutates process-wide config resolution; changes the working directory.
+func TestWebProxyFlagValidation(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Chdir(t.TempDir())
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "wildcard host", args: []string{"--allowed-host", "*.ts.net"}, want: "allowed host"},
+		{name: "ip host", args: []string{"--allowed-host", "10.0.0.1"}, want: "allowed host"},
+		{name: "empty host", args: []string{"--allowed-host", ""}, want: "allowed host"},
+		{
+			name: "host with scheme",
+			args: []string{"--allowed-host", "https://dash.example.ts.net"},
+			want: "allowed host",
+		},
+		{
+			name: "trusted proxy without host",
+			args: []string{"--trusted-proxy", "--allowed-user", "a@example.com"},
+			want: "allowed host",
+		},
+		{
+			name: "trusted proxy without user",
+			args: []string{"--trusted-proxy", "--allowed-host", "dash.example.ts.net"},
+			want: "allowed user",
+		},
+		{
+			name: "blank user",
+			args: []string{"--trusted-proxy", "--allowed-host", "dash.example.ts.net", "--allowed-user", " "},
+			want: "blank",
+		},
+		{
+			name: "user without trusted proxy",
+			args: []string{"--allowed-host", "dash.example.ts.net", "--allowed-user", "a@example.com"},
+			want: "trusted proxy",
+		},
+	}
+	//nolint:paralleltest // subtests share the parent's chdir/env state (process-wide).
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"--web", "--no-browser"}, tt.args...)
+			result := axtest.Run(context.Background(), t, NewRootCmd("test"), args)
+			require.Equal(t, int(ax.ExitValidation), result.ExitCode, "%v must fail validation", args)
+			assert.Contains(t, string(result.Stderr), tt.want)
+		})
+	}
+}
+
+// TestWebAllowedHostKeepsSingleLineOutput pins that --allowed-host alone prints
+// only the token URL, as before.
+//
+// Not parallel: binds a localhost port; NewRootCmd mutates process-wide config resolution.
+//
+//nolint:paralleltest // startScriptedWeb changes the working directory and env.
+func TestWebAllowedHostKeepsSingleLineOutput(t *testing.T) {
+	out, errOut, cancel, wait := startScriptedWeb(t, "--allowed-host", "dash.example.ts.net")
+	url := awaitURL(t, out)
+	assert.Regexp(t, `^http://127\.0\.0\.1:\d+/\?token=[0-9a-f]{32}$`, url)
+	cancel()
+	require.NoError(t, wait())
+	assert.Equal(t, url+"\n", out.String())
+	assert.NotContains(t, errOut.String(), "WARNING")
+}
+
+// TestWebTrustedProxyPrintsWarningAndBothURLs pins the startup output of
+// identity mode: the spoofing warning on stderr, the token URL and the proxy
+// URL on stdout.
+//
+// Not parallel: binds a localhost port; NewRootCmd mutates process-wide config resolution.
+//
+//nolint:paralleltest // startScriptedWeb changes the working directory and env.
+func TestWebTrustedProxyPrintsWarningAndBothURLs(t *testing.T) {
+	out, errOut, cancel, wait := startScriptedWeb(t,
+		"--allowed-host", "Dash.Example.ts.net", "--allowed-host", "other.example",
+		"--trusted-proxy", "--allowed-user", "alice@example.com")
+	url := awaitURL(t, out)
+	require.Eventually(t, func() bool { return strings.Contains(out.String(), "https://") },
+		5*time.Second, 10*time.Millisecond, "proxy URL must print, got: %q", out.String())
+	cancel()
+	require.NoError(t, wait())
+
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	require.Len(t, lines, 2)
+	assert.Equal(t, url, lines[0], "the token URL stays the first line")
+	assert.Equal(t, "https://dash.example.ts.net/", lines[1])
+	stderr := errOut.String()
+	assert.Contains(t, stderr, "WARNING")
+	assert.Contains(t, stderr, "forge")
+	assert.NotContains(t, stderr, "alice@example.com", "the warning must not echo the allowed users")
+	_, token, found := strings.Cut(url, "token=")
+	require.True(t, found)
+	assert.NotContains(t, stderr, token, "the token must stay off stderr")
+}
+
+// startScriptedWeb starts finfocus --web from a scripted Pulumi project with
+// extra flags.
+func startScriptedWeb(
+	t *testing.T, extra ...string,
+) (*webOutputBuffer, *webOutputBuffer, context.CancelFunc, func() error) {
+	t.Helper()
+	unsetPassphraseEnv(t)
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Cleanup(config.ResetGlobalConfigForTest)
+	config.SetGlobalConfig(&config.Config{})
+
+	project := t.TempDir()
+	t.Chdir(project)
+	installFakePulumi(t)
+	writePulumiProject(t, project, false)
+	export, err := os.ReadFile(overviewFixture(t, "state-no-changes.json"))
+	require.NoError(t, err)
+	preview, err := os.ReadFile(overviewFixture(t, "plan-no-changes.json"))
+	require.NoError(t, err)
+	t.Cleanup(pulumidetect.SetRunnerForTest(scriptedPulumi{export: export, preview: preview}))
+
+	return runWebCommandCapturingStderr(t, append([]string{"--web", "--no-browser", "--port", "0"}, extra...))
 }
