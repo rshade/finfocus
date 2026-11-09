@@ -31,11 +31,11 @@ type recordingRecClient struct {
 	recs func(req *proto.GetRecommendationsRequest) []*proto.Recommendation
 	// respond, when set, replaces recs and returns the whole response, including
 	// NextPageToken and errors, for paging tests.
-	respond func(req *proto.GetRecommendationsRequest) (*proto.GetRecommendationsResponse, error)
+	respond func(ctx context.Context, req *proto.GetRecommendationsRequest) (*proto.GetRecommendationsResponse, error)
 }
 
 func (c *recordingRecClient) GetRecommendations(
-	_ context.Context,
+	ctx context.Context,
 	in *proto.GetRecommendationsRequest,
 	_ ...grpc.CallOption,
 ) (*proto.GetRecommendationsResponse, error) {
@@ -43,7 +43,7 @@ func (c *recordingRecClient) GetRecommendations(
 	c.reqs = append(c.reqs, in)
 	c.mu.Unlock()
 	if c.respond != nil {
-		return c.respond(in)
+		return c.respond(ctx, in)
 	}
 	resp := &proto.GetRecommendationsResponse{}
 	if c.recs != nil {

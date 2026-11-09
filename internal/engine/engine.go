@@ -3740,26 +3740,8 @@ func (e *Engine) getRecommendationsForResources(
 	// Compute cache key once for both read and write paths.
 	recommendationsCacheKey := e.recommendationsCacheKey(resources, excludedIDs, includeDismissed)
 
-	// Check cache if enabled
-	if e.cache != nil && e.cache.IsEnabled() {
-		if cachedEntry, cacheErr := e.cache.Get(recommendationsCacheKey); cacheErr == nil && cachedEntry != nil {
-			log.Debug().
-				Ctx(ctx).
-				Str("component", "engine").
-				Str("operation", "recommendations.cache.hit").
-				Str("cache_key", recommendationsCacheKey).
-				Msg("cache hit for recommendations")
-			var cachedResult RecommendationsResult
-			if unmarshalErr := json.Unmarshal(cachedEntry.Data, &cachedResult); unmarshalErr == nil {
-				cachedResult.TotalSavings = AchievableSavings(cachedResult.Recommendations)
-				return &cachedResult, nil
-			}
-			log.Warn().
-				Ctx(ctx).
-				Str("component", "engine").
-				Str("operation", "recommendations.cache.unmarshal_failed").
-				Msg("failed to unmarshal cached recommendations")
-		}
+	if cached := e.cachedRecommendations(ctx, recommendationsCacheKey); cached != nil {
+		return cached, nil
 	}
 
 	for _, target := range e.routeRecommendationTargets(ctx, resources) {
@@ -3767,8 +3749,9 @@ func (e *Engine) getRecommendationsForResources(
 	}
 	result.TotalSavings = AchievableSavings(result.Recommendations)
 
-	// Store result in cache if enabled
-	if e.cache != nil && e.cache.IsEnabled() {
+	// Store result in cache if enabled. A result with plugin errors is not stored: a
+	// recovered plugin must be queried again rather than replay its earlier failure.
+	if e.cache != nil && e.cache.IsEnabled() && len(result.Errors) == 0 {
 		resultData, marshalErr := json.Marshal(result)
 		if marshalErr == nil {
 			if setErr := e.cache.Set(recommendationsCacheKey, json.RawMessage(resultData)); setErr != nil {
@@ -3790,6 +3773,45 @@ func (e *Engine) getRecommendationsForResources(
 	}
 
 	return result, nil
+}
+
+// cachedRecommendations returns the stored result for key, or nil when none is usable.
+// A result that recorded plugin errors is not usable, so the plugins are queried again.
+func (e *Engine) cachedRecommendations(ctx context.Context, key string) *RecommendationsResult {
+	if e.cache == nil || !e.cache.IsEnabled() {
+		return nil
+	}
+	entry, err := e.cache.Get(key)
+	if err != nil || entry == nil {
+		return nil
+	}
+	log := logging.FromContext(ctx)
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("operation", "recommendations.cache.hit").
+		Str("cache_key", key).
+		Msg("cache hit for recommendations")
+	var cached RecommendationsResult
+	if unmarshalErr := json.Unmarshal(entry.Data, &cached); unmarshalErr != nil {
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "engine").
+			Str("operation", "recommendations.cache.unmarshal_failed").
+			Msg("failed to unmarshal cached recommendations")
+		return nil
+	}
+	if len(cached.Errors) > 0 {
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "engine").
+			Str("operation", "recommendations.cache.bypass_errors").
+			Str("cache_key", key).
+			Msg("bypassing cached recommendations that recorded plugin errors")
+		return nil
+	}
+	cached.TotalSavings = AchievableSavings(cached.Recommendations)
+	return &cached
 }
 
 // fetchRecommendationsFromTarget queries one plugin for its routed resources, using batch
@@ -3954,6 +3976,10 @@ func (e *Engine) recommendationsRequest(
 // that keeps issuing tokens cannot hold a recommendations run open indefinitely.
 const maxRecommendationPages = 100
 
+// recommendationPageTimeout bounds one GetRecommendations page RPC. A plugin that returns
+// a token and then stalls fails its request instead of hanging the run.
+var recommendationPageTimeout = perResourceTimeout //nolint:gochecknoglobals // tests shorten it
+
 // fetchRecommendationPages returns every recommendation for one request by following
 // NextPageToken until it is empty. A token that repeats or a page past the cap is a
 // misbehaving plugin and fails the whole request, as does an error on any page.
@@ -3968,7 +3994,9 @@ func (e *Engine) fetchRecommendationPages(
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		resp, err := client.API.GetRecommendations(ctx, req)
+		pageCtx, cancel := context.WithTimeout(ctx, recommendationPageTimeout)
+		resp, err := client.API.GetRecommendations(pageCtx, req)
+		cancel()
 		if err != nil {
 			return nil, fmt.Errorf("page %d: %w", page, err)
 		}
@@ -3991,12 +4019,22 @@ func (e *Engine) fetchRecommendationPages(
 }
 
 // appendRecommendations converts plugin recommendations and appends them to result.
-// The first non-empty currency seen across plugins becomes the result currency.
+// The first non-empty currency seen across all rows becomes the result currency, USD
+// included, so a later page or plugin cannot replace it. defaultCurrency applies only
+// when no row names one.
 func appendRecommendations(result *RecommendationsResult, recs []*proto.Recommendation) {
+	currencySelected := false
+	for _, existing := range result.Recommendations {
+		if existing.Currency != "" {
+			currencySelected = true
+			break
+		}
+	}
 	for _, rec := range recs {
 		engineRec := convertProtoRecommendation(rec)
-		if result.Currency == defaultCurrency && engineRec.Currency != "" {
+		if !currencySelected && engineRec.Currency != "" {
 			result.Currency = engineRec.Currency
+			currencySelected = true
 		}
 		result.Recommendations = append(result.Recommendations, engineRec)
 	}
