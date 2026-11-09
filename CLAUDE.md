@@ -78,6 +78,9 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
   `mise which golangci-lint`. Install it with `mise install` (`make tools`).
   Do not point `GOLANGCI_LINT` at `$(HOME)/go/bin/golangci-lint`: that copy
   can lag the pin and reject the current config.
+  `go-licenses` rejects a standard library that lives under the module cache
+  (`pkg/mod/golang.org/toolchain`). Put the Go from `mise which go` on `PATH`
+  with `GOTOOLCHAIN=local` so `GOROOT` is that install.
 - `pkill golangci-lint || true` clears a parallel-runner conflict. Lint can run
   longer than five minutes.
 - After a rebase, run `go vet ./...` before trusting `make test`. A widened
@@ -192,7 +195,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 ### E2E
 
 - `test/e2e/` is its own module and must run the real `finfocus` binary;
-  never stub cost values. AWS E2E needs `PULUMI_CONFIG_PASSPHRASE` and
+  never stub cost values. It cannot import `internal`. A helper that must
+  (`internal/history/seedhistory`) is `go run` from the repo root (`cmd.Dir`),
+  not a file outside the module. AWS E2E needs `PULUMI_CONFIG_PASSPHRASE` and
   `~/.pulumi/bin` on `PATH`.
 - The run-rate half of `make test-e2e-kind` installs aws-public into the real
   `~/.finfocus`. `TestCostCluster_KindHistorical` uses a temp home: run
@@ -834,6 +839,16 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `RetainDailyObservations` keeps that cache entry off the total-only key.
   Opening either file as the other store fails. The command is MCP-excluded
   and has no web handler. `internal/history` must not import `engine` or `ingest`.
+  The dashboard draws that timeline in `internal/webui/static/history.js`.
+  Visible amounts are `display` strings. SVG geometry uses stored totals
+  and the numeric budget, and the chart is `aria-hidden` because the
+  captioned table is the text alternative. A resource series file is named
+  from the URN's project and stack (`loadDetailHistory`); view and diff use
+  the session stack plus the working directory's Pulumi project. An instance
+  URN alone does not set `snapshot.StackName`. Only a `pulumi:pulumi:Stack`
+  resource does, and otherwise the session uses `--stack`.
+  `FINFOCUS_HISTORY_ENABLED=false` disables the resource-observation store
+  and does not disable cost-timeline reads.
   The overview and `cost actual` interactive detail views load one resource's
   series from that database only after Enter (`internal/tui/detail`). An empty
   stack or a missing database returns `detail.ErrHistorySkipped` and the

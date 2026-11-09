@@ -118,6 +118,17 @@ func (f webFixture) start(t *testing.T, source string, encrypted bool, fixtureEn
 		os.WriteFile(filepath.Join(project, "Pulumi.yaml"), []byte("name: web-fixture\nruntime: yaml\n"), 0o600),
 	)
 	config := []byte("scoring:\n  enabled: true\n  plugin: webfixture\n  identifier_mode: raw\n")
+	for _, entry := range fixtureEnv {
+		amount, ok := strings.CutPrefix(entry, "WEB_BUDGET=")
+		if !ok {
+			continue
+		}
+		_, parseErr := strconv.ParseFloat(amount, 64)
+		require.NoErrorf(t, parseErr, "WEB_BUDGET=%s", amount)
+		budget := "cost:\n  budgets:\n    global:\n      amount: " + amount +
+			"\n      currency: USD\n      period: monthly\n"
+		config = append(config, []byte(budget)...)
+	}
 	require.NoError(t, os.WriteFile(filepath.Join(home, "config.yaml"), config, 0o600))
 	plugin, err := os.ReadFile(f.plugin)
 	require.NoError(t, err)

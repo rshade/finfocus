@@ -44,9 +44,17 @@ test('cost grouping and tag changes refetch; date alias is absent',async()=>{
 });
 
 test('cost stale results cannot replace newer query and loading retries on ready',async()=>{
- const t=await setup('cost');t.calls[0].reject(Object.assign(new Error('loading'),{status:503}));await flush();t.emit('ready',{});assert.equal(t.calls.length,2);
+ const t=await setup('cost');
+ assert.equal(t.calls[0].path,'/api/cost/actual/query');
+ assert.match(t.calls[1].path,/^\/api\/history\/view/);
+ t.calls[0].reject(Object.assign(new Error('loading'),{status:503}));await flush();t.emit('ready',{});
+ const retry=t.calls.at(-1);
+ assert.equal(retry.path,'/api/cost/actual/query');
  const group=t.container.querySelector('#cost-group');group.value='type';group.dispatch('change');
- t.calls.at(-1).resolve(costPage('newest'));await flush();t.calls[1].resolve(costPage('stale'));await flush();assert.match(t.container.textContent,/newest/);assert.doesNotMatch(t.container.textContent,/stale/);t.mounted.unmount();
+ const newest=t.calls.at(-1);
+ newest.resolve(costPage('newest'));await flush();
+ retry.resolve(costPage('stale'));await flush();
+ assert.match(t.container.textContent,/newest/);assert.doesNotMatch(t.container.textContent,/stale/);t.mounted.unmount();
 });
 
 test('recommendations include dismissed refetches and renders server summary',async()=>{

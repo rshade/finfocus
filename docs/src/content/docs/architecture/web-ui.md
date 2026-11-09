@@ -250,7 +250,11 @@ reads as part of the page rather than an add-on:
 5. A totals bar (`.totals-bar`) that summarizes the table below it.
 6. A captioned table (`.table-wrap`, `.overview-table` or `.detail-table`)
    with numeric columns aligned, a pager, and a detail panel opened from a row.
-7. Panels below the table, such as budget health.
+7. Panels below the table, such as budget health. The Cost view's slot 7
+   panel is cost history: the series chart, a captioned table, range
+   controls, and a snapshot diff. Overview and Cost detail panels add a
+   Cost history section after their last block. Both render `display`
+   strings only.
 
 The Overview is the reference. A feature that adds columns, badges, deltas, or
 a detail section extends it. A feature with its own data and controls becomes
