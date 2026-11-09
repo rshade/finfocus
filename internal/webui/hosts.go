@@ -159,23 +159,20 @@ func matchAllowedHost(hosts []allowedHost, requestHost string) bool {
 	return false
 }
 
-// matchAllowedOrigin reports whether origin is the canonical HTTPS origin of
-// one of hosts. A browser omits the default port, so only that form matches.
+// matchAllowedOrigin reports whether origin is the HTTPS origin of one of
+// hosts. It matches the host the way matchAllowedHost does, so a browser that
+// keeps a trailing dot in the origin (https://name.) still matches. A browser
+// omits the default port, so an explicit :443 is not a valid origin form, and
+// anything beyond scheme, host, and port is refused.
 func matchAllowedOrigin(hosts []allowedHost, origin string) bool {
-	for _, host := range hosts {
-		if origin == host.origin() {
-			return true
-		}
+	rest, ok := strings.CutPrefix(origin, "https://")
+	if !ok || strings.ContainsAny(rest, "/?#@") {
+		return false
 	}
-	return false
-}
-
-// origin is the canonical HTTPS origin of the host.
-func (h allowedHost) origin() string {
-	if h.port == "" {
-		return "https://" + h.name
+	if strings.HasSuffix(rest, ":") || strings.HasSuffix(rest, ":"+defaultHTTPSPort) {
+		return false
 	}
-	return "https://" + h.name + ":" + h.port
+	return matchAllowedHost(hosts, rest)
 }
 
 // ValidateAccess checks the proxy-related options the way New does, without
@@ -212,6 +209,14 @@ func (s *Server) ProxyURL() string {
 		return ""
 	}
 	return s.allowedHosts[0].origin() + "/"
+}
+
+// origin is the canonical HTTPS origin of the host, as printed at startup.
+func (h allowedHost) origin() string {
+	if h.port == "" {
+		return "https://" + h.name
+	}
+	return "https://" + h.name + ":" + h.port
 }
 
 // validateTrustedProxy enforces the trusted-proxy requirements: allowed users

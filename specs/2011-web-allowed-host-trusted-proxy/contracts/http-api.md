@@ -17,7 +17,10 @@ Anything else: `403 {"error":"host header is not this server","code":"forbidden"
 ## Origin header
 
 Accepted: `http://127.0.0.1:<port>`, `http://localhost:<port>`, and
-`https://H` (`https://H:p` when the flag carries a port other than 443).
+`https://H` (`https://H:p` when the flag carries a port other than 443). The
+host part matches like `Host` (case-insensitive, trailing dot allowed, since a
+browser keeps it in the origin). An explicit `:443`, userinfo, a path, a query,
+or a fragment is refused.
 Anything else: `403 forbidden`.
 
 ## Cookie

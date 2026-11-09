@@ -43,7 +43,10 @@ func validateImportCloudHistoryFlags(cmd *cobra.Command) error {
 	if !enabled {
 		return nil
 	}
-	for _, name := range []string{"web", "mcp", "port", "no-browser", "pulumi-json", "pulumi-state", importHistoryAdapterFlag, "filter"} {
+	for _, name := range []string{
+		"web", "mcp", "port", "no-browser", "pulumi-json", "pulumi-state", importHistoryAdapterFlag, "filter",
+		"allowed-host", "trusted-proxy", "allowed-user",
+	} {
 		if cmd.Flags().Changed(name) {
 			return fmt.Errorf("--%s cannot be combined with --%s", importCloudHistoryFlag, name)
 		}

@@ -96,6 +96,7 @@ func TestAllowedOriginOnStateChangingRequest(t *testing.T) {
 		want   int
 	}{
 		{name: "allowed https origin", origin: "https://" + proxyHost, want: http.StatusMethodNotAllowed},
+		{name: "trailing dot origin", origin: "https://" + proxyHost + ".", want: http.StatusMethodNotAllowed},
 		{name: "http origin for allowed host", origin: "http://" + proxyHost, want: http.StatusForbidden},
 		{name: "foreign origin", origin: "https://evil.example", want: http.StatusForbidden},
 		{name: "suffix near miss", origin: "https://" + proxyHost + ".evil.com", want: http.StatusForbidden},
