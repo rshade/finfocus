@@ -46,6 +46,15 @@ const (
 	// recDescTruncateLen is the maximum description length in table rows.
 	recDescTruncateLen = 27
 
+	// recColGap is the space between table columns.
+	recColGap = 2
+
+	// recMinDescWidth is the narrowest description column a spot list shrinks to.
+	recMinDescWidth = 10
+
+	// recSpotListGaps counts the gaps before Description in a list with a Pricing column.
+	recSpotListGaps = 4
+
 	// defaultCurrency is used when no currency is specified.
 	defaultCurrency = "USD"
 )
@@ -118,9 +127,45 @@ func NewRecommendationsSummary(recs []engine.Recommendation) *RecommendationsSum
 	return summary
 }
 
-// renderRecommendation formats a single recommendation for list display.
-// The selected parameter indicates whether this item is currently selected.
-func renderRecommendation(rec engine.Recommendation, selected bool) string {
+// recRowLayout sizes the list columns. A list with a spot recommendation gets a
+// Pricing column before Description, and Description shrinks so the spot label
+// stays inside the terminal width. A list without one keeps the fixed layout.
+type recRowLayout struct {
+	pricing     int
+	description int
+}
+
+func newRecRowLayout(recs []engine.Recommendation, width int) recRowLayout {
+	pricing := 0
+	for _, rec := range recs {
+		pricing = max(pricing, lipgloss.Width(rec.SpotDisplay()))
+	}
+	if pricing == 0 {
+		return recRowLayout{description: recColWidthDescription}
+	}
+	fixed := recColWidthResource + recColWidthAction + recColWidthSavings + pricing + recSpotListGaps*recColGap
+	return recRowLayout{
+		pricing:     pricing,
+		description: min(recColWidthDescription, max(recMinDescWidth, width-fixed)),
+	}
+}
+
+// truncateRecDescription keeps the list's original rule: anything longer than
+// the column less the ellipsis is cut and ends in "...".
+func truncateRecDescription(description string, width int) string {
+	if keep := width - len("..."); len(description) > keep {
+		return description[:keep] + "..."
+	}
+	return description
+}
+
+// renderRecommendation formats one unselected recommendation with the layout
+// of a list that holds only that recommendation.
+func renderRecommendation(rec engine.Recommendation) string {
+	return renderRecommendationRow(rec, false, newRecRowLayout([]engine.Recommendation{rec}, defaultWidth))
+}
+
+func renderRecommendationRow(rec engine.Recommendation, selected bool, layout recRowLayout) string {
 	// Format resource ID (truncate if too long)
 	resourceID := rec.ResourceID
 	if len(resourceID) > recColWidthResource {
@@ -140,22 +185,16 @@ func renderRecommendation(rec engine.Recommendation, selected bool) string {
 	}
 	savings := fmt.Sprintf("%s%.2f", getCurrencySymbol(currency), rec.EstimatedSavings)
 
-	// Format description (truncate if too long)
-	description := rec.Description
-	if len(description) > recDescTruncateLen {
-		description = description[:recDescTruncateLen] + "..."
-	}
-
-	// Build the row
-	row := fmt.Sprintf("%-*s  %-*s  %*s  %-*s",
+	row := fmt.Sprintf("%-*s  %-*s  %*s  ",
 		recColWidthResource, resourceID,
 		recColWidthAction, actionType,
 		recColWidthSavings, savings,
-		recColWidthDescription, description,
 	)
-	if spot := rec.SpotDisplay(); spot != "" {
-		row += "  " + spot
+	if layout.pricing > 0 {
+		spot := rec.SpotDisplay()
+		row += spot + strings.Repeat(" ", layout.pricing-lipgloss.Width(spot)) + "  "
 	}
+	row += fmt.Sprintf("%-*s", layout.description, truncateRecDescription(rec.Description, layout.description))
 	row += scoreSuffix(rec.Scores)
 
 	// Apply selection styling
@@ -219,6 +258,9 @@ type RecommendationsViewModel struct {
 	// Aggregated data
 	summary *RecommendationsSummary
 	profile string
+
+	// rowLayout is the column layout of the current list.
+	rowLayout recRowLayout
 
 	// Error handling
 	err error
@@ -460,11 +502,15 @@ func (m *RecommendationsViewModel) applySort() {
 // rebuildList rebuilds the virtual list model with current recommendations.
 func (m *RecommendationsViewModel) rebuildList() {
 	availableHeight := max(m.height-recSummaryHeight-1, minHeight)
+	layout := newRecRowLayout(m.recommendations, m.width)
+	m.rowLayout = layout
 	m.virtualList = listview.NewVirtualListModel(
 		m.recommendations,
 		availableHeight,
 		m.width,
-		renderRecommendation,
+		func(rec engine.Recommendation, selected bool) string {
+			return renderRecommendationRow(rec, selected, layout)
+		},
 	)
 }
 
@@ -503,12 +549,15 @@ func (m *RecommendationsViewModel) renderListView() string {
 	var listView string
 	if m.virtualList != nil {
 		// Add table header before virtual list
-		header := fmt.Sprintf("%-*s  %-*s  %*s  %-*s",
+		header := fmt.Sprintf("%-*s  %-*s  %*s  ",
 			recColWidthResource, "Resource",
 			recColWidthAction, "Action",
 			recColWidthSavings, "Savings",
-			recColWidthDescription, "Description",
 		)
+		if m.rowLayout.pricing > 0 {
+			header += fmt.Sprintf("%-*s  ", m.rowLayout.pricing, "Pricing")
+		}
+		header += fmt.Sprintf("%-*s", m.rowLayout.description, "Description")
 		headerStyle := lipgloss.NewStyle().
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("240")).

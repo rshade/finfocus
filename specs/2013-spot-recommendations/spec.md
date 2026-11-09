@@ -114,8 +114,10 @@ effect.
 - **FR-004**: CLI. The table adds a `PRICING` column only when a displayed
   row is spot. JSON and NDJSON items add `pricing_category` and
   `spot_interruption_risk` (omitted when empty or zero).
-- **FR-005**: TUI. The list row appends the label after the description; the
-  detail view adds a `Pricing:` line. The overview detail adds a `Pricing:`
+- **FR-005**: TUI. A list with a spot recommendation gets a `Pricing` column
+  before `Description`, sized to the longest label; `Description` shrinks so
+  the label stays inside the terminal width (a list without one keeps its
+  layout). The detail view adds a `Pricing:` line. The overview detail adds a `Pricing:`
   line under the recommendation's savings. Recommendations linked into a cost
   detail (`viewmodel.LinkedCostRecommendations`, TUI cost view and web Cost
   detail) append the label after their savings.

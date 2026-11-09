@@ -1,9 +1,14 @@
 package tui
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
@@ -28,22 +33,75 @@ func spotRec(risk float64) engine.Recommendation {
 func TestRenderRecommendation_SpotLabel(t *testing.T) {
 	t.Parallel()
 
-	row := ansi.Strip(renderRecommendation(spotRec(0.12), false))
-	assert.True(t, strings.HasSuffix(strings.TrimRight(row, " "), "  SPOT · risk 0.12"), row)
+	row := ansi.Strip(renderRecommendation(spotRec(0.12)))
+	assert.Contains(t, row, "$62.00  SPOT · risk 0.12  Move", "the label sits between savings and description")
 
-	unknown := ansi.Strip(renderRecommendation(spotRec(0), false))
+	unknown := ansi.Strip(renderRecommendation(spotRec(0)))
 	assert.Contains(t, unknown, "SPOT · risk unknown")
 
 	scored := spotRec(0.12)
 	scored.Scores = &engine.RecommendationScores{Risk: scoreVal(0.4)}
-	both := ansi.Strip(renderRecommendation(scored, false))
-	assert.Contains(t, both, "SPOT · risk 0.12  risk 0.40", "the spot label precedes the scorer signal")
+	both := ansi.Strip(renderRecommendation(scored))
+	assert.True(t, strings.HasSuffix(both, "  risk 0.40"), "the scorer signal still ends the row: %q", both)
 
-	plain := renderRecommendation(
-		engine.Recommendation{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 10},
-		false,
-	)
+	plain := renderRecommendation(engine.Recommendation{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 10})
 	assert.NotContains(t, plain, "SPOT")
+}
+
+func TestRecommendationsList_SpotFitsTerminalWidth(t *testing.T) {
+	t.Parallel()
+
+	for _, width := range []int{100, 120} {
+		t.Run(strconv.Itoa(width), func(t *testing.T) {
+			t.Parallel()
+
+			recs := []engine.Recommendation{
+				spotRec(0.12),
+				spotRec(0),
+				{
+					ResourceID:       "i-plain",
+					Type:             "RIGHTSIZE",
+					Description:      "Downsize the over-provisioned instance to save money",
+					EstimatedSavings: 5,
+					Currency:         "USD",
+				},
+			}
+			recs[1].ResourceID = "i-unknown"
+			model := NewRecommendationsViewModel(recs)
+			model.Update(tea.WindowSizeMsg{Width: width, Height: 40})
+			output := ansi.Strip(model.renderListView())
+			if width == 100 {
+				testGolden(t, "recommendations_list_spot_100", output)
+			}
+
+			var header string
+			spotRows := 0
+			for line := range strings.SplitSeq(output, "\n") {
+				assert.LessOrEqual(t, lipgloss.Width(line), width, "line exceeds %d columns: %q", width, line)
+				if strings.HasPrefix(line, "Resource") {
+					header = line
+				}
+				if strings.Contains(line, "SPOT · risk") {
+					spotRows++
+				}
+			}
+			assert.Equal(t, 2, spotRows)
+			assert.Contains(t, header, "Pricing")
+			assert.Less(t, strings.Index(header, "Pricing"), strings.Index(header, "Description"))
+		})
+	}
+}
+
+func TestRecommendationsList_NoSpotKeepsLayout(t *testing.T) {
+	t.Parallel()
+
+	model := NewRecommendationsViewModel([]engine.Recommendation{
+		{ResourceID: "i-plain", Type: "RIGHTSIZE", Description: "Downsize", EstimatedSavings: 5, Currency: "USD"},
+	})
+	model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	output := ansi.Strip(model.renderListView())
+	assert.NotContains(t, output, "Pricing")
+	assert.Contains(t, output, fmt.Sprintf("%-*s", recColWidthDescription, "Description"))
 }
 
 func TestGolden_RecommendationDetail_Spot(t *testing.T) {
