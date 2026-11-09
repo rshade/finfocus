@@ -457,9 +457,12 @@ order core checks them:
 2. An `availabilityZone` input on the resource (e.g. `us-west-2a`).
 3. An ARN property on the resource (the region segment is parsed from it).
 4. The region of the resource's AWS provider: the `region` input of its
-   `pulumi:providers:aws` resource, or that resource's `region` output. Core
-   finds it through the resource's provider reference in the stack state or the
-   preview. A `--pulumi-json` run inside a Pulumi project also reads the stack
+   `pulumi:providers:aws` resource, or that resource's `region` output when it
+   has no `region` input. A secret or unknown `region` input gives no provider
+   region. Core finds the provider through the resource's provider reference in
+   the stack state or the preview. The price after a change uses the provider
+   the preview assigns; the price before it, actual costs, and a delete use the
+   deployed provider. A `--pulumi-json` run inside a Pulumi project also reads the stack
    state. Without state, the provider is seen only when the preview creates or
    updates it.
 5. The `AWS_REGION` or `AWS_DEFAULT_REGION` environment variable:

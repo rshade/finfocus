@@ -30,15 +30,16 @@ func stateProviderScope(resources []ingest.StackExportResource) providerScope {
 			continue
 		}
 		scope.refs[r.URN] = r.Provider
-		if region := awsProviderRegion(r.Type, r.Inputs, r.Outputs); region != "" {
-			scope.regions[r.URN] = region
-		}
+		scope.setRegion(r.URN, awsProviderRegion(r.Type, r.Inputs, r.Outputs))
 	}
 	return scope
 }
 
 // inventoryProviderScope covers deployed state with the preview applied over
-// it, so a provider the preview creates or updates decides the region.
+// it, so a provider the preview creates or updates decides the region, even
+// when its new region is unknown. A delete step's old reference is used only
+// for a resource no other source names, so it never replaces the reference a
+// replacement creates.
 func inventoryProviderScope(state []ingest.StackExportResource, plan *ingest.PulumiPlan) providerScope {
 	scope := stateProviderScope(state)
 	if plan == nil {
@@ -48,46 +49,88 @@ func inventoryProviderScope(state []ingest.StackExportResource, plan *ingest.Pul
 		if step.URN == "" {
 			continue
 		}
-		if ref := stepProviderReference(step); ref != "" {
+		if ref := stepNewReference(step); ref != "" {
 			scope.refs[step.URN] = ref
+		} else if _, known := scope.refs[step.URN]; !known {
+			scope.refs[step.URN] = stepOldReference(step)
 		}
-		if step.NewState == nil {
-			continue
-		}
-		if region := awsProviderRegion(step.ResourceType(), step.NewState.Inputs, step.NewState.Outputs); region != "" {
-			scope.regions[step.URN] = region
+		if next := step.NewState; next != nil {
+			scope.setRegion(step.URN, awsProviderRegion(step.ResourceType(), next.Inputs, next.Outputs))
 		}
 	}
 	return scope
 }
 
-// stepProviderReference reads the provider reference a step carries, from the
-// state it leaves or the state it creates, before the step-level field.
-func stepProviderReference(step ingest.PulumiStep) string {
-	switch {
-	case step.NewState != nil && step.NewState.Provider != "":
-		return step.NewState.Provider
-	case step.OldState != nil && step.OldState.Provider != "":
-		return step.OldState.Provider
-	default:
-		return step.Provider
+// priorProviderScope covers providers as they are before the preview: deployed
+// state, then the old state a preview step reports for a resource the state
+// does not hold. It prices the before side of an update and a delete.
+func priorProviderScope(state []ingest.StackExportResource, plan *ingest.PulumiPlan) providerScope {
+	scope := stateProviderScope(state)
+	if plan == nil {
+		return scope
 	}
+	known := make(map[string]bool, len(state))
+	for _, r := range state {
+		known[r.URN] = true
+	}
+	for _, step := range plan.Steps {
+		if step.URN == "" || step.OldState == nil || known[step.URN] {
+			continue
+		}
+		known[step.URN] = true
+		scope.refs[step.URN] = stepOldReference(step)
+		old := step.OldState
+		scope.setRegion(step.URN, awsProviderRegion(step.ResourceType(), old.Inputs, old.Outputs))
+	}
+	return scope
 }
 
-// awsProviderRegion returns the region an AWS provider resource configures,
-// taking its inputs before its outputs. Other resources, Pulumi secrets, blank
-// values, and the unknown sentinel give no region.
+func (p providerScope) setRegion(urn, region string) {
+	if region == "" {
+		delete(p.regions, urn)
+		return
+	}
+	p.regions[urn] = region
+}
+
+// stepNewReference reads the provider reference of the state a step creates.
+// A step without new state names one at the top level, unless it deletes.
+func stepNewReference(step ingest.PulumiStep) string {
+	if step.NewState != nil {
+		return step.NewState.Provider
+	}
+	if isDeleteOperation(step.Op) {
+		return ""
+	}
+	return step.Provider
+}
+
+// stepOldReference reads the provider reference of the state a step leaves.
+func stepOldReference(step ingest.PulumiStep) string {
+	if step.OldState != nil && step.OldState.Provider != "" {
+		return step.OldState.Provider
+	}
+	return step.Provider
+}
+
+func isDeleteOperation(op string) bool {
+	return op == engine.DiffOperationDelete || op == opDeleteReplaced
+}
+
+// awsProviderRegion returns the region an AWS provider resource configures.
+// A region input decides when the key is present, so a secret, unknown,
+// non-string, or blank input gives no region rather than a stale output. The
+// output is read only when the inputs have no region key. Other resources give
+// no region.
 func awsProviderRegion(resourceType string, inputs, outputs map[string]any) string {
 	pkg, isProvider := strings.CutPrefix(resourceType, pulumiProviderTypePrefix)
 	if !isProvider || resourcetype.NormalizeProvider(pkg) != "aws" {
 		return ""
 	}
-	for _, values := range []map[string]any{inputs, outputs} {
-		if region := regionValue(values["region"]); region != "" {
-			return region
-		}
+	if value, ok := inputs["region"]; ok {
+		return regionValue(value)
 	}
-	return ""
+	return regionValue(outputs["region"])
 }
 
 func regionValue(value any) string {
@@ -99,12 +142,6 @@ func regionValue(value any) string {
 		return ""
 	}
 	return region
-}
-
-func (p providerScope) annotateStates(states []engine.StateResource) {
-	for i := range states {
-		states[i].Properties = p.withProviderRegion(states[i].Properties, states[i].URN, states[i].Type)
-	}
 }
 
 // annotateSteps leaves a step without projected properties alone, so a delete

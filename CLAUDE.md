@@ -305,17 +305,25 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `04da6b54-80e4-46f7-96ec-b56ff0331ba9` is never sent as a tag, SKU, or
   region. A referenced SKU is never copied into the child's `Sku`.
 - **AWS region from the provider resource** (`internal/stackload/provider_region.go`):
-  an AWS resource gets the `region` input, else the output, of the
-  `pulumi:providers:aws` resource its provider reference (`<urn>::<id>`) names,
-  stored as `proto.ProviderRegionProperty` (`__providerRegion`). The adapter
-  reads it after the resource's own region, availabilityZone, and ARN and before
-  `AWS_REGION`/`AWS_DEFAULT_REGION`. Deployed descriptors use state only; the
-  inventory (`Descriptors`, overview `State`/`Steps`) lets a preview's provider
-  create or update win. A secret or unknown-sentinel region gives nothing.
+  an AWS resource gets the `region` input of the `pulumi:providers:aws`
+  resource its provider reference (`<urn>::<id>`) names, or its output only when
+  the input key is absent, stored as `proto.ProviderRegionProperty`
+  (`__providerRegion`). The adapter reads it after the resource's own region,
+  availabilityZone, and ARN and before `AWS_REGION`/`AWS_DEFAULT_REGION`. A
+  secret, unknown-sentinel, non-string, or blank region input gives nothing,
+  and a preview that leaves a provider's region unknown clears the deployed one.
+  The forward scope (`inventoryProviderScope`, preview over state) annotates
+  `Descriptors().Properties`, including unchanged state rows, and overview
+  `Steps` projected properties; a delete step's old reference never replaces a
+  replacement's new one. `priorProviderScope` (state, then step `OldState`)
+  annotates `OldProperties` and delete descriptors. `DeployedDescriptors` and
+  overview `State` (`convertStateResources`) use state alone, because actual
+  costs and the baseline price read them; an overview row the preview omits
+  therefore keeps its deployed region.
   It rides in tags, so projected, recommendation, and actual cache keys cover it.
   The `__` prefix keeps it out of `BuildAttributes`, web redaction, and the
-  estimate property list. Plan-only runs see the provider only when the preview
-  creates or updates it.
+  estimate property list; descriptor and overview JSON and NDJSON strip it.
+  Plan-only runs see the provider only when the preview creates or updates it.
 - **No credential or Pulumi secret reaches a plugin.** One rule each:
   `config.IsCredentialName` (which `engine.isCredentialKey` calls) /
   `skipDottedSegment` for names and `history.IsPulumiSecret`

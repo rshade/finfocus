@@ -7,17 +7,28 @@ import (
 
 // Descriptors returns plan resources followed by unchanged deployed resources.
 // A state-only snapshot preserves historical plan-total membership.
+// Properties take the region of the provider after the preview, except on a
+// delete, whose properties are the state it removes. OldProperties take the
+// region of the provider before the preview.
 func (s *Snapshot) Descriptors() []engine.ResourceDescriptor {
 	var result []engine.ResourceDescriptor
 	seen := make(map[string]bool)
 	scope := inventoryProviderScope(s.RawState, s.Plan)
+	prior := priorProviderScope(s.RawState, s.Plan)
 	if s.Plan != nil {
 		result, _ = ingest.MapResources(s.Plan.GetResources())
 	}
 	for i := range result {
 		seen[result[i].ID] = true
 		copyDescriptorProperties(&result[i])
-		result[i].Properties = scope.withProviderRegion(result[i].Properties, result[i].ID, result[i].Type)
+		current := scope
+		if isDeleteOperation(result[i].Operation) {
+			current = prior
+		}
+		result[i].Properties = current.withProviderRegion(result[i].Properties, result[i].ID, result[i].Type)
+		if result[i].OldProperties != nil {
+			result[i].OldProperties = prior.withProviderRegion(result[i].OldProperties, result[i].ID, result[i].Type)
+		}
 	}
 	for _, raw := range s.RawState {
 		if seen[raw.URN] {

@@ -14,7 +14,11 @@ import (
 )
 
 // convertStateResources converts ingest.StackExportResource to engine.StateResource.
+// Provider regions come from deployed state alone: these are the current
+// properties that actual costs and the baseline projected price read, and a
+// preview's provider change applies only to projected properties.
 func convertStateResources(resources []ingest.StackExportResource) []engine.StateResource {
+	scope := stateProviderScope(resources)
 	result := make([]engine.StateResource, len(resources))
 	for i, r := range resources {
 		var createdAt *time.Time
@@ -27,7 +31,7 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 			Type:       r.Type,
 			ID:         r.ID,
 			Custom:     r.Custom,
-			Properties: ingest.MergeProperties(r.Outputs, r.Inputs),
+			Properties: scope.withProviderRegion(ingest.MergeProperties(r.Outputs, r.Inputs), r.URN, r.Type),
 			CreatedAt:  createdAt,
 			External:   r.External,
 		}
@@ -38,6 +42,7 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 const (
 	opReplace           = "replace"
 	opCreateReplacement = "create-replacement"
+	opDeleteReplaced    = "delete-replaced"
 )
 
 // convertPlanSteps converts ingest.PulumiStep to engine.PlanStep.
