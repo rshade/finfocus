@@ -52,5 +52,6 @@
   `make test-e2e-web` because the views changed. Rendered 2026-11-08 with a
   throwaway spot plugin: Recommendations table badge in the Action cell,
   detail dialog `Pricing:` badge, Overview detail badge after the savings.
-- [ ] T014 After the PR opens, file one UX-only `web-ui` follow-up issue
+- [x] T014 After the PR opens, file one UX-only `web-ui` follow-up issue
   (badge layout and copy on Recommendations; no engine, API, or data work).
+  Filed as #2054.
