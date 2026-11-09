@@ -1,0 +1,23 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:ec2/instance:Instance::batch-worker                        │
+│ Type:   aws:ec2/instance:Instance                                                              │
+│ Status: active                                                                                 │
+│                                                                                                │
+│ ACTUAL COST (MTD)                                                                              │
+│   Total: $50.00                                                                                │
+│                                                                                                │
+│ PROJECTED COST (Monthly)                                                                       │
+│   Total: $100.00                                                                               │
+│                                                                                                │
+│ RECOMMENDATIONS                                                                                │
+│   1. Move batch-worker to spot capacity                                                        │
+│      Savings: $62.00                                                                           │
+│      Pricing: SPOT · risk unknown                                                              │
+│   2. Downsize                                                                                  │
+│      Savings: $10.00                                                                           │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

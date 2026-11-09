@@ -153,6 +153,9 @@ func renderRecommendation(rec engine.Recommendation, selected bool) string {
 		recColWidthSavings, savings,
 		recColWidthDescription, description,
 	)
+	if spot := rec.SpotDisplay(); spot != "" {
+		row += "  " + spot
+	}
 	row += scoreSuffix(rec.Scores)
 
 	// Apply selection styling
@@ -614,6 +617,9 @@ func RenderRecommendationDetail(rec engine.Recommendation, width int) string {
 	fmt.Fprintf(&sb, "Action Type: %s\n", rec.Type)
 	fmt.Fprintf(&sb, "Savings:     %s%.2f %s\n",
 		getCurrencySymbol(currency), rec.EstimatedSavings, currency)
+	if spot := rec.SpotDisplay(); spot != "" {
+		fmt.Fprintf(&sb, "Pricing:     %s\n", spot)
+	}
 	fmt.Fprintf(&sb, "Description: %s\n", rec.Description)
 	writeScoreDetail(&sb, rec.Scores)
 	_, _ = sb.WriteString("\n[Esc] Back to list  [q] Quit")

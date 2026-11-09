@@ -3574,6 +3574,9 @@ func convertProtoRecommendation(rec *proto.Recommendation) Recommendation {
 		PrimaryReason:    specifiedEnum(rec.PrimaryReason),
 		SecondaryReasons: rec.SecondaryReasons,
 		ActionDetail:     convertProtoActionDetail(rec.ActionDetail),
+
+		PricingCategory:      PricingCategory(rec.PricingCategory),
+		SpotInterruptionRisk: rec.SpotInterruptionRisk,
 	}
 
 	if engineRec.Type == "" {
@@ -3856,7 +3859,7 @@ func (e *Engine) generateRecommendationsCacheKey(resources []ResourceDescriptor,
 
 // recommendationsCacheKey is the projected recommendations cache key. A request that
 // asks plugins to include their own dismissals uses a distinct suffix so it cannot
-// read or write the default entry. The default key is unchanged.
+// read or write the default entry.
 func (e *Engine) recommendationsCacheKey(
 	resources []ResourceDescriptor,
 	excludedIDs []string,
@@ -3866,8 +3869,13 @@ func (e *Engine) recommendationsCacheKey(
 	if includeDismissed {
 		key += "/include-dismissed"
 	}
-	return key + e.usageProfileCacheSuffix()
+	return key + recommendationsCacheFormat + e.usageProfileCacheSuffix()
 }
+
+// recommendationsCacheFormat versions the stored RecommendationsResult JSON. It
+// changes when a stored field is added, so an entry written by an earlier
+// release (without the spot fields, for example) is never read.
+const recommendationsCacheFormat = "/recs-v1"
 
 // isScorerOnly reports whether a plugin advertises recommendation scoring without
 // recommendations. Such a plugin rates recommendations; it does not produce them.
@@ -4198,13 +4206,7 @@ func (e *Engine) DismissRecommendation(
 
 	// Add LastKnown snapshot if recommendation details provided
 	if req.Recommendation != nil {
-		record.LastKnown = &config.LastKnownRecommendation{
-			Description:      req.Recommendation.Description,
-			EstimatedSavings: req.Recommendation.EstimatedSavings,
-			Currency:         req.Recommendation.Currency,
-			Type:             req.Recommendation.Type,
-			ResourceID:       req.Recommendation.ResourceID,
-		}
+		record.LastKnown = NewRecommendationSnapshot(req.Recommendation)
 	}
 
 	if err := store.Set(record); err != nil {

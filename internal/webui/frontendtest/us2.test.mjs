@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import { linkView } from './view_linker.mjs';
 
 class Node {
   constructor(tag, doc) { this.tagName=tag; this.doc=doc; this.children=[]; this.listeners=new Map(); this.attrs={}; this.dataset={}; this.hidden=false; this.value=''; }
@@ -24,7 +25,7 @@ async function setup(view) {
  const document=new Node('document'); document.doc=document; document.createElement=tag=>new Node(tag,document); document.createElementNS=(_ns,tag)=>new Node(tag,document);
  const context=vm.createContext({document,AbortController,URLSearchParams,console,setTimeout,clearTimeout});
  const app=new vm.SyntheticModule(['el'],function(){this.setExport('el',(tag,attrs={},...children)=>{const node=document.createElement(tag);for(const [k,v]of Object.entries(attrs)){if(k==='text')node.textContent=v;else if(k==='class')node.className=v;else if(k==='dataset')Object.assign(node.dataset,v);else node.setAttribute(k,v);}node.append(...children.flat());return node;});},{context});await app.link(()=>{});await app.evaluate();
- const mod=new vm.SourceTextModule(await readFile(new URL(`../static/views/${view}.js`,import.meta.url),'utf8'),{context});await mod.link(()=>app);await mod.evaluate();
+ const mod=new vm.SourceTextModule(await readFile(new URL(`../static/views/${view}.js`,import.meta.url),'utf8'),{context});await linkView(mod,app,context,view);await mod.evaluate();
  const calls=[];const api={post(path,body,options){return request(path,body,options);},get(path,options){return request(path,null,options);}};
  function request(path,body,options){let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});calls.push({path,body,options,resolve,reject});return promise;}
  const listeners=new Map();const stream={on(name,fn){listeners.set(name,fn);return()=>listeners.delete(name);}};
@@ -151,4 +152,26 @@ test('closing the detail returns focus to the launcher and drops a late lifecycl
  t.container.querySelector('dialog').close();assert.ok(t.document.activeElement===launcher);
  call.resolve({events:[{timestamp:'x',action:'dismissed',reason:'r'}],warnings:[]});await flush();
  assert.equal(t.container.querySelector('dialog').querySelectorAll('table').length,0);t.mounted.unmount();
+});
+
+test('a spot recommendation shows the server-built badge in the action cell and the detail',async()=>{
+ const t=await setup('recommendations');const page=recPage('spot');page.items.push({id:'plain',resourceId:'plain',type:'Resize',description:'Smaller',status:'Active'});
+ page.itemSavings.push('1.00 USD');page.itemActions=['Modify','Resize'];page.itemSpot=['SPOT · risk 0.12',''];t.calls[0].resolve(page);await flush();
+ const badges=t.container.querySelectorAll('.spot-badge');assert.equal(badges.length,1);assert.equal(badges[0].textContent,'SPOT · risk 0.12');
+ t.container.querySelector('.detail-button').dispatch('click');
+ t.calls.at(-1).resolve({item:{id:'spot',description:'Move to spot'},actionDisplay:'Modify',savingsDisplay:'$62.00 USD',spotDisplay:'SPOT · risk unknown'});await flush();
+ const dialog=t.container.querySelector('dialog');const detailBadge=dialog.querySelector('.spot-badge');
+ assert.equal(detailBadge.textContent,'SPOT · risk unknown');assert.match(dialog.textContent,/Pricing:/);t.mounted.unmount();
+});
+
+test('a recommendation page without itemSpot renders no badge',async()=>{
+ const t=await setup('recommendations');t.calls[0].resolve(recPage('rec'));await flush();
+ assert.equal(t.container.querySelectorAll('.spot-badge').length,0);t.mounted.unmount();
+});
+
+test('a linked spot recommendation in the cost detail shows the server-built badge',async()=>{
+ const t=await setup('cost');t.calls[0].resolve(costPage('vm'));await flush();
+ t.container.querySelector('.detail-button').dispatch('click');
+ t.calls.at(-1).resolve({result:{resourceId:'vm'},breakdown:[],sustainabilityDisplay:[],recommendations:[{recommendation:{type:'MODIFY',description:'Move to spot'},savingsDisplay:'$62.00 USD',spotDisplay:'SPOT · risk 0.12'},{recommendation:{type:'RIGHTSIZE',description:'Smaller'},savingsDisplay:'$2.00 USD'}]});await flush();
+ const badges=t.container.querySelectorAll('.spot-badge');assert.equal(badges.length,1);assert.equal(badges[0].textContent,'SPOT · risk 0.12');t.mounted.unmount();
 });

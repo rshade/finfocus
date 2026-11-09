@@ -136,6 +136,17 @@ replaced resource counts once. JSON carries these as `summary.spot` (and
 budgets, exit codes, or CI gates. A total with no spot resource, or with mixed
 currencies, shows no exposure.
 
+A plugin can also recommend moving a resource to spot. `cost recommendations`,
+the recommendations TUI, the overview detail, and the web Recommendations page
+show such a recommendation with its savings and the same label without the
+on-demand part, for example `SPOT · risk 0.12` or `SPOT · risk unknown`. The
+table adds a `PRICING` column only when a listed recommendation is spot. JSON
+and NDJSON carry `pricing_category` (`DYNAMIC`) and `spot_interruption_risk`
+(absent when unknown). The risk only annotates: core never reorders or hides a
+recommendation by risk. Dismissing one works like any other recommendation,
+and `--include-dismissed` still shows it as spot. Which resources qualify, and
+the savings, come from the plugin (aws-ce for AWS).
+
 ### 3. (Optional) View Actual Costs
 
 Requires plugin configuration. See [Configuration](#configuration).

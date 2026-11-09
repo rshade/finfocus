@@ -165,6 +165,8 @@ type CostBreakdown struct {
 type CostRecommendation struct {
 	Recommendation engine.Recommendation `json:"recommendation"`
 	SavingsDisplay string                `json:"savingsDisplay"`
+	// SpotDisplay is the recommendation's spot label, omitted when it does not target spot.
+	SpotDisplay string `json:"spotDisplay,omitempty"`
 }
 
 // ActualCostDetail renders breakdown, sustainability and recommendations in Go.

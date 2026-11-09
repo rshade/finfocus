@@ -37,14 +37,8 @@ func ApplyDismissalDeltaToRow(row *OverviewRow, records map[string]*config.Dismi
 			status = RecommendationStatusSnoozed
 		}
 
-		row.Recommendations = append(row.Recommendations, Recommendation{
-			ResourceID:       record.LastKnown.ResourceID,
-			Type:             record.LastKnown.Type,
-			Description:      record.LastKnown.Description,
-			EstimatedSavings: record.LastKnown.EstimatedSavings,
-			Currency:         record.LastKnown.Currency,
-			Status:           status,
-		})
+		row.Recommendations = append(row.Recommendations,
+			RecommendationFromSnapshot(record.RecommendationID, status, record.LastKnown))
 	}
 }
 
@@ -61,4 +55,41 @@ func CountRecsActiveAndDismissed(recs []Recommendation) (int, int) {
 		}
 	}
 	return active, dismissed
+}
+
+// NewRecommendationSnapshot is the last-known copy of rec stored with a
+// dismissal, or nil when rec is nil.
+func NewRecommendationSnapshot(rec *Recommendation) *config.LastKnownRecommendation {
+	if rec == nil {
+		return nil
+	}
+	return &config.LastKnownRecommendation{
+		Description:          rec.Description,
+		EstimatedSavings:     rec.EstimatedSavings,
+		Currency:             rec.Currency,
+		Type:                 rec.Type,
+		ResourceID:           rec.ResourceID,
+		PricingCategory:      string(rec.PricingCategory),
+		SpotInterruptionRisk: rec.SpotInterruptionRisk,
+	}
+}
+
+// RecommendationFromSnapshot rebuilds a dismissed or snoozed recommendation from
+// its last-known snapshot, which must not be nil.
+func RecommendationFromSnapshot(
+	id string,
+	status RecommendationStatus,
+	snap *config.LastKnownRecommendation,
+) Recommendation {
+	return Recommendation{
+		ID:                   id,
+		ResourceID:           snap.ResourceID,
+		Type:                 snap.Type,
+		Description:          snap.Description,
+		EstimatedSavings:     snap.EstimatedSavings,
+		Currency:             snap.Currency,
+		Status:               status,
+		PricingCategory:      PricingCategory(snap.PricingCategory),
+		SpotInterruptionRisk: snap.SpotInterruptionRisk,
+	}
 }

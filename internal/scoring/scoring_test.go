@@ -1209,3 +1209,33 @@ func TestScore_ActionDetailVariantsRoundTrip(t *testing.T) {
 		assert.NotContains(t, got.GetModify().GetCurrentConfig()["volume"], rawInstance)
 	})
 }
+
+func TestToProto_SpotTarget(t *testing.T) {
+	t.Parallel()
+
+	ids, err := newIdentifiers(config.ScoringIdentifierRaw)
+	require.NoError(t, err)
+	spot := rec("plugin-1", "i-1")
+	spot.PricingCategory = engine.PricingCategoryDynamic
+	spot.SpotInterruptionRisk = 0.12
+
+	got, ok := toProto(spot, ids)
+	require.True(t, ok)
+	assert.Equal(t, pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_DYNAMIC, got.GetPricingCategory())
+	assert.InDelta(t, 0.12, got.GetSpotInterruptionRiskScore(), 1e-12)
+
+	plain, ok := toProto(rec("plugin-2", "i-2"), ids)
+	require.True(t, ok)
+	assert.Equal(t, pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_UNSPECIFIED, plain.GetPricingCategory())
+	assert.Zero(t, plain.GetSpotInterruptionRiskScore())
+
+	cleared, _ := toProto(spot, ids)
+	applyAllowlist(cleared, []string{"impact"})
+	assert.Equal(t, pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_UNSPECIFIED, cleared.GetPricingCategory())
+	assert.Zero(t, cleared.GetSpotInterruptionRiskScore())
+
+	kept, _ := toProto(spot, ids)
+	applyAllowlist(kept, []string{"pricing_category", "spot_interruption_risk_score"})
+	assert.Equal(t, pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_DYNAMIC, kept.GetPricingCategory())
+	assert.InDelta(t, 0.12, kept.GetSpotInterruptionRiskScore(), 1e-12)
+}

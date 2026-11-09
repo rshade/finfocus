@@ -749,7 +749,8 @@ export function mount(container, ctx) {
           el('li', {},
             el('span', { class: 'rec-type', text: type ? `[${type}] ` : '' }),
             el('span', { text: description ?? '' }),
-            el('span', { class: 'rec-savings', text: entry.savingsDisplay ? ` — ${entry.savingsDisplay}` : '' })),
+            el('span', { class: 'rec-savings', text: entry.savingsDisplay ? ` — ${entry.savingsDisplay}` : '' }),
+            spotBadge(entry.spotDisplay)),
         );
       }
       children.push(el('h4', { text: 'Recommendations' }), list);

@@ -30,6 +30,9 @@ type RecommendationRow struct {
 
 	// HasSavings indicates if there are savings > 0 (for styling).
 	HasSavings bool
+
+	// Spot is the spot label, or "" when the recommendation does not target spot.
+	Spot string
 }
 
 // NewRecommendationRow converts an engine.Recommendation into a display-ready row.
@@ -53,5 +56,6 @@ func NewRecommendationRow(rec engine.Recommendation) RecommendationRow {
 		Description: description,
 		Savings:     savings,
 		HasSavings:  hasSavings,
+		Spot:        rec.SpotDisplay(),
 	}
 }

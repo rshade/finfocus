@@ -451,6 +451,11 @@ func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRo
 			rec.SavingsDisplay,
 		))
 		content.WriteString("\n")
+		if rec.SpotDisplay != "" {
+			content.WriteString(LabelStyle.Render("     Pricing: "))
+			content.WriteString(ValueStyle.Render(rec.SpotDisplay))
+			content.WriteString("\n")
+		}
 	}
 	content.WriteString("\n")
 }

@@ -45,6 +45,7 @@ var ScoringFieldNames = []string{
 	"category", "action_type", "resource", "impact", "priority", "confidence_score",
 	"description", "reasoning", "source", "created_at", "metadata",
 	"action_detail", "primary_reason", "secondary_reasons",
+	"pricing_category", "spot_interruption_risk_score",
 }
 
 // ScoringConfig configures the optional recommendation scoring step. Scoring is off by

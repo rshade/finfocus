@@ -868,8 +868,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   a named actor replaces a blank one, and different actors are both kept.
 - Spot badge (`specs/1836-spot-badge/`): `CostResult.PricingCategory` and
   `SpotInterruptionRisk` come from the spec fields on the projected and
-  estimate paths. `engine.SpotDisplay` is the only label builder
-  (`SPOT · risk 0.12`; DYNAMIC with risk <= 0 is `risk unknown`; any other
+  estimate paths. `engine.SpotDisplay` (built on `SpotRiskDisplay`, which
+  recommendations use alone) is the only label builder (`SPOT · risk 0.12`; DYNAMIC with risk <= 0 is `risk unknown`; any other
   category is empty). Every renderer reads `OverviewRowResult.SpotDisplay` or
   `EstimateDisplay.BaselineSpot/ModifiedSpot`; never rebuild the label. Core
   knows only DYNAMIC. Adding a field that is stored in `[]CostResult` cache
@@ -890,6 +890,16 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   cell past 15 characters so `SPOT` survives a 7-figure cost. The web
   `spotBadge` lives in `static/spot.js`; node harnesses link it through
   `frontendtest/view_linker.mjs` (their fake `app` module has only `el`).
+- Spot recommendations (`specs/2013-spot-recommendations/`): a plugin marks a
+  move to spot with `Recommendation.pricing_category` DYNAMIC and
+  `spot_interruption_risk_score`, mapped by the same `PricingCategoryLabel` and
+  `SpotRisk` as projected costs. `Recommendation.SpotDisplay()` is
+  `SpotRiskDisplay` (`SPOT · risk 0.12`) with no on-demand part, since the
+  savings column states the amount; every surface renders it. The dismissal
+  snapshot carries both fields (`NewRecommendationSnapshot`,
+  `RecommendationFromSnapshot`). The recommendations cache key ends in
+  `/recs-v1` (before the profile suffix) because the stored result JSON
+  changed; bump it when a stored field is added. Risk never reorders.
 - Scoring (`internal/scoring`, off by default) pseudonymizes identifiers by
   default, only warns on failure, and never dismisses or hides anything.
   Scorer-only plugins are dropped from cost features before `Supports`.

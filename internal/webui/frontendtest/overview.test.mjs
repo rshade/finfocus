@@ -622,6 +622,23 @@ test('resource detail renders only server-prepared active recommendations with s
   t.mounted.unmount();
 });
 
+test('a spot recommendation in the resource detail shows the server-built badge', async () => {
+  const t = await setup(); t.calls[0].resolve(page([row('alpha')])); await flush();
+  t.container.querySelector('.resource-link').dispatch('click');
+  t.calls.at(-1).resolve({
+    row: row('alpha'), budgets: [],
+    activeRecommendations: [
+      { recommendation: { type: 'MODIFY', description: 'Move to spot' }, savingsDisplay: '$62.00', spotDisplay: 'SPOT · risk 0.12' },
+      { recommendation: { type: 'RIGHTSIZE', description: 'Downsize' }, savingsDisplay: '$5.00' },
+    ],
+  }); await flush();
+  const items = t.container.querySelector('.detail-recs').querySelectorAll('li');
+  assert.equal(items.length, 2);
+  assert.equal(items[0].querySelector('.spot-badge').textContent, 'SPOT · risk 0.12');
+  assert.equal(items[1].querySelectorAll('.spot-badge').length, 0);
+  t.mounted.unmount();
+});
+
 test('canceling a pending unlock does not retain an accepted requirement on remount', async () => {
   const t = await setup(); t.stream.emit('passphrase_required', { stack: 'encrypted' });
   t.container.querySelector('#passphrase-input').value = 'correct';

@@ -164,7 +164,9 @@ func LinkedCostRecommendations(recs []engine.Recommendation) []CostRecommendatio
 		if rec.EstimatedSavings > 0 {
 			savings = RecommendationSavingsDisplay(rec)
 		}
-		result = append(result, CostRecommendation{Recommendation: rec, SavingsDisplay: savings})
+		result = append(result, CostRecommendation{
+			Recommendation: rec, SavingsDisplay: savings, SpotDisplay: rec.SpotDisplay(),
+		})
 	}
 	return result
 }

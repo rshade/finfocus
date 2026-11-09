@@ -239,6 +239,14 @@ type Recommendation struct {
 	// factors. Unspecified entries are dropped.
 	SecondaryReasons []string `json:"secondaryReasons,omitempty"`
 
+	// PricingCategory is the pricing model of the recommended target state, as the
+	// plugin reported it. DYNAMIC marks a move to spot. Empty when unspecified.
+	PricingCategory PricingCategory `json:"pricingCategory,omitempty"`
+
+	// SpotInterruptionRisk is the spot target's interruption probability
+	// (0.0-1.0). Zero means unknown and is always zero when the target is not spot.
+	SpotInterruptionRisk float64 `json:"spotInterruptionRisk,omitempty"`
+
 	// Scores holds the scorer plugin's ratings. Nil when scoring is disabled, the
 	// scorer was unavailable, or this recommendation could not be scored. Scores
 	// order and route recommendations; they never dismiss or apply one.
