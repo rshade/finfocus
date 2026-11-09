@@ -249,7 +249,7 @@ func TestVirtualScrolling_DetailView(t *testing.T) {
 	view := model.View().Content
 	assert.Contains(t, view, "RECOMMENDATION DETAIL")
 	assert.Contains(t, view, "test-resource")
-	assert.Contains(t, view, "RIGHTSIZE")
+	assert.Contains(t, view, "Action Type: Rightsize")
 }
 
 // TestVirtualScrolling_EmptyList tests virtual scrolling with empty recommendations.
