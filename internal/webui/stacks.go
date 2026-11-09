@@ -137,13 +137,15 @@ func stackRoutePath(path string) string {
 }
 
 // isBootstrapPath reports whether path is a page that can take the ?token=
-// bootstrap: the root, or the root of a registered stack.
+// bootstrap: the root, or the root of any stack name. The registry is not
+// consulted, so an invalid token gets the same answer for a registered and an
+// unregistered stack.
 func (s *Server) isBootstrapPath(path string) bool {
 	if path == "/" {
 		return true
 	}
 	name, rest, ok := splitStackPath(path)
-	return ok && rest == "/" && s.stack(name) != nil
+	return ok && rest == "/" && validStackName(name)
 }
 
 // dispatch sends /s/<name>/... to that stack's handler tree with the prefix
@@ -159,6 +161,10 @@ func (s *Server) dispatch(root http.Handler) http.Handler {
 		}
 		child := s.stack(name)
 		if child == nil {
+			if rest == "/" && r.URL.Query().Has("token") && !s.validToken(r.URL.Query().Get("token")) {
+				s.rejectInvalidToken(w)
+				return
+			}
 			s.writeError(w, http.StatusNotFound, "not_found", "unknown stack")
 			return
 		}
@@ -171,6 +177,34 @@ func (s *Server) dispatch(root http.Handler) http.Handler {
 			http.Redirect(w, r, target, http.StatusPermanentRedirect)
 			return
 		}
-		http.StripPrefix(child.prefix, child.mux).ServeHTTP(w, r)
+		scoped := &prefixRedirects{ResponseWriter: w, prefix: child.prefix}
+		http.StripPrefix(child.prefix, child.mux).ServeHTTP(scoped, r)
 	})
+}
+
+// prefixRedirects puts the stack prefix back on root-relative redirects. The
+// child mux sees the stripped path, so the redirects it generates itself (path
+// cleaning, a subtree pattern without its trailing slash) would otherwise
+// leave the stack and land on the root session.
+type prefixRedirects struct {
+	http.ResponseWriter
+
+	prefix string
+}
+
+// WriteHeader rewrites a root-relative Location before forwarding the status.
+func (w *prefixRedirects) WriteHeader(status int) {
+	if status >= http.StatusMultipleChoices && status < http.StatusBadRequest {
+		loc := w.Header().Get("Location")
+		if strings.HasPrefix(loc, "/") && !strings.HasPrefix(loc, "//") {
+			w.Header().Set("Location", w.prefix+loc)
+		}
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+// Unwrap exposes the underlying ResponseWriter so [http.ResponseController]
+// can reach optional interfaces such as [http.Flusher].
+func (w *prefixRedirects) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }

@@ -513,10 +513,8 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Has("token") {
-		candidate := r.URL.Query().Get("token")
-		if subtle.ConstantTimeCompare([]byte(candidate), []byte(s.token)) != 1 {
-			s.writeError(w, http.StatusUnauthorized,
-				"unauthorized", "invalid session token; open the URL printed in the terminal")
+		if !s.validToken(r.URL.Query().Get("token")) {
+			s.rejectInvalidToken(w)
 			return
 		}
 		//nolint:gosec // G124: Secure is set only behind an HTTPS proxy (X-Forwarded-Proto).
@@ -529,7 +527,7 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 			Secure:   s.forwardedHTTPS(r),
 			SameSite: http.SameSiteStrictMode,
 		})
-		http.Redirect(w, r, s.prefix+"/", http.StatusSeeOther)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 	data, err := fs.ReadFile(staticFiles(), "index.html")
@@ -541,6 +539,15 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		[]byte(`<meta name="finfocus-base" content="`+html.EscapeString(s.prefix)+`">`), 1)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(data))
+}
+
+func (s *Server) validToken(candidate string) bool {
+	return subtle.ConstantTimeCompare([]byte(candidate), []byte(s.token)) == 1
+}
+
+func (s *Server) rejectInvalidToken(w http.ResponseWriter) {
+	s.writeError(w, http.StatusUnauthorized,
+		"unauthorized", "invalid session token; open the URL printed in the terminal")
 }
 
 // apiError is the contract error shape: { error, code }.

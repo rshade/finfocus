@@ -174,7 +174,40 @@ func TestStackTokenBootstrapReturnsToTheStackURL(t *testing.T) {
 	resp, _ = authGet(t, s, nil, "/s/dev/?token=wrong")
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	resp, _ = authGet(t, s, nil, "/s/nope/?token="+token)
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "an unregistered stack is not a bootstrap path")
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode, "a valid token on an unknown stack is a 404")
+}
+
+func TestStackInvalidTokenRevealsNothingAboutRegisteredStacks(t *testing.T) {
+	t.Parallel()
+	s := newStackServer(t)
+
+	respKnown, bodyKnown := authGet(t, s, nil, "/s/dev/?token=wrong")
+	respUnknown, bodyUnknown := authGet(t, s, nil, "/s/nope/?token=wrong")
+	assert.Equal(t, http.StatusUnauthorized, respKnown.StatusCode)
+	assert.Equal(t, respKnown.StatusCode, respUnknown.StatusCode)
+	assert.Equal(t, bodyKnown, bodyUnknown)
+
+	respRoot, bodyRoot := authGet(t, s, nil, "/?token=wrong")
+	assert.Equal(t, http.StatusUnauthorized, respRoot.StatusCode)
+	assert.Equal(t, bodyKnown, bodyRoot, "the root keeps the same invalid-token answer")
+}
+
+func TestStackMuxRedirectsStayInsideThePrefix(t *testing.T) {
+	t.Parallel()
+	s := newStackServer(t)
+	cookie := bootstrapSession(t, s)
+
+	tests := map[string]string{
+		"/s/dev//api/overview/anomalies":       "/s/dev/api/overview/anomalies",
+		"/s/dev/api/../api/overview/anomalies": "/s/dev/api/overview/anomalies",
+		"/s/dev/static":                        "/s/dev/static/",
+	}
+	for path, want := range tests {
+		resp, _ := authGet(t, s, cookie, path)
+		assert.GreaterOrEqual(t, resp.StatusCode, 300, path)
+		assert.Less(t, resp.StatusCode, 400, path)
+		assert.Equal(t, want, resp.Header.Get("Location"), path)
+	}
 }
 
 func TestStackTokenBootstrapOnlyAtRootOfStack(t *testing.T) {

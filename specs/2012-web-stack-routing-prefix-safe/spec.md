@@ -98,6 +98,11 @@ cookie, same behavior, with no stacks registered.
 - The token bootstrap (`GET /?token=`) also works at `/s/<stack>/?token=` and
   redirects back to that stack's URL. One cookie, scoped to `/`, signs the
   browser into every stack.
+- An invalid `?token=` at any `/s/<name>/` root gets the identical 401 for a
+  registered and an unregistered name. A valid token on an unknown name is a
+  404, since that caller is authenticated.
+- Redirects the child mux generates itself (path cleaning, `/s/dev/static`)
+  stay inside the stack prefix.
 - Logs routes are excluded from the request log under a prefix exactly as at
   root, so the Logs view cannot feed itself.
 - Shutdown closes every stack's session and plugin operations.
