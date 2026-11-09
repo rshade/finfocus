@@ -144,10 +144,12 @@ the buffer first, then each new entry with its sequence number as the event id,
 so a reconnect resumes without duplicates. The hub keeps a bounded in-memory
 ring (5000 entries) and drops the oldest entry when it is full.
 
-When the setting is off, the server registers no log routes, so the paths
-answer 404 like any unknown path, the header link stays hidden, and no log hub
-exists to capture anything. Requests under `/api/logs/` are left out of the
-request log, so watching the logs does not add lines to them.
+When the setting is off, the server still registers `GET /api/logs/status`
+and answers `200` with `enabled` false, so the dashboard's startup probe is
+not a failed request. It does not register `/api/logs/stream`, so that path
+answers 404 like any unknown path. The header link stays hidden, and no log
+hub exists to capture anything. Requests under `/api/logs/` are left out of
+the request log, so watching the logs does not add lines to them.
 
 `internal/webui` reaches the hub only through a small `LogSource` interface, so
 it does not import `cli`, `registry`, or `pluginhost`.

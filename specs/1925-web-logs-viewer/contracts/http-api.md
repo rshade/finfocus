@@ -1,8 +1,10 @@
 # Contract: Logs HTTP API
 
 Both routes sit behind the existing session cookie, Host check, and
-`requestHardening` middleware. They are registered only when logs are enabled;
-otherwise they do not exist and the server answers its standard
+`requestHardening` middleware. `GET /api/logs/status` is registered whether
+or not logs are enabled, so the page can learn the flag without a failed
+request. `GET /api/logs/stream` is registered only when logs are enabled;
+otherwise it does not exist and the server answers its standard
 `404 {"error":"unknown path","code":"not_found"}` from `handleRoot`.
 Error bodies use the existing `writeError` shape.
 
@@ -16,7 +18,7 @@ the same entry builder, so one line yields one entry everywhere:
 | Surface | Go method |
 | --- | --- |
 | `finfocus logs` | `weblog.Decode`, `weblog.Filter.Match`, and `weblog.Display` (used only for an entry that carries no display strings) |
-| `GET /api/logs/status` | `weblog.(*Hub).Status` |
+| `GET /api/logs/status` | `weblog.(*Hub).Status` when logs are on. A nil `Options.Logs` answers a fixed disabled status and does not call the hub |
 | `GET /api/logs/stream` | `weblog.(*Hub).Subscribe` (entries built by `weblog.NewEntry`, which wraps the same unexported builder `Decode` uses; both fill `Entry.Display` through `weblog.Display`) |
 
 `internal/webui` reaches the hub through an interface so it imports neither
@@ -56,7 +58,19 @@ Response `200`:
 }
 ```
 
-Disabled: the route does not exist (`404`).
+Disabled: `200`, still behind the session cookie. The page hides the nav
+entry unless `enabled` is true.
+
+```json
+{
+  "enabled": false,
+  "capacity": 0,
+  "retained": 0,
+  "dropped": 0,
+  "sources": []
+}
+```
+
 Method other than GET: `405` with `Allow: GET` and body
 `{"error":"GET only","code":"method_not_allowed"}`. The shared
 `requestHardening` check runs first, so a POST without an `Origin` header is
@@ -98,7 +112,9 @@ Rules:
 - The server closes the stream when the session context ends, the client goes
   away, or the subscriber's channel fills. The browser reconnects with
   `Last-Event-ID`.
-- Response to a non-GET method: as for status above.
+- Response to a non-GET method, when the route is registered: as for status
+  above. When logs are off the route does not exist, so every method is the
+  standard `404`.
 - Query string: ignored. The session token is never accepted here.
 
 ## Cookies, origin, and CSP

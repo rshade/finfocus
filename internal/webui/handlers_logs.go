@@ -34,10 +34,12 @@ type logSnapshotBody struct {
 }
 
 func (s *Server) registerLogs(mux *http.ServeMux) {
+	// Status stays registered when logs are off so the nav probe is a 200,
+	// not a console 404. The stream stays unregistered (#2013).
+	mux.HandleFunc(logsPathPrefix+"status", s.handleLogsStatus)
 	if s.logs == nil {
 		return
 	}
-	mux.HandleFunc(logsPathPrefix+"status", s.handleLogsStatus)
 	mux.HandleFunc(logsPathPrefix+"stream", s.handleLogsStream)
 }
 
@@ -50,8 +52,16 @@ func (s *Server) requireGet(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
+func disabledLogsStatus() weblog.Status {
+	return weblog.Status{Sources: []weblog.Source{}}
+}
+
 func (s *Server) handleLogsStatus(w http.ResponseWriter, r *http.Request) {
 	if !s.requireGet(w, r) {
+		return
+	}
+	if s.logs == nil {
+		s.writePlainJSON(w, http.StatusOK, disabledLogsStatus())
 		return
 	}
 	status := s.logs.Status()

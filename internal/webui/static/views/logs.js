@@ -7,14 +7,17 @@ const RETRY_START_MS = 1000;
 const RETRY_MAX_MS = 15000;
 const EVENT_SOURCE_CLOSED = 2;
 
-// probeLogs shows the nav entry only when the server registered the logs
-// routes; a server with logs disabled answers 404 and the entry stays hidden.
+// probeLogs shows the nav entry only when status reports logs are enabled.
+// The status route is always registered: a disabled server answers 200 with
+// enabled false, and the entry stays hidden. A failed request does too.
 export async function probeLogs(api, link) {
+  let status;
   try {
-    await api.get(STATUS_URL);
+    status = await api.get(STATUS_URL);
   } catch {
     return false;
   }
+  if (status?.enabled !== true) return false;
   if (link) link.hidden = false;
   return true;
 }
@@ -47,6 +50,10 @@ export async function mount(container, ctx, deps = {}) {
     status.textContent = err?.status === 404
       ? 'Logs are not enabled for this session.'
       : 'Logs are unavailable.';
+    return {};
+  }
+  if (initial?.enabled !== true) {
+    status.textContent = 'Logs are not enabled for this session.';
     return {};
   }
 

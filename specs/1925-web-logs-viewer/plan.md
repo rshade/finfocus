@@ -203,8 +203,10 @@ package directories. `pluginhost` gains only a generic "tap" seam in
 - **Self-noise**: `requestLog` skips `/api/logs/` (R9).
 - **Level**: the tee sees what the logger emits; lowering the level is the
   user's `--debug` (R5). `mise.toml` sets only `FINFOCUS_WEB_LOGS`.
-- **Frontend glue**: `logs.js` probes `GET /api/logs/status`; on 200 it adds the
-  nav entry and, when the route is opened, calls
+- **Frontend glue**: `logs.js` probes `GET /api/logs/status` and adds the nav
+  entry only when `enabled` is true. A disabled server answers 200 with
+  `enabled` false, so the probe is not a failed request. When the route is
+  opened and logs are on, it calls
   `createLogViewer(container, {...})`, opens an `EventSource` on
   `/api/logs/stream`, and forwards `snapshot`/`log`/`gap` events to
   `viewer.push`. Reconnect reuses the capped backoff pattern from

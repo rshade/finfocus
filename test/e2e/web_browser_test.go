@@ -350,6 +350,17 @@ func webBrowser(t *testing.T) playwright.Browser {
 
 func webPage(t *testing.T, browser playwright.Browser, s *webProcess, scheme *playwright.ColorScheme) playwright.Page {
 	t.Helper()
+	return openDashboardPage(t, browser, s, scheme, nil)
+}
+
+func openDashboardPage(
+	t *testing.T,
+	browser playwright.Browser,
+	s *webProcess,
+	scheme *playwright.ColorScheme,
+	beforeGoto func(playwright.Page),
+) playwright.Page {
+	t.Helper()
 	ctx, err := browser.NewContext(playwright.BrowserNewContextOptions{ColorScheme: scheme})
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, ctx.Close()) })
@@ -361,6 +372,9 @@ func webPage(t *testing.T, browser playwright.Browser, s *webProcess, scheme *pl
 		}
 	})
 	page.OnPageError(func(e error) { t.Logf("browser page error: %v", e) })
+	if beforeGoto != nil {
+		beforeGoto(page)
+	}
 	_, err = page.Goto(s.bootstrap)
 	require.NoError(t, err)
 	return page
@@ -1262,21 +1276,38 @@ func TestWebUILogsEntryHiddenByDefault(t *testing.T) {
 	f := newWebFixture(t)
 	browser := webBrowser(t)
 	s := f.start(t, filepath.Join(f.root, "testdata/simple-plan.json"), false)
-	page := webPage(t, browser, s, playwright.ColorSchemeLight)
+	var consoleMu sync.Mutex
+	var consoleErrors []string
+	page := openDashboardPage(t, browser, s, playwright.ColorSchemeLight, func(page playwright.Page) {
+		page.OnConsole(func(m playwright.ConsoleMessage) {
+			if m.Type() != "error" {
+				return
+			}
+			consoleMu.Lock()
+			consoleErrors = append(consoleErrors, m.Text())
+			consoleMu.Unlock()
+		})
+	})
 	webWait(t, page, `() => document.querySelector('.app-nav a[data-route="overview"]') !== null`)
-	// The nav probe is asynchronous: wait for its status request to finish,
-	// then one macrotask so its handler has run, before asserting the entry
-	// stayed hidden.
+	// The nav probe is asynchronous: wait for its status request to finish
+	// with 200, then one macrotask so its handler has run, before asserting
+	// the entry stayed hidden and the console stayed quiet.
 	webWait(
 		t,
 		page,
-		`() => performance.getEntriesByType('resource').some(e => e.name.includes('/api/logs/status') && e.responseEnd > 0)`,
+		`() => performance.getEntriesByType('resource').some(e => e.name.includes('/api/logs/status') && e.responseStatus === 200)`,
 	)
 	_, err := page.Evaluate(`() => new Promise(resolve => setTimeout(resolve, 0))`)
 	require.NoError(t, err)
 	hidden, err := page.Evaluate(`() => document.querySelector('.app-nav a[data-route="logs"]')?.hidden ?? true`)
 	require.NoError(t, err)
 	assert.Equal(t, true, hidden)
+	consoleMu.Lock()
+	defer consoleMu.Unlock()
+	for _, message := range consoleErrors {
+		assert.NotContains(t, message, "/api/logs/")
+		assert.NotContains(t, message, "Failed to load resource")
+	}
 }
 
 func TestWebUIConfigEditKeepsProjectComment(t *testing.T) {

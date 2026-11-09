@@ -141,6 +141,10 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   reads JSON, then `zerolog.ConsoleWriter` text (the default log file format),
   then raw. A line that starts with `{` and does not parse is withheld, never
   shown raw, since a cut event hides its credential fields from redaction.
+  `GET /api/logs/status` stays registered when logs are off and answers `200`
+  with `enabled` false (#2013). The nav probe shows the entry only when
+  `enabled` is true. `/api/logs/stream` stays unregistered when logs are off,
+  and the Logs view must not open an `EventSource` against it.
 - `ax.Execute` mounts `--format json|human`, `--dry-run`, `--yes`, and
   `--idempotency-key` on every command, plus `__schema` and `mcp-server`
   (`--mcp` is the stdio alias). A command must not redeclare `--format`;

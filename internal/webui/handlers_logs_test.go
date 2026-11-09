@@ -90,16 +90,22 @@ func TestLogsStatus(t *testing.T) {
 	assert.Len(t, body.Sources, 2)
 }
 
-func TestLogsDisabledRoutesAreNotFound(t *testing.T) {
+func TestLogsDisabledStatusReportsOff(t *testing.T) {
 	t.Parallel()
 	s := newRunningServer(t, Options{})
-	for _, path := range []string{"/api/logs/status", "/api/logs/stream"} {
-		resp := overviewRequest(t, s, http.MethodGet, path, "")
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode, path)
-		var body map[string]string
-		require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
-		assert.Equal(t, "not_found", body["code"], path)
-	}
+
+	status := overviewRequest(t, s, http.MethodGet, "/api/logs/status", "")
+	require.Equal(t, http.StatusOK, status.StatusCode)
+	var body weblog.Status
+	require.NoError(t, json.NewDecoder(status.Body).Decode(&body))
+	assert.False(t, body.Enabled)
+	assert.Empty(t, body.Sources)
+
+	stream := overviewRequest(t, s, http.MethodGet, "/api/logs/stream", "")
+	assert.Equal(t, http.StatusNotFound, stream.StatusCode)
+	var missing map[string]string
+	require.NoError(t, json.NewDecoder(stream.Body).Decode(&missing))
+	assert.Equal(t, "not_found", missing["code"])
 }
 
 func TestLogsNonGetIsMethodNotAllowed(t *testing.T) {
