@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createLogViewer, matchesFilter, compileFilter } from '../src/index.js';
 import { createDocument } from './dom.mjs';
 
-const casesPath = fileURLToPath(new URL('../../../internal/weblog/testdata/filter_cases.json', import.meta.url));
+const casesPath = fileURLToPath(new URL('./fixtures/filter_cases.json', import.meta.url));
 
 test('the viewer filter agrees with the Go filter on the shared cases', async () => {
   const cases = JSON.parse(await readFile(casesPath, 'utf8'));

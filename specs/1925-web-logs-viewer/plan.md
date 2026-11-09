@@ -117,7 +117,7 @@ internal/
 │   ├── decode.go                 # Decode(io.Reader): stream a log file into entries
 │   ├── filter.go                 # Filter.Match (source, min level, text)
 │   ├── display.go                # Display: time, level label, source strings
-│   ├── testdata/                 # shared NDJSON + filter_cases.json (Go and JS tests)
+│   ├── testdata/                 # canonical NDJSON + filter_cases.json; viewer vendors copies
 │   ├── hub.go                    # Hub: ring buffer, sources, Subscribe, Status
 │   ├── writer.go                 # Hub.Writer(name) io.WriteCloser; Hub.Tee()
 │   ├── context.go                # ContextWithHub, HubFromContext

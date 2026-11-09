@@ -137,6 +137,10 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   `internal/webui` imports it only for the types behind its `LogSource`
   interface. `packages/zerolog-viewer` must stay self-contained (nothing outside
   its `src/`, no network, no `innerHTML`); `packages/zerolog-viewer/test/boundary.test.mjs` enforces it.
+  Viewer tests read only files inside that package. Shared fixtures live in
+  `packages/zerolog-viewer/test/fixtures/`, and `TestVendoredViewerFixturesMatch`
+  fails when they differ from `internal/weblog/testdata` (#2018). The boundary
+  test also fails when a path in `test/` leaves the package.
   Redaction covers fields only; `message` is shown as written. `buildEntry`
   reads JSON, then `zerolog.ConsoleWriter` text (the default log file format),
   then raw. A line that starts with `{` and does not parse is withheld, never

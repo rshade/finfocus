@@ -1,0 +1,201 @@
+[
+  {
+    "name": "empty filter matches everything",
+    "entries": [
+      {"seq": 1, "level": "trace", "source": "core", "message": "a"},
+      {"seq": 2, "level": "panic", "source": "aws-public", "message": "b"}
+    ],
+    "filter": {"sources": [], "minLevel": "", "text": ""},
+    "expectSeq": [1, 2]
+  },
+  {
+    "name": "single source",
+    "entries": [
+      {"seq": 1, "level": "info", "source": "core", "message": "a"},
+      {"seq": 2, "level": "info", "source": "aws-public", "message": "b"},
+      {"seq": 3, "level": "info", "source": "kubernetes", "message": "c"}
+    ],
+    "filter": {"sources": ["aws-public"], "minLevel": "", "text": ""},
+    "expectSeq": [2]
+  },
+  {
+    "name": "two sources",
+    "entries": [
+      {"seq": 1, "level": "info", "source": "core", "message": "a"},
+      {"seq": 2, "level": "info", "source": "aws-public", "message": "b"},
+      {"seq": 3, "level": "info", "source": "kubernetes", "message": "c"}
+    ],
+    "filter": {"sources": ["core", "kubernetes"], "minLevel": "", "text": ""},
+    "expectSeq": [1, 3]
+  },
+  {
+    "name": "unknown source selects nothing",
+    "entries": [
+      {"seq": 1, "level": "info", "source": "core", "message": "a"}
+    ],
+    "filter": {"sources": ["missing"], "minLevel": "", "text": ""},
+    "expectSeq": []
+  },
+  {
+    "name": "min level trace",
+    "entries": [
+      {"seq": 1, "level": "trace", "source": "core", "message": "a"},
+      {"seq": 2, "level": "debug", "source": "core", "message": "a"},
+      {"seq": 3, "level": "info", "source": "core", "message": "a"},
+      {"seq": 4, "level": "warn", "source": "core", "message": "a"},
+      {"seq": 5, "level": "error", "source": "core", "message": "a"},
+      {"seq": 6, "level": "fatal", "source": "core", "message": "a"},
+      {"seq": 7, "level": "panic", "source": "core", "message": "a"}
+    ],
+    "filter": {"sources": [], "minLevel": "trace", "text": ""},
+    "expectSeq": [1, 2, 3, 4, 5, 6, 7]
+  },
+  {
+    "name": "min level debug",
+    "entries": [
+      {"seq": 1, "level": "trace", "source": "core", "message": "a"},
+      {"seq": 2, "level": "debug", "source": "core", "message": "a"},
+      {"seq": 3, "level": "info", "source": "core", "message": "a"},
+      {"seq": 4, "level": "warn", "source": "core", "message": "a"},
+      {"seq": 5, "level": "error", "source": "core", "message": "a"},
+      {"seq": 6, "level": "fatal", "source": "core", "message": "a"},
+      {"seq": 7, "level": "panic", "source": "core", "message": "a"}
+    ],
+    "filter": {"sources": [], "minLevel": "debug", "text": ""},
+    "expectSeq": [2, 3, 4, 5, 6, 7]
+  },
+  {
+    "name": "min level info",
+    "entries": [
+      {"seq": 1, "level": "trace", "source": "core", "message": "a"},
+      {"seq": 2, "level": "debug", "source": "core", "message": "a"},
+      {"seq": 3, "level": "info", "source": "core", "message": "a"},
+      {"seq": 4, "level": "warn", "source": "core", "message": "a"},
+      {"seq": 5, "level": "error", "source": "core", "message": "a"},
+      {"seq": 6, "level": "fatal", "source": "core", "message": "a"},
+      {"seq": 7, "level": "panic", "source": "core", "message": "a"}
+    ],
+    "filter": {"sources": [], "minLevel": "info", "text": ""},
+    "expectSeq": [3, 4, 5, 6, 7]
+  },
+  {
+    "name": "min level warn",
+    "entries": [
+      {"seq": 1, "level": "trace", "source": "core", "message": "a"},
+      {"seq": 2, "level": "debug", "source": "core", "message": "a"},
+      {"seq": 3, "level": "info", "source": "core", "message": "a"},
+      {"seq": 4, "level": "warn", "source": "core", "message": "a"},
+      {"seq": 5, "level": "error", "source": "core", "message": "a"},
+      {"seq": 6, "level": "fatal", "source": "core", "message": "a"},
+      {"seq": 7, "level": "panic", "source": "core", "message": "a"}
+    ],
+    "filter": {"sources": [], "minLevel": "warn", "text": ""},
+    "expectSeq": [4, 5, 6, 7]
+  },
+  {
+    "name": "min level error",
+    "entries": [
+      {"seq": 1, "level": "trace", "source": "core", "message": "a"},
+      {"seq": 2, "level": "debug", "source": "core", "message": "a"},
+      {"seq": 3, "level": "info", "source": "core", "message": "a"},
+      {"seq": 4, "level": "warn", "source": "core", "message": "a"},
+      {"seq": 5, "level": "error", "source": "core", "message": "a"},
+      {"seq": 6, "level": "fatal", "source": "core", "message": "a"},
+      {"seq": 7, "level": "panic", "source": "core", "message": "a"}
+    ],
+    "filter": {"sources": [], "minLevel": "error", "text": ""},
+    "expectSeq": [5, 6, 7]
+  },
+  {
+    "name": "min level fatal",
+    "entries": [
+      {"seq": 1, "level": "trace", "source": "core", "message": "a"},
+      {"seq": 2, "level": "debug", "source": "core", "message": "a"},
+      {"seq": 3, "level": "info", "source": "core", "message": "a"},
+      {"seq": 4, "level": "warn", "source": "core", "message": "a"},
+      {"seq": 5, "level": "error", "source": "core", "message": "a"},
+      {"seq": 6, "level": "fatal", "source": "core", "message": "a"},
+      {"seq": 7, "level": "panic", "source": "core", "message": "a"}
+    ],
+    "filter": {"sources": [], "minLevel": "fatal", "text": ""},
+    "expectSeq": [6, 7]
+  },
+  {
+    "name": "min level panic",
+    "entries": [
+      {"seq": 1, "level": "trace", "source": "core", "message": "a"},
+      {"seq": 2, "level": "error", "source": "core", "message": "a"},
+      {"seq": 3, "level": "fatal", "source": "core", "message": "a"},
+      {"seq": 4, "level": "panic", "source": "core", "message": "a"}
+    ],
+    "filter": {"sources": [], "minLevel": "panic", "text": ""},
+    "expectSeq": [4]
+  },
+  {
+    "name": "text matches message",
+    "entries": [
+      {"seq": 1, "level": "info", "source": "core", "message": "loading stack"},
+      {"seq": 2, "level": "info", "source": "core", "message": "pricing done"}
+    ],
+    "filter": {"sources": [], "minLevel": "", "text": "stack"},
+    "expectSeq": [1]
+  },
+  {
+    "name": "text matches a field value",
+    "entries": [
+      {"seq": 1, "level": "info", "source": "core", "message": "a", "fields": {"region": "us-east-1"}},
+      {"seq": 2, "level": "info", "source": "core", "message": "b", "fields": {"region": "eu-west-2"}}
+    ],
+    "filter": {"sources": [], "minLevel": "", "text": "eu-west"},
+    "expectSeq": [2]
+  },
+  {
+    "name": "text matches a nested field value and an array item",
+    "entries": [
+      {"seq": 1, "level": "info", "source": "core", "message": "a", "fields": {"outer": {"inner": "needle"}}},
+      {"seq": 2, "level": "info", "source": "core", "message": "b", "fields": {"list": ["x", "needle"]}},
+      {"seq": 3, "level": "info", "source": "core", "message": "c", "fields": {"count": 42}}
+    ],
+    "filter": {"sources": [], "minLevel": "", "text": "needle"},
+    "expectSeq": [1, 2]
+  },
+  {
+    "name": "text matches a numeric field value",
+    "entries": [
+      {"seq": 1, "level": "info", "source": "core", "message": "a", "fields": {"count": 42}},
+      {"seq": 2, "level": "info", "source": "core", "message": "b", "fields": {"count": 7}}
+    ],
+    "filter": {"sources": [], "minLevel": "", "text": "42"},
+    "expectSeq": [1]
+  },
+  {
+    "name": "text is case-insensitive",
+    "entries": [
+      {"seq": 1, "level": "info", "source": "core", "message": "Pricing FAILED"},
+      {"seq": 2, "level": "info", "source": "core", "message": "ok", "fields": {"Note": "Failed Over"}},
+      {"seq": 3, "level": "info", "source": "core", "message": "fine"}
+    ],
+    "filter": {"sources": [], "minLevel": "", "text": "fAiLeD"},
+    "expectSeq": [1, 2]
+  },
+  {
+    "name": "text does not match field names",
+    "entries": [
+      {"seq": 1, "level": "info", "source": "core", "message": "a", "fields": {"region": "x"}}
+    ],
+    "filter": {"sources": [], "minLevel": "", "text": "region"},
+    "expectSeq": []
+  },
+  {
+    "name": "combined source level and text",
+    "entries": [
+      {"seq": 1, "level": "error", "source": "aws-public", "message": "timeout calling api"},
+      {"seq": 2, "level": "info", "source": "aws-public", "message": "timeout calling api"},
+      {"seq": 3, "level": "error", "source": "core", "message": "timeout calling api"},
+      {"seq": 4, "level": "error", "source": "aws-public", "message": "bad input"},
+      {"seq": 5, "level": "fatal", "source": "aws-public", "message": "x", "fields": {"why": "TIMEOUT"}}
+    ],
+    "filter": {"sources": ["aws-public"], "minLevel": "warn", "text": "timeout"},
+    "expectSeq": [1, 5]
+  }
+]
