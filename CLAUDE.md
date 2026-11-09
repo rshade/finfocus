@@ -385,6 +385,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `started.idempotentClose()`.
 - Secrets never appear in logs, errors, or another plugin's environment.
   Credential names stay on `config.IsCredentialName`.
+- gRPC client interceptors (`TraceInterceptor`, `LoggedInterceptor`) log
+  `InvalidArgument` and `Unimplemented` at debug. Those statuses are handled
+  declines. Other failures stay at warn.
 - While web logs are on, `startPlugin` drops `FINFOCUS_LOG_FILE` from the
   plugin environment (the SDK would write to the file and bypass stderr) and
   tees plugin stderr into the log hub next to the existing destination. Keep the
@@ -665,8 +668,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 ### Router (`internal/router/`)
 
 - A `$0.00` result is valid and does not fall back; only nil/empty does.
-- Higher priority number wins. No routing config means no router (all
-  plugins are queried).
+- Higher priority number wins. No routing config means no router. The engine
+  then asks every client whose advertised providers include the resource, or
+  that advertise none. The same filter applies when a configured router returns
+  no matches. The match uses the provider extracted from the type. When
+  `ResourceDescriptor.Provider` differs, that name counts too: Terraform labels
+  an unmapped type `custom`. An empty `SupportedProviders` list or `*` still
+  receives the fallback. Do not add a provider-name table; comparison uses
+  `resourcetype.NormalizeProvider`.
 - Provider means the billing cloud. `resourcetype.NormalizeProvider` holds the
   only alias table (`aws-native`→`aws`, `azure-native`/`azurerm`→`azure`,
   `google-native`/`google`→`gcp`); never split a type token for a provider
@@ -804,6 +813,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   Bolt in `cache.TieredStore`.
 - Budget health: OK < 80%, WARNING 80-89%, CRITICAL 90-100%, EXCEEDED > 100%;
   aggregation takes the worst.
+- `GetBudgets` skips a client that does not advertise `budgets`
+  (`pluginhost.CapabilityBudgets`). `Unimplemented` is logged at debug and
+  adds nothing to `BudgetResult.Errors`. Any other plugin error is still
+  recorded and, when no budget comes back, fails the call.
 - Recommendations: `Recommendation.ID` is the dismissal id. The cache key hashes
   inputs plus dismissed ids; `--include-dismissed` still sends excluded ids and
   adds `/include-dismissed`.

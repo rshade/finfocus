@@ -139,6 +139,18 @@ func (m *mockCostSourceClient) GetRecommendationHistory(
 	return nil, status.Error(codes.Unimplemented, "GetRecommendationHistory not implemented")
 }
 
+// stampBudgetCapability marks fixtures that predate the budgets capability
+// so GetBudgets still calls them.
+func stampBudgetCapability(clients []*pluginhost.Client) {
+	for _, client := range clients {
+		if client != nil && client.Metadata == nil {
+			client.Metadata = &proto.PluginMetadata{
+				Capabilities: []string{pluginhost.CapabilityBudgets},
+			}
+		}
+	}
+}
+
 //nolint:paralleltest // table cases share the parent-scoped fixture budget1
 func TestEngine_GetBudgets(t *testing.T) {
 	ctx := context.Background()
@@ -276,6 +288,7 @@ func TestEngine_GetBudgets(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			stampBudgetCapability(tc.clients)
 			eng := New(tc.clients, nil)
 			result, err := eng.GetBudgets(ctx, tc.filter)
 

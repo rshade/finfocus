@@ -9,10 +9,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
@@ -542,20 +547,9 @@ func (e *Engine) GetBudgets(ctx context.Context, filter *BudgetFilterOptions) (*
 
 	result := &BudgetResult{}
 
-	var allBudgets []*pbc.Budget
-
-	// 1. Query plugins
-	for _, client := range e.clients {
-		resp, err := client.API.GetBudgets(ctx, &pbc.GetBudgetsRequest{})
-		if err != nil {
-			logger.Warn().Str("plugin", client.Name).Err(err).Msg("failed to get budgets from plugin")
-			result.Errors = append(result.Errors, fmt.Errorf("plugin %s: %w", client.Name, err))
-			continue
-		}
-		if resp != nil && len(resp.GetBudgets()) > 0 {
-			allBudgets = append(allBudgets, resp.GetBudgets()...)
-		}
-	}
+	// 1. Query plugins that advertise budgets.
+	allBudgets, pluginErrs := e.collectPluginBudgets(ctx, logger)
+	result.Errors = append(result.Errors, pluginErrs...)
 
 	if len(allBudgets) == 0 && len(result.Errors) > 0 {
 		return result, fmt.Errorf("failed to retrieve budgets from any plugin: %v", result.Errors)
@@ -606,6 +600,41 @@ func (e *Engine) GetBudgets(ctx context.Context, filter *BudgetFilterOptions) (*
 		Msg("budget retrieval complete")
 
 	return result, nil
+}
+
+// collectPluginBudgets asks plugins that advertise budgets for their budgets.
+// A plugin that does not advertise the capability is not called. Unimplemented
+// is a handled decline: it is logged at debug and omitted from the error list.
+func (e *Engine) collectPluginBudgets(ctx context.Context, logger zerolog.Logger) ([]*pbc.Budget, []error) {
+	var budgets []*pbc.Budget
+	var errs []error
+	for _, client := range e.clients {
+		if client == nil || !client.HasCapability(pluginhost.CapabilityBudgets) {
+			if client != nil {
+				logger.Debug().
+					Str("plugin", client.Name).
+					Msg("skipping plugin that does not advertise budgets")
+			}
+			continue
+		}
+		resp, err := client.API.GetBudgets(ctx, &pbc.GetBudgetsRequest{})
+		if err != nil {
+			if status.Code(err) == codes.Unimplemented {
+				logger.Debug().
+					Str("plugin", client.Name).
+					Err(err).
+					Msg("plugin does not implement budgets")
+				continue
+			}
+			logger.Warn().Str("plugin", client.Name).Err(err).Msg("failed to get budgets from plugin")
+			errs = append(errs, fmt.Errorf("plugin %s: %w", client.Name, err))
+			continue
+		}
+		if resp != nil && len(resp.GetBudgets()) > 0 {
+			budgets = append(budgets, resp.GetBudgets()...)
+		}
+	}
+	return budgets, errs
 }
 
 // ConfigBudgetToProto converts a config-evaluated BudgetStatus into a pbc.Budget

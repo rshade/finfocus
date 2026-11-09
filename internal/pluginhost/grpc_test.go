@@ -3,13 +3,18 @@ package pluginhost_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
@@ -192,4 +197,84 @@ func TestLoggedInterceptor(t *testing.T) {
 	err = interceptor(ctx, method, nil, nil, nil, mockInvokerError)
 	require.ErrorIs(t, err, assert.AnError)
 	assert.Contains(t, buf.String(), "gRPC call failed")
+}
+
+func TestGRPCInterceptor_HandledDeclinesLogAtDebug(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{
+			name: "invalid argument",
+			err:  status.Error(codes.InvalidArgument, "region is required"),
+			want: "debug",
+		},
+		{
+			name: "unimplemented",
+			err:  status.Error(codes.Unimplemented, "not implemented"),
+			want: "debug",
+		},
+		{
+			name: "unavailable",
+			err:  status.Error(codes.Unavailable, "invalid region"),
+			want: "warn",
+		},
+		{
+			name: "non status",
+			err:  errors.New("boom"),
+			want: "warn",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			t.Run("trace", func(t *testing.T) {
+				t.Parallel()
+				assertGRPCFailureLevel(t, tt.err, tt.want, true)
+			})
+			t.Run("logged", func(t *testing.T) {
+				t.Parallel()
+				assertGRPCFailureLevel(t, tt.err, tt.want, false)
+			})
+		})
+	}
+}
+
+func assertGRPCFailureLevel(t *testing.T, callErr error, want string, trace bool) {
+	t.Helper()
+
+	var buf bytes.Buffer
+	logger := zerolog.New(&buf).Level(zerolog.TraceLevel)
+	ctx := context.Background()
+	var interceptor grpc.UnaryClientInterceptor
+	if trace {
+		ctx = logger.WithContext(ctx)
+		interceptor = pluginhost.TraceInterceptor()
+	} else {
+		interceptor = pluginhost.LoggedInterceptor(logger)
+	}
+	invoker := func(context.Context, string, any, any, *grpc.ClientConn, ...grpc.CallOption) error {
+		return callErr
+	}
+	err := interceptor(ctx, "/test.Service/Method", nil, nil, nil, invoker)
+	require.ErrorIs(t, err, callErr)
+	assert.Equal(t, want, logLevelForMessage(t, buf.String(), "gRPC call failed"))
+}
+
+func logLevelForMessage(t *testing.T, raw, message string) string {
+	t.Helper()
+	for _, line := range strings.Split(raw, "\n") {
+		if !strings.Contains(line, message) {
+			continue
+		}
+		var event map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &event))
+		level, _ := event["level"].(string)
+		return level
+	}
+	require.Failf(t, "missing log line", "message %q not in %s", message, raw)
+	return ""
 }

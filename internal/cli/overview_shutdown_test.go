@@ -50,7 +50,11 @@ func TestBudgetFetchDoneClosesAfterGetBudgets(t *testing.T) {
 		release:  release,
 		finished: make(chan struct{}),
 	}
-	eng := engine.New([]*pluginhost.Client{{Name: "slow", API: api}}, nil)
+	eng := engine.New([]*pluginhost.Client{{
+		Name:     "slow",
+		API:      api,
+		Metadata: &proto.PluginMetadata{Capabilities: []string{pluginhost.CapabilityBudgets}},
+	}}, nil)
 	_, done := launchBudgetFetch(context.Background(), eng)
 
 	select {
@@ -80,7 +84,11 @@ func TestOverviewPipelineCleansUpAfterBudgetFetch(t *testing.T) {
 		release:  release,
 		finished: make(chan struct{}),
 	}
-	eng := engine.New([]*pluginhost.Client{{Name: "slow", API: api}}, nil)
+	eng := engine.New([]*pluginhost.Client{{
+		Name:     "slow",
+		API:      api,
+		Metadata: &proto.PluginMetadata{Capabilities: []string{pluginhost.CapabilityBudgets}},
+	}}, nil)
 	cleaned := make(chan struct{})
 	pipe := newOverviewPipeline(overviewPipelineConfig{
 		wantBudget: true,

@@ -196,6 +196,7 @@ func TestBudgetTagFilter_EndToEnd(t *testing.T) {
 		},
 	}
 
+	advertiseBudgets(clients)
 	eng := engine.New(clients, nil)
 
 	t.Run("no filter returns all budgets", func(t *testing.T) {
@@ -344,6 +345,7 @@ func TestBudgetTagFilter_LegacyTagPrefix(t *testing.T) {
 		},
 	}
 
+	advertiseBudgets(clients)
 	eng := engine.New(clients, nil)
 
 	// Filter should match both legacy and modern formats
@@ -381,6 +383,7 @@ func TestBudgetTagFilter_SpecialCharacterKeys(t *testing.T) {
 		},
 	}
 
+	advertiseBudgets(clients)
 	eng := engine.New(clients, nil)
 
 	filter := &engine.BudgetFilterOptions{
@@ -415,6 +418,7 @@ func TestBudgetTagFilter_CaseSensitive(t *testing.T) {
 		},
 	}
 
+	advertiseBudgets(clients)
 	eng := engine.New(clients, nil)
 
 	// Different case should not match

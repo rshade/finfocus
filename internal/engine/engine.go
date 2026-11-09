@@ -135,7 +135,7 @@ type Engine struct {
 	loader                SpecLoader
 	cache                 cache.Cache
 	history               history.Store          // Optional history store; if nil, no history tracking
-	router                Router                 // Optional router for plugin selection; if nil, queries all plugins
+	router                Router                 // Optional router; nil uses advertised-provider fallback
 	dismissalStore        *config.DismissalStore // Optional dismissal store; if nil, created on demand
 	jobs                  int                    // Override worker count; 0 means auto (default)
 	pricingSpecFallback   bool                   // GetPricingSpec after a projected-cost miss; default off
@@ -188,7 +188,8 @@ func (e *Engine) WithHistory(store history.Store) *Engine {
 }
 
 // WithRouter sets the router for intelligent plugin selection.
-// This is optional - if not set, all plugins are queried for each resource.
+// This is optional. When unset, each resource is offered only to clients
+// whose advertised providers include its cloud, or that advertise no providers.
 func (e *Engine) WithRouter(router Router) *Engine {
 	e.router = router
 	return e
@@ -515,6 +516,61 @@ func matchesWithoutScorers(matches []PluginMatch) []PluginMatch {
 	return kept
 }
 
+// clientsAdvertisingProvider keeps clients the all-clients fallback may call.
+// A plugin with no metadata, an empty SupportedProviders list, or a "*" or
+// blank entry advertises no restriction and is kept. A non-empty list is
+// kept when it names the provider extracted from the resource type or, when
+// that name differs, ResourceDescriptor.Provider. Terraform labels an
+// unmapped type "custom", so a plugin that advertises custom still receives
+// it. Names compare through resourcetype.NormalizeProvider, the only alias
+// table.
+func clientsAdvertisingProvider(
+	clients []*pluginhost.Client,
+	resource ResourceDescriptor,
+) []*pluginhost.Client {
+	kept := make([]*pluginhost.Client, 0, len(clients))
+	for _, client := range clients {
+		if clientAdvertisesResource(client, resource) {
+			kept = append(kept, client)
+		}
+	}
+	return kept
+}
+
+// clientAdvertisesResource reports whether client may be offered resource.
+func clientAdvertisesResource(client *pluginhost.Client, resource ResourceDescriptor) bool {
+	fromType := resourcetype.ExtractProvider(resource.Type)
+	if clientAdvertisesProvider(client, fromType) {
+		return true
+	}
+	named := resourcetype.NormalizeProvider(resource.Provider)
+	if named == "" || named == fromType {
+		return false
+	}
+	return clientAdvertisesProvider(client, named)
+}
+
+// clientAdvertisesProvider reports whether client may be offered provider.
+// A nil client is kept so later filters see the same set as before this check.
+func clientAdvertisesProvider(client *pluginhost.Client, provider string) bool {
+	if client == nil || client.Metadata == nil {
+		return true
+	}
+	supported := client.Metadata.SupportedProviders
+	if len(supported) == 0 {
+		return true
+	}
+	for _, name := range supported {
+		if name == "" || name == "*" {
+			return true
+		}
+		if resourcetype.NormalizeProvider(name) == provider {
+			return true
+		}
+	}
+	return false
+}
+
 // automaticMatches builds fallback matches. Every match allows fallback.
 func automaticMatches(clients []*pluginhost.Client) []PluginMatch {
 	matches := make([]PluginMatch, len(clients))
@@ -552,7 +608,7 @@ func (e *Engine) selectPluginMatchesForResource(
 ) ([]PluginMatch, []pluginDecline) {
 	log := logging.FromContext(ctx)
 
-	// If no router configured, return all clients as matches with fallback enabled
+	// If no router is configured, offer clients that advertise this provider.
 	if e.router == nil {
 		// Filter internal Pulumi types when no router is configured
 		if IsPulumiInternalType(resource.Type) {
@@ -565,16 +621,16 @@ func (e *Engine) selectPluginMatchesForResource(
 			return nil, nil
 		}
 
+		candidates := clientsAdvertisingProvider(e.clientsForFeature(feature), resource)
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "engine").
 			Str("operation", "select_plugins").
 			Str("resource_type", resource.Type).
-			Int("client_count", len(e.clients)).
-			Msg("no router configured, using all clients")
+			Int("client_count", len(candidates)).
+			Msg("no router configured, using clients that advertise the provider")
 
-		matches := automaticMatches(e.clientsForFeature(feature))
-		return e.filterUnsupportedPlugins(ctx, matches, resource, feature)
+		return e.filterUnsupportedPlugins(ctx, automaticMatches(candidates), resource, feature)
 	}
 
 	// Use router for intelligent plugin selection
@@ -591,15 +647,16 @@ func (e *Engine) selectPluginMatchesForResource(
 			return nil, nil
 		}
 
+		candidates := clientsAdvertisingProvider(e.clientsForFeature(feature), resource)
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "engine").
 			Str("operation", "select_plugins").
 			Str("resource_type", resource.Type).
-			Msg("router returned no matches, falling back to all clients")
+			Int("client_count", len(candidates)).
+			Msg("router returned no matches, falling back to clients that advertise the provider")
 
-		fallbackMatches := automaticMatches(e.clientsForFeature(feature))
-		return e.filterUnsupportedPlugins(ctx, fallbackMatches, resource, feature)
+		return e.filterUnsupportedPlugins(ctx, automaticMatches(candidates), resource, feature)
 	}
 
 	// Strip after the empty check. An explicit route that names only a

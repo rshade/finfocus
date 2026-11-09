@@ -5,7 +5,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/rshade/finfocus/internal/logging"
 )
@@ -46,9 +48,9 @@ func TraceInterceptor() grpc.UnaryClientInterceptor {
 		// Invoke the actual RPC
 		err := invoker(ctx, method, req, reply, cc, opts...)
 
-		// Log result
+		// Log result. InvalidArgument and Unimplemented are handled declines.
 		if err != nil {
-			log.Warn().
+			log.WithLevel(grpcFailureLevel(err)).
 				Ctx(ctx).
 				Str("component", "pluginhost").
 				Str("operation", "grpc_call").
@@ -88,7 +90,7 @@ func LoggedInterceptor(logger zerolog.Logger) grpc.UnaryClientInterceptor {
 		err := invoker(ctx, method, req, reply, cc, opts...)
 
 		if err != nil {
-			logger.Warn().
+			logger.WithLevel(grpcFailureLevel(err)).
 				Str("component", "pluginhost").
 				Str("operation", "grpc_call").
 				Str("method", method).
@@ -98,4 +100,20 @@ func LoggedInterceptor(logger zerolog.Logger) grpc.UnaryClientInterceptor {
 
 		return err
 	}
+}
+
+// handledGRPCDecline reports whether the engine treats err as a finished
+// answer rather than a failure. InvalidArgument is a cached Supports decline.
+// Unimplemented means the plugin does not offer the RPC.
+func handledGRPCDecline(err error) bool {
+	code := status.Code(err)
+	return code == codes.InvalidArgument || code == codes.Unimplemented
+}
+
+// grpcFailureLevel is debug for a handled decline and warn otherwise.
+func grpcFailureLevel(err error) zerolog.Level {
+	if handledGRPCDecline(err) {
+		return zerolog.DebugLevel
+	}
+	return zerolog.WarnLevel
 }
