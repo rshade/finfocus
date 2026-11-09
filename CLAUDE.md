@@ -888,6 +888,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   decline: it is cached as unsupported, the reason is shown, and no pricing
   RPC follows. `Unavailable`, `DeadlineExceeded`, and `Canceled` stay
   fail-open and are not cached. Do not add a provider-name table here.
+  The request carries `capability` from `supportsCapability(feature)`
+  (`ProjectedCosts` and `BatchCost` send PROJECTED_COSTS; `ActualCosts`,
+  `Carbon`, `Recommendations`, `PricingSpec` their own; anything else
+  UNSPECIFIED). The feature already fixes the cache key, so no new suffix.
+  EstimateCost does not call Supports. A plugin may decline projected and
+  support actual for one type (aws-ce, #2072).
 - Plugin `expires_at` sets a per-entry TTL (capped at 7 days; a past time skips
   caching). A plugin whose price depends on its own environment must send
   `expires_at` = now, because the cache key cannot see it.

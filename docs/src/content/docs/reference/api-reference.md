@@ -121,12 +121,26 @@ Checks if the cost source supports pricing for a given resource type.
 ```protobuf
 message SupportsRequest {
   ResourceDescriptor resource = 1;
+  PluginCapability capability = 2;
 }
 ```
 
 **Fields:**
 
 - `resource` (ResourceDescriptor) - Resource to check support for
+- `capability` (PluginCapability) - Operation the host is about to call;
+  `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability
+
+FinFocus sets `capability` to the operation it is about to call:
+`PLUGIN_CAPABILITY_PROJECTED_COSTS` for projected and batch cost,
+`PLUGIN_CAPABILITY_ACTUAL_COSTS`, `PLUGIN_CAPABILITY_CARBON`, or
+`PLUGIN_CAPABILITY_RECOMMENDATIONS`.
+`PLUGIN_CAPABILITY_UNSPECIFIED` means any capability. A plugin can decline one
+capability and support another for the same resource, for example decline
+projected cost for a type it can only bill. The decline reason then appears in
+the projected cost notes, and actual cost still reaches the plugin. A plugin
+that ignores the field answers once for every capability, as before. Plugins
+read the value with `pluginsdk.RequestedCapability(req)`.
 
 **Response:**
 

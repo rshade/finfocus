@@ -298,6 +298,7 @@ func (e *Engine) checkPluginSupports(
 			Tags:         descriptor.GetTags(),
 			Attributes:   descriptor.GetAttributes(),
 		},
+		Capability: supportsCapability(feature),
 	})
 	verdict := classifySupports(resp, err)
 	switch verdict.kind {
@@ -326,6 +327,29 @@ func (e *Engine) checkPluginSupports(
 		e.cacheSupportsResult(cacheKey, supportsResult{supported: verdict.supported, reason: verdict.reason})
 	}
 	return verdict.supported, verdict.reason
+}
+
+// supportsCapability maps an engine feature to the capability sent in
+// SupportsRequest, so a plugin can answer per operation. The cache key already
+// carries the feature, which fixes the capability. BatchCost asks the projected
+// question because a batch result replaces per-resource projected pricing.
+// Features with no capability send UNSPECIFIED, which a plugin answers as
+// "any capability", as it did before the field existed.
+func supportsCapability(feature string) pbc.PluginCapability {
+	switch feature {
+	case "ProjectedCosts", batchCostFeature:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS
+	case "ActualCosts":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS
+	case carbonFeature:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON
+	case recommendationsFeature:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS
+	case "PricingSpec":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_PRICING_SPEC
+	default:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED
+	}
 }
 
 type supportsKind int
