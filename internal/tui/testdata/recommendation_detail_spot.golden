@@ -2,7 +2,7 @@ RECOMMENDATION DETAIL
 =====================
 
 Resource:    i-spot
-Action Type: RECOMMENDATION_ACTION_TYPE_MODIFY
+Action Type: Modify
 Savings:     $62.00 USD
 Pricing:     SPOT · risk 0.12
 Description: Move batch-worker to spot capacity
