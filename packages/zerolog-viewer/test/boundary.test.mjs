@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
+import { isBuiltin } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -38,15 +39,15 @@ function quotedSpecs(source, patterns) {
   return specs;
 }
 
-function resolvedImport(spec, fromDir) {
-  if (spec.startsWith('.') || path.isAbsolute(spec)) return path.resolve(fromDir, spec);
-  if (spec.startsWith('file:')) return fileURLToPath(new URL(spec));
-  return '';
-}
-
 function resolvedURL(spec, fromDir) {
   const base = pathToFileURL(path.join(fromDir, 'file.mjs'));
   return fileURLToPath(new URL(spec, base));
+}
+
+function resolvedImport(spec, fromDir) {
+  if (spec.startsWith('.') || spec.startsWith('file:')) return resolvedURL(spec, fromDir);
+  if (path.isAbsolute(spec)) return spec;
+  return '';
 }
 
 export function leavingPaths(file, source, fromDir) {
@@ -59,7 +60,8 @@ export function leavingPaths(file, source, fromDir) {
   for (const spec of imports) {
     try {
       const resolved = resolvedImport(spec, fromDir);
-      if (resolved && outsidePackage(resolved)) found.push(`${file}: leaves package: ${spec}`);
+      if (!resolved && !isBuiltin(spec)) found.push(`${file}: bare import ${spec}`);
+      else if (resolved && outsidePackage(resolved)) found.push(`${file}: leaves package: ${spec}`);
     } catch {
       found.push(`${file}: unreadable path: ${spec}`);
     }
@@ -95,7 +97,7 @@ test('src imports nothing outside src and has no network or unsafe sinks', async
 test('the check catches a planted bad import', () => {
   assert.equal(violations('x.js', "import { el } from '../app.js';").length > 0, true);
   const outsideSrc = '../'.repeat(2) + 'x.js';
-  assert.equal(violations('x.js', `import a from '${outsideSrc}';`).length > 0, true);
+  assert.equal(violations('x.js', `import a from ${JSON.stringify(outsideSrc)};`).length > 0, true);
   assert.equal(violations('x.js', 'el.innerHTML = s;').length > 0, true);
   assert.deepEqual(violations('x.js', "import a from './viewer.js';"), []);
 });
@@ -119,10 +121,13 @@ test('the check catches a path that leaves the package', () => {
     urlCall(`./${encoded}internal/weblog/testdata/sample.ndjson`),
     urlCall('file:' + '//etc/passwd'),
     `import x from ${JSON.stringify('file:' + '//etc/passwd.js')}`,
+    `import x from ${JSON.stringify(`./${encoded}internal/weblog/x.mjs`)}`,
+    `import x from ${JSON.stringify('left-pad')}`,
   ];
   for (const source of cases) {
     assert.equal(leavingPaths('ndjson.test.mjs', source, testDir).length > 0, true, source);
   }
   const inside = "readFile(new URL('./fixtures/sample.ndjson', import.meta.url))";
   assert.deepEqual(leavingPaths('ndjson.test.mjs', inside, testDir), []);
+  assert.deepEqual(leavingPaths('ndjson.test.mjs', "import test from 'node:test';", testDir), []);
 });
