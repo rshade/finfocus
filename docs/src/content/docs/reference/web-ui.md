@@ -12,7 +12,7 @@ the reasoning behind the security model, see
 
 ```bash
 finfocus --web [--port N] [--no-browser] [--pulumi-json FILE] [--pulumi-state FILE]
-               [--stack NAME] [--from DATE] [--to DATE] [--adapter NAME] [--filter EXPR]...
+               [--stack NAME[,NAME]...] [--from DATE] [--to DATE] [--adapter NAME] [--filter EXPR]...
                [--allowed-host NAME]... [--trusted-proxy --allowed-user LOGIN...]
 ```
 
@@ -22,6 +22,12 @@ finfocus --web [--port N] [--no-browser] [--pulumi-json FILE] [--pulumi-state FI
 - With no source flag, the Pulumi project, stack, and state are detected from
   the working directory, as for `finfocus overview`.
 - `--terraform-state` is not accepted.
+- `--stack` takes one name, or a list for several tabs: `--stack dev,prod` and
+  `--stack dev --stack prod` are the same. Surrounding whitespace is trimmed,
+  repeated names count once, and the first name is the first tab. A list of two
+  or more names must be stacks of the Pulumi project in the working directory,
+  and cannot be combined with `--pulumi-json` or `--pulumi-state`. One name, or
+  none, is the single-stack page with no tab bar.
 - `--allowed-host`, `--trusted-proxy`, and `--allowed-user` serve the dashboard
   behind an HTTPS proxy on the same machine; see
   [Serve behind a proxy](../guides/web-ui.md#serve-behind-a-proxy).
@@ -46,7 +52,7 @@ start the opener is logged as a warning; the server keeps running.
 | --- | --- |
 | 0 | The server shut down cleanly after `Ctrl+C`. |
 | 1 | Launch failure: no Pulumi project found, port unavailable or outside 0-65535, unknown flag (including `--web` on a subcommand). |
-| 2 | Invalid input: a companion flag without `--web`, `--web` with `--mcp`, or an unparsable `--from`/`--to`. |
+| 2 | Invalid input: a companion flag without `--web`, `--web` with `--mcp`, an unparsable `--from`/`--to`, or a bad stack list (an empty or invalid name, a name the project does not have, or a list with `--pulumi-json`, `--pulumi-state`, or a Terraform project). The message for an unknown name lists the project's stacks. |
 
 ## Views
 
@@ -299,10 +305,31 @@ The **Group by** selector and the **Include dismissed** checkbox expose existing
 CLI options that the terminal UI fixes at launch or lacks. Both go through the
 same engine code path as the CLI flags.
 
+### Stack tabs
+
+With two or more stacks the header shows the active stack's name and a tab bar
+between the title and the view links. Each tab is one stack, in the order you
+gave. Every view (Overview, Cost, Recommendations, and the rest) shows only the
+selected stack's data; nothing is combined across stacks. The address is
+`#/s/<stack>/<view>`; an address with no stack, or an unknown one, opens the
+first stack.
+
+A stack starts loading the first time its tab is selected, so only the stacks
+you open run plugins. Leaving a tab ends its live updates, and returning to it
+shows what it already loaded. A tab shows its state in text:
+
+| Marker | Meaning |
+| --- | --- |
+| none | Not opened yet, loading, or ready |
+| `failed` | The stack could not load. Its view shows the same safe message a single-stack run shows. Other tabs are unaffected. A failed stack stays failed until you restart the dashboard. |
+| `locked` | The stack is waiting for its passphrase. The prompt appears in that tab and unlocks only that stack. |
+
 ## Keyboard and display
 
 | Input | Action |
 | --- | --- |
+| `Left` / `Right` on a stack tab | Select the previous or next stack, wrapping at the ends |
+| `Home` / `End` on a stack tab | Select the first or last stack |
 | `Tab` / `Shift+Tab` | Move between controls |
 | `Enter` / `Space` | Activate the focused button |
 | `Enter` in an estimate value, or `Tab` out of an edited one | Recalculate |
@@ -332,6 +359,9 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST` whose `Content-Type` is not `application/json` | 415 | `unsupported_media_type` | `Content-Type must be application/json` |
 | `GET /api/overview/resource?urn=<urn>` | 200 | - | Row details plus `blastRadius`: `available`, `dependents` (each with `depth`, `via`, `status`, `monthlyCost`, `priced`, `component`), `count`, `monthlyTotal` (omitted when `mixedCurrency`), `currency` and `leftOut` (`deleting`, `unpriced`, `unresolved`). Check `available` first. |
 | `GET /api/overview/anomalies` | 200 | - | The same list as `finfocus cost anomalies --output json`, read from the session's overview rows and the session stack's stored daily actuals with no new pricing run: `considered` and `anomalies` (`resource`, `type`, `period`, `baseline`, `observed`, `deviation`, `percentDrift`, `severity`, `method`, `currency`, and `baselineWindow` on `method: robust-median` rows). An `anomalies` item's `method` is `drift` (run-rate divergence) or `robust-median` (the latest complete day against the median of the resource's own 14-or-more earlier days). An empty `anomalies` array with a nonzero `considered` means nothing qualified. Until enrichment finishes the answer is 503 `not_ready`. Each item also carries a `display` object (`baseline`, `observed`, `deviation`, `drift`, `period`) and the body a `summary` count line; the page shows those strings. |
+| `GET /api/stacks` | 200 | - | The registered stacks in order, `{"stacks":[{"name","state"}]}`. `state` is `idle`, `loading`, `locked`, `ready`, or `failed`. An empty list with no stacks registered. Root only: it does not exist under `/s/<stack>/`. |
+| `POST /api/stacks/{name}/activate` | 202 | - | Starts that stack the first time and answers `{"name","state"}`. Repeating it changes nothing. Root only. |
+| `POST /api/stacks/{name}/activate` for a name that is not registered | 404 | `not_found` | `unknown stack` |
 | `GET /api/config` | 200 | - | Effective configuration. Secret values are omitted. |
 | `POST /api/config/preview` | 200 | - | Before/after diff. Writes nothing. |
 | `POST /api/config` | 200 | - | Writes the selected `config.hujson` and returns the page plus a reload notice. |

@@ -163,7 +163,7 @@ func TestWebFlagsFromOverviewParams(t *testing.T) {
 		noBrowser:   false,
 		pulumiJSON:  "plan.json",
 		pulumiState: "state.json",
-		stack:       "dev",
+		stack:       []string{"dev"},
 		from:        "2026-01-01",
 		to:          "2026-01-31",
 		adapter:     "aws",
@@ -210,7 +210,7 @@ func TestInteractiveOverview_HandsOffToWebAfterCleanup(t *testing.T) {
 		assert.False(t, got.noBrowser)
 		assert.Equal(t, params.pulumiJSON, got.pulumiJSON)
 		assert.Equal(t, params.pulumiState, got.pulumiState)
-		assert.Equal(t, params.stack, got.stack)
+		assert.Equal(t, []string{params.stack}, got.stack)
 		assert.Equal(t, params.fromStr, got.from)
 		assert.Equal(t, params.toStr, got.to)
 		assert.Equal(t, params.adapter, got.adapter)

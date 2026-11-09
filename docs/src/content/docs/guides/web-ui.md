@@ -45,6 +45,33 @@ finfocus --web --stack dev
 `--project-dir` still controls only configuration resolution. Source detection
 always starts from the working directory.
 
+## Open several stacks
+
+To compare stacks in one page, give `--stack` a list:
+
+```bash
+finfocus --web --stack dev,prod
+```
+
+You can also repeat the flag: `--stack dev --stack prod`. The page shows a tab
+for each stack, in the order you gave, and the header names the one you are
+looking at. Select a tab with the mouse, or focus the tab bar and use `Left`,
+`Right`, `Home`, and `End`. Each tab has its own Overview, Cost,
+Recommendations, and every other view, and nothing is added up across stacks.
+
+A stack loads when you first open its tab, so a list of five stacks does not
+start five sets of plugins at once. Returning to a tab shows what it already
+loaded.
+
+If a stack cannot load, its tab says `failed` and its view shows the same
+message a single stack would. The other tabs keep working. Restart the
+dashboard to retry a failed stack.
+
+Every name must be a stack of the project in the working directory. An unknown
+name stops the command with exit code 2 and lists the stacks the project has. A
+list needs the project's own stacks, so it cannot be combined with
+`--pulumi-json` or `--pulumi-state`.
+
 ## Run without opening a browser
 
 On a machine with no graphical browser, or when you want to choose the browser
@@ -116,6 +143,9 @@ page reads is the optional spend CSV on the Forecast view.
 If the stack uses a passphrase secrets provider, the overview opens an
 **Encrypted stack** dialog. Enter the passphrase and choose **Unlock**. A wrong
 passphrase shows an inline error and lets you try again.
+
+With several stacks, each encrypted stack asks for its own passphrase in its
+own tab, marked `locked`. Unlocking one stack does not unlock another.
 
 FinFocus hands the passphrase only to the `pulumi` subprocess environment. It
 never puts it in a response, an event, or a log line, and never saves it.
@@ -368,6 +398,8 @@ that launched it to shut down the server and its plugins.
 ## Limitations
 
 - Pulumi only. `--terraform-state` is not a `--web` flag.
+- A stack list needs a Pulumi project. There are no totals or comparisons across
+  stacks; each tab is independent.
 - Loopback listener only. There is no option to listen on a non-loopback
   address and no built-in TLS. To reach the dashboard from other devices, put
   an HTTPS proxy on the same machine in front of it

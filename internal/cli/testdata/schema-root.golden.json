@@ -104,8 +104,9 @@
     },
     {
       "name": "stack",
-      "type": "string",
-      "usage": "Pulumi stack name for auto-detection (only valid with --web or --import-cloud-history)"
+      "type": "stringArray",
+      "default": "[]",
+      "usage": "Pulumi stack name for auto-detection; with --web, comma-separated or repeated names open one tab per stack (only valid with --web or --import-cloud-history)"
     },
     {
       "name": "strict",

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -144,4 +145,93 @@ func TestWebStacks_EachStackOwnsItsPassphraseChannel(t *testing.T) {
 	require.NoError(t, dev.pipeCtx.Err())
 	prod.cancel()
 	assert.NoError(t, dev.pipeCtx.Err(), "stopping one stack must not cancel another")
+}
+
+// newCountingStack builds a stack whose loader counts its runs and fails at
+// once, so Run returns. It installs the loader through the construction seam,
+// which proves what building the stack alone does.
+func newCountingStack(t *testing.T) (*webStack, *atomic.Int32) {
+	t.Helper()
+	unsetPassphraseEnv(t)
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	config.ResetGlobalConfigForTest()
+	t.Cleanup(config.ResetGlobalConfigForTest)
+	config.SetGlobalConfig(&config.Config{})
+	cmd := &cobra.Command{Use: "test"}
+	cmd.SetContext(context.Background())
+
+	var runs atomic.Int32
+	webPipelineHook = func(p *OverviewPipeline) {
+		p.cfg.openPlugins = fakeOpenPlugins
+		p.cfg.newEngine = fakeNewEngine
+		p.cfg.loader = func(context.Context, *OverviewPipeline) (*OverviewPipelineData, error) {
+			runs.Add(1)
+			return nil, errors.New("load failed")
+		}
+	}
+	t.Cleanup(func() { webPipelineHook = func(*OverviewPipeline) {} })
+
+	stack := newWebStack(context.Background(), cmd, overviewParams{stack: "dev", cfg: config.New()},
+		engine.DateRange{}, nil, nil)
+	t.Cleanup(stack.stop)
+	return stack, &runs
+}
+
+//nolint:paralleltest // newCountingStack sets process-wide config and the web pipeline hook
+func TestWebStack_BuildingStartsNothing(t *testing.T) {
+	stack, runs := newCountingStack(t)
+
+	assert.False(t, stack.started.Load())
+	assert.Zero(t, runs.Load(), "building a stack must not run its pipeline")
+	assert.False(t, stack.session.Failed())
+}
+
+//nolint:paralleltest // newCountingStack sets process-wide config and the web pipeline hook
+func TestWebStack_StartRunsThePipelineOnce(t *testing.T) {
+	stack, runs := newCountingStack(t)
+
+	stack.start()
+	stack.start()
+	stack.start()
+	select {
+	case <-stack.pipeDone:
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "pipeline never finished")
+	}
+
+	assert.Equal(t, int32(1), runs.Load())
+	assert.True(t, stack.started.Load())
+}
+
+//nolint:paralleltest // newCountingStack sets process-wide config and the web pipeline hook
+func TestWebStack_StartMarksThePipelineEnded(t *testing.T) {
+	stack, _ := newCountingStack(t)
+	assert.False(t, stack.session.Failed())
+
+	stack.start()
+	select {
+	case <-stack.pipeDone:
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "pipeline never finished")
+	}
+
+	assert.True(t, stack.session.Failed(), "an ended pipeline with a recorded failure is failed")
+}
+
+//nolint:paralleltest // newCountingStack sets process-wide config and the web pipeline hook
+func TestWebStack_StopBeforeStartReturns(t *testing.T) {
+	stack, runs := newCountingStack(t)
+
+	stopped := make(chan struct{})
+	go func() {
+		stack.stop()
+		stack.stop()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "stop on a never-started stack did not return")
+	}
+	assert.Zero(t, runs.Load())
 }

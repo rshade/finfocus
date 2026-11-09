@@ -26,8 +26,9 @@ type webStack struct {
 	cancel   context.CancelFunc
 	pipeDone chan struct{}
 
-	started  atomic.Bool
-	stopOnce sync.Once
+	started   atomic.Bool
+	startOnce sync.Once
+	stopOnce  sync.Once
 }
 
 // newWebStack builds one stack's runtime from its params. The passphrase
@@ -65,9 +66,18 @@ func newWebStack(
 }
 
 // start runs the pipeline in the background; pipeDone closes when it returns.
+// Only the first call starts anything, so a client can activate the stack as
+// often as it likes. The session learns the pipeline ended before pipeDone
+// closes, which is what makes a recorded failure final (Session.Failed).
 func (s *webStack) start() {
-	s.started.Store(true)
-	go func() { defer close(s.pipeDone); _ = s.pipe.Run(s.pipeCtx) }()
+	s.startOnce.Do(func() {
+		s.started.Store(true)
+		go func() {
+			defer close(s.pipeDone)
+			_ = s.pipe.Run(s.pipeCtx)
+			s.session.SetPipelineEnded()
+		}()
+	})
 }
 
 // stop ends the session, then the pipeline, and only then releases plugins so

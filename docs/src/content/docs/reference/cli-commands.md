@@ -85,7 +85,7 @@ they fail with an error naming `--web` and exit code 2. Combining `--web` with
 | `--no-browser`   | Do not open a browser; print the URL only                          | Off               |
 | `--pulumi-state` | Path to Pulumi state JSON (skips auto-detection)                   | Auto-detected     |
 | `--pulumi-json`  | Preview JSON; state is auto-detected unless `--pulumi-state` is set | Auto-detected     |
-| `--stack`        | Pulumi stack name for auto-detection                               | Current stack     |
+| `--stack`        | Pulumi stack name for auto-detection. Comma-separated or repeated names open one tab per stack (Pulumi projects only) | Current stack     |
 | `--from`         | Start date (YYYY-MM-DD or RFC3339)                                 | 1st of current month |
 | `--to`           | End date (YYYY-MM-DD or RFC3339)                                   | Now               |
 | `--adapter`      | Restrict to a specific adapter plugin                              | All plugins       |
@@ -105,6 +105,9 @@ finfocus --web --port 8484 --no-browser
 
 # Use pre-exported files instead of running Pulumi CLI commands
 finfocus --web --pulumi-state state.json --pulumi-json plan.json
+
+# Open two stacks as tabs in one dashboard
+finfocus --web --stack dev,prod
 ```
 
 For tasks, see [Use the browser dashboard](../guides/web-ui.md). Views,

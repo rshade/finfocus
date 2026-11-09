@@ -51,6 +51,14 @@ func validateImportCloudHistoryFlags(cmd *cobra.Command) error {
 			return fmt.Errorf("--%s cannot be combined with --%s", importCloudHistoryFlag, name)
 		}
 	}
+	if names, isList, err := stackFlagList(cmd); isList {
+		if err != nil {
+			return err
+		}
+		if len(names) > 1 {
+			return fmt.Errorf("--%s takes one --stack, not a list of %d", importCloudHistoryFlag, len(names))
+		}
+	}
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"regexp"
 	"strings"
@@ -13,8 +14,13 @@ import (
 // /s/<stack>/<path> reaches that stack's handler tree as /<path>.
 const stackPathPrefix = "/s/"
 
-// maxStackNameLen is Pulumi's limit for a simple stack name.
-const maxStackNameLen = 100
+// MaxStackNameLen is Pulumi's limit for a simple stack name.
+const MaxStackNameLen = 100
+
+// MinTabbedStacks is the fewest stacks that make a tabbed page. With one, the
+// dashboard is the plain single-stack page and --stack takes the single-stack
+// path.
+const MinTabbedStacks = 2
 
 var (
 	// ErrInvalidStackName marks a stack name that is not a single safe URL
@@ -33,10 +39,40 @@ type StackOptions struct {
 	Session *Session
 	// Logs overrides the log source for this stack. Nil shares the server's.
 	Logs LogSource
+	// Activate starts the stack's work the first time a client activates it.
+	// The server calls it at most once, however many activations arrive.
+	// Nil means there is nothing to start.
+	Activate func()
 }
 
-func validStackName(name string) bool {
-	return len(name) <= maxStackNameLen && name != "." && name != ".." && stackNamePattern.MatchString(name)
+// StackState is the load state of a registered stack.
+type StackState string
+
+// The stack load states reported by GET /api/stacks.
+const (
+	// StackStateIdle means the stack has not been activated.
+	StackStateIdle StackState = "idle"
+	// StackStateLoading means the stack is activated and still loading.
+	StackStateLoading StackState = "loading"
+	// StackStateLocked means a passphrase prompt is pending.
+	StackStateLocked StackState = "locked"
+	// StackStateReady means the stack's overview finished.
+	StackStateReady StackState = "ready"
+	// StackStateFailed means the stack's pipeline ended with a failure.
+	StackStateFailed StackState = "failed"
+)
+
+// StackEntry is one registered stack and its load state.
+type StackEntry struct {
+	Name  string     `json:"name"`
+	State StackState `json:"state"`
+}
+
+// ValidStackName reports whether name is one safe URL path segment of
+// [A-Za-z0-9_.-], at most 100 characters, and so can be registered with
+// AddStack.
+func ValidStackName(name string) bool {
+	return len(name) <= MaxStackNameLen && name != "." && name != ".." && stackNamePattern.MatchString(name)
 }
 
 // AddStack serves a stack under /s/<name>/. The stack gets its own handler
@@ -49,7 +85,7 @@ func validStackName(name string) bool {
 // characters, so it cannot alter the route or inject into the page. A name
 // that is already registered, or a call after Shutdown, is an error.
 func (s *Server) AddStack(name string, opts StackOptions) error {
-	if !validStackName(name) {
+	if !ValidStackName(name) {
 		return fmt.Errorf("webui: stack name %q: %w", name, ErrInvalidStackName)
 	}
 	session := opts.Session
@@ -70,6 +106,7 @@ func (s *Server) AddStack(name string, opts StackOptions) error {
 		allowedUsers: s.allowedUsers,
 		parent:       s,
 		prefix:       strings.TrimSuffix(stackPathPrefix, "/") + "/" + name,
+		activate:     opts.Activate,
 	}
 	child.mux = child.buildMux()
 
@@ -85,7 +122,77 @@ func (s *Server) AddStack(name string, opts StackOptions) error {
 		s.stacks = map[string]*Server{}
 	}
 	s.stacks[name] = child
+	s.stackOrder = append(s.stackOrder, name)
 	return nil
+}
+
+// stackEntries lists the registered stacks in registration order with their
+// load states.
+func (s *Server) stackEntries() []StackEntry {
+	s.stacksMu.RLock()
+	defer s.stacksMu.RUnlock()
+	entries := make([]StackEntry, 0, len(s.stackOrder))
+	for _, name := range s.stackOrder {
+		entries = append(entries, StackEntry{Name: name, State: stackState(s.stacks[name])})
+	}
+	return entries
+}
+
+// stacksMeta is the shell's stack list for the browser: a meta tag naming the
+// registered stacks in order, or nothing. Only the root page of a server with
+// two or more stacks carries it, so one stack, and any page under /s/<name>/,
+// is the plain single-stack page. The names are already restricted to
+// [A-Za-z0-9_.-]; they are escaped as well. The browser reads this at boot, so
+// the shell never waits on a request to decide whether to show tabs.
+func (s *Server) stacksMeta() string {
+	if s.parent != nil {
+		return ""
+	}
+	s.stacksMu.RLock()
+	defer s.stacksMu.RUnlock()
+	if len(s.stackOrder) < MinTabbedStacks {
+		return ""
+	}
+	return `<meta name="finfocus-stacks" content="` + html.EscapeString(strings.Join(s.stackOrder, ",")) + `">`
+}
+
+// activateStack runs the stack's Activate callback on the first call only and
+// reports the stack's state. It is false for a name that is not registered,
+// including one that is not a valid path segment.
+func (s *Server) activateStack(name string) (StackEntry, bool) {
+	if !ValidStackName(name) {
+		return StackEntry{}, false
+	}
+	child := s.stack(name)
+	if child == nil {
+		return StackEntry{}, false
+	}
+	if child.activated.CompareAndSwap(false, true) && child.activate != nil {
+		child.activate()
+	}
+	return StackEntry{Name: name, State: stackState(child)}, true
+}
+
+// stackState derives a stack's load state. A pending prompt wins over a
+// recorded failure because a rejected passphrase records one and re-prompts,
+// and a stack that finished loading stays ready.
+func stackState(child *Server) StackState {
+	if !child.activated.Load() {
+		return StackStateIdle
+	}
+	session := child.session
+	switch {
+	case session.PassphraseRequired():
+		return StackStateLocked
+	case session.IsReady():
+		// A stack that loaded stays ready: a failed on-demand preview records a
+		// failure on a pipeline that has already ended, and the stack still works.
+		return StackStateReady
+	case session.Failed():
+		return StackStateFailed
+	default:
+		return StackStateLoading
+	}
 }
 
 func (s *Server) stack(name string) *Server {
@@ -145,7 +252,7 @@ func (s *Server) isBootstrapPath(path string) bool {
 		return true
 	}
 	name, rest, ok := splitStackPath(path)
-	return ok && rest == "/" && validStackName(name)
+	return ok && rest == "/" && ValidStackName(name)
 }
 
 // dispatch sends /s/<name>/... to that stack's handler tree with the prefix

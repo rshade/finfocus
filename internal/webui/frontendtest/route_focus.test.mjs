@@ -14,7 +14,7 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-async function setup() {
+async function setup({ stacks } = {}) {
   const body = { name: 'body' };
   const navLink = { name: 'nav-link' };
   const state = { openDialog: false };
@@ -53,13 +53,15 @@ async function setup() {
   const main = element();
   const statusNode = { textContent: '', dataset: {} };
   const announcer = element();
+  const stackTabs = element();
+  const stackLabel = element();
   const documentListeners = new Map();
   const document = {
     activeElement: body,
     body,
     createElement: element,
-    getElementById: (id) => (id === 'view' ? view : id === 'main' ? main : id === 'connection-status' ? statusNode : id === 'view-announcer' ? announcer : null),
-    querySelector: () => null,
+    getElementById: (id) => (id === 'view' ? view : id === 'main' ? main : id === 'connection-status' ? statusNode : id === 'view-announcer' ? announcer : id === 'stack-tabs' ? stackTabs : id === 'stack-label' ? stackLabel : null),
+    querySelector: (selector) => (stacks && selector === 'meta[name="finfocus-stacks"]' ? { content: stacks } : null),
     querySelectorAll: () => [],
     addEventListener: (name, fn) => documentListeners.set(name, fn),
   };
@@ -78,11 +80,12 @@ async function setup() {
     close() {}
   }
   const windowListeners = new Map();
+  const location = { hash: '#/overview' };
   const mounts = [];
   const context = vm.createContext({
     document,
     window: { addEventListener: (name, fn) => windowListeners.set(name, fn) },
-    location: { hash: '#/overview' },
+    location,
     history: { replaceState() {} },
     console: { ...console, error() {} },
     EventSource,
@@ -90,7 +93,10 @@ async function setup() {
     AbortController,
     setTimeout: () => 0,
     clearTimeout() {},
-    fetch: () => new Promise(() => {}),
+    fetch: (url) =>
+      /\/activate$/.test(url)
+        ? Promise.resolve({ ok: true, status: 202, text: async () => '{}' })
+        : new Promise(() => {}),
   });
   const app = new vm.SourceTextModule(await readFile(new URL('../static/app.js', import.meta.url), 'utf8'), {
     context,
@@ -116,6 +122,7 @@ async function setup() {
   await app.evaluate();
   await flush();
   return {
+    location,
     document,
     announcer,
     body,
@@ -218,4 +225,56 @@ test('a mount failure does not steal focus the user already moved', async () => 
   await flush();
   assert.equal(t.heading.focusCount, 0);
   assert.equal(t.document.activeElement, t.navLink);
+});
+
+// ---- switching stacks (several stacks) --------------------------------------
+
+test('a stack switch does not pull focus back after the user moved it', async () => {
+  const t = await setup({ stacks: 'a,b' });
+  await flush();
+  t.mounts[0].resolve();
+  await flush();
+  t.heading.focusCount = 0;
+  t.location.hash = '#/s/b/overview';
+  t.hashchange();
+  await flush();
+  assert.equal(t.mounts.length, 2, 'the new stack mounts its view once it is activated');
+  const elsewhere = { name: 'elsewhere' };
+  t.focusTo(elsewhere);
+  t.mounts[1].resolve();
+  await flush();
+  assert.equal(t.heading.focusCount, 0);
+  assert.equal(t.document.activeElement, elsewhere);
+});
+
+test('a stack switch from a focused tab still moves focus to the new heading', async () => {
+  const t = await setup({ stacks: 'a,b' });
+  await flush();
+  t.mounts[0].resolve();
+  await flush();
+  t.heading.focusCount = 0;
+  t.focusTo(t.navLink);
+  t.location.hash = '#/s/b/overview';
+  t.hashchange();
+  await flush();
+  t.mounts[1].resolve();
+  await flush();
+  assert.equal(t.heading.focusCount, 1);
+});
+
+test('a view that fails after a stack switch announces through the persistent region', async () => {
+  const t = await setup({ stacks: 'a,b' });
+  await flush();
+  t.mounts[0].resolve();
+  await flush();
+  t.heading.focusCount = 0;
+  t.location.hash = '#/s/b/overview';
+  t.hashchange();
+  await flush();
+  t.mounts[1].reject(new Error('stack b is not available'));
+  await flush();
+  assert.match(t.announcer.textContent, /^View failed to load\. .*stack b is not available$/);
+  const section = t.replaced.at(-1);
+  assert.equal(section.attrs.role, undefined, 'the section carries no live-region role, or the error is read twice');
+  assert.equal(t.heading.focusCount, 1);
 });

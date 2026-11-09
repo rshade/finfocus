@@ -340,3 +340,17 @@ func TestImportCloudHistoryProjectDirDoesNotChangeDetectedProject(t *testing.T) 
 		assert.NotContains(t, path, "/other/", "the import must use the working-directory project")
 	}
 }
+
+//nolint:paralleltest // setupCloudModeProject sets process-wide project and config state
+func TestImportCloudHistoryRejectsAStackList(t *testing.T) {
+	setupCloudModeProject(t, "auto")
+	for _, args := range [][]string{
+		{"--import-cloud-history", "--stack", "dev,prod"},
+		{"--import-cloud-history", "--stack", "dev", "--stack", "prod"},
+		{"--import-cloud-history", "--stack", "dev,,prod"},
+	} {
+		result := axtest.Run(context.Background(), t, NewRootCmd("test"), args)
+		assert.Equal(t, 2, result.ExitCode, "%v: %s", args, result.Stderr)
+		assert.Contains(t, string(result.Stderr), "--stack", "%v", args)
+	}
+}

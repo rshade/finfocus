@@ -87,7 +87,7 @@ func cloudHistoryRequest(
 		//nolint:nilerr // Import detection classifies unavailable project context according to the selected mode.
 		return deps, req, nil
 	}
-	stackFlag, _ := cmd.Flags().GetString("stack")
+	stackFlag := stackFlagName(cmd)
 	if stackFlag == "" {
 		stackFlag, _ = pulumi.GetCurrentStack(ctx, project)
 	}
@@ -174,7 +174,7 @@ type historyStackContextKey struct{}
 // actualHistoryContext pins an explicit stack for recording and enrichment.
 func actualHistoryContext(cmd *cobra.Command) context.Context {
 	ctx := cmd.Context()
-	stack, _ := cmd.Flags().GetString("stack")
+	stack := stackFlagName(cmd)
 	if stack == "" {
 		return ctx
 	}
