@@ -98,6 +98,7 @@ type Session struct {
 	budget             BudgetPayload
 	ready              bool
 	passphraseRequired bool
+	pipelineEnded      bool
 	closed             bool
 	subscribers        map[chan streamEvent]struct{}
 	preview            PreviewEvent
@@ -429,6 +430,37 @@ func (s *Session) IsReady() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.ready
+}
+
+// SetPipelineEnded records that the overview pipeline's Run has returned. A
+// failure counts as final only after that: a rejected passphrase records a
+// failure and then keeps the pipeline waiting for another attempt.
+func (s *Session) SetPipelineEnded() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pipelineEnded = true
+	if len(s.failures) > 0 {
+		// The error event arrives while the pipeline is still running, so a
+		// stack list read at that moment says loading. This snapshot is the
+		// signal that the failure is now final and the states are worth reading.
+		s.publishLocked("snapshot", s.snapshotLocked())
+	}
+}
+
+// Failed reports whether the overview pipeline ended with a recorded failure.
+// A failure recorded while the pipeline still runs, such as a rejected
+// passphrase awaiting a retry, is not final.
+func (s *Session) Failed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.pipelineEnded && len(s.failures) > 0
+}
+
+// PassphraseRequired reports whether a passphrase prompt is pending.
+func (s *Session) PassphraseRequired() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.passphraseRequired
 }
 
 // RequirePassphrase prompts all clients to unlock the selected stack.

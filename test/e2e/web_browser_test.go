@@ -56,6 +56,10 @@ func webRequired(t *testing.T, message string) {
 	t.Skip(message)
 }
 
+func hasFixtureEnv(env []string, prefix string) bool {
+	return slices.ContainsFunc(env, func(entry string) bool { return strings.HasPrefix(entry, prefix) })
+}
+
 func newWebFixture(t *testing.T) webFixture {
 	t.Helper()
 	binary := os.Getenv("FINFOCUS_BINARY")
@@ -181,8 +185,14 @@ func (f webFixture) start(t *testing.T, source string, encrypted bool, fixtureEn
 			"WEB_PLAN="+filepath.Join(f.root, "testdata/overview/plan-no-changes.json"),
 		)
 		args = append(args, "--stack", "dev")
-	} else if !slices.Contains(fixtureEnv, "WEB_AUTO_DETECT=true") && !slices.Contains(fixtureEnv, "WEB_STATE_ONLY=true") {
+	} else if !slices.Contains(fixtureEnv, "WEB_AUTO_DETECT=true") && !slices.Contains(fixtureEnv, "WEB_STATE_ONLY=true") &&
+		!hasFixtureEnv(fixtureEnv, "WEB_STACKS=") {
 		args = append(args, "--pulumi-json", source)
+	}
+	for _, entry := range fixtureEnv {
+		if list, ok := strings.CutPrefix(entry, "WEB_STACKS="); ok {
+			args = append(args, "--stack", list)
+		}
 	}
 	if slices.Contains(fixtureEnv, "WEB_STATE_ONLY=true") {
 		// The fixture deployment is 2025-06-15. Aging project sources keeps

@@ -109,7 +109,13 @@ type Server struct {
 
 	stacksMu     sync.RWMutex
 	stacks       map[string]*Server
+	stackOrder   []string
 	stacksClosed bool
+
+	// activate and activated belong to a stack's child server (see
+	// StackOptions.Activate and activateStack).
+	activate  func()
+	activated atomic.Bool
 }
 
 // New creates a Server with a fresh 128-bit crypto/rand session token.
@@ -341,6 +347,9 @@ func (s *Server) buildMux() *http.ServeMux {
 	s.registerConfig(mux)
 	s.registerPlugins(mux)
 	s.registerLogs(mux)
+	if s.parent == nil {
+		s.registerStacks(mux)
+	}
 	mux.HandleFunc("/", s.handleRoot)
 	mux.Handle("/static/zerolog-viewer/",
 		http.StripPrefix("/static/zerolog-viewer/", http.FileServerFS(viewerFiles())))
@@ -536,7 +545,7 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data = bytes.Replace(data, []byte(basePlaceholder),
-		[]byte(`<meta name="finfocus-base" content="`+html.EscapeString(s.prefix)+`">`), 1)
+		[]byte(`<meta name="finfocus-base" content="`+html.EscapeString(s.prefix)+`">`+s.stacksMeta()), 1)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(data))
 }

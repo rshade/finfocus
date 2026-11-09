@@ -55,8 +55,8 @@ The server can serve more than one stack from one port. `Server.AddStack`
 registers a named stack with its own session, handler tree, and plugin
 operations, and `/s/<stack>/...` reaches that tree with the prefix stripped.
 The root (`/`) keeps its own session, so nothing changes for a single-stack
-run. No flag registers stacks yet; the multi-stack `--stack` list builds on
-this routing.
+run. A `--stack` list of two or more names registers one stack per name through
+this routing (see [Several stacks and the tab bar](#several-stacks-and-the-tab-bar)).
 
 Authentication, the `Host` and `Origin` checks, the fetch-metadata checks, and
 request logging run once, in the outer layer, before dispatch. Three
@@ -86,9 +86,9 @@ call; `frontendtest/base.test.mjs` fails if it does.
 ## One runtime per stack
 
 `runWebSession` builds its stack through `newWebStack`, which owns that stack's
-query data, overview pipeline, session, passphrase channel, and ESC source. The
-multi-stack `--stack` list (#2039) is meant to build one `webStack` per name the
-same way; today `finfocus --web` builds exactly one.
+query data, overview pipeline, session, passphrase channel, and ESC source. A
+`--stack` list builds one `webStack` per name the same way (`runWebStacks`);
+one name, or none, builds exactly one.
 
 - **Shared stores.** The cost cache and the resource history are opened once per
   process by `openSharedStores` and injected into every stack's engine and
@@ -112,9 +112,54 @@ same way; today `finfocus --web` builds exactly one.
   the request. Plugin sets stay per stack because ESC-derived environment differs
   per stack.
 
-`pulumi.ListStacks` and `pulumi.ValidateStacks` are the helpers the multi-stack
-caller will use to report a misspelled stack name, with the available names,
-before any pipeline starts. Nothing calls them in production yet.
+`validateStackList` calls `pulumi.ListStacks` and `pulumi.ValidateStacks` to
+report a misspelled stack name, with the available names, before any server
+starts. It also rejects a list combined with `--pulumi-json`, `--pulumi-state`,
+or a Terraform project, since a list names stacks of a Pulumi project.
+
+## Several stacks and the tab bar
+
+`runWebStacks` builds every stack's runtime up front, which starts nothing, and
+registers each under `/s/<name>/`. It then serves with an empty root session.
+The browser, not the server, decides which stack runs: a stack's pipeline starts
+the first time the page activates it, once, however often that is asked.
+Building a runtime cannot fail and starts no plugin, so every failure, at start
+or later, reaches that stack's own session as a pipeline error and never aborts
+the server or another stack. A stack nobody opened stops without error, and the
+audit row total counts only the stacks that started.
+
+The root server adds two routes, and a stack's own tree never has them:
+
+- `GET /api/stacks` lists the stacks in order with a state: `idle` (not
+  started), `loading`, `locked` (a passphrase prompt is pending), `ready`, or
+  `failed`. The state comes from the stack's session. `locked` is checked first
+  because a rejected passphrase records a failure and then asks again. A stack
+  that finished loading stays `ready`, even if a later on-demand preview fails.
+  `failed` needs the pipeline to have ended (`Session.SetPipelineEnded`, called
+  when `webStack.start`'s goroutine sees `Run` return), so a retry that is still
+  loading reads `loading`. Ending with a recorded failure also sends a snapshot,
+  because the `error` event arrives while the pipeline still runs and a refresh
+  at that moment would read `loading`.
+- `POST /api/stacks/{name}/activate` runs the stack's `Activate` callback
+  (`webStack.start`) through a `sync.Once` and answers `202` with the state.
+
+The root page names the stacks in `<meta name="finfocus-stacks">`, written like
+the base prefix, only for two or more stacks. The shell reads it at boot, so it
+never waits on a request to decide whether to show tabs. A server whose page
+lacks the tag, and any page under `/s/<name>/`, is the single-stack page
+unchanged. The tab bar sits in the header between the title and the view links.
+`app.js` keeps one stack state: `base()` returns `/s/<active>` while the page
+lists stacks, and the two root-only routes pass `{ root: true }`.
+
+Only one overview stream is open, for the active stack. On a switch the shell
+unmounts the view, resets the stream (closing it and dropping its snapshot),
+activates the new stack, starts the stream, and then mounts the view. The server
+sends a snapshot first on every connection, so a stack you return to shows what
+it already loaded. Tab states refresh on the `error`, `passphrase_required`,
+`snapshot`, and `ready` events. The `error` event arrives before
+`passphrase_required`, so only the newest answer is applied. The tab bar follows
+the ARIA tablist pattern, with `Left`, `Right`, `Home`, and `End` moving focus
+and selection, and `#view` is the tab panel.
 
 ## Security model
 
@@ -243,7 +288,8 @@ it does not import `cli`, `registry`, or `pluginhost`.
 Every view is built from the same slots, in the same order, so a new feature
 reads as part of the page rather than an add-on:
 
-1. The header: the product name, the view links, and the connection status.
+1. The header: the product name, the stack tabs when there are several, the
+   view links, and the connection status.
 2. The view heading.
 3. A toolbar (`.toolbar`): filter, sort, and an apply or run button.
 4. A status line (`role="status"`) for loading, progress, and errors.

@@ -171,7 +171,7 @@ func loadESCStack(cmd *cobra.Command, cwd string) pulumidetect.StackContext {
 	if err != nil {
 		return pulumidetect.StackContext{}
 	}
-	return loadStackContextQuietly(cmd.Context(), projectDir, stackFlagValue(cmd))
+	return loadStackContextQuietly(cmd.Context(), projectDir, stackFlagName(cmd))
 }
 
 // loadStackContextQuietly reads a stack's own settings. An unreadable file is
@@ -204,15 +204,4 @@ func stackESCSource(ctx context.Context, root *esc.Source, projectDir, stack str
 	opts := root.Options()
 	opts.Stack = loadStackContextQuietly(ctx, projectDir, stack)
 	return esc.NewSource(opts)
-}
-
-func stackFlagValue(cmd *cobra.Command) string {
-	if cmd == nil {
-		return ""
-	}
-	flag := cmd.Flags().Lookup("stack")
-	if flag == nil {
-		return ""
-	}
-	return flag.Value.String()
 }

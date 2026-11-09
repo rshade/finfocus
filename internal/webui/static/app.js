@@ -7,6 +7,11 @@
 //   export function mount(container, ctx) -> { unmount? } | void
 // where ctx = { api, stream, el, navigate }. Views subscribe to stream events
 // in mount and must unsubscribe in unmount.
+//
+// Several stacks (FR-007): when the server lists two or more stacks the shell
+// shows a tab bar, addresses become #/s/<stack>/<view>, and every request goes
+// under the active stack's /s/<stack> prefix. One overview stream is open at a
+// time, for the active stack. With fewer than two stacks nothing changes.
 
 const ROUTES = {
   overview: () => import('./views/overview.js'),
@@ -73,15 +78,23 @@ export class ApiError extends Error {
 }
 
 const BASE_PATTERN = /^\/s\/[A-Za-z0-9_.-]+$/;
+const STACK_NAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
 
-// base is the path prefix this page was served under: empty at the root,
-// /s/<stack> under a stack. The server writes it into a meta tag because the
-// CSP forbids inline script. Anything that is not a stack path is ignored, so
-// a prefix can never turn a request into a cross-origin one.
+// stackState is the multi-stack shell state. multi is true only for a page
+// served at the root when the server lists two or more stacks. streaming is the
+// stack the open overview stream belongs to, or null while none is running.
+const stackState = { multi: false, active: '', entries: [], streaming: null };
+
+// base is the path prefix requests go under: empty at the root, /s/<stack>
+// under a stack. A page served under a stack declares it in a meta tag because
+// the CSP forbids inline script. On the root page of a multi-stack dashboard it
+// is the active stack. Anything that is not a stack path is ignored, so a
+// prefix can never turn a request into a cross-origin one.
 export function base() {
   const meta = globalThis.document?.querySelector?.('meta[name="finfocus-base"]');
   const value = meta?.content;
-  return typeof value === 'string' && BASE_PATTERN.test(value) ? value : '';
+  if (typeof value === 'string' && BASE_PATTERN.test(value)) return value;
+  return stackState.multi && STACK_NAME_PATTERN.test(stackState.active) ? `/s/${stackState.active}` : '';
 }
 
 // withBase is the only place a root-relative /api or /static path becomes a
@@ -90,7 +103,9 @@ export function withBase(path) {
   return base() + path;
 }
 
-async function request(path, { method = 'GET', body, signal } = {}) {
+// root: true sends the request to the root server, outside any stack prefix.
+// Only the stack list and activation routes live there.
+async function request(path, { method = 'GET', body, signal, root = false } = {}) {
   const init = { method, credentials: 'same-origin', signal };
   if (body !== undefined) {
     init.headers = { 'Content-Type': 'application/json' };
@@ -98,7 +113,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
   }
   let resp;
   try {
-    resp = await fetch(withBase(path), init);
+    resp = await fetch(root ? path : withBase(path), init);
   } catch (err) {
     if (err.name === 'AbortError') throw err;
     throw new ApiError('Network error: the finfocus server is unreachable.', {
@@ -166,7 +181,7 @@ const STREAM_TRANSITIONS = {
   reconnecting: { start: 'connecting', open: 'open', error: 'authenticating', close: 'closed' },
   backoff: { start: 'connecting', retry: 'connecting', close: 'closed' },
   failed: { close: 'closed' },
-  closed: {},
+  closed: { reset: 'idle' },
 };
 
 // OverviewStream multiplexes named SSE events from /api/overview/stream.
@@ -278,6 +293,17 @@ export class OverviewStream {
     this.dispatch('close');
   }
 
+  // reset ends the connection and forgets everything the stream learned, so
+  // the same object can serve another stack. Handlers stay: a view removes its
+  // own on unmount.
+  reset() {
+    this.close();
+    this.dispatch('reset');
+    this.snapshot = null;
+    this.passphraseGeneration += 1;
+    this.retryDelayMs = 1000;
+  }
+
   // dispatch is the only place the connection state changes. A source that
   // errors is never restarted until the session check says it may be.
   dispatch(event) {
@@ -286,6 +312,8 @@ export class OverviewStream {
     this.state = next;
     this[`enter_${next}`]();
   }
+
+  enter_idle() {}
 
   enter_connecting() {
     clearTimeout(this.retryTimer);
@@ -396,9 +424,25 @@ export class OverviewStream {
   }
 }
 
-function routeFromHash() {
-  const name = location.hash.replace(/^#\/?/, '').split('/')[0];
-  return Object.hasOwn(ROUTES, name) ? name : DEFAULT_ROUTE;
+// resolveRoute reads the address. Without tabs it is #/<view>. With tabs it is
+// #/s/<stack>/<view>; an address with no stack or an unknown one goes to the
+// first stack, and an unknown view goes to the default view.
+function resolveRoute() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/');
+  if (!stackState.multi) {
+    return { stack: '', view: Object.hasOwn(ROUTES, parts[0]) ? parts[0] : DEFAULT_ROUTE };
+  }
+  let stackName = '';
+  let viewName = parts[0];
+  if (parts[0] === 's') {
+    stackName = parts[1] ?? '';
+    viewName = parts[2] ?? '';
+  }
+  const known = stackState.entries.some((entry) => entry.name === stackName);
+  return {
+    stack: known ? stackName : stackState.entries[0].name,
+    view: Object.hasOwn(ROUTES, viewName) ? viewName : DEFAULT_ROUTE,
+  };
 }
 
 function updateNav(active) {
@@ -421,9 +465,143 @@ const ctx = {
   stream,
   el,
   navigate(name) {
-    location.hash = `#/${name}`;
+    location.hash = stackState.multi ? `#/s/${stackState.active}/${name}` : `#/${name}`;
   },
 };
+
+const stackTabs = document.getElementById('stack-tabs');
+const stackLabel = document.getElementById('stack-label');
+const STACK_STATE_MARKERS = { failed: 'failed', locked: 'locked' };
+const TAB_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
+const tabNodes = new Map();
+let currentView = DEFAULT_ROUTE;
+let stackListVersion = 0;
+
+// readStackList takes the stack names from the shell page. The server writes
+// them into a meta tag, like the base prefix, only on the root page of a
+// dashboard with two or more stacks, so the shell decides about tabs at boot
+// without waiting on a request. Anything short of two valid names leaves the
+// single-stack page, and a page served under /s/<name>/ never shows tabs.
+// Every stack starts idle; the stack list endpoint supplies the live states.
+function readStackList() {
+  if (base()) return;
+  const meta = document.querySelector('meta[name="finfocus-stacks"]');
+  const names = typeof meta?.content === 'string' ? meta.content.split(',') : [];
+  const list = [...new Set(names.filter((name) => STACK_NAME_PATTERN.test(name)))];
+  if (list.length < 2) return;
+  stackState.entries = list.map((name) => ({ name, state: 'idle' }));
+  stackState.multi = true;
+  stackState.active = list[0];
+}
+
+const tabId = (name) => `stack-tab-${name}`;
+const stackHref = (name) => `#/s/${name}/${currentView}`;
+
+// buildStackChrome creates the tab bar once. The nodes persist so a refresh
+// updates them in place and never drops keyboard focus.
+function buildStackChrome() {
+  stackTabs.setAttribute('role', 'tablist');
+  stackTabs.setAttribute('aria-label', 'Stacks');
+  stackTabs.hidden = false;
+  stackLabel.hidden = false;
+  viewContainer.setAttribute('role', 'tabpanel');
+  const links = stackState.entries.map((entry) => {
+    const marker = el('span', { class: 'stack-tab-state' });
+    const link = el('a', {
+      id: tabId(entry.name),
+      class: 'stack-tab',
+      role: 'tab',
+      'aria-controls': 'view',
+      href: stackHref(entry.name),
+      dataset: { stack: entry.name },
+    }, el('span', { class: 'stack-tab-name', text: entry.name }), marker);
+    tabNodes.set(entry.name, { link, marker });
+    return link;
+  });
+  stackTabs.replaceChildren(...links);
+  stackTabs.addEventListener('keydown', onTabKey);
+  for (const event of ['error', 'passphrase_required', 'snapshot', 'ready']) {
+    stream.on(event, refreshStackList);
+  }
+}
+
+// updateStackChrome reflects the active stack and each stack's state. State
+// comes from the server; a failed or locked tab says so in text and in its
+// accessible name, never by color alone.
+function updateStackChrome() {
+  if (!stackState.multi) return;
+  stackLabel.textContent = stackState.active;
+  viewContainer.setAttribute('aria-labelledby', tabId(stackState.active));
+  for (const entry of stackState.entries) {
+    const { link, marker } = tabNodes.get(entry.name);
+    const selected = entry.name === stackState.active;
+    link.setAttribute('aria-selected', String(selected));
+    link.setAttribute('tabindex', selected ? '0' : '-1');
+    link.setAttribute('href', stackHref(entry.name));
+    const text = STACK_STATE_MARKERS[entry.state] ?? '';
+    marker.textContent = text;
+    if (text) link.setAttribute('aria-label', `${entry.name}, ${text}`);
+    else link.removeAttribute('aria-label');
+  }
+  for (const link of document.querySelectorAll('.app-nav a[data-route]')) {
+    link.setAttribute('href', `#/s/${stackState.active}/${link.dataset.route}`);
+  }
+}
+
+// refreshStackList reads the stack states again. The error event arrives before
+// passphrase_required, so refreshes can overlap; only the newest answer counts.
+async function refreshStackList() {
+  const version = ++stackListVersion;
+  try {
+    const data = await api.get('/api/stacks', { root: true });
+    if (version !== stackListVersion) return;
+    const fresh = Array.isArray(data?.stacks) ? data.stacks : [];
+    for (const entry of stackState.entries) {
+      const next = fresh.find((item) => item?.name === entry.name);
+      if (next && typeof next.state === 'string') entry.state = next.state;
+    }
+    updateStackChrome();
+  } catch (err) {
+    console.error('stack list refresh failed', err);
+  }
+}
+
+function onTabKey(event) {
+  if (!TAB_KEYS.has(event.key)) return;
+  const names = stackState.entries.map((entry) => entry.name);
+  const tab = event.target?.closest?.('[role="tab"]') ?? event.target;
+  const from = Math.max(names.indexOf(tab?.dataset?.stack), 0);
+  const last = names.length - 1;
+  let next = from;
+  if (event.key === 'Home') next = 0;
+  else if (event.key === 'End') next = last;
+  else if (event.key === 'ArrowRight') next = from === last ? 0 : from + 1;
+  else next = from === 0 ? last : from - 1;
+  event.preventDefault();
+  tabNodes.get(names[next]).link.focus();
+  location.hash = `#/s/${names[next]}/${currentView}`;
+}
+
+// switchStack moves the shell to another stack: stop the old stream and drop
+// what it learned, ask the server to start the stack, then start the new
+// stream. It reports false when a newer navigation replaced it, in which case
+// no stream is left running for this stack.
+async function switchStack(name, version) {
+  stream.reset();
+  stackState.streaming = null;
+  stackState.active = name;
+  updateStackChrome();
+  try {
+    await api.post(`/api/stacks/${encodeURIComponent(name)}/activate`, {}, { root: true });
+  } catch (err) {
+    console.error(`activating stack "${name}" failed`, err);
+  }
+  if (version !== routeVersion) return false;
+  stackState.streaming = name;
+  stream.start();
+  refreshStackList();
+  return true;
+}
 
 let activeView = null;
 let routeVersion = 0;
@@ -457,10 +635,15 @@ function showViewError(title, message, focusGainsAtStart) {
 async function renderRoute() {
   const version = ++routeVersion;
   const focusGainsAtStart = focusGains;
-  const name = routeFromHash();
-  if (!location.hash) {
+  const route = resolveRoute();
+  const name = route.view;
+  if (stackState.multi) {
+    const canonical = `#/s/${route.stack}/${name}`;
+    if (location.hash !== canonical) history.replaceState(null, '', canonical);
+  } else if (!location.hash) {
     history.replaceState(null, '', `#/${DEFAULT_ROUTE}`);
   }
+  currentView = name;
   updateNav(name);
   announcer.textContent = '';
 
@@ -475,6 +658,11 @@ async function renderRoute() {
   viewContainer.replaceChildren(
     el('p', { class: 'view-loading', role: 'status' }, 'Loading view…'),
   );
+
+  if (stackState.multi) {
+    if (route.stack === stackState.streaming) updateStackChrome();
+    else if (!(await switchStack(route.stack, version))) return;
+  }
 
   let mod;
   try {
@@ -513,12 +701,14 @@ async function renderRoute() {
   focusHeading(focusGainsAtStart);
 }
 
+readStackList();
+if (stackState.multi) buildStackChrome();
 window.addEventListener('hashchange', renderRoute);
 document.querySelector('.skip-link')?.addEventListener('click', (event) => {
   event.preventDefault();
   document.getElementById('main')?.focus();
 });
-stream.start();
+if (!stackState.multi) stream.start();
 renderRoute();
 ROUTES.logs()
   .then((mod) => mod.probeLogs(api, document.querySelector('.app-nav a[data-route="logs"]')))

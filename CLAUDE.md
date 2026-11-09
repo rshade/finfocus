@@ -155,6 +155,31 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   A `gap` event counts entries already evicted from the ring
   (`Snapshot.Missed`). The page says they were dropped from the buffer. The
   count is the eviction hole, including one noticed after a reconnect.
+- Multi-stack web (`specs/2015-multi-stack-web-tabs/`): `--stack` is a
+  `StringArray` that `normalizeStackList` splits on commas (a lone empty value is
+  no stack; a name is checked as a URL segment only when two or more remain, so
+  `org/proj/stack` still works alone). Two or more names go through
+  `validateStackList` (exit 2) and `runWebStacks`, which builds every `webStack`
+  but starts none: the browser starts one with `POST /api/stacks/{name}/activate`
+  (a `sync.Once`). Both routes exist on the root only. The root shell names the
+  stacks in `<meta name="finfocus-stacks">`, only for two or more, so `app.js`
+  decides about tabs at boot with no request: a top-level `await` on a fetch
+  hangs every frontend harness, whose `fetch` never settles, and would block a
+  real page behind a hung server. Tab states are `idle`, `loading`, `locked`,
+  `ready`, `failed`; `locked` is tested first because a rejected passphrase
+  records a failure and prompts again, `ready` before `failed` because a failed
+  on-demand preview records a failure on a stack that works, and `Session.Failed`
+  needs `SetPipelineEnded` (called when `webStack.start`'s `Run` returns, and it
+  publishes a snapshot when a failure exists, since the `error` event arrives
+  while the pipeline still runs), so a retry that is still loading reads
+  `loading`. One overview stream is open, and a
+  switch runs unmount, `stream.reset()`, activate, start, mount. The root
+  `--stack` is a list while subcommand `--stack` flags are strings: never read it
+  with `GetString` or `Value.String()` (a list renders as `[dev]`); use
+  `stackFlagName`. `--import-cloud-history` rejects a list. The
+  e2e fixture `pulumi.sh` supports `WEB_STACKS`, `WEB_STATE_DIR`, and
+  `WEB_FAIL_STACK`. A table that is loading already has a `No resources.` row, so
+  wait for a real resource name, not `tbody tr`.
 - `ax.Execute` mounts `--format json|human`, `--dry-run`, `--yes`, and
   `--idempotency-key` on every command, plus `__schema` and `mcp-server`
   (`--mcp` is the stdio alias). A command must not redeclare `--format`;

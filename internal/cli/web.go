@@ -66,13 +66,17 @@ var startWebSession = runWebSession
 // webFlagsFromOverview copies the overview's source into the flags runWebSession
 // already accepts. The port stays ephemeral and the browser opens.
 func webFlagsFromOverview(params overviewParams) *webFlagValues {
+	var stacks []string
+	if params.stack != "" {
+		stacks = []string{params.stack}
+	}
 	return &webFlagValues{
 		web:         true,
 		port:        0,
 		noBrowser:   false,
 		pulumiJSON:  params.pulumiJSON,
 		pulumiState: params.pulumiState,
-		stack:       params.stack,
+		stack:       stacks,
 		from:        params.fromStr,
 		to:          params.toStr,
 		adapter:     params.adapter,
@@ -87,7 +91,7 @@ type webFlagValues struct {
 	noBrowser   bool
 	pulumiJSON  string
 	pulumiState string
-	stack       string
+	stack       []string
 	from        string
 	to          string
 	adapter     string
@@ -112,8 +116,9 @@ func registerWebFlags(cmd *cobra.Command, flags *webFlagValues) {
 		"path to Pulumi preview JSON (only valid with --web)")
 	cmd.Flags().StringVar(&flags.pulumiState, flagPulumiState, "",
 		"path to Pulumi state JSON (only valid with --web)")
-	cmd.Flags().StringVar(&flags.stack, "stack", "",
-		"Pulumi stack name for auto-detection (only valid with --web)")
+	cmd.Flags().StringArrayVar(&flags.stack, "stack", nil,
+		"Pulumi stack name for auto-detection; with --web, comma-separated or repeated names open one tab per stack "+
+			"(only valid with --web)")
 	cmd.Flags().StringVar(&flags.from, "from", "",
 		"start date (YYYY-MM-DD or RFC3339) (only valid with --web)")
 	cmd.Flags().StringVar(&flags.to, "to", "",
@@ -158,16 +163,23 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	log := logging.FromContext(ctx)
 	audit := newAuditContext(ctx, "web", map[string]string{
 		auditKeyPulumiState: flags.pulumiState,
 		auditKeyPulumiJSON:  flags.pulumiJSON,
 	})
 
+	stacks, stackErr := normalizeStackList(flags.stack)
+	if stackErr != nil {
+		return toValidationError(ctx, stackErr)
+	}
+	var stackName string
+	if len(stacks) == 1 {
+		stackName = stacks[0]
+	}
 	params := overviewParams{
 		pulumiJSON:  flags.pulumiJSON,
 		pulumiState: flags.pulumiState,
-		stack:       flags.stack,
+		stack:       stackName,
 		fromStr:     flags.from,
 		toStr:       flags.to,
 		adapter:     flags.adapter,
@@ -182,6 +194,12 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		return toValidationError(ctx, fmt.Errorf("invalid date range: %w", err))
 	}
 
+	if len(stacks) >= webui.MinTabbedStacks {
+		if err = validateStackList(ctx, flags, stacks); err != nil {
+			return err
+		}
+		return runWebStacks(cmd, flags, stacks, params, dateRange, audit)
+	}
 	if err = checkWebProjectSource(ctx, params); err != nil {
 		return err
 	}
@@ -197,26 +215,26 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	}
 	stack.start()
 
-	if !flags.noBrowser {
-		waitForBrowserRelay(ctx)
-		if browserErr := openWebBrowser(ctx, srv.URL()); browserErr != nil {
-			log.Warn().
-				Ctx(ctx).
-				Str("component", "cli").
-				Str("operation", "web_browser_open").
-				Err(browserErr).
-				Msg("could not open a browser; use the printed URL")
-		}
-	}
+	return serveDashboard(ctx, flags, srv, audit, func() int {
+		stack.stop()
+		return stack.pipe.Result().RowsEnriched
+	})
+}
 
+// serveDashboard opens the browser, serves until SIGINT or SIGTERM, then runs
+// stop, which shuts the stacks down and reports the rows they priced for the
+// audit record.
+func serveDashboard(
+	ctx context.Context, flags *webFlagValues, srv *webui.Server, audit *auditContext, stop func() int,
+) error {
+	openBrowserUnlessDisabled(ctx, flags, srv)
 	serveErr := srv.ServeUntilInterrupt(ctx)
-	stack.stop()
-
+	rowsEnriched := stop()
 	if serveErr != nil {
 		audit.logFailure(ctx, serveErr)
 		return fmt.Errorf("web server: %w", serveErr)
 	}
-	audit.logSuccess(ctx, stack.pipe.Result().RowsEnriched, 0)
+	audit.logSuccess(ctx, rowsEnriched, 0)
 	return nil
 }
 
@@ -245,6 +263,23 @@ func checkWebProjectSource(ctx context.Context, params overviewParams) error {
 //nolint:gochecknoglobals // Test seam for WSL detection.
 var runningUnderWSL = func() bool {
 	return os.Getenv("WSL_DISTRO_NAME") != "" || os.Getenv("WSL_INTEROP") != ""
+}
+
+// openBrowserUnlessDisabled opens the dashboard in the default browser unless
+// --no-browser was given. A failure is logged, never fatal: the URL is printed.
+func openBrowserUnlessDisabled(ctx context.Context, flags *webFlagValues, srv *webui.Server) {
+	if flags.noBrowser {
+		return
+	}
+	waitForBrowserRelay(ctx)
+	if browserErr := openWebBrowser(ctx, srv.URL()); browserErr != nil {
+		logging.FromContext(ctx).Warn().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "web_browser_open").
+			Err(browserErr).
+			Msg("could not open a browser; use the printed URL")
+	}
 }
 
 // waitForBrowserRelay pauses under WSL so the Windows localhost relay can

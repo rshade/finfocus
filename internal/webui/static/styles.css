@@ -152,6 +152,57 @@ body {
   color: var(--accent-fg);
 }
 
+/* Stack tab bar (several stacks). Reuses the nav tokens; state is text, so
+   no state depends on color alone. */
+
+.stack-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+.stack-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.stack-tab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--link);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.stack-tab:hover {
+  background: var(--row-hover);
+}
+
+.stack-tab[aria-selected="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+.stack-tab-state {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.stack-tab-state:empty {
+  display: none;
+}
+
+.stack-tab-state:not(:empty)::before {
+  content: "\26A0\FE0E ";
+}
+
 .connection-status {
   margin-left: auto;
   font-size: 0.875rem;

@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -323,4 +325,183 @@ func TestStackHardeningAppliesToPrefixedRequests(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { assert.NoError(t, resp2.Body.Close()) }()
 	assert.Equal(t, http.StatusForbidden, resp2.StatusCode)
+}
+
+func TestValidStackNameIsExported(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"dev", "a.b_c-1", "0", strings.Repeat("a", 100)} {
+		assert.True(t, ValidStackName(name), name)
+	}
+	for _, name := range []string{"", ".", "..", "a/b", "a b", "a?x", strings.Repeat("a", 101)} {
+		assert.False(t, ValidStackName(name), name)
+	}
+}
+
+func TestStackActivateRunsOnceAcrossConcurrentCalls(t *testing.T) {
+	t.Parallel()
+
+	s := newRunningServer(t, Options{Session: NewSession(context.Background(), SessionOptions{})})
+	var calls atomic.Int32
+	require.NoError(t, s.AddStack("dev", StackOptions{Activate: func() { calls.Add(1) }}))
+
+	var wg sync.WaitGroup
+	for range 16 {
+		wg.Go(func() {
+			entry, ok := s.activateStack("dev")
+			assert.True(t, ok)
+			assert.Equal(t, "dev", entry.Name)
+		})
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), calls.Load())
+}
+
+func TestStackActivateWithoutCallbackAndUnknownName(t *testing.T) {
+	t.Parallel()
+
+	s := newRunningServer(t, Options{Session: NewSession(context.Background(), SessionOptions{})})
+	require.NoError(t, s.AddStack("dev", StackOptions{}))
+
+	entry, ok := s.activateStack("dev")
+	require.True(t, ok)
+	assert.Equal(t, StackStateLoading, entry.State)
+
+	_, ok = s.activateStack("nope")
+	assert.False(t, ok)
+	_, ok = s.activateStack("../x")
+	assert.False(t, ok)
+}
+
+func TestStackEntriesFollowRegistrationOrder(t *testing.T) {
+	t.Parallel()
+
+	s := newRunningServer(t, Options{Session: NewSession(context.Background(), SessionOptions{})})
+	assert.Empty(t, s.stackEntries())
+	for _, name := range []string{"prod", "dev", "test"} {
+		require.NoError(t, s.AddStack(name, StackOptions{}))
+	}
+
+	names := make([]string, 0, 3)
+	for _, entry := range s.stackEntries() {
+		names = append(names, entry.Name)
+		assert.Equal(t, StackStateIdle, entry.State)
+	}
+	assert.Equal(t, []string{"prod", "dev", "test"}, names)
+}
+
+func TestStackEntryStateDerivation(t *testing.T) {
+	t.Parallel()
+
+	const failure = "Overview loading failed"
+	tests := []struct {
+		name     string
+		activate bool
+		arrange  func(*Session)
+		want     StackState
+	}{
+		{"not activated", false, func(*Session) {}, StackStateIdle},
+		{"activated and running", true, func(*Session) {}, StackStateLoading},
+		{"ready", true, func(session *Session) { session.Ready(nil) }, StackStateReady},
+		{"failure and pipeline ended", true, func(session *Session) {
+			session.Error(1, failure)
+			session.SetPipelineEnded()
+		}, StackStateFailed},
+		{"failure while the pipeline still runs", true, func(session *Session) {
+			session.Error(1, failure)
+		}, StackStateLoading},
+		{"prompt pending", true, func(session *Session) { session.RequirePassphrase("dev") }, StackStateLocked},
+		{"prompt pending beats a recorded failure", true, func(session *Session) {
+			session.Error(1, failure)
+			session.RequirePassphrase("dev")
+		}, StackStateLocked},
+		{"prompt pending beats an ended pipeline with a failure", true, func(session *Session) {
+			session.Error(1, failure)
+			session.SetPipelineEnded()
+			session.RequirePassphrase("dev")
+		}, StackStateLocked},
+		{"ended without a failure is not failed", true, func(session *Session) {
+			session.SetPipelineEnded()
+		}, StackStateLoading},
+		{"a failed preview on a ready stack leaves it ready", true, func(session *Session) {
+			session.Ready(nil)
+			session.Error(4, "Preview failed")
+			session.SetPipelineEnded()
+		}, StackStateReady},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			session := NewSession(context.Background(), SessionOptions{})
+			s := newRunningServer(t, Options{Session: NewSession(context.Background(), SessionOptions{})})
+			require.NoError(t, s.AddStack("dev", StackOptions{Session: session}))
+			if tt.activate {
+				_, ok := s.activateStack("dev")
+				require.True(t, ok)
+			}
+			tt.arrange(session)
+
+			entries := s.stackEntries()
+			require.Len(t, entries, 1)
+			assert.Equal(t, tt.want, entries[0].State)
+		})
+	}
+}
+
+func TestSessionFailedNeedsAnEndedPipeline(t *testing.T) {
+	t.Parallel()
+
+	session := NewSession(context.Background(), SessionOptions{})
+	assert.False(t, session.Failed())
+	session.Error(1, "Overview loading failed")
+	assert.False(t, session.Failed())
+	session.SetPipelineEnded()
+	assert.True(t, session.Failed())
+	assert.False(t, session.PassphraseRequired())
+	session.RequirePassphrase("dev")
+	assert.True(t, session.PassphraseRequired())
+}
+
+func drainEvents(events <-chan streamEvent) []string {
+	var names []string
+	for {
+		select {
+		case event := <-events:
+			names = append(names, event.name)
+		default:
+			return names
+		}
+	}
+}
+
+func TestSessionPipelineEndedAnnouncesAFinalFailure(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a failure that becomes final sends a snapshot so tab states refresh", func(t *testing.T) {
+		t.Parallel()
+
+		session := NewSession(context.Background(), SessionOptions{})
+		_, events, unsubscribe := session.subscribe()
+		defer unsubscribe()
+		session.Error(1, "Overview loading failed")
+		assert.Contains(t, drainEvents(events), "error")
+
+		session.SetPipelineEnded()
+
+		assert.Equal(t, []string{"snapshot"}, drainEvents(events))
+	})
+	t.Run("an ended pipeline with no failure sends nothing", func(t *testing.T) {
+		t.Parallel()
+
+		session := NewSession(context.Background(), SessionOptions{})
+		session.Ready(nil)
+		_, events, unsubscribe := session.subscribe()
+		defer unsubscribe()
+
+		session.SetPipelineEnded()
+
+		assert.Empty(t, drainEvents(events))
+	})
 }

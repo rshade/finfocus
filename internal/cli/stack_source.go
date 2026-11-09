@@ -19,7 +19,7 @@ func buildStackSource(
 	cmd *cobra.Command,
 	planPath, statePath string,
 ) (stackload.Source, error) {
-	src := stackload.Source{PlanPath: planPath, StatePath: statePath, Stack: stackFlagValue(cmd)}
+	src := stackload.Source{PlanPath: planPath, StatePath: statePath, Stack: stackFlagName(cmd)}
 	if statePath != "" {
 		return src, nil
 	}
