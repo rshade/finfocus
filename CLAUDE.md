@@ -915,7 +915,7 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   cell past 15 characters so `SPOT` survives a 7-figure cost. The web
   `spotBadge` lives in `static/spot.js`; node harnesses link it through
   `frontendtest/view_linker.mjs` (their fake `app` module has only `el`).
-- Spot recommendations (`specs/2013-spot-recommendations/`): a plugin marks a
+- Spot recommendations (`specs/2014-spot-recommendations/`): a plugin marks a
   move to spot with `Recommendation.pricing_category` DYNAMIC and
   `spot_interruption_risk_score`, mapped by the same `PricingCategoryLabel` and
   `SpotRisk` as projected costs. `Recommendation.SpotDisplay()` is
