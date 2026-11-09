@@ -1,4 +1,4 @@
-import { el } from '../app.js';
+import { el, withBase } from '../app.js';
 
 const VIEWER_MODULE = '/static/zerolog-viewer/index.js';
 const STREAM_URL = '/api/logs/stream';
@@ -23,7 +23,7 @@ export async function probeLogs(api, link) {
 }
 
 async function defaultCreateViewer(container, options) {
-  const lib = await import(VIEWER_MODULE);
+  const lib = await import(withBase(VIEWER_MODULE));
   return lib.createLogViewer(container, options);
 }
 
@@ -97,7 +97,7 @@ export async function mount(container, ctx, deps = {}) {
     status.textContent = 'Connecting…';
     const resumed = recreated;
     recreated = true;
-    source = new Source(STREAM_URL);
+    source = new Source(withBase(STREAM_URL));
     source.addEventListener('open', () => {
       delay = RETRY_START_MS;
       status.textContent = 'Live';

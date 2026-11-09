@@ -72,6 +72,24 @@ export class ApiError extends Error {
   }
 }
 
+const BASE_PATTERN = /^\/s\/[A-Za-z0-9_.-]+$/;
+
+// base is the path prefix this page was served under: empty at the root,
+// /s/<stack> under a stack. The server writes it into a meta tag because the
+// CSP forbids inline script. Anything that is not a stack path is ignored, so
+// a prefix can never turn a request into a cross-origin one.
+export function base() {
+  const meta = globalThis.document?.querySelector?.('meta[name="finfocus-base"]');
+  const value = meta?.content;
+  return typeof value === 'string' && BASE_PATTERN.test(value) ? value : '';
+}
+
+// withBase is the only place a root-relative /api or /static path becomes a
+// network URL. Every fetch, EventSource, and dynamic import goes through it.
+export function withBase(path) {
+  return base() + path;
+}
+
 async function request(path, { method = 'GET', body, signal } = {}) {
   const init = { method, credentials: 'same-origin', signal };
   if (body !== undefined) {
@@ -80,7 +98,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
   }
   let resp;
   try {
-    resp = await fetch(path, init);
+    resp = await fetch(withBase(path), init);
   } catch (err) {
     if (err.name === 'AbortError') throw err;
     throw new ApiError('Network error: the finfocus server is unreachable.', {
@@ -274,7 +292,7 @@ export class OverviewStream {
     this.retryTimer = null;
     this.abortSessionCheck();
     if (this.source) this.source.close();
-    const source = new EventSource(this.url);
+    const source = new EventSource(withBase(this.url));
     this.source = source;
 
     source.addEventListener('open', () => {
@@ -336,7 +354,7 @@ export class OverviewStream {
       }
     };
     this.authTimer = setTimeout(() => settle('failed'), SESSION_CHECK_TIMEOUT_MS);
-    fetch('/api/overview/budget', { credentials: 'same-origin', signal: controller.signal })
+    fetch(withBase('/api/overview/budget'), { credentials: 'same-origin', signal: controller.signal })
       .then((resp) => settle(resp.status === 401 ? 'unauthorized' : 'ok'))
       .catch(() => settle('failed'));
   }

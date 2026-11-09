@@ -49,6 +49,40 @@ The dashboard refreshes only where the terminal UI does: an on-demand
 `pulumi preview` and estimate recalculation. There is no timed refresh; you
 relaunch for fresh actual costs.
 
+## Stack routes and path prefixes
+
+The server can serve more than one stack from one port. `Server.AddStack`
+registers a named stack with its own session, handler tree, and plugin
+operations, and `/s/<stack>/...` reaches that tree with the prefix stripped.
+The root (`/`) keeps its own session, so nothing changes for a single-stack
+run. No flag registers stacks yet; the multi-stack `--stack` list builds on
+this routing.
+
+Authentication, the `Host` and `Origin` checks, the fetch-metadata checks, and
+request logging run once, in the outer layer, before dispatch. Three
+consequences follow:
+
+- An unregistered stack is a `404` only for an authenticated client. An
+  unauthenticated one gets `401` either way, so stack names cannot be probed.
+- One session cookie, `finfocus_session_<port>` with `Path=/`, signs a browser
+  into every stack. The `?token=` bootstrap works at `/` and at a registered
+  stack's root, and redirects back to the URL it was opened at.
+- `/s/<stack>` redirects to `/s/<stack>/`, because the page loads its assets by
+  relative URL.
+
+A stack name is one path segment of letters, digits, `_`, `.`, and `-` (at most
+100 characters, Pulumi's simple stack name), so it can never change the route
+or reach the page.
+
+The page is prefix-safe. The server writes the prefix into
+`<meta name="finfocus-base">` (the CSP forbids an inline script), empty at the
+root. `app.js` reads it once through `base()` and builds every network URL with
+`withBase(path)`: `fetch`, both `EventSource` sites, the session-expiry check,
+and the log viewer's dynamic `import()`. `<base href>` is not enough, because it
+does not rewrite root-relative `/api` or `/static` URLs or `import()` calls. New
+frontend code must not pass an absolute `/api` or `/static` literal to a network
+call; `frontendtest/base.test.mjs` fails if it does.
+
 ## Security model
 
 A server on `127.0.0.1` is unreachable from other machines, but it is still
