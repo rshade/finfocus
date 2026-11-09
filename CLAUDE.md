@@ -225,6 +225,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `GOMODCACHE`/`GOCACHE` (see `scaffold_build_test.go`). Reproduce with
   `env -u GOPATH go test ...`.
 - `config.yaml` fixtures are intentional legacy input for auto-migration.
+- A plugin that advertises a provider list is not asked about another
+  cloud. `cost projected` therefore has no `declined by kubernetes` note
+  for an AWS resource when only the kubernetes plugin is installed. A
+  kubernetes type that plugin does not price, such as a ConfigMap, still
+  carries the decline. The recorder advertises only `test`, so an engine
+  path that must reach it uses a `test:` type.
 
 ## Releases
 
@@ -310,7 +316,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 ## Plugins
 
 - **Recorder** (reference/contract plugin): `FINFOCUS_RECORDER_OUTPUT_DIR`
-  (default `./recorded_data`), `FINFOCUS_RECORDER_MOCK_RESPONSE`.
+  (default `./recorded_data`), `FINFOCUS_RECORDER_MOCK_RESPONSE`. It
+  advertises only the `test` provider, so the engine fallback does not
+  send it a resource of another cloud.
 - **Recommendation scorer** (`plugins/scorer/`): opt-in; `SCORER_BACKEND=jev|clef`
   defaults to Jev. `SCORER_API_KEY` is the selected backend token; it
   never appears in logs, errors, tests, or files. The recommendation id never
