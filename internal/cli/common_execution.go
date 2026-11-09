@@ -392,9 +392,7 @@ func newEngineWithCache(
 	} else {
 		cfg = config.New()
 	}
-	eng := engine.New(clients, loader).
-		WithRouter(createRouterForEngine(ctx, cfg, clients)).
-		WithPricingSpecFallback(cfg.Cost.PricingSpecFallback)
+	eng := buildEngine(ctx, clients, loader, cfg)
 
 	cacheStore := initCacheFromConfig(ctx, cmd, cfg)
 	cacheCleanup := func() {}
@@ -410,6 +408,38 @@ func newEngineWithCache(
 		}
 	}
 	return eng, cacheStore, cacheCleanup
+}
+
+// buildEngine creates an Engine with the router and pricing-spec fallback that
+// every caller shares. It opens no store.
+func buildEngine(
+	ctx context.Context,
+	clients []*pluginhost.Client,
+	loader engine.SpecLoader,
+	cfg *config.Config,
+) *engine.Engine {
+	return engine.New(clients, loader).
+		WithRouter(createRouterForEngine(ctx, cfg, clients)).
+		WithPricingSpecFallback(cfg.Cost.PricingSpecFallback)
+}
+
+// newEngineWithStores creates an Engine without a spec loader that uses the process-wide stores and
+// opens nothing itself. A nil stores value, or a nil cache in it, leaves the
+// engine without a cache. The caller owns the stores and closes them.
+func newEngineWithStores(
+	ctx context.Context,
+	clients []*pluginhost.Client,
+	cfg *config.Config,
+	stores *sharedStores,
+) *engine.Engine {
+	if cfg == nil {
+		cfg = config.New()
+	}
+	eng := buildEngine(ctx, clients, nil, cfg)
+	if cacheStore := stores.cacheStore(); cacheStore != nil {
+		eng = eng.WithCache(cacheStore)
+	}
+	return eng
 }
 
 // newEngineWithCacheAndHistory creates an Engine configured with cache and history store.

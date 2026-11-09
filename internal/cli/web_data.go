@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/stackload"
 	"github.com/rshade/finfocus/internal/webui"
 )
@@ -65,6 +67,9 @@ type webData struct {
 	replaced      bool
 	escMu         sync.Mutex
 	escSource     *esc.Source
+	// stores is the process-wide cache and history. When set, newEngine opens
+	// nothing and never closes them; the owner of the stores does.
+	stores *sharedStores
 }
 
 func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRange, audit *auditContext) *webData {
@@ -82,6 +87,13 @@ func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRang
 		data.noteESC(cmd.Context())
 	}
 	return data
+}
+
+// withStores makes the data path use the process-wide cache and history
+// instead of opening its own.
+func (d *webData) withStores(stores *sharedStores) *webData {
+	d.stores = stores
+	return d
 }
 
 // ESCSource returns the session's current ESC resolver.
@@ -102,6 +114,31 @@ func (d *webData) noteESC(ctx context.Context) {
 	d.escMu.Lock()
 	d.escSource = src
 	d.escMu.Unlock()
+}
+
+// bindStackESC scopes the session's ESC source to its own stack, read from that
+// stack's Pulumi.<stack>.yaml, and returns ctx carrying it. The source in the
+// command context was built from the raw --stack flag, which is empty or a
+// list for a multi-stack run. Without a named stack, or without a project
+// above the working directory, ctx and the current source are unchanged.
+func (d *webData) bindStackESC(ctx context.Context) context.Context {
+	root := d.ESCSource()
+	if root == nil || strings.TrimSpace(d.params.stack) == "" {
+		return ctx
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ctx
+	}
+	projectDir, err := pulumidetect.FindProject(cwd)
+	if err != nil {
+		return ctx
+	}
+	scoped := stackESCSource(ctx, root, projectDir, d.params.stack)
+	d.escMu.Lock()
+	d.escSource = scoped
+	d.escMu.Unlock()
+	return esc.WithSource(ctx, scoped)
 }
 
 func (d *webData) freshESC(ctx context.Context) context.Context {
@@ -250,8 +287,13 @@ func (d *webData) newEngine(
 	cmd *cobra.Command,
 	clients []*pluginhost.Client,
 ) (*engine.Engine, func()) {
-	var cleanup func()
-	d.eng, d.history, d.cache, cleanup = newEngineWithCacheAndHistory(ctx, cmd, clients, nil, d.params.cfg)
+	cleanup := func() {}
+	if d.stores != nil {
+		d.eng = newEngineWithStores(ctx, clients, d.params.cfg, d.stores)
+		d.history, d.cache = d.stores.historyStore(), d.stores.cacheStore()
+	} else {
+		d.eng, d.history, d.cache, cleanup = newEngineWithCacheAndHistory(ctx, cmd, clients, nil, d.params.cfg)
+	}
 	d.clients = append([]*pluginhost.Client(nil), clients...)
 	scorerCleanup := func() {}
 	if cfg := d.params.cfg.Scoring.Resolve(); cfg.Enabled {

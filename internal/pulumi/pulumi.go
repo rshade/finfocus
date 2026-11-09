@@ -195,15 +195,15 @@ func readProjectFile(projectDir string) (pulumiProjectFile, error) {
 	return pulumiProjectFile{}, fmt.Errorf("no Pulumi.yaml or Pulumi.yml found in %s", projectDir)
 }
 
-// GetCurrentStack returns the name of the currently selected Pulumi stack for the project
-// at projectDir by running `pulumi stack ls --json`. Returns NoCurrentStackError if no
-// stack is marked current, or an error if the command fails or output cannot be parsed.
-func GetCurrentStack(ctx context.Context, projectDir string) (string, error) {
+// ListStacks returns the stacks of the project at projectDir by running
+// `pulumi stack ls --json`. Each entry carries the stack name and whether it is
+// the current selection. A canceled context is preserved in the returned error.
+func ListStacks(ctx context.Context, projectDir string) ([]StackInfo, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
 		Ctx(ctx).
 		Str("component", "pulumi").
-		Str("operation", "get_current_stack").
+		Str("operation", "list_stacks").
 		Str("project_dir", projectDir).
 		Msg("listing Pulumi stacks")
 
@@ -213,14 +213,60 @@ func GetCurrentStack(ctx context.Context, projectDir string) (string, error) {
 		// and does not wrap the context error, so callers would treat the kill as
 		// a stack-loading failure. Preserve the cancellation when the context is done.
 		if cerr := ctx.Err(); cerr != nil {
-			return "", fmt.Errorf("running pulumi stack ls: %w", cerr)
+			return nil, fmt.Errorf("running pulumi stack ls: %w", cerr)
 		}
-		return "", fmt.Errorf("running pulumi stack ls: %w: %s", err, strings.TrimSpace(string(stderr)))
+		return nil, fmt.Errorf("running pulumi stack ls: %w: %s", err, strings.TrimSpace(string(stderr)))
 	}
 
 	var stacks []StackInfo
 	if unmarshalErr := json.Unmarshal(stdout, &stacks); unmarshalErr != nil {
-		return "", fmt.Errorf("parsing pulumi stack ls output: %w", unmarshalErr)
+		return nil, fmt.Errorf("parsing pulumi stack ls output: %w", unmarshalErr)
+	}
+	return stacks, nil
+}
+
+// ValidateStacks reports every requested stack name that is not in available.
+// A name is trimmed first, and a fully qualified reference (org/project/stack)
+// matches its bare stack name, as the stack settings lookup does. The error
+// wraps ErrStackNotFound and lists the available names.
+func ValidateStacks(requested []string, available []StackInfo) error {
+	known := make(map[string]struct{}, len(available))
+	names := make([]string, 0, len(available))
+	for _, stack := range available {
+		known[stack.Name] = struct{}{}
+		names = append(names, stack.Name)
+	}
+	var unknown []string
+	for _, name := range requested {
+		name = strings.TrimSpace(name)
+		if _, ok := known[name]; ok {
+			continue
+		}
+		if idx := strings.LastIndexAny(name, `/\`); idx >= 0 && idx < len(name)-1 {
+			if _, ok := known[name[idx+1:]]; ok {
+				continue
+			}
+		}
+		unknown = append(unknown, name)
+	}
+	if len(unknown) == 0 {
+		return nil
+	}
+	if len(names) == 0 {
+		return fmt.Errorf("%w: %s; no stacks found in this project", ErrStackNotFound, strings.Join(unknown, ", "))
+	}
+	return fmt.Errorf("%w: %s (available: %s)",
+		ErrStackNotFound, strings.Join(unknown, ", "), strings.Join(names, ", "))
+}
+
+// GetCurrentStack returns the name of the currently selected Pulumi stack for the project
+// at projectDir by running `pulumi stack ls --json`. Returns NoCurrentStackError if no
+// stack is marked current, or an error if the command fails or output cannot be parsed.
+func GetCurrentStack(ctx context.Context, projectDir string) (string, error) {
+	log := logging.FromContext(ctx)
+	stacks, err := ListStacks(ctx, projectDir)
+	if err != nil {
+		return "", err
 	}
 
 	var available []string

@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -170,9 +171,15 @@ func loadESCStack(cmd *cobra.Command, cwd string) pulumidetect.StackContext {
 	if err != nil {
 		return pulumidetect.StackContext{}
 	}
-	loaded, err := pulumidetect.LoadStackContext(projectDir, stackFlagValue(cmd))
+	return loadStackContextQuietly(cmd.Context(), projectDir, stackFlagValue(cmd))
+}
+
+// loadStackContextQuietly reads a stack's own settings. An unreadable file is
+// an absent stack context, logged at debug, never an error for the caller.
+func loadStackContextQuietly(ctx context.Context, projectDir, stack string) pulumidetect.StackContext {
+	loaded, err := pulumidetect.LoadStackContext(projectDir, stack)
 	if err != nil {
-		logging.FromContext(cmd.Context()).Debug().
+		logging.FromContext(ctx).Debug().
 			Str("component", "esc").
 			Str("operation", "stack_context").
 			Err(err).
@@ -180,6 +187,23 @@ func loadESCStack(cmd *cobra.Command, cwd string) pulumidetect.StackContext {
 		return pulumidetect.StackContext{}
 	}
 	return loaded
+}
+
+// stackESCSource returns the ESC source for one stack: the root source's
+// global and per-plugin configuration with the stack environments read from
+// that stack's own Pulumi.<stack>.yaml. Each stack gets its own source because
+// a source memoizes opened environments. An empty stack, or no root source,
+// returns root unchanged so a run without a named stack resolves ESC as before.
+// The raw --stack flag is never consulted: a list value such as "dev,tailscale"
+// names no settings file.
+func stackESCSource(ctx context.Context, root *esc.Source, projectDir, stack string) *esc.Source {
+	stack = strings.TrimSpace(stack)
+	if root == nil || stack == "" {
+		return root
+	}
+	opts := root.Options()
+	opts.Stack = loadStackContextQuietly(ctx, projectDir, stack)
+	return esc.NewSource(opts)
 }
 
 func stackFlagValue(cmd *cobra.Command) string {
