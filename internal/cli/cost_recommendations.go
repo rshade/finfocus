@@ -662,7 +662,7 @@ func RenderRecommendationsOutput(
 
 	switch mode {
 	case tui.OutputModeInteractive:
-		return runInteractiveRecommendations(result.Recommendations, result.Profile)
+		return runInteractiveRecommendations(result)
 
 	case tui.OutputModeStyled:
 		// Styled mode renders the summary with lipgloss styling
@@ -677,8 +677,9 @@ func RenderRecommendationsOutput(
 
 // runInteractiveRecommendations launches the interactive TUI for recommendations.
 // Uses NewRecommendationsViewModel which starts with data already loaded.
-func runInteractiveRecommendations(recommendations []engine.Recommendation, profile string) error {
-	model := tui.NewRecommendationsViewModelWithProfile(recommendations, profile)
+func runInteractiveRecommendations(result *engine.RecommendationsResult) error {
+	model := tui.NewRecommendationsViewModelWithProfile(result.Recommendations, result.Profile).
+		WithPluginErrors(result.Errors)
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive recommendations TUI: %w", err)
@@ -779,9 +780,14 @@ func renderRecommendationsTableWithVerbose(
 		fmt.Fprintln(w)
 	}
 
-	// Handle empty case
 	if len(result.Recommendations) == 0 {
-		fmt.Fprintln(w, "No recommendations available.")
+		if !result.HasErrors() {
+			fmt.Fprintln(w, "No recommendations available.")
+			return nil
+		}
+		fmt.Fprintf(w, "No recommendations available: %s (see ERRORS below).\n",
+			failedPluginsPhrase(result.FailedPluginCount()))
+		writeRecommendationErrors(w, result)
 		return nil
 	}
 
@@ -854,15 +860,25 @@ func renderRecommendationsTableWithVerbose(
 		)
 	}
 
-	// Errors
 	if result.HasErrors() {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "ERRORS")
-		fmt.Fprintln(w, "======")
-		fmt.Fprintln(w, result.ErrorSummary())
+		writeRecommendationErrors(w, result)
 	}
 
 	return nil
+}
+
+func writeRecommendationErrors(w io.Writer, result *engine.RecommendationsResult) {
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "ERRORS")
+	fmt.Fprintln(w, "======")
+	fmt.Fprintln(w, result.ErrorSummary())
+}
+
+func failedPluginsPhrase(count int) string {
+	if count == 1 {
+		return "1 plugin failed"
+	}
+	return fmt.Sprintf("%d plugins failed", count)
 }
 
 type recommendationColumns struct {
@@ -962,6 +978,7 @@ func renderRecommendationsNDJSON(
 		SavingsByAction:   jsonSum.SavingsByAction,
 		Pagination:        paginationMeta,
 		Scoring:           newScoringJSON(result.Scoring),
+		Errors:            result.Errors,
 	}
 	if err := encoder.Encode(summary); err != nil {
 		return fmt.Errorf("encoding NDJSON summary: %w", err)
@@ -1107,15 +1124,16 @@ type jsonSummary = engine.RecommendationSummary
 
 // ndjsonSummary represents the summary line in NDJSON output.
 type ndjsonSummary struct {
-	Type              string                     `json:"type"`
-	TotalCount        int                        `json:"total_count"`
-	TotalSavings      float64                    `json:"total_savings"`
-	Currency          string                     `json:"currency"`
-	Profile           string                     `json:"profile"`
-	CountByActionType map[string]int             `json:"count_by_action_type"`
-	SavingsByAction   map[string]float64         `json:"savings_by_action_type"`
-	Pagination        *pagination.PaginationMeta `json:"pagination,omitempty"`
-	Scoring           *scoringJSON               `json:"scoring,omitempty"`
+	Type              string                       `json:"type"`
+	TotalCount        int                          `json:"total_count"`
+	TotalSavings      float64                      `json:"total_savings"`
+	Currency          string                       `json:"currency"`
+	Profile           string                       `json:"profile"`
+	CountByActionType map[string]int               `json:"count_by_action_type"`
+	SavingsByAction   map[string]float64           `json:"savings_by_action_type"`
+	Pagination        *pagination.PaginationMeta   `json:"pagination,omitempty"`
+	Scoring           *scoringJSON                 `json:"scoring,omitempty"`
+	Errors            []engine.RecommendationError `json:"errors,omitempty"`
 }
 
 type recommendationJSON struct {

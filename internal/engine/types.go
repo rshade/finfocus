@@ -885,6 +885,15 @@ func (r *RecommendationsResult) HasErrors() bool {
 	return len(r.Errors) > 0
 }
 
+// FailedPluginCount returns how many distinct plugins reported an error.
+func (r *RecommendationsResult) FailedPluginCount() int {
+	seen := make(map[string]struct{}, len(r.Errors))
+	for _, e := range r.Errors {
+		seen[e.PluginName] = struct{}{}
+	}
+	return len(seen)
+}
+
 // ErrorSummary returns a string summary of errors.
 func (r *RecommendationsResult) ErrorSummary() string {
 	if !r.HasErrors() {

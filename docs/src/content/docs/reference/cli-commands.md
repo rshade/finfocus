@@ -537,6 +537,24 @@ for plugin communication, and both reject `--terraform-plan`.
 `worth_acting`, `priority` and `insufficient_evidence`. These require the optional scoring step, which is off by default.
 See the [Recommendation Scoring Guide](../guides/recommendation-scoring.md).
 
+### Plugin failures (cost recommendations)
+
+A plugin whose recommendations query fails does not stop the command. The
+recommendations from the plugins that answered are still listed, and every
+output names the failed plugin:
+
+- Table output ends with an `ERRORS` section. With no recommendations at all it
+  reads `No recommendations available: 1 plugin failed (see ERRORS below).`
+  instead of a bare `No recommendations available.`
+- The interactive view lists failed plugins under `PLUGIN ERRORS`, below the
+  summary.
+- JSON carries `errors`; NDJSON carries `errors` on its first (`summary`) line.
+  Both are absent when every plugin answered.
+
+The exit code stays 0, as it does for `cost projected` with plugin errors. A
+script that must notice a failed plugin should read `errors` from JSON or NDJSON
+output.
+
 ### Subcommands (cost recommendations)
 
 | Subcommand  | Description                                 |
