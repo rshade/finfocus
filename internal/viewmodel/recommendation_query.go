@@ -24,6 +24,7 @@ type RecommendationPage struct {
 	Summary        engine.RecommendationSummary `json:"summary"`
 	SavingsDisplay string                       `json:"savingsDisplay"`
 	ItemKeys       []string                     `json:"itemKeys"`
+	ItemNames      []string                     `json:"itemNames"`
 	ItemActions    []string                     `json:"itemActions"`
 	ItemSavings    []string                     `json:"itemSavings"`
 	ItemSpot       []string                     `json:"itemSpot"`
@@ -60,6 +61,7 @@ func BuildRecommendationPage(
 		Summary:        summary,
 		Errors:         result.Errors,
 		Scoring:        result.Scoring,
+		ItemNames:      []string{},
 		ItemSavings:    []string{},
 		ItemSpot:       []string{},
 		Actions:        []ActionSummary{},
@@ -69,6 +71,7 @@ func BuildRecommendationPage(
 	page.Page, page.TotalPages, start, end = PageBounds(len(items), requested)
 	page.Items = append([]engine.Recommendation{}, items[start:end]...)
 	for _, rec := range page.Items {
+		page.ItemNames = append(page.ItemNames, engine.ExtractResourceDisplayName(rec.ResourceID))
 		page.ItemActions = append(page.ItemActions, proto.ActionTypeLabelFromString(rec.Type))
 		page.ItemSavings = append(page.ItemSavings, RecommendationSavingsDisplay(rec))
 		page.ItemSpot = append(page.ItemSpot, rec.SpotDisplay())

@@ -639,6 +639,22 @@ test('a spot recommendation in the resource detail shows the server-built badge'
   t.mounted.unmount();
 });
 
+test('a resource detail recommendation shows the action display string, never the raw enum', async () => {
+  const t = await setup(); t.calls[0].resolve(page([row('alpha')])); await flush();
+  t.container.querySelector('.resource-link').dispatch('click');
+  t.calls.at(-1).resolve({
+    row: row('alpha'), budgets: [],
+    activeRecommendations: [
+      { recommendation: { type: 'RECOMMENDATION_ACTION_TYPE_MODIFY', description: 'Move to spot' }, actionDisplay: 'Modify', savingsDisplay: '$62.00', spotDisplay: 'SPOT · risk 0.12' },
+      { recommendation: { type: 'RECOMMENDATION_ACTION_TYPE_RIGHTSIZE', description: 'Downsize' }, savingsDisplay: '$5.00' },
+    ],
+  }); await flush();
+  const items = t.container.querySelector('.detail-recs').querySelectorAll('li');
+  assert.equal(items[0].textContent, '[Modify] Move to spot — $62.00 SPOT · risk 0.12');
+  assert.equal(items[1].textContent, 'Downsize — $5.00');
+  t.mounted.unmount();
+});
+
 test('canceling a pending unlock does not retain an accepted requirement on remount', async () => {
   const t = await setup(); t.stream.emit('passphrase_required', { stack: 'encrypted' });
   t.container.querySelector('#passphrase-input').value = 'correct';

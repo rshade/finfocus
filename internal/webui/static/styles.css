@@ -908,10 +908,10 @@ button:disabled {
 
 /* Keep recommendation savings visible while long resource identifiers wrap. */
 .recommendations-table { table-layout: fixed; }
-.recommendations-table th:nth-child(1) { width: 27%; }
-.recommendations-table th:nth-child(2) { width: 13%; }
+.recommendations-table th:nth-child(1) { width: 22%; }
+.recommendations-table th:nth-child(2) { width: 20%; }
 .recommendations-table th:nth-child(3) { width: 30%; }
-.recommendations-table th:nth-child(4) { width: 18%; }
+.recommendations-table th:nth-child(4) { width: 16%; }
 .recommendations-table th:nth-child(5) { width: 12%; }
 .recommendations-table td,
 .recommendations-table .detail-button { white-space: normal; overflow-wrap: anywhere; }
@@ -1086,7 +1086,7 @@ button:disabled {
 
 .spot-badge {
   display: inline-block;
-  margin-left: 0.5rem;
+  margin-left: 0.25rem;
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--spot-border);
   border-radius: 999px;
@@ -1095,6 +1095,17 @@ button:disabled {
   font-size: 0.8rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* In the narrow Action column the tag sits on its own line under the action label and wraps inside
+   the cell instead of spilling into the Description column. */
+.recommendations-table .spot-badge {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.25rem 0 0;
+  border-radius: 0.75rem;
+  white-space: normal;
 }
 
 .app-nav a[hidden] {

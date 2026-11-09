@@ -743,11 +743,11 @@ export function mount(container, ctx) {
       const list = el('ul', { class: 'detail-recs' });
       for (const entry of recs) {
         const rec = entry.recommendation;
-        const type = pick(rec, 'type');
+        const action = entry.actionDisplay;
         const description = pick(rec, 'description');
         list.append(
           el('li', {},
-            el('span', { class: 'rec-type', text: type ? `[${type}] ` : '' }),
+            el('span', { class: 'rec-type', text: action ? `[${action}] ` : '' }),
             el('span', { text: description ?? '' }),
             el('span', { class: 'rec-savings', text: entry.savingsDisplay ? ` — ${entry.savingsDisplay}` : '' }),
             spotBadge(entry.spotDisplay)),

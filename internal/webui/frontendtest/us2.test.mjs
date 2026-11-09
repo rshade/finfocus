@@ -93,8 +93,8 @@ test('time aggregates offer cost and period sorts only',async()=>{
 test('cost renders shared summary, provider subtotals and complete formatted detail',async()=>{
  const t=await setup('cost');t.calls[0].resolve({...costPage('vm'),summaryDisplay:{totalDisplay:'$12.35',resourceCount:2,recommendationCount:3,providers:[{name:'aws',costDisplay:'$12.35',shareDisplay:'100.0%'}],carbonEquivalency:'Equivalent to 2 miles'},rows:[{...costPage('vm').rows[0],providersDisplay:'aws:$12'}]});await flush();
  for(const text of ['Resources: 2','Recommendations: 3','aws: $12.35 (100.0%)','Equivalent to 2 miles','aws:$12'])assert.ok(t.container.textContent.includes(text),text);
- t.container.querySelector('.detail-button').dispatch('click');t.calls.at(-1).resolve({result:{resourceId:'vm',resourceType:'aws:ec2:Instance'},provider:'aws',periodDisplay:'2026-10-01 - 2026-10-03',monthlyDisplay:'$12.35 USD',hourlyDisplay:'$0.0169 USD',deltaDisplay:'+$2.00 ↑',breakdown:[{name:'compute',costDisplay:'$12.3456'}],sustainabilityDisplay:[{name:'carbon',value:'0.23 kgCO2e'}],recommendations:[{recommendation:{type:'RIGHTSIZE',description:'Smaller',reasoning:['Verify memory']},savingsDisplay:'$2.00 USD'}],notesDisplay:'Provider detail error'});await flush();
- for(const text of ['aws:ec2:Instance','Provider: aws','2026-10-01 - 2026-10-03','$0.0169 USD','+$2.00 ↑','$12.3456','0.23 kgCO2e','RIGHTSIZE','Verify memory','Provider detail error'])assert.ok(t.container.querySelector('dialog').textContent.includes(text),text);t.mounted.unmount();
+ t.container.querySelector('.detail-button').dispatch('click');t.calls.at(-1).resolve({result:{resourceId:'vm',resourceType:'aws:ec2:Instance'},provider:'aws',periodDisplay:'2026-10-01 - 2026-10-03',monthlyDisplay:'$12.35 USD',hourlyDisplay:'$0.0169 USD',deltaDisplay:'+$2.00 ↑',breakdown:[{name:'compute',costDisplay:'$12.3456'}],sustainabilityDisplay:[{name:'carbon',value:'0.23 kgCO2e'}],recommendations:[{actionDisplay:'Rightsize',recommendation:{type:'RIGHTSIZE',description:'Smaller',reasoning:['Verify memory']},savingsDisplay:'$2.00 USD'}],notesDisplay:'Provider detail error'});await flush();
+ for(const text of ['aws:ec2:Instance','Provider: aws','2026-10-01 - 2026-10-03','$0.0169 USD','+$2.00 ↑','$12.3456','0.23 kgCO2e','[Rightsize] Smaller','Verify memory','Provider detail error'])assert.ok(t.container.querySelector('dialog').textContent.includes(text),text);t.mounted.unmount();
 });
 
 test('recommendations render shared action labels and exact scorer strings',async()=>{
@@ -164,6 +164,42 @@ test('a spot recommendation shows the server-built badge in the action cell and 
  assert.equal(detailBadge.textContent,'SPOT · risk unknown');assert.match(dialog.textContent,/Pricing:/);t.mounted.unmount();
 });
 
+test('the action cell keeps the badge with its label and the resource shows the server-built name',async()=>{
+ const t=await setup('recommendations');const page=recPage('urn:pulumi:dev::p::aws:ec2/instance:Instance::web');
+ page.itemNames=['web'];page.itemActions=['Modify'];page.itemSpot=['SPOT · risk 0.12'];t.calls[0].resolve(page);await flush();
+ const button=t.container.querySelector('.detail-button');assert.equal(button.textContent,'web');assert.equal(button.attrs.title,'urn:pulumi:dev::p::aws:ec2/instance:Instance::web');
+ const cell=t.container.querySelector('.rec-action');assert.equal(cell.textContent,'Modify SPOT · risk 0.12');assert.equal(cell.querySelectorAll('.spot-badge').length,1);t.mounted.unmount();
+});
+
+test('the resource falls back to the raw id when the page has no itemNames',async()=>{
+ const t=await setup('recommendations');t.calls[0].resolve(recPage('i-0abc'));await flush();
+ assert.equal(t.container.querySelector('.detail-button').textContent,'i-0abc');t.mounted.unmount();
+});
+
+test('the detail separates the spot risk from the scorer risk',async()=>{
+ const t=await setup('recommendations');t.calls[0].resolve(recPage('spot'));await flush();
+ t.container.querySelector('.detail-button').dispatch('click');
+ t.calls.at(-1).resolve({item:{id:'spot',description:'Move to spot'},actionDisplay:'Modify',savingsDisplay:'$62.00 USD',spotDisplay:'SPOT · risk 0.12',scoreDisplay:[{name:'Risk',value:'0.20'}]});await flush();
+ const dialog=t.container.querySelector('dialog');const note=dialog.querySelector('.detail-note');
+ assert.match(note.textContent,/chance the spot capacity is interrupted/);assert.match(note.textContent,/scorer's Risk signal/);
+ assert.match(dialog.textContent,/Pricing: SPOT · risk 0\.12/);t.mounted.unmount();
+});
+
+test('the spot risk note leaves out the scorer when no scores exist',async()=>{
+ const t=await setup('recommendations');t.calls[0].resolve(recPage('spot'));await flush();
+ t.container.querySelector('.detail-button').dispatch('click');
+ t.calls.at(-1).resolve({item:{id:'spot',description:'Move to spot'},actionDisplay:'Modify',savingsDisplay:'$62.00 USD',spotDisplay:'SPOT · risk unknown'});await flush();
+ const note=t.container.querySelector('dialog').querySelector('.detail-note');
+ assert.match(note.textContent,/chance the spot capacity is interrupted/);assert.doesNotMatch(note.textContent,/scorer/);t.mounted.unmount();
+});
+
+test('a plain recommendation detail has no spot risk note',async()=>{
+ const t=await setup('recommendations');t.calls[0].resolve(recPage('plain'));await flush();
+ t.container.querySelector('.detail-button').dispatch('click');
+ t.calls.at(-1).resolve({item:{id:'plain',description:'Smaller'},actionDisplay:'Rightsize',savingsDisplay:'$2.00 USD'});await flush();
+ assert.equal(t.container.querySelector('dialog').querySelectorAll('.detail-note').length,0);t.mounted.unmount();
+});
+
 test('a recommendation page without itemSpot renders no badge',async()=>{
  const t=await setup('recommendations');t.calls[0].resolve(recPage('rec'));await flush();
  assert.equal(t.container.querySelectorAll('.spot-badge').length,0);t.mounted.unmount();
@@ -174,4 +210,13 @@ test('a linked spot recommendation in the cost detail shows the server-built bad
  t.container.querySelector('.detail-button').dispatch('click');
  t.calls.at(-1).resolve({result:{resourceId:'vm'},breakdown:[],sustainabilityDisplay:[],recommendations:[{recommendation:{type:'MODIFY',description:'Move to spot'},savingsDisplay:'$62.00 USD',spotDisplay:'SPOT · risk 0.12'},{recommendation:{type:'RIGHTSIZE',description:'Smaller'},savingsDisplay:'$2.00 USD'}]});await flush();
  const badges=t.container.querySelectorAll('.spot-badge');assert.equal(badges.length,1);assert.equal(badges[0].textContent,'SPOT · risk 0.12');t.mounted.unmount();
+});
+
+test('a linked cost recommendation shows the action display string, never the raw enum',async()=>{
+ const t=await setup('cost');t.calls[0].resolve(costPage('vm'));await flush();
+ t.container.querySelector('.detail-button').dispatch('click');
+ t.calls.at(-1).resolve({result:{resourceId:'vm'},breakdown:[],sustainabilityDisplay:[],recommendations:[{recommendation:{type:'RECOMMENDATION_ACTION_TYPE_MODIFY',description:'Move to spot'},actionDisplay:'Modify',savingsDisplay:'$62.00 USD',spotDisplay:'SPOT · risk 0.12'},{recommendation:{type:'RECOMMENDATION_ACTION_TYPE_RIGHTSIZE',description:'Smaller'}}]});await flush();
+ const text=t.container.querySelector('dialog').textContent;
+ assert.match(text,/\[Modify\] Move to spot \(\$62\.00 USD\/mo savings\) SPOT · risk 0\.12/);
+ assert.doesNotMatch(text,/RECOMMENDATION_ACTION_TYPE/);assert.match(text,/Smaller/);t.mounted.unmount();
 });

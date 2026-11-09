@@ -164,6 +164,7 @@ type CostBreakdown struct {
 // CostRecommendation preserves full linked recommendation details and savings.
 type CostRecommendation struct {
 	Recommendation engine.Recommendation `json:"recommendation"`
+	ActionDisplay  string                `json:"actionDisplay"`
 	SavingsDisplay string                `json:"savingsDisplay"`
 	// SpotDisplay is the recommendation's spot label, omitted when it does not target spot.
 	SpotDisplay string `json:"spotDisplay,omitempty"`

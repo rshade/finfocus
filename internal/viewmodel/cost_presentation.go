@@ -9,6 +9,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/greenops"
+	"github.com/rshade/finfocus/internal/proto"
 	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
@@ -165,7 +166,8 @@ func LinkedCostRecommendations(recs []engine.Recommendation) []CostRecommendatio
 			savings = RecommendationSavingsDisplay(rec)
 		}
 		result = append(result, CostRecommendation{
-			Recommendation: rec, SavingsDisplay: savings, SpotDisplay: rec.SpotDisplay(),
+			Recommendation: rec, ActionDisplay: proto.ActionTypeLabelFromString(rec.Type),
+			SavingsDisplay: savings, SpotDisplay: rec.SpotDisplay(),
 		})
 	}
 	return result
