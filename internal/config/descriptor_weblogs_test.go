@@ -84,7 +84,7 @@ func TestWebLogsEffectiveValueFollowsEnvironment(t *testing.T) {
 func TestWebLogsSettingOnPage(t *testing.T) {
 	t.Parallel()
 	global := filepath.Join(t.TempDir(), "config.hujson")
-	page, err := BuildPage(global, "")
+	page, err := buildPage(global, "", nil)
 	require.NoError(t, err)
 
 	found := false
