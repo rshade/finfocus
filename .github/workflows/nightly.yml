@@ -370,6 +370,11 @@ jobs:
             if ($text.Contains($bad)) { throw "preview output contains '$bad'" }
           }
 
+      - name: Run the Windows policy pack test
+        run: |
+          $env:FINFOCUS_TEST_PULUMI = (Get-Command pulumi).Source
+          go test -v -count=1 -run TestAnalyzerPolicyPack_Windows ./test/integration/
+
   # Deep fuzzing (Linux only - runs longer)
   deep-fuzz:
     name: Deep Fuzz Testing
