@@ -98,14 +98,18 @@ func currentWebSnapshot(t *testing.T, origin string, cookie *http.Cookie) map[st
 // startupPreviewRunner answers like the Pulumi CLI on an encrypted stack:
 // stack export does not decrypt secrets, so it succeeds with any passphrase,
 // while preview needs the right one. previewErr, when set, fails every
-// preview with that stderr instead.
+// preview with that stderr instead. reselectAfterStartup answers the first
+// `stack ls` with dev selected and every later one with prod, as if the user
+// ran `pulumi stack select prod` once the dashboard started.
 type startupPreviewRunner struct {
-	state, plan []byte
-	passphrase  string
-	previewErr  string
+	state, plan          []byte
+	passphrase           string
+	previewErr           string
+	reselectAfterStartup bool
 
 	mu       sync.Mutex
 	previews int
+	commands []string
 }
 
 func (r *startupPreviewRunner) Run(
@@ -114,6 +118,13 @@ func (r *startupPreviewRunner) Run(
 	env []string,
 	args ...string,
 ) ([]byte, []byte, error) {
+	r.mu.Lock()
+	r.commands = append(r.commands, strings.Join(args, " "))
+	listed := len(r.ran("stack ls"))
+	r.mu.Unlock()
+	if r.reselectAfterStartup && strings.Contains(strings.Join(args, " "), "stack ls") && listed > 1 {
+		return []byte(`[{"name":"dev"},{"name":"prod","current":true}]`), nil, nil
+	}
 	if strings.Contains(strings.Join(args, " "), "preview") {
 		r.mu.Lock()
 		r.previews++
@@ -127,6 +138,18 @@ func (r *startupPreviewRunner) Run(
 		}
 	}
 	return (scriptedPulumi{export: r.state, preview: r.plan}).Run(ctx, dir, name, env, args...)
+}
+
+// ran lists the Pulumi commands run so far whose arguments contain op. The
+// caller holds r.mu.
+func (r *startupPreviewRunner) ran(op string) []string {
+	var matched []string
+	for _, command := range r.commands {
+		if strings.Contains(command, op) {
+			matched = append(matched, command)
+		}
+	}
+	return matched
 }
 
 func (r *startupPreviewRunner) previewCalls() int {

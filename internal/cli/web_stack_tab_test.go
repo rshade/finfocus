@@ -53,6 +53,35 @@ func TestWebShellNamesTheOneStack(t *testing.T) {
 	}
 }
 
+// TestWebLoadsTheStackTheShellNames (#2088): the tab names the workspace stack
+// resolved at startup, so loading must use that same stack. Left to resolve
+// the workspace selection again, a `pulumi stack select` during the passphrase
+// wait would show another stack's costs under the first stack's name.
+//
+//nolint:paralleltest // startWebPassphraseProject changes cwd, env, global config, the Pulumi runner, and the web hook.
+func TestWebLoadsTheStackTheShellNames(t *testing.T) {
+	runner := &startupPreviewRunner{reselectAfterStartup: true}
+	origin, cookie, _, cancel, wait := startWebPassphraseProject(t, false, runner)
+
+	assert.Contains(t, webShell(t, origin, cookie), `<meta name="finfocus-stack" content="dev">`)
+	events, ready := readWebEventsUntil(openWebStream(t, origin, cookie), func(event webStreamEvent) bool {
+		return isReady(event) || (event.name == "snapshot" && event.data["ready"] == true)
+	})
+	require.True(t, ready, "the stack must load; events: %v", eventNames(events))
+	for _, op := range []string{"stack export", "preview"} {
+		runner.mu.Lock()
+		commands := runner.ran(op)
+		runner.mu.Unlock()
+		require.NotEmpty(t, commands, "the pipeline must run pulumi %s", op)
+		for _, command := range commands {
+			assert.Contains(t, command, "--stack dev", "pulumi %s must name the stack the shell shows", op)
+		}
+	}
+
+	cancel()
+	require.NoError(t, wait())
+}
+
 // TestWebShellNamesNoStackForAStateFile (#2088): a state or plan file is not a
 // Pulumi stack the dashboard selected, so the page shows no tab bar even when
 // --stack is given.

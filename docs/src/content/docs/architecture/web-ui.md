@@ -156,7 +156,9 @@ between the title and the view links.
 A single-stack root page instead names its Pulumi stack in
 `<meta name="finfocus-stack">` (`Options.StackName`). `runWebSession` passes the
 stack `checkWebProjectSource` resolved, which is `--stack` or the workspace's
-selected stack, so the name is known before the server listens. Plan files, state
+selected stack, so the name is known before the server listens. It also pins
+the pipeline's stack to that name, so a `pulumi stack select` during a
+passphrase wait cannot load another stack under the same label. Plan files, state
 files, and Terraform pass none. The tag shows a lone selected tab and the header
 label and changes nothing else: it is display text, may be org-qualified, and
 never becomes a request prefix. That tab follows its own session from the

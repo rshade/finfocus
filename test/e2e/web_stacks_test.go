@@ -170,16 +170,17 @@ func TestWebUISingleStackTab(t *testing.T) {
 	copyWebState(t, filepath.Join(f.root, "test/e2e/fixtures/web/estimate-picker-state.json"), states, "dev")
 	plan := filepath.Join(f.root, "testdata/overview/plan-no-changes.json")
 	s := f.start(t, plan, false, "WEB_STATE_ONLY=true", "WEB_STACKS=dev", "WEB_STATE_DIR="+states)
-	page := webPage(t, browser, s, playwright.ColorSchemeLight)
-
+	// Listen before navigation: boot is where a stack request would appear.
 	var requestsMu sync.Mutex
 	var stackRequests []string
-	page.OnRequest(func(request playwright.Request) {
-		if strings.Contains(request.URL(), "/api/stacks") || strings.Contains(request.URL(), "/s/") {
-			requestsMu.Lock()
-			defer requestsMu.Unlock()
-			stackRequests = append(stackRequests, request.Method()+" "+request.URL())
-		}
+	page := openDashboardPage(t, browser, s, playwright.ColorSchemeLight, func(page playwright.Page) {
+		page.OnRequest(func(request playwright.Request) {
+			if strings.Contains(request.URL(), "/api/stacks") || strings.Contains(request.URL(), "/s/") {
+				requestsMu.Lock()
+				defer requestsMu.Unlock()
+				stackRequests = append(stackRequests, request.Method()+" "+request.URL())
+			}
+		})
 	})
 
 	webWait(t, page, `() => location.hash === '#/overview' && `+webTableHas("existing"))
