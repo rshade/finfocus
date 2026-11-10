@@ -145,7 +145,10 @@ If the stack uses a passphrase secrets provider, the overview opens an
 passphrase shows an inline error and lets you try again.
 
 With several stacks, each encrypted stack asks for its own passphrase in its
-own tab, marked `locked`. Unlocking one stack does not unlock another.
+own tab, marked `locked`. Unlocking one stack does not unlock another. If you
+switch to a locked stack from another view, such as Cost, a notice above the
+view links to that stack's Overview, where the prompt appears. A stack that
+failed to load shows the same kind of notice.
 
 FinFocus hands the passphrase only to the `pulumi` subprocess environment. It
 never puts it in a response, an event, or a log line, and never saves it.

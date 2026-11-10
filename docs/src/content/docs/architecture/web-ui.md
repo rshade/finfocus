@@ -122,7 +122,10 @@ or a Terraform project, since a list names stacks of a Pulumi project.
 `runWebStacks` builds every stack's runtime up front, which starts nothing, and
 registers each under `/s/<name>/`. It then serves with an empty root session.
 The browser, not the server, decides which stack runs: a stack's pipeline starts
-the first time the page activates it, once, however often that is asked.
+the first time the page activates it, once, however often that is asked. Opening
+a stack's own page (`GET /s/<name>/`) activates it through the same once-only
+path, so that page never streams from a stack that does not run; requests under
+`/s/<name>/api/` never activate.
 Building a runtime cannot fail and starts no plugin, so every failure, at start
 or later, reaches that stack's own session as a pipeline error and never aborts
 the server or another stack. A stack nobody opened stops without error, and the
@@ -148,6 +151,10 @@ the base prefix, only for two or more stacks. The shell reads it at boot, so it
 never waits on a request to decide whether to show tabs. A server whose page
 lacks the tag, and any page under `/s/<name>/`, is the single-stack page
 unchanged. The tab bar sits in the header between the title and the view links.
+Only Overview shows the passphrase prompt and a load failure, so while the active
+stack is `locked` or `failed` on any other view, `#stack-notice` (above `#view`,
+`role="status"`) says so and links to that stack's Overview. It is rewritten only
+when the stack or state changes, so a refresh does not announce it again.
 `app.js` keeps one stack state: `base()` returns `/s/<active>` while the page
 lists stacks, and the two root-only routes pass `{ root: true }`.
 

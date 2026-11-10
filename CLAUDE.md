@@ -161,7 +161,11 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   `org/proj/stack` still works alone). Two or more names go through
   `validateStackList` (exit 2) and `runWebStacks`, which builds every `webStack`
   but starts none: the browser starts one with `POST /api/stacks/{name}/activate`
-  (a `sync.Once`). Both routes exist on the root only. The root shell names the
+  (a `sync.Once`), and opening `GET /s/<name>/` starts that stack through the same
+  `activateSelf` (API requests under the prefix never do). Both routes exist on
+  the root only. Only Overview renders the passphrase prompt and load failure, so
+  `#stack-notice` links a `locked` or `failed` active stack to its Overview from
+  any other view. The root shell names the
   stacks in `<meta name="finfocus-stacks">`, only for two or more, so `app.js`
   decides about tabs at boot with no request: a top-level `await` on a fetch
   hangs every frontend harness, whose `fetch` never settles, and would block a

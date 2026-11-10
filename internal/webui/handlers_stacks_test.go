@@ -95,6 +95,38 @@ func TestStackActivateIsIdempotentAndRunsOnce(t *testing.T) {
 	assert.Equal(t, int32(1), calls.Load())
 }
 
+func TestStackPageActivatesOnlyItsOwnStack(t *testing.T) {
+	t.Parallel()
+	var devCalls, prodCalls atomic.Int32
+	s := newRunningServer(t, Options{Session: readySession(t, "urn::root")})
+	require.NoError(t, s.AddStack("dev", StackOptions{
+		Session:  NewSession(context.Background(), SessionOptions{}),
+		Activate: func() { devCalls.Add(1) },
+	}))
+	require.NoError(t, s.AddStack("prod", StackOptions{
+		Session:  NewSession(context.Background(), SessionOptions{}),
+		Activate: func() { prodCalls.Add(1) },
+	}))
+	cookie := bootstrapSession(t, s)
+
+	resp, _ := authGet(t, s, cookie, "/")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	resp, _ = authGet(t, s, cookie, "/s/prod/api/overview/budget")
+	require.NotEqual(t, http.StatusNotFound, resp.StatusCode)
+	assert.Zero(t, devCalls.Load(), "the root page starts no stack")
+	assert.Zero(t, prodCalls.Load(), "an API request under a stack does not start it")
+
+	for range 2 {
+		resp, _ = authGet(t, s, cookie, "/s/prod/")
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	}
+	assert.Equal(t, int32(1), prodCalls.Load(), "opening the stack's page starts it once")
+	assert.Zero(t, devCalls.Load())
+
+	_, body := authGet(t, s, cookie, "/api/stacks")
+	assert.JSONEq(t, `{"stacks":[{"name":"dev","state":"idle"},{"name":"prod","state":"loading"}]}`, body)
+}
+
 func TestStackActivateUnknownOrInvalidNameIs404(t *testing.T) {
 	t.Parallel()
 	s := newStackServer(t)
