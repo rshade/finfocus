@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6](https://github.com/rshade/finfocus/compare/v0.5.5...v0.5.6) (2026-11-10)
+
+
+### Added
+
+* **engine:** send the requested capability in plugin Supports calls ([ac7ab06](https://github.com/rshade/finfocus/commit/ac7ab061e06dcada5ff0b2980238f97725dd32cc)), closes [#2072](https://github.com/rshade/finfocus/issues/2072)
+* **recommendations:** show spot recommendations with their interruption risk ([6b519e8](https://github.com/rshade/finfocus/commit/6b519e8f805c12d4899e231430b79e4ec9d5c25c)), closes [#1839](https://github.com/rshade/finfocus/issues/1839)
+* **web:** serve --web behind a same-machine HTTPS proxy ([#2041](https://github.com/rshade/finfocus/issues/2041)) ([5b8a501](https://github.com/rshade/finfocus/commit/5b8a5018e399c99b2ef99f8080647e4e4889b68e)), closes [#2036](https://github.com/rshade/finfocus/issues/2036)
+* **web:** serve stacks under /s/&lt;stack&gt;/ with a prefix-safe frontend ([#2048](https://github.com/rshade/finfocus/issues/2048)) ([df5d5f6](https://github.com/rshade/finfocus/commit/df5d5f6417f395f9fc6a14529dcf6cc64cb348fa))
+* **web:** tidy the recommendations table and spot badges ([a80f16c](https://github.com/rshade/finfocus/commit/a80f16cc8e67c0660a70bdc1844e038c39343ef8)), closes [#2054](https://github.com/rshade/finfocus/issues/2054)
+* **webui:** draw cost history in the detail panels and Cost view ([4924c26](https://github.com/rshade/finfocus/commit/4924c260f21693b97963e855bfaee2635e711bcd)), closes [#1939](https://github.com/rshade/finfocus/issues/1939)
+* **webui:** serve several stacks from one dashboard with tabs ([45d3900](https://github.com/rshade/finfocus/commit/45d390005119c7fa47b19a139c81724a472ebe24)), closes [#2039](https://github.com/rshade/finfocus/issues/2039)
+
+
+### Fixed
+
+* **cli:** show recommendation plugin failures in table, TUI, and NDJSON ([210927b](https://github.com/rshade/finfocus/commit/210927b7dcccaf170f00dde031b202b64d856858)), closes [#2060](https://github.com/rshade/finfocus/issues/2060)
+* **engine:** ask for ACTUAL_COSTS when routing actual-cost batches ([c8d0e99](https://github.com/rshade/finfocus/commit/c8d0e99e9dd25a95197e7a8aad3e82eeb7e807cb))
+* **engine:** bound recommendation page RPCs and keep errored results out of the cache ([3bd3570](https://github.com/rshade/finfocus/commit/3bd3570612ac3097c34697df990c324789f2d889))
+* **engine:** follow recommendation page tokens ([d9a4c92](https://github.com/rshade/finfocus/commit/d9a4c92ee9bd03f90b94b976b749861527a8dd39))
+* **engine:** give recommendation page RPCs their own two-minute deadline ([022a2b4](https://github.com/rshade/finfocus/commit/022a2b44936468881e5699c9f9273346227abce6))
+* **engine:** honor advertised providers on fallback ([#2042](https://github.com/rshade/finfocus/issues/2042)) ([fd51d97](https://github.com/rshade/finfocus/commit/fd51d9741002b670186a70a6421abb52c9085350))
+* **engine:** keep completed recommendation batches on failure ([84c904a](https://github.com/rshade/finfocus/commit/84c904aa89c903fc91be56bfd5e87fb0e71013be))
+* **engine:** omit the provider region from NDJSON and old properties ([25971b4](https://github.com/rshade/finfocus/commit/25971b4c0506d038aae4de9b10d9560da3432da9))
+* **logs:** bound tail time on large log files ([#2050](https://github.com/rshade/finfocus/issues/2050)) ([25fbeba](https://github.com/rshade/finfocus/commit/25fbebab38ab4cda3e62e85acb09e215bec5afc3))
+* **pluginupgrade:** add finfocus-spec v0.7.11 hop and upgrade guide ([#2033](https://github.com/rshade/finfocus/issues/2033)) ([6309762](https://github.com/rshade/finfocus/commit/63097628a45fdcd9bc6f81bf242fdf41f6fd17f7))
+* **proto:** take the AWS region from the resource's provider ([73e17a4](https://github.com/rshade/finfocus/commit/73e17a41ec174c7596925d186330fb1b77882c58))
+* **stackload:** fall back to the step provider when new state names none ([db94fc8](https://github.com/rshade/finfocus/commit/db94fc81b4ab5077aae1b6f5372f6cfcd8b5468f))
+* **stackload:** price each side with its own provider region ([30c64bc](https://github.com/rshade/finfocus/commit/30c64bcbae93ea4b5e620ccd5106e80eb28bb811))
+* **tui:** keep the spot label inside the recommendations list width ([6eb8700](https://github.com/rshade/finfocus/commit/6eb8700604f9c12fc6de1b6c1f4ff2cf827bb33c))
+* **tui:** show action labels in the recommendations view ([ac538ec](https://github.com/rshade/finfocus/commit/ac538eca6eec56520af9da788146d0da8a6b083a))
+* **tui:** show the action label in the cost detail recommendations ([c765794](https://github.com/rshade/finfocus/commit/c765794c0791d17d8659cc382539560943b543d5))
+* **web:** keep focus where the user moved it during a slow route mount ([#2035](https://github.com/rshade/finfocus/issues/2035)) ([ffc187a](https://github.com/rshade/finfocus/commit/ffc187a6a08f24668479c00c1f172126fe690d48))
+* **web:** stop logs status probe from 404 ([#2040](https://github.com/rshade/finfocus/issues/2040)) ([52794a4](https://github.com/rshade/finfocus/commit/52794a4ab0bd4817f830eacf685b95537eee7c07))
+* **web:** tighten logs view accessibility ([#2045](https://github.com/rshade/finfocus/issues/2045)) ([2a8fcdf](https://github.com/rshade/finfocus/commit/2a8fcdf86112ff880e37a7e939f224c135a96aa4)), closes [#2015](https://github.com/rshade/finfocus/issues/2015)
+* **webui:** keep focus on the stack tab after a switch ([bf1b05d](https://github.com/rshade/finfocus/commit/bf1b05d0f29f599f0e2ae8311aa6ade9b66692cd))
+* **webui:** start a stack from its own page and point locked tabs to Overview ([b033f9f](https://github.com/rshade/finfocus/commit/b033f9f9208744416b93696dcb968b3f211461fe))
+
+
+### Dependencies
+
+* bump finfocus-spec to v0.7.12 ([7aad7d6](https://github.com/rshade/finfocus/commit/7aad7d64600ee1ff7ce8dbfa9027f03a9a3f84eb))
+* update go dependencies ([#2027](https://github.com/rshade/finfocus/issues/2027)) ([54ec590](https://github.com/rshade/finfocus/commit/54ec590dd9345caadea086616e6ea4996c6d6d7f))
+* update go dependencies ([#2034](https://github.com/rshade/finfocus/issues/2034)) ([a2690ce](https://github.com/rshade/finfocus/commit/a2690ce34b819cf9b04fc4f12e5b302af559def1))
+* update go dependencies ([#2058](https://github.com/rshade/finfocus/issues/2058)) ([35caf88](https://github.com/rshade/finfocus/commit/35caf88f3a00d63e83983bf8eaea28ce0e1bb466))
+* update go dependencies ([#2084](https://github.com/rshade/finfocus/issues/2084)) ([cf80d44](https://github.com/rshade/finfocus/commit/cf80d44ee080500307cddbef24beb98df2641030))
+* update module github.com/pulumi/pulumi/sdk/v3 to v3.274.0 ([#2032](https://github.com/rshade/finfocus/issues/2032)) ([a8ee448](https://github.com/rshade/finfocus/commit/a8ee448932fd3da4412f9fecbe2352583fcfa28a))
+
+
+### Changed
+
+* **web:** make stores, ESC and passphrase per-stack-safe ([#2055](https://github.com/rshade/finfocus/issues/2055)) ([11beb60](https://github.com/rshade/finfocus/commit/11beb6056f27ab714eb297e9533f76f2ada5912e))
+
+
+### Documentation
+
+* **spec:** record web-ui follow-up [#2054](https://github.com/rshade/finfocus/issues/2054) for spot recommendations ([7aff919](https://github.com/rshade/finfocus/commit/7aff9197b99571fab39a31f2e41bc04830f84bf7))
+* **spec:** renumber spot recommendations spec to 2014 ([67426bc](https://github.com/rshade/finfocus/commit/67426bcd9c4122b0f031c8ba549fc157bce7a37f)), closes [#1839](https://github.com/rshade/finfocus/issues/1839)
+
 ## [0.5.5](https://github.com/rshade/finfocus/compare/v0.5.4...v0.5.5) (2026-11-04)
 
 
