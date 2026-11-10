@@ -63,8 +63,10 @@ Expected: cost diagnostics and the stack summary, the same as on Pulumi
 ## 5. Windows
 
 The nightly `Tests (windows-latest)` job runs `go test ./internal/...`
-natively, which covers the `.exe` entry names. One manual preview on the
-newest Pulumi is recorded in the PR (tasks T032): `finfocus analyzer install`,
-the PowerShell `PATH` line it prints, then `pulumi preview --policy-pack`
-against a project with no resources. Graceful cost plugin cleanup is not
-promised on Windows (spec FR-007, SC-005).
+natively, which covers the `.exe` entry names. The nightly
+`analyzer-policy-pack-windows` job runs the setup guide on the newest Pulumi
+(tasks T032): `finfocus analyzer install`, the PowerShell `PATH` line it
+prints, then `pulumi preview --policy-pack` against a project with no
+resources. Its step summary records the Pulumi version, the pack listing,
+and the preview output. Graceful cost plugin cleanup is not promised on
+Windows (spec FR-007, SC-005).

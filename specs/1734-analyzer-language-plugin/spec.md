@@ -267,8 +267,9 @@ guide.
 - **SC-001**: A person who follows the setup guide gets a working analyzer
   preview on Pulumi 3.268.0 and on the newest Pulumi release, with no steps
   beyond the guide. Linux and macOS are verified automatically on both
-  versions; Windows is verified by native unit tests and one recorded manual
-  preview on the newest release.
+  versions; Windows is verified by native unit tests and a preview on the
+  newest release in the nightly `analyzer-policy-pack-windows` job. Met for
+  Windows on Pulumi 3.274.1 ([run 42808150036](https://github.com/rshade/finfocus/actions/runs/42808150036)).
 - **SC-002**: An existing user restores analyzer mode with one command
   (`finfocus analyzer install`) and no manual file changes.
 - **SC-003**: The `finfocus-demo` analyzer workflow passes on the newest
