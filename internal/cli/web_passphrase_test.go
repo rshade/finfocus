@@ -260,6 +260,40 @@ func TestWebStartupPreviewRejectedPassphraseAsksAgain(t *testing.T) {
 	require.NoError(t, wait())
 }
 
+// TestWebStartupPreviewConfigErrorIsNotARejectedPassphrase: stackload sorts any
+// preview error that mentions a password into the passphrase category, so a
+// missing secret config value read as a rejected passphrase and the dashboard
+// asked for the correct passphrase again forever instead of loading state.
+//
+//nolint:paralleltest // startWebPassphraseProject changes cwd, env, global config, the Pulumi runner, and the web hook.
+func TestWebStartupPreviewConfigErrorIsNotARejectedPassphrase(t *testing.T) {
+	runner := &startupPreviewRunner{
+		previewErr: "error: Missing required configuration variable 'app:dbPassword'",
+	}
+	origin, cookie, _, cancel, wait := startWebPassphraseProject(t, true, runner)
+	stream := openWebStream(t, origin, cookie)
+
+	events, asked := readWebEventsUntil(stream, asksForPassphrase)
+	require.True(t, asked, "an encrypted stack must ask for its passphrase; events: %v", eventNames(events))
+	answer := webAPI(t, origin, cookie, "/api/passphrase", `{"passphrase":"correct-secret"}`)
+	require.Equal(t, http.StatusAccepted, answer.StatusCode)
+
+	events, done := readWebEventsUntil(stream, func(event webStreamEvent) bool {
+		return asksForPassphrase(event) || isReady(event)
+	})
+	require.True(t, done && isReady(events[len(events)-1]),
+		"a preview config error must fall back to current state, not ask for the passphrase again; events: %v",
+		eventNames(events))
+	assert.Equal(t, 1, runner.previewCalls())
+
+	snapshot := currentWebSnapshot(t, origin, cookie)
+	assert.Equal(t, true, snapshot["stateOnly"], "the session must offer Run preview on current state")
+	assert.Empty(t, snapshot["errors"])
+
+	cancel()
+	require.NoError(t, wait())
+}
+
 // TestWebStartupPreviewFailureIsNotALoadFailure (#2087): when the startup
 // preview fails for a reason other than the passphrase, the overview falls
 // back to current state as designed, but it also reports the fallback through

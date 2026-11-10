@@ -738,7 +738,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   passphrase, so the preview is where a rejection shows up. When the pipeline
   can ask again (`retryPassphrase`), that rejection is returned so
   `loadWithPassphraseRetry` asks again, reporting the phase that rejected it
-  (`PhaseError.Phase`). An empty passphrase is valid (`&""`),
+  (`PhaseError.Phase`). `stackload` sorts any preview error that mentions a
+  password (a missing secret config value) into `passphrase_required`, so
+  `rejectedPassphrase` reads only the message for an `OperationPlan` error; the category
+  decides only for redacted state errors. Otherwise the retry, which has no
+  attempt limit, asks for a correct passphrase forever. An empty passphrase is valid (`&""`),
   so the web dialog must not require a value. The prompt names
   `OverviewPipeline.PassphraseStack()`, the stack the passphrase check
   resolved. Only Overview renders the prompt. A dismissed prompt keeps an

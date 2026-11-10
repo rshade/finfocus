@@ -987,7 +987,7 @@ func loadTUIOverviewPreview(
 	if pw != nil && p.cfg.retryPassphrase && p.cfg.passphrases != nil && rejectedPassphrase(err) {
 		return nil, err
 	}
-	// The reason stays in the terminal log; Pulumi stderr never reaches the browser.
+	// The reason goes only to the log; the phase and error events carry no Pulumi stderr.
 	logging.FromContext(ctx).Warn().Ctx(ctx).Err(err).
 		Str("component", "cli").Str("operation", "overview_preview").Str("stack", base.StackName).
 		Msg("pulumi preview failed; showing current state")
@@ -1113,9 +1113,15 @@ func (p *OverviewPipeline) loadWithPassphraseRetry(ctx context.Context) (*Overvi
 		}
 	}
 }
+
+// rejectedPassphrase reports whether err means the passphrase was wrong. A
+// state error is redacted to its category, so the category decides there. A
+// preview error keeps Pulumi's message, and its category also matches any
+// mention of a password (a missing secret config value), so only the message
+// decides.
 func rejectedPassphrase(err error) bool {
-	var loadErr *stackload.Error
-	if errors.As(err, &loadErr) && loadErr.Reason == stackload.ReasonPassphraseRequired {
+	if loadErr, ok := errors.AsType[*stackload.Error](err); ok && loadErr.Operation != stackload.OperationPlan &&
+		loadErr.Reason == stackload.ReasonPassphraseRequired {
 		return true
 	}
 	message := strings.ToLower(err.Error())
