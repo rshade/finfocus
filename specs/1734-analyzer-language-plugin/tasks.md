@@ -405,8 +405,14 @@ answers the exact error (FR-012).
   the preview output in the PR description (SC-001). If no Windows run is
   possible, say so in the PR; do not mark SC-001 met.
   The demo preview on Pulumi 3.272.0 and the leftover-process check are done.
-  The Windows preview is tracked in rshade/finfocus#1918 (a `windows-latest`
-  job in `nightly.yml`); mark SC-001 met for Windows when that job passes.
+  The Windows preview is the nightly `analyzer-policy-pack-windows` job
+  (rshade/finfocus#1918). Its first run passed on Pulumi 3.274.1 on
+  `windows-latest`: both `.exe` entries and `PulumiPolicy.yaml` in the pack,
+  Pulumi started `pulumi-language-finfocus.exe` from `PATH`, and the preview
+  logged `analyzer server listening`
+  ([run 42808150036](https://github.com/rshade/finfocus/actions/runs/42808150036)). SC-001 is met for Windows. The
+  Pulumi 3.268.0 diagnostics comparison (SC-006) is not recorded yet, so
+  T032 stays open.
 - [ ] T033 Final gates: `gofmt -l`, `make lint` (allow over 5 minutes),
   `make test`, `make validate`, `go test -race ./test/integration/ -run TestAnalyzerPolicyPack`
   on both Pulumi versions, a cross-compile of `./cmd/finfocus` for

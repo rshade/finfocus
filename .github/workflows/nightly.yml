@@ -255,6 +255,121 @@ jobs:
       - name: Run analyzer policy pack check
         run: FINFOCUS_TEST_PULUMI="$(command -v pulumi)" go test -v -count=1 -run TestAnalyzerPolicyPack ./test/integration/
 
+  # TestAnalyzerPolicyPack is unix-only, so Windows gets the setup guide's steps
+  # instead: install the pack, put it on PATH with the printed PowerShell line,
+  # and preview a project with no resources. The step summary is the recorded
+  # evidence for SC-001 (specs/1734-analyzer-language-plugin).
+  analyzer-policy-pack-windows:
+    name: Analyzer policy pack (windows-latest)
+    runs-on: windows-latest
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run_analyzer == 'true' }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v7
+        with:
+          pulumi-version: latest
+
+      - name: Build finfocus and install the policy pack
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'policy-pack-smoke'
+          $env:FINFOCUS_HOME = Join-Path $work 'finfocus-home'
+          $env:PULUMI_HOME = Join-Path $work 'pulumi-home'
+          $packDir = Join-Path $env:FINFOCUS_HOME 'analyzer'
+          "SMOKE_DIR=$work" >> $env:GITHUB_ENV
+          "FINFOCUS_HOME=$env:FINFOCUS_HOME" >> $env:GITHUB_ENV
+          "PULUMI_HOME=$env:PULUMI_HOME" >> $env:GITHUB_ENV
+          "PACK_DIR=$packDir" >> $env:GITHUB_ENV
+
+          go build -ldflags '-X github.com/rshade/finfocus/pkg/version.version=v0.0.0-policypack' -o finfocus.exe ./cmd/finfocus
+          if ($LASTEXITCODE -ne 0) { throw "go build exited $LASTEXITCODE" }
+
+          $pulumiVersion = (pulumi version) -join "`n"
+          $install = ./finfocus.exe analyzer install --target-dir (Join-Path $env:PULUMI_HOME 'plugins') 2>&1 | ForEach-Object { "$_" }
+          $installCode = $LASTEXITCODE
+          $install
+          $listing = Get-ChildItem -LiteralPath $packDir -ErrorAction Continue | Format-Table -AutoSize Mode, Length, Name | Out-String
+
+          @(
+            '## Analyzer policy pack on Windows'
+            ''
+            "Pulumi: ``$pulumiVersion``"
+            ''
+            '### finfocus analyzer install'
+            ''
+            '```text'
+            $install
+            '```'
+            ''
+            "### dir $packDir"
+            ''
+            '```text'
+            "$listing".Trim()
+            '```'
+          ) -join "`n" >> $env:GITHUB_STEP_SUMMARY
+
+          if ($installCode -ne 0) { throw "finfocus analyzer install exited $installCode" }
+          $printed = $install -join "`n"
+          foreach ($line in @("`$env:PATH = `"$packDir;`$env:PATH`"", "pulumi preview --policy-pack `"$packDir`"")) {
+            if (-not $printed.Contains($line)) { throw "install output does not contain: $line" }
+          }
+          foreach ($name in 'pulumi-analyzer-policy-finfocus.exe', 'pulumi-language-finfocus.exe', 'PulumiPolicy.yaml') {
+            if (-not (Test-Path -LiteralPath (Join-Path $packDir $name) -PathType Leaf)) { throw "$name is missing from $packDir" }
+          }
+          $packDir >> $env:GITHUB_PATH
+
+      - name: Preview a project with the policy pack
+        env:
+          FINFOCUS_LOG_LEVEL: info
+          PULUMI_SKIP_UPDATE_CHECK: 'true'
+          # Windows cannot hold an empty environment variable (PowerShell
+          # removes one set to ''), so the throwaway stack gets a passphrase.
+          PULUMI_CONFIG_PASSPHRASE: policy-pack-smoke
+        run: |
+          # Pulumi writes UTF-8; without this its emoji reach the summary as mojibake.
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          $project = Join-Path $env:SMOKE_DIR 'project'
+          $state = Join-Path $env:SMOKE_DIR 'state'
+          New-Item -ItemType Directory -Force -Path $project, $state | Out-Null
+          Set-Content -LiteralPath (Join-Path $project 'Pulumi.yaml') -Value "name: policy-pack-smoke`nruntime: yaml`n" -NoNewline
+          $env:PULUMI_BACKEND_URL = 'file://' + ($state -replace '\\', '/')
+          Set-Location -LiteralPath $project
+
+          pulumi stack init dev --non-interactive
+          if ($LASTEXITCODE -ne 0) { throw "pulumi stack init exited $LASTEXITCODE" }
+
+          $preview = pulumi preview --policy-pack $env:PACK_DIR --non-interactive --color never 2>&1 | ForEach-Object { "$_" }
+          $previewCode = $LASTEXITCODE
+          $preview
+
+          @(
+            ''
+            "### pulumi preview --policy-pack (exit $previewCode)"
+            ''
+            '```text'
+            $preview
+            '```'
+          ) -join "`n" >> $env:GITHUB_STEP_SUMMARY
+
+          if ($previewCode -ne 0) { throw "pulumi preview exited $previewCode" }
+          $text = $preview -join "`n"
+          if (-not $text.Contains('analyzer server listening')) { throw 'the finfocus analyzer did not start' }
+          foreach ($bad in 'pulumi-finfocus', 'could not find latest version') {
+            if ($text.Contains($bad)) { throw "preview output contains '$bad'" }
+          }
+
   # Deep fuzzing (Linux only - runs longer)
   deep-fuzz:
     name: Deep Fuzz Testing
@@ -550,7 +665,7 @@ jobs:
   notify-failure:
     name: Notify on Failure
     runs-on: ubuntu-latest
-    needs: [cross-platform-tests, integration, e2e, analyzer-e2e, deep-fuzz, cross-platform-builds, benchmarks, aws-cleanup]
+    needs: [cross-platform-tests, integration, e2e, analyzer-e2e, analyzer-policy-pack, analyzer-policy-pack-windows, deep-fuzz, cross-platform-builds, benchmarks, aws-cleanup]
     if: always() && github.event_name == 'schedule' && failure()
     steps:
       - name: Create failure issue
