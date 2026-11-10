@@ -5,7 +5,7 @@ go 1.27.3
 require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.1
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.0
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be // no tagged release; pinned to last known-good commit
@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/pulumi/esc-sdk/sdk v0.14.0
-	github.com/pulumi/pulumi-cloud-sdk/go v1.20261106.0
+	github.com/pulumi/pulumi-cloud-sdk/go v1.20261109.0
 	github.com/pulumi/pulumi/sdk/v3 v3.274.1
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.10.0
@@ -23,11 +23,11 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f
 	go.etcd.io/bbolt v1.5.0
-	golang.org/x/mod v0.42.0
-	golang.org/x/sync v0.24.0
-	golang.org/x/sys v0.49.0
-	golang.org/x/term v0.47.0
-	golang.org/x/text v0.43.0
+	golang.org/x/mod v0.43.0
+	golang.org/x/sync v0.25.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/term v0.48.0
+	golang.org/x/text v0.44.0
 	google.golang.org/grpc v1.86.0-dev
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
@@ -89,7 +89,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/oauth2 v0.37.0 // indirect
+	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261104224025-d1e00e9f33ab // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261104224025-d1e00e9f33ab // indirect
