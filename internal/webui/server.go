@@ -75,6 +75,10 @@ type Options struct {
 	// reach the loopback port and forge the header, so listing users narrows
 	// who the proxy admits, not who can spoof.
 	AllowedUsers []string
+	// StackName is the Pulumi stack a single-stack dashboard prices. The shell
+	// names it so the page shows that stack as a lone tab. Empty for a plan
+	// file, a state file, or Terraform, which show no tab.
+	StackName string
 }
 
 // Server is the localhost-only web UI HTTP server. A per-session token,
@@ -111,6 +115,7 @@ type Server struct {
 	stacks       map[string]*Server
 	stackOrder   []string
 	stacksClosed bool
+	stackName    string
 
 	// activate and activated belong to a stack's child server (see
 	// StackOptions.Activate and activateStack).
@@ -139,6 +144,7 @@ func New(opts Options) (*Server, error) {
 		allowedHosts: hosts,
 		trustedProxy: opts.TrustedProxy,
 		allowedUsers: users,
+		stackName:    opts.StackName,
 	}
 	if opts.Logs != nil && !isNilLogSource(opts.Logs) {
 		s.logs = opts.Logs

@@ -22,8 +22,16 @@ through its own session.
 The root page carries `<meta name="finfocus-stacks" content="prod,dev,test">`,
 the registered names in registration order, only when two or more stacks are
 registered. A stack's own page (`/s/<name>/`) and a server with fewer than two
-stacks carry no such tag, so the browser shows no tabs. The browser reads it at
-boot and makes no request to decide.
+stacks carry no such tag, so the browser sets up no stack routing. The browser
+reads it at boot and makes no request to decide.
+
+*Amended by #2088.* The root page of a single-stack dashboard instead carries
+`<meta name="finfocus-stack" content="dev">` (`webui.Options.StackName`), the
+Pulumi stack `checkWebProjectSource` resolved. Plan files, state files, and
+Terraform carry neither tag. The name is display text for a lone tab and the
+header label, may be org-qualified (`acme/web/dev`), and is never a request
+prefix. The lone tab reads its state from the overview snapshot, which gains
+`failed` (`Session.Failed`: the pipeline ended with a recorded failure).
 
 ## `GET /api/stacks`
 

@@ -27,7 +27,9 @@ finfocus --web [--port N] [--no-browser] [--pulumi-json FILE] [--pulumi-state FI
   repeated names count once, and the first name is the first tab. A list of two
   or more names must be stacks of the Pulumi project in the working directory,
   and cannot be combined with `--pulumi-json` or `--pulumi-state`. One name, or
-  none, is the single-stack page with no tab bar.
+  none in a Pulumi project, is the single-stack page: one tab names that stack
+  (the workspace's selected stack when `--stack` is absent) and addresses stay
+  `#/<view>`. `--pulumi-json`, `--pulumi-state`, and Terraform show no tab bar.
 - `--allowed-host`, `--trusted-proxy`, and `--allowed-user` serve the dashboard
   behind an HTTPS proxy on the same machine; see
   [Serve behind a proxy](../guides/web-ui.md#serve-behind-a-proxy).
@@ -323,6 +325,13 @@ shows what it already loaded. A tab shows its state in text:
 | none | Not opened yet, loading, or ready |
 | `failed` | The stack could not load. Its view shows the same safe message a single-stack run shows. Other tabs are unaffected. A failed stack stays failed until you restart the dashboard. |
 | `locked` | The stack is waiting for its passphrase. The prompt appears in that tab and unlocks only that stack. |
+
+With one stack from a Pulumi project, the header names it and the tab bar
+shows it as a single selected tab with the same `failed` and `locked` markers.
+Nothing else changes: the address stays `#/<view>`, and there is nothing to
+switch to. A plan file, a state file, or Terraform shows no tab bar. On any view
+but Overview, a stack that is waiting for its passphrase or failed to load says
+so above the view and links to Overview, with or without a tab.
 
 ## Keyboard and display
 

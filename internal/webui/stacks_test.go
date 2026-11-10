@@ -464,6 +464,39 @@ func TestSessionFailedNeedsAnEndedPipeline(t *testing.T) {
 	assert.True(t, session.PassphraseRequired())
 }
 
+// A single-stack page has no stack list, so its tab reads a final failure from
+// the snapshot it already receives, with the same rule as Failed (#2088).
+func TestSnapshotReportsAFinalFailure(t *testing.T) {
+	t.Parallel()
+
+	session := NewSession(context.Background(), SessionOptions{})
+	snapshot, events, unsubscribe := session.subscribe()
+	defer unsubscribe()
+	assert.JSONEq(t, `false`, snapshotField(t, snapshot.data, "failed"), "a fresh session has not failed")
+
+	session.Error(1, "Overview loading failed")
+	drainEvents(events)
+	session.SetPipelineEnded()
+
+	select {
+	case event := <-events:
+		require.Equal(t, "snapshot", event.name)
+		assert.JSONEq(t, `true`, snapshotField(t, event.data, "failed"),
+			"the snapshot that makes a failure final must say so to the browser")
+	default:
+		require.Fail(t, "SetPipelineEnded must publish a snapshot after a failure")
+	}
+}
+
+func snapshotField(t *testing.T, data []byte, field string) string {
+	t.Helper()
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &fields))
+	value, ok := fields[field]
+	require.True(t, ok, "snapshot has no %q field: %s", field, data)
+	return string(value)
+}
+
 func drainEvents(events <-chan streamEvent) []string {
 	var names []string
 	for {

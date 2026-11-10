@@ -54,8 +54,8 @@ relaunch for fresh actual costs.
 The server can serve more than one stack from one port. `Server.AddStack`
 registers a named stack with its own session, handler tree, and plugin
 operations, and `/s/<stack>/...` reaches that tree with the prefix stripped.
-The root (`/`) keeps its own session, so nothing changes for a single-stack
-run. A `--stack` list of two or more names registers one stack per name through
+The root (`/`) keeps its own session, so a single-stack run uses no stack
+routing. A `--stack` list of two or more names registers one stack per name through
 this routing (see [Several stacks and the tab bar](#several-stacks-and-the-tab-bar)).
 
 Authentication, the `Host` and `Origin` checks, the fetch-metadata checks, and
@@ -149,8 +149,21 @@ The root server adds two routes, and a stack's own tree never has them:
 The root page names the stacks in `<meta name="finfocus-stacks">`, written like
 the base prefix, only for two or more stacks. The shell reads it at boot, so it
 never waits on a request to decide whether to show tabs. A server whose page
-lacks the tag, and any page under `/s/<name>/`, is the single-stack page
-unchanged. The tab bar sits in the header between the title and the view links.
+lacks the tag, and any page under `/s/<name>/`, keeps `#/<view>` addresses,
+activation-free loading, and no stack list. The tab bar sits in the header
+between the title and the view links.
+
+A single-stack root page instead names its Pulumi stack in
+`<meta name="finfocus-stack">` (`Options.StackName`). `runWebSession` passes the
+stack `checkWebProjectSource` resolved, which is `--stack` or the workspace's
+selected stack, so the name is known before the server listens. Plan files, state
+files, and Terraform pass none. The tag shows a lone selected tab and the header
+label and changes nothing else: it is display text, may be org-qualified, and
+never becomes a request prefix. That tab follows its own session from the
+overview stream, with no stack list request, in the same order as `stackState`:
+a pending prompt (`passphraseRequired`), then `ready`, then `failed`. The
+snapshot's `failed` is `Session.Failed`, true only once the pipeline ended with
+a failure, so a rejected passphrase that is asking again reads `locked`.
 Only Overview shows the passphrase prompt and a load failure, so while the active
 stack is `locked` or `failed` on any other view, `#stack-notice` (above `#view`,
 `role="status"`) says so and links to that stack's Overview. It is rewritten only

@@ -5,6 +5,8 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -155,4 +157,51 @@ func TestWebUIMultiStackTabs(t *testing.T) {
 		require.NoError(t, overflowErr)
 		assert.Empty(t, offenders, "nothing in the header or view spills past a %dpx viewport", width)
 	}
+}
+
+// TestWebUISingleStackTab (#2088): one stack shows as a lone selected tab and
+// keeps #/<view> addresses, with no stack list request or activation.
+//
+//nolint:paralleltest // Builds and executes local fixture binaries; shares a browser driver.
+func TestWebUISingleStackTab(t *testing.T) {
+	f := newWebFixture(t)
+	browser := webBrowser(t)
+	states := t.TempDir()
+	copyWebState(t, filepath.Join(f.root, "test/e2e/fixtures/web/estimate-picker-state.json"), states, "dev")
+	plan := filepath.Join(f.root, "testdata/overview/plan-no-changes.json")
+	s := f.start(t, plan, false, "WEB_STATE_ONLY=true", "WEB_STACKS=dev", "WEB_STATE_DIR="+states)
+	page := webPage(t, browser, s, playwright.ColorSchemeLight)
+
+	var requestsMu sync.Mutex
+	var stackRequests []string
+	page.OnRequest(func(request playwright.Request) {
+		if strings.Contains(request.URL(), "/api/stacks") || strings.Contains(request.URL(), "/s/") {
+			requestsMu.Lock()
+			defer requestsMu.Unlock()
+			stackRequests = append(stackRequests, request.Method()+" "+request.URL())
+		}
+	})
+
+	webWait(t, page, `() => location.hash === '#/overview' && `+webTableHas("existing"))
+	tabs, err := page.Evaluate(`() => [...document.querySelectorAll('[role="tab"]')].map(t => ({
+		name: t.querySelector('.stack-tab-name')?.textContent,
+		selected: t.getAttribute('aria-selected'),
+		href: t.getAttribute('href'),
+	}))`)
+	require.NoError(t, err)
+	assert.Equal(t, []any{map[string]any{"name": "dev", "selected": "true", "href": "#/overview"}}, tabs)
+	label, err := page.Locator("#stack-label").TextContent()
+	require.NoError(t, err)
+	assert.Equal(t, "dev", label)
+	issues, err := page.Evaluate(webContrastScript)
+	require.NoError(t, err)
+	assert.Empty(t, issues, "lone tab contrast")
+	webScreenshot(t, page, "stacks-single", false)
+
+	require.NoError(t, page.Locator(`.app-nav a[data-route="cost"]`).Click())
+	webWait(t, page, `() => location.hash === '#/cost' && `+
+		`document.querySelector('[role="tab"]')?.getAttribute('href') === '#/cost'`)
+	requestsMu.Lock()
+	defer requestsMu.Unlock()
+	assert.Empty(t, stackRequests, "one stack makes no stack list request, activation, or /s/ request")
 }

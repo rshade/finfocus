@@ -90,7 +90,7 @@ class FakeNode {
   }
 }
 
-async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse, stackNames } = {}) {
+async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse, stackNames, stackName } = {}) {
   // The server lists the stacks in the shell page only for two or more, so the
   // page carries a meta tag exactly when it has them.
   if (stackNames === undefined && stacks.length > 0) stackNames = stacks.map((entry) => entry.name).join(',');
@@ -127,6 +127,7 @@ async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse,
     querySelector: (selector) => {
       if (selector === 'meta[name="finfocus-base"]' && prefix !== undefined) return { content: prefix };
       if (selector === 'meta[name="finfocus-stacks"]' && stackNames !== undefined) return { content: stackNames };
+      if (selector === 'meta[name="finfocus-stack"]' && stackName !== undefined) return { content: stackName };
       return null;
     },
     querySelectorAll: (selector) => (selector === '.app-nav a[data-route]' ? navLinks : []),
@@ -306,6 +307,107 @@ test('a malformed stack list in the page leaves the single-stack page', async ()
     assert.equal(t.ns.base(), '', stackNames);
     assert.equal(t.EventSource.all[0].url, '/api/overview/stream', stackNames);
   }
+});
+
+// ---- one named stack shows a lone tab (#2088, amended FR-013) -------------
+
+const loneTab = (t) => t.nodes.tablist.tabs[0];
+
+test('one named stack shows a lone selected tab and keeps #/<view> addresses', async () => {
+  const t = await setup({ stackName: 'dev', hash: '#/cost' });
+  assert.equal(t.nodes.tablist.hidden, false);
+  assert.equal(t.nodes.tablist.getAttribute('role'), 'tablist');
+  assert.equal(t.nodes.tablist.tabs.length, 1);
+  const tab = loneTab(t);
+  assert.equal(tab.children[0].textContent, 'dev');
+  assert.equal(tab.getAttribute('aria-selected'), 'true');
+  assert.equal(tab.getAttribute('tabindex'), '0');
+  assert.equal(tab.getAttribute('aria-controls'), 'view');
+  assert.equal(tab.getAttribute('href'), '#/cost');
+  assert.equal(t.nodes.label.hidden, false);
+  assert.equal(t.nodes.label.textContent, 'dev');
+  assert.equal(t.nodes.view.getAttribute('role'), 'tabpanel');
+  assert.equal(t.nodes.view.getAttribute('aria-labelledby'), tab.id);
+
+  assert.equal(t.ns.base(), '');
+  assert.equal(t.loc.hash, '#/cost');
+  assert.deepEqual(t.nodes.navLinks.map((link) => link.href), ['#/overview', '#/cost']);
+  assert.equal(t.EventSource.all.length, 1);
+  assert.equal(t.EventSource.all[0].url, '/api/overview/stream');
+  assert.deepEqual(t.fetches, [], 'no stack list, activation, or other request');
+});
+
+test('the lone tab follows the view in its address', async () => {
+  const t = await setup({ stackName: 'dev', hash: '#/overview' });
+  await t.hashchange('#/estimate');
+  assert.equal(loneTab(t).getAttribute('href'), '#/estimate');
+  assert.equal(t.loc.hash, '#/estimate');
+});
+
+test('the lone tab marks locked and failed in text and accessible name, like a stack tab', async () => {
+  const t = await setup({ stackName: 'dev' });
+  const tab = loneTab(t);
+  const source = t.lastSource();
+  const state = () => [markerOf(tab).textContent, tab.getAttribute('aria-label')];
+  assert.deepEqual(state(), ['', null], 'loading has no marker');
+
+  t.emit(source, 'passphrase_required', { stack: 'dev' });
+  assert.deepEqual(state(), ['locked', 'dev, locked']);
+
+  t.emit(source, 'snapshot', { passphraseRequired: false, ready: false, failed: false });
+  assert.deepEqual(state(), ['', null], 'an accepted passphrase goes back to loading');
+
+  t.emit(source, 'snapshot', { passphraseRequired: false, ready: false, failed: true });
+  assert.deepEqual(state(), ['failed', 'dev, failed']);
+
+  t.emit(source, 'snapshot', { passphraseRequired: true, ready: false, failed: true });
+  assert.deepEqual(state(), ['locked', 'dev, locked'], 'a pending prompt is tested first');
+
+  t.emit(source, 'snapshot', { passphraseRequired: false, ready: true, failed: true });
+  assert.deepEqual(state(), ['', null], 'a failed preview leaves a loaded stack ready');
+
+  t.emit(source, 'ready', {});
+  assert.deepEqual(state(), ['', null]);
+});
+
+test('a failed single stack seen from another view points to Overview', async () => {
+  const t = await setup({ stackName: 'dev', hash: '#/cost' });
+  t.emit(t.lastSource(), 'snapshot', { passphraseRequired: false, ready: false, failed: true });
+  await settle();
+  assert.equal(noticeText(t), 'dev failed to load. Open Overview for details.');
+  assert.equal(noticeLink(t), '#/overview');
+});
+
+test('keys on the lone tab do not move the address or make requests', async () => {
+  const t = await setup({ stackName: 'dev', hash: '#/cost' });
+  const handler = t.nodes.tablist.listeners.get('keydown');
+  for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End']) {
+    handler?.({ key, target: loneTab(t), preventDefault() {} });
+    await t.hashchange();
+    assert.equal(t.loc.hash, '#/cost', key);
+    assert.equal(loneTab(t).getAttribute('aria-selected'), 'true', key);
+  }
+  assert.deepEqual(t.fetches, []);
+});
+
+test('a malformed stack name in the page shows no tab', async () => {
+  for (const stackName of ['', 'bad name', '<b>', 'a,b', '../x/', 'dev\n']) {
+    const t = await setup({ stackName });
+    assert.equal(t.nodes.tablist.hidden, true, JSON.stringify(stackName));
+    assert.equal(t.nodes.label.hidden, true, JSON.stringify(stackName));
+  }
+});
+
+test('an org-qualified stack name is shown as written', async () => {
+  const t = await setup({ stackName: 'acme/web/dev' });
+  assert.equal(loneTab(t).children[0].textContent, 'acme/web/dev');
+  assert.equal(t.nodes.label.textContent, 'acme/web/dev');
+  assert.equal(t.ns.base(), '', 'a display name never becomes a request prefix');
+});
+
+test('a stack list wins over a single name', async () => {
+  const t = await setup({ stacks: entries('a', 'b'), stackName: 'dev' });
+  assert.deepEqual(t.names(), ['a', 'b']);
 });
 
 test('booting reads the page and makes no request before the stream starts', async () => {

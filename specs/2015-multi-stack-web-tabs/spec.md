@@ -127,24 +127,32 @@ accessibility snapshot.
 
 ---
 
-### User Story 6 - One stack behaves exactly as today (Priority: P1)
+### User Story 6 - One stack keeps its addresses and names itself (Priority: P1)
 
-`finfocus --web`, `--web --stack dev`, and the TUI hand-off show no tab bar, no
-new header element, and the same addresses (`#/<view>`) as before.
+*Amended by #2088 (2026-11-10).* `finfocus --web`, `--web --stack dev`, and the
+TUI hand-off keep the same addresses (`#/<view>`) and loading as before, and now
+name their Pulumi stack in a lone selected tab and the header label, so the page
+always says which stack it prices. The original story kept one stack with no tab
+bar and no new header element.
 
 **Acceptance Scenarios**:
 
-1. **Given** zero or one stack, **When** the page loads, **Then** the page is
-   unchanged and no stack list is offered.
-2. **Given** `--stack=a,b` with `--pulumi-json`, `--pulumi-state`, or a
+1. **Given** zero or one stack, **When** the page loads, **Then** addresses stay
+   `#/<view>` and no stack list is requested or offered.
+2. **Given** one stack from a Pulumi project (`--stack dev`, `--stack dev,dev`,
+   or the workspace's selected stack), **When** the page loads, **Then** one
+   selected tab and the header name that stack, with the same `failed` and
+   `locked` markers as a stack tab. A plan file, a state file, or Terraform shows
+   no tab bar.
+3. **Given** `--stack=a,b` with `--pulumi-json`, `--pulumi-state`, or a
    Terraform project, **When** the command starts, **Then** it exits 2 with a
    message that a stack list needs a Pulumi project's own stacks.
 
 ### Edge Cases
 
 - Duplicate names in the list (`a,a,b`) collapse in first-appearance order. A
-  list that ends with one name (`a,a`) behaves as a single stack, with no tab
-  bar (FR-001, FR-013).
+  list that ends with one name (`a,a`) behaves as a single stack: one tab and
+  no stack routing (FR-001, FR-013).
 - An empty element in a list of two or more values (`a,,b`, `a,`, or
   `--stack a --stack ""`) or an invalid name is a usage error (exit 2). A single
   empty value (`--stack ""`) is no stack, as today.
@@ -162,9 +170,9 @@ new header element, and the same addresses (`#/<view>`) as before.
 ### Functional Requirements
 
 - **FR-001**: `--stack` MUST accept comma-separated values and repeats, and
-  MUST trim whitespace around each name. Zero or one resulting name MUST run the existing single-stack path unchanged. A
-  lone empty value counts as no name; an empty element beside another value is
-  a usage error.
+  MUST trim whitespace around each name. Zero or one resulting name MUST run
+  the existing single-stack path (FR-013). A lone empty value counts as no
+  name; an empty element beside another value is a usage error.
 - **FR-002**: With two or more names, the command MUST validate each against
   the project's stacks (`pulumi.ListStacks`) before serving, exit 2 on an
   unknown name, and list the available names in the message.
@@ -200,8 +208,16 @@ new header element, and the same addresses (`#/<view>`) as before.
 - **FR-012**: Passphrase prompts and answers MUST stay inside the stack that
   asked. A rejected passphrase leaves the stack `locked` (retryable), not
   `failed`.
-- **FR-013**: Zero or one stack MUST render no tab bar and keep `#/<view>`
-  addresses and root-relative behavior.
+- **FR-013** *(amended by #2088)*: Zero or one stack MUST keep `#/<view>`
+  addresses and root-relative behavior, with no stack list request, activation,
+  or `/s/<name>/` route. One Pulumi stack (`--stack`, a list that collapses to
+  one name, or the workspace's selected stack) MUST be named in the shell
+  (`<meta name="finfocus-stack">`) and shown as one selected tab plus the header
+  label. Its markers MUST follow its own session from the overview stream in the
+  `stackState` order (locked, ready, failed), in text and accessible name. Plan
+  files, state files, and Terraform MUST render no tab bar. On any view but
+  Overview, a single stack that is `locked` or `failed` MUST show `#stack-notice`
+  linking to `#/overview`, with or without a tab, as a stack tab does.
 - **FR-014**: Shutdown MUST stop every started stack and release plugin
   processes, as the single-stack path does.
 - **FR-015**: Docs (web-ui guide, CLI reference) MUST describe the list form.
@@ -245,9 +261,10 @@ new header element, and the same addresses (`#/<view>`) as before.
 - **SC-003**: A user can reach any stack's any view with the keyboard alone.
 - **SC-004**: A failing stack never prevents another stack's tab from loading
   and rendering (automated test with one failing and one healthy stack).
-- **SC-005**: Single-stack runs produce the same page and addresses as the
-  previous release; the existing web suites pass with only pins for the flag
-  type changed.
+- **SC-005** *(amended by #2088)*: Single-stack runs keep the previous
+  release's addresses and make no stack list or activation request; the page
+  differs only by the lone stack tab and header label. The existing web suites
+  pass with only pins for the flag type changed.
 
 ## Assumptions
 
