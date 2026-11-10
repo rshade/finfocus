@@ -94,9 +94,10 @@ func (p providerScope) setRegion(urn, region string) {
 }
 
 // stepNewReference reads the provider reference of the state a step creates.
-// A step without new state names one at the top level, unless it deletes.
+// When the new state names none, the step's top-level reference is used,
+// unless the step deletes.
 func stepNewReference(step ingest.PulumiStep) string {
-	if step.NewState != nil {
+	if step.NewState != nil && step.NewState.Provider != "" {
 		return step.NewState.Provider
 	}
 	if isDeleteOperation(step.Op) {
