@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strings"
 
 	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
@@ -86,17 +87,17 @@ func reportAnalyzerInstall(cmd *cobra.Command, result *analyzer.InstallResult) e
 	switch result.Action {
 	case analyzer.ActionInstalled:
 		cmd.Printf("Analyzer installed successfully\n")
-		cmd.Printf("  Version: v%s\n", result.Version)
+		cmd.Printf("  Version: %s\n", versionLabel(result.Version))
 		cmd.Printf("  Path: %s\n", result.Path)
 		cmd.Printf("  Method: %s\n", result.Method)
 	case analyzer.ActionUpdateAvailable:
-		cmd.Printf("Analyzer already installed at v%s\n", result.Version)
+		cmd.Printf("Analyzer already installed at %s\n", versionLabel(result.Version))
 		cmd.Printf("  Path: %s\n", result.Path)
-		cmd.Printf("  Current finfocus version: v%s\n", result.CurrentVersion)
+		cmd.Printf("  Current finfocus version: %s\n", versionLabel(result.CurrentVersion))
 		cmd.Printf("  Use --force to upgrade\n")
 	default:
 		// analyzer.ActionAlreadyCurrent
-		cmd.Printf("Analyzer already installed at v%s\n", result.Version)
+		cmd.Printf("Analyzer already installed at %s\n", versionLabel(result.Version))
 		cmd.Printf("  Path: %s\n", result.Path)
 		cmd.Printf("  Use --force to reinstall\n")
 	}
@@ -104,6 +105,12 @@ func reportAnalyzerInstall(cmd *cobra.Command, result *analyzer.InstallResult) e
 	reportPolicyPack(cmd, result)
 
 	return nil
+}
+
+// versionLabel prints a version with exactly one "v". A make build stamps the
+// git tag ("v0.5.4") and a release build stamps the bare version ("0.5.4").
+func versionLabel(v string) string {
+	return "v" + strings.TrimPrefix(v, "v")
 }
 
 // reportPolicyPack prints the pack location and the preview command. Install
