@@ -175,7 +175,10 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   and header label with no routing, activation, or `/api/stacks` request (#2088).
   `runWebSession` copies that name into `params.stack`: the pipeline otherwise
   re-reads the workspace selection at load time, after any passphrase wait, and
-  could price another stack under the label.
+  could price another stack under the label. It also sets
+  `params.workspaceStack`, so `bindStackESC` keeps the root ESC source: the
+  `pulumi stack ls` name can drop the organization that the workspace selection
+  carries, and `orgFromStack` picks the ESC organization from the stack name.
   It is display text (may be `org/proj/stack`), so keep it out of `base()` and
   `stackState.multi`. The lone tab reads `snapshotStackState` from the stream:
   `passphraseRequired`, then `ready`, then the snapshot's `failed`

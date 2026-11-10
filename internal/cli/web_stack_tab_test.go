@@ -14,6 +14,7 @@ import (
 
 const singleStackMeta = `<meta name="finfocus-stack"`
 
+// webShell fetches the dashboard's shell page with the session cookie.
 func webShell(t *testing.T, origin string, cookie *http.Cookie) string {
 	t.Helper()
 	resp := webAPI(t, origin, cookie, "/", "")

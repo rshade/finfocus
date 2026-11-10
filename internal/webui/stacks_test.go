@@ -488,6 +488,8 @@ func TestSnapshotReportsAFinalFailure(t *testing.T) {
 	}
 }
 
+// snapshotField returns one top-level field of a snapshot payload as raw JSON,
+// failing the test when the field is absent.
 func snapshotField(t *testing.T, data []byte, field string) string {
 	t.Helper()
 	var fields map[string]json.RawMessage

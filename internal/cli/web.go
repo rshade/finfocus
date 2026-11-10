@@ -204,10 +204,11 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	if err != nil {
 		return err
 	}
-	if projectStack != "" {
+	if projectStack != "" && params.stack == "" {
 		// The page names this stack for the whole session, so loading must not
 		// resolve the workspace selection again later (after a passphrase wait).
 		params.stack = projectStack
+		params.workspaceStack = true
 	}
 
 	stores := openSharedStores(ctx, cmd, params.cfg)

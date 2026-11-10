@@ -183,6 +183,25 @@ func TestWebData_BindStackESCWithoutStackKeepsRoot(t *testing.T) {
 	assert.Same(t, before, fromCtx)
 }
 
+// A single-stack dashboard pins the workspace stack it named (#2088) by its
+// `pulumi stack ls` name, which can drop the organization the workspace
+// selection carries. The root source already read that selection, so ESC keeps
+// it and resolves the stack's environments in the right organization.
+// Not parallel: t.Chdir changes the process working directory.
+func TestWebData_BindStackESCKeepsRootForAPinnedWorkspaceStack(t *testing.T) {
+	t.Chdir(escProject(t, map[string]string{"dev": "environment:\n  - proj/dev\n"}))
+	data, ctx := webDataWithRootESC(t, "dev")
+	data.params.workspaceStack = true
+	before := data.ESCSource()
+
+	after := data.bindStackESC(ctx)
+
+	assert.Same(t, before, data.ESCSource())
+	fromCtx, ok := esc.SourceFromContext(after)
+	require.True(t, ok)
+	assert.Same(t, before, fromCtx)
+}
+
 // Not parallel: t.Chdir changes the process working directory.
 func TestWebData_BindStackESCOutsideProjectKeepsRoot(t *testing.T) {
 	t.Chdir(t.TempDir())

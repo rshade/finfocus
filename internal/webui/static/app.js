@@ -581,6 +581,8 @@ const SINGLE_TAB_ID = 'stack-tab-single';
 // never used in an address or a request.
 const DISPLAY_STACK_NAME_PATTERN = /^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+){0,2}$/;
 
+// readSingleStack takes the one stack's display name from the shell page. A
+// multi-stack page or a page under /s/<name>/ never has one.
 function readSingleStack() {
   if (stackState.multi || base()) return;
   const name = document.querySelector('meta[name="finfocus-stack"]')?.content;
@@ -612,6 +614,8 @@ function snapshotStackState(data) {
   return 'loading';
 }
 
+// watchSingleStack follows the session's state from the overview stream. A
+// page without a named tab still learns the stack name here, for the notice.
 function watchSingleStack() {
   const follow = (state, data) => {
     singleStack.state = state;
@@ -623,6 +627,8 @@ function watchSingleStack() {
   stream.on('ready', (data) => follow('ready', data));
 }
 
+// updateSingleStack points the lone tab at the current view, marks its state,
+// and refreshes the notice.
 function updateSingleStack() {
   if (singleStack.tab) {
     singleStack.tab.link.setAttribute('href', `#/${currentView}`);

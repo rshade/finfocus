@@ -459,6 +459,8 @@ func (s *Session) Failed() bool {
 	return s.failedLocked()
 }
 
+// failedLocked is the one failure rule, shared by Failed and the snapshot's
+// failed field. The caller holds s.mu.
 func (s *Session) failedLocked() bool {
 	return s.pipelineEnded && len(s.failures) > 0
 }
