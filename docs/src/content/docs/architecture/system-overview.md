@@ -29,6 +29,9 @@ following subcommands:
 
 **Design Pattern:** Command pattern with Cobra framework
 
+The terminal UI, the browser dashboard, the GitHub Action, and the MCP server all sit on top of this layer and
+the engine. See [One Core Under Every Surface](shared-core.md).
+
 ### Engine
 
 **Location:** `internal/engine`
