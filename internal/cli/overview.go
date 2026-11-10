@@ -39,11 +39,15 @@ const overviewOperationReplace = "replace"
 
 // overviewParams holds the parameters for the overview command.
 type overviewParams struct {
-	pulumiJSON      string
-	pulumiState     string
-	terraformPlan   string
-	terraformState  string
-	stack           string
+	pulumiJSON     string
+	pulumiState    string
+	terraformPlan  string
+	terraformState string
+	stack          string
+	// workspaceStack marks a stack pinned from the workspace selection rather
+	// than named by --stack. The root ESC source already read that selection,
+	// organization included, so ESC keeps it.
+	workspaceStack  bool
 	fromStr         string
 	toStr           string
 	adapter         string

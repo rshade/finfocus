@@ -123,7 +123,7 @@ func (d *webData) noteESC(ctx context.Context) {
 // above the working directory, ctx and the current source are unchanged.
 func (d *webData) bindStackESC(ctx context.Context) context.Context {
 	root := d.ESCSource()
-	if root == nil || strings.TrimSpace(d.params.stack) == "" {
+	if root == nil || strings.TrimSpace(d.params.stack) == "" || d.params.workspaceStack {
 		return ctx
 	}
 	cwd, err := os.Getwd()

@@ -47,6 +47,11 @@ always starts from the working directory.
 
 ## Open several stacks
 
+With one stack, the page names it in the header and in a single tab, so you
+can always see which stack's costs are on screen. That is the stack `--stack`
+names, or the workspace's selected stack (`pulumi stack select`) when you leave
+`--stack` out. A plan or state file and Terraform show no tab.
+
 To compare stacks in one page, give `--stack` a list:
 
 ```bash

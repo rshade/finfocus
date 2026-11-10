@@ -200,8 +200,15 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		}
 		return runWebStacks(cmd, flags, stacks, params, dateRange, audit)
 	}
-	if err = checkWebProjectSource(ctx, params); err != nil {
+	projectStack, err := checkWebProjectSource(ctx, params)
+	if err != nil {
 		return err
+	}
+	if projectStack != "" && params.stack == "" {
+		// The page names this stack for the whole session, so loading must not
+		// resolve the workspace selection again later (after a passphrase wait).
+		params.stack = projectStack
+		params.workspaceStack = true
 	}
 
 	stores := openSharedStores(ctx, cmd, params.cfg)
@@ -209,7 +216,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	stack := newWebStack(ctx, cmd, params, dateRange, audit, stores)
 	defer stack.cancel()
 	defer stack.session.Close()
-	srv, err := listenAndPrintWeb(ctx, cmd, flags, stack.session, audit)
+	srv, err := listenAndPrintWeb(ctx, cmd, flags, stack.session, projectStack, audit)
 	if err != nil {
 		return err
 	}
@@ -238,23 +245,26 @@ func serveDashboard(
 	return nil
 }
 
-// checkWebProjectSource validates project detection before opening the server.
-// Only Pulumi projects need a stack; Terraform always plans the detected root.
-func checkWebProjectSource(ctx context.Context, params overviewParams) error {
+// checkWebProjectSource validates project detection before opening the server
+// and returns the Pulumi stack the dashboard will price: --stack, or the
+// workspace's selected stack. Only Pulumi projects need a stack; Terraform
+// always plans the detected root, and it and plan or state files return "".
+func checkWebProjectSource(ctx context.Context, params overviewParams) (string, error) {
 	if params.pulumiState != "" || params.pulumiJSON != "" {
-		return nil
+		return "", nil
 	}
 	source, err := DetectProjectSource(".")
 	if err != nil {
-		return toValidationError(ctx, fmt.Errorf("find Pulumi or Terraform project: %w", err))
+		return "", toValidationError(ctx, fmt.Errorf("find Pulumi or Terraform project: %w", err))
 	}
 	if source.Kind == ProjectKindTerraform {
-		return nil
+		return "", nil
 	}
-	if _, _, err = detectPulumiProject(ctx, params.stack); err != nil {
-		return fmt.Errorf("auto-detecting Pulumi project: %w", err)
+	_, stack, err := detectPulumiProject(ctx, params.stack)
+	if err != nil {
+		return "", fmt.Errorf("auto-detecting Pulumi project: %w", err)
 	}
-	return nil
+	return stack, nil
 }
 
 // runningUnderWSL reports whether the process runs inside WSL, where the
@@ -377,11 +387,14 @@ func bindWebPipeline(
 }
 
 // listenAndPrintWeb starts the localhost server and prints its session URL.
+// stackName is the single-stack dashboard's Pulumi stack, shown as a lone tab;
+// the multi-stack root and non-Pulumi inputs pass "".
 func listenAndPrintWeb(
 	ctx context.Context,
 	cmd *cobra.Command,
 	flags *webFlagValues,
 	session *webui.Session,
+	stackName string,
 	audit *auditContext,
 ) (*webui.Server, error) {
 	srv, err := webui.New(webui.Options{
@@ -391,6 +404,7 @@ func listenAndPrintWeb(
 		AllowedHosts: flags.allowedHosts,
 		TrustedProxy: flags.trustedProxy,
 		AllowedUsers: flags.allowedUsers,
+		StackName:    stackName,
 	})
 	if err != nil {
 		return nil, toValidationError(ctx, err)

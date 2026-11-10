@@ -504,26 +504,36 @@ function readStackList() {
 const tabId = (name) => `stack-tab-${name}`;
 const stackHref = (name) => `#/s/${name}/${currentView}`;
 
-// buildStackChrome creates the tab bar once. The nodes persist so a refresh
-// updates them in place and never drops keyboard focus.
-function buildStackChrome() {
+// showTablist shows the tab bar and the header label, and makes the view the
+// tab panel.
+function showTablist() {
   stackTabs.setAttribute('role', 'tablist');
   stackTabs.setAttribute('aria-label', 'Stacks');
   stackTabs.hidden = false;
   stackLabel.hidden = false;
   viewContainer.setAttribute('role', 'tabpanel');
+}
+
+// stackTab builds one tab: a link holding the stack name and its state marker.
+function stackTab(name, attrs) {
+  const marker = el('span', { class: 'stack-tab-state' });
+  const link = el('a', { ...attrs, class: 'stack-tab', role: 'tab', 'aria-controls': 'view' },
+    el('span', { class: 'stack-tab-name', text: name }), marker);
+  return { link, marker };
+}
+
+// buildStackChrome creates the tab bar once. The nodes persist so a refresh
+// updates them in place and never drops keyboard focus.
+function buildStackChrome() {
+  showTablist();
   const links = stackState.entries.map((entry) => {
-    const marker = el('span', { class: 'stack-tab-state' });
-    const link = el('a', {
+    const nodes = stackTab(entry.name, {
       id: tabId(entry.name),
-      class: 'stack-tab',
-      role: 'tab',
-      'aria-controls': 'view',
       href: stackHref(entry.name),
       dataset: { stack: entry.name },
-    }, el('span', { class: 'stack-tab-name', text: entry.name }), marker);
-    tabNodes.set(entry.name, { link, marker });
-    return link;
+    });
+    tabNodes.set(entry.name, nodes);
+    return nodes.link;
   });
   stackTabs.replaceChildren(...links);
   stackTabs.addEventListener('keydown', onTabKey);
@@ -532,23 +542,28 @@ function buildStackChrome() {
   }
 }
 
+// markTab shows a tab's state. A failed or locked tab says so in text and in
+// its accessible name, never by color alone.
+function markTab({ link, marker }, name, state) {
+  const text = STACK_STATE_MARKERS[state] ?? '';
+  marker.textContent = text;
+  if (text) link.setAttribute('aria-label', `${name}, ${text}`);
+  else link.removeAttribute('aria-label');
+}
+
 // updateStackChrome reflects the active stack and each stack's state. State
-// comes from the server; a failed or locked tab says so in text and in its
-// accessible name, never by color alone.
+// comes from the server.
 function updateStackChrome() {
   if (!stackState.multi) return;
   stackLabel.textContent = stackState.active;
   viewContainer.setAttribute('aria-labelledby', tabId(stackState.active));
   for (const entry of stackState.entries) {
-    const { link, marker } = tabNodes.get(entry.name);
+    const nodes = tabNodes.get(entry.name);
     const selected = entry.name === stackState.active;
-    link.setAttribute('aria-selected', String(selected));
-    link.setAttribute('tabindex', selected ? '0' : '-1');
-    link.setAttribute('href', stackHref(entry.name));
-    const text = STACK_STATE_MARKERS[entry.state] ?? '';
-    marker.textContent = text;
-    if (text) link.setAttribute('aria-label', `${entry.name}, ${text}`);
-    else link.removeAttribute('aria-label');
+    nodes.link.setAttribute('aria-selected', String(selected));
+    nodes.link.setAttribute('tabindex', selected ? '0' : '-1');
+    nodes.link.setAttribute('href', stackHref(entry.name));
+    markTab(nodes, entry.name, entry.state);
   }
   for (const link of document.querySelectorAll('.app-nav a[data-route]')) {
     link.setAttribute('href', `#/s/${stackState.active}/${link.dataset.route}`);
@@ -557,20 +572,69 @@ function updateStackChrome() {
 }
 
 // A single-stack page has no stack list to read states from, so it follows
-// the lock from the stream itself.
-const singleStack = { locked: false, name: '' };
+// its own session from the stream. name comes from the shell when the server
+// named the Pulumi stack, which also shows the stack as a lone tab; otherwise
+// (a plan file, a state file, Terraform) only the notice uses it.
+const singleStack = { name: '', state: 'loading', tab: null };
+const SINGLE_TAB_ID = 'stack-tab-single';
+// A display name: Pulumi stack names, optionally org/project-qualified. It is
+// never used in an address or a request.
+const DISPLAY_STACK_NAME_PATTERN = /^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+){0,2}$/;
 
-function watchSingleStackLock() {
-  const follow = (locked, data) => {
-    singleStack.locked = locked;
-    if (typeof data?.stack === 'string' && data.stack) singleStack.name = data.stack;
-    updateStackNotice();
-  };
-  stream.on('passphrase_required', (data) => follow(true, data));
-  stream.on('snapshot', (data) => {
-    if (typeof data?.passphraseRequired === 'boolean') follow(data.passphraseRequired, data);
+// readSingleStack takes the one stack's display name from the shell page. A
+// multi-stack page or a page under /s/<name>/ never has one.
+function readSingleStack() {
+  if (stackState.multi || base()) return;
+  const name = document.querySelector('meta[name="finfocus-stack"]')?.content;
+  if (typeof name === 'string' && DISPLAY_STACK_NAME_PATTERN.test(name)) singleStack.name = name;
+}
+
+// buildSingleStackTab shows the one stack as a selected tab. It changes no
+// address: the tab and the nav keep #/<view>, and nothing is activated.
+function buildSingleStackTab() {
+  showTablist();
+  stackLabel.textContent = singleStack.name;
+  viewContainer.setAttribute('aria-labelledby', SINGLE_TAB_ID);
+  singleStack.tab = stackTab(singleStack.name, {
+    id: SINGLE_TAB_ID,
+    'aria-selected': 'true',
+    tabindex: '0',
+    href: `#/${currentView}`,
   });
-  stream.on('ready', (data) => follow(false, data));
+  stackTabs.replaceChildren(singleStack.tab.link);
+}
+
+// snapshotStackState repeats stackState in internal/webui/stacks.go, which a
+// stack list reports: a pending prompt first, then ready (a failed preview
+// leaves a loaded stack ready), then a final failure. Keep the two in step.
+function snapshotStackState(data) {
+  if (data?.passphraseRequired === true) return 'locked';
+  if (data?.ready === true) return 'ready';
+  if (data?.failed === true) return 'failed';
+  return 'loading';
+}
+
+// watchSingleStack follows the session's state from the overview stream. A
+// page without a named tab still learns the stack name here, for the notice.
+function watchSingleStack() {
+  const follow = (state, data) => {
+    singleStack.state = state;
+    if (!singleStack.tab && typeof data?.stack === 'string' && data.stack) singleStack.name = data.stack;
+    updateSingleStack();
+  };
+  stream.on('passphrase_required', (data) => follow('locked', data));
+  stream.on('snapshot', (data) => follow(snapshotStackState(data), data));
+  stream.on('ready', (data) => follow('ready', data));
+}
+
+// updateSingleStack points the lone tab at the current view, marks its state,
+// and refreshes the notice.
+function updateSingleStack() {
+  if (singleStack.tab) {
+    singleStack.tab.link.setAttribute('href', `#/${currentView}`);
+    markTab(singleStack.tab, singleStack.name, singleStack.state);
+  }
+  updateStackNotice();
 }
 
 // activeStackNotice is what the notice should say on the current view, or
@@ -583,9 +647,10 @@ function activeStackNotice() {
     if (!notice) return undefined;
     return { key: `${entry.name}:${entry.state}`, name: entry.name, href: `#/s/${entry.name}/overview`, ...notice };
   }
-  if (!singleStack.locked) return undefined;
+  const notice = STACK_NOTICES[singleStack.state];
+  if (!notice) return undefined;
   const name = singleStack.name || 'The stack';
-  return { key: `${name}:locked`, name, href: '#/overview', ...STACK_NOTICES.locked };
+  return { key: `${name}:${singleStack.state}`, name, href: '#/overview', ...notice };
 }
 
 // updateStackNotice rewrites the notice only when what it says changes, so a
@@ -713,7 +778,7 @@ async function renderRoute() {
   }
   currentView = name;
   updateNav(name);
-  if (!stackState.multi) updateStackNotice();
+  if (!stackState.multi) updateSingleStack();
   announcer.textContent = '';
 
   if (activeView && typeof activeView.unmount === 'function') {
@@ -771,8 +836,12 @@ async function renderRoute() {
 }
 
 readStackList();
+readSingleStack();
 if (stackState.multi) buildStackChrome();
-else watchSingleStackLock();
+else {
+  if (singleStack.name) buildSingleStackTab();
+  watchSingleStack();
+}
 window.addEventListener('hashchange', renderRoute);
 document.querySelector('.skip-link')?.addEventListener('click', (event) => {
   event.preventDefault();

@@ -193,11 +193,14 @@ type OverviewSnapshot struct {
 	Progress           ProgressEvent              `json:"progress"`
 	Ready              bool                       `json:"ready"`
 	PassphraseRequired bool                       `json:"passphraseRequired"`
-	Stack              string                     `json:"stack"`
-	Preview            PreviewEvent               `json:"preview"`
-	Errors             []ErrorEvent               `json:"errors"`
-	Footnote           string                     `json:"footnote,omitempty"`
-	SourceWarning      string                     `json:"sourceWarning,omitempty"`
+	// Failed is Session.Failed: the pipeline ended with a recorded failure. A
+	// single-stack page has no stack list, so its tab reads this instead.
+	Failed        bool         `json:"failed"`
+	Stack         string       `json:"stack"`
+	Preview       PreviewEvent `json:"preview"`
+	Errors        []ErrorEvent `json:"errors"`
+	Footnote      string       `json:"footnote,omitempty"`
+	SourceWarning string       `json:"sourceWarning,omitempty"`
 }
 
 // OverviewTotalsPayload adds canonical display strings to engine totals.
@@ -453,6 +456,12 @@ func (s *Session) SetPipelineEnded() {
 func (s *Session) Failed() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.failedLocked()
+}
+
+// failedLocked is the one failure rule, shared by Failed and the snapshot's
+// failed field. The caller holds s.mu.
+func (s *Session) failedLocked() bool {
 	return s.pipelineEnded && len(s.failures) > 0
 }
 
@@ -542,6 +551,7 @@ func (s *Session) snapshotLocked() OverviewSnapshot {
 		Progress:           s.progress,
 		Ready:              s.ready,
 		PassphraseRequired: s.passphraseRequired,
+		Failed:             s.failedLocked(),
 		Stack:              s.stack,
 		Preview:            s.preview,
 		Errors:             failures,

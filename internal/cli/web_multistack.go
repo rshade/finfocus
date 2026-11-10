@@ -156,7 +156,7 @@ func runWebStacks(
 
 	root := webui.NewSession(ctx, webui.SessionOptions{})
 	defer root.Close()
-	srv, err := listenAndPrintWeb(ctx, cmd, flags, root, audit)
+	srv, err := listenAndPrintWeb(ctx, cmd, flags, root, "", audit)
 	if err != nil {
 		return err
 	}

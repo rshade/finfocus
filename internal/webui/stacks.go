@@ -17,9 +17,9 @@ const stackPathPrefix = "/s/"
 // MaxStackNameLen is Pulumi's limit for a simple stack name.
 const MaxStackNameLen = 100
 
-// MinTabbedStacks is the fewest stacks that make a tabbed page. With one, the
-// dashboard is the plain single-stack page and --stack takes the single-stack
-// path.
+// MinTabbedStacks is the fewest stacks that make a multi-stack page, with
+// /s/<name>/ addresses and activation. With one, --stack takes the single-stack
+// path, whose page shows that stack as a lone tab (Options.StackName).
 const MinTabbedStacks = 2
 
 var (
@@ -138,22 +138,27 @@ func (s *Server) stackEntries() []StackEntry {
 	return entries
 }
 
-// stacksMeta is the shell's stack list for the browser: a meta tag naming the
-// registered stacks in order, or nothing. Only the root page of a server with
-// two or more stacks carries it, so one stack, and any page under /s/<name>/,
-// is the plain single-stack page. The names are already restricted to
-// [A-Za-z0-9_.-]; they are escaped as well. The browser reads this at boot, so
-// the shell never waits on a request to decide whether to show tabs.
+// stacksMeta is the shell's stack chrome for the browser. The root page of a
+// server with two or more stacks lists them in order (finfocus-stacks), which
+// turns on tabs, /s/<name>/ addresses, and activation. Otherwise the root page
+// of a single-stack dashboard names its Pulumi stack (finfocus-stack), which
+// shows a lone tab and changes nothing else. A page under /s/<name>/ carries
+// neither. Names are escaped; finfocus-stack is display text and may be
+// org-qualified. The browser reads this at boot, so the shell never waits on a
+// request to decide whether to show tabs.
 func (s *Server) stacksMeta() string {
 	if s.parent != nil {
 		return ""
 	}
 	s.stacksMu.RLock()
 	defer s.stacksMu.RUnlock()
-	if len(s.stackOrder) < MinTabbedStacks {
-		return ""
+	if len(s.stackOrder) >= MinTabbedStacks {
+		return `<meta name="finfocus-stacks" content="` + html.EscapeString(strings.Join(s.stackOrder, ",")) + `">`
 	}
-	return `<meta name="finfocus-stacks" content="` + html.EscapeString(strings.Join(s.stackOrder, ",")) + `">`
+	if s.stackName != "" {
+		return `<meta name="finfocus-stack" content="` + html.EscapeString(s.stackName) + `">`
+	}
+	return ""
 }
 
 // activateStack runs the stack's Activate callback on the first call only and
@@ -183,7 +188,9 @@ func (s *Server) activateSelf() {
 
 // stackState derives a stack's load state. A pending prompt wins over a
 // recorded failure because a rejected passphrase records one and re-prompts,
-// and a stack that finished loading stays ready.
+// and a stack that finished loading stays ready. A single-stack page has no
+// stack list, so snapshotStackState in static/app.js repeats this order from
+// the snapshot; keep the two in step.
 func stackState(child *Server) StackState {
 	if !child.activated.Load() {
 		return StackStateIdle

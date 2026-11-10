@@ -224,6 +224,54 @@ func TestShellListsStacksOnlyOnTheRootWithTwoOrMore(t *testing.T) {
 	}
 }
 
+// The single-stack page names the Pulumi stack it prices, so the browser shows
+// a one-tab bar at boot without a request (#2088). A plan file, state file, or
+// Terraform run has no stack name and shows no tab. The name is display text,
+// so it may be org-qualified and is always escaped.
+func TestShellNamesTheSingleStack(t *testing.T) {
+	t.Parallel()
+	const singleMeta = `<meta name="finfocus-stack"`
+
+	named := newRunningServer(t, Options{Session: readySession(t, "urn::root"), StackName: "dev"})
+	qualified := newRunningServer(t, Options{Session: readySession(t, "urn::root"), StackName: `acme/"web"/dev`})
+	unnamed := newRunningServer(t, Options{Session: readySession(t, "urn::root")})
+	several := newRunningServer(t, Options{Session: readySession(t, "urn::root"), StackName: "dev"})
+	for _, name := range []string{"prod", "dev"} {
+		require.NoError(t, several.AddStack(name, StackOptions{}))
+	}
+
+	tests := []struct {
+		name   string
+		server *Server
+		path   string
+		want   string
+	}{
+		{"a named stack", named, "/", `<meta name="finfocus-stack" content="dev">`},
+		{
+			"an org-qualified name is escaped", qualified, "/",
+			`<meta name="finfocus-stack" content="acme/&#34;web&#34;/dev">`,
+		},
+		{"no stack name", unnamed, "/", ""},
+		{"several stacks keep their list instead", several, "/", ""},
+		{"a stack's own page names nothing", several, "/s/dev/", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cookie := bootstrapSession(t, tt.server)
+			resp, body := authGet(t, tt.server, cookie, tt.path)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			if tt.want == "" {
+				assert.NotContains(t, body, singleMeta)
+				return
+			}
+			assert.Contains(t, body, tt.want)
+			assert.NotContains(t, body, `<meta name="finfocus-stacks"`)
+		})
+	}
+}
+
 // A stack list served through `tailscale serve` (--allowed-host,
 // --trusted-proxy, --allowed-user) admits the identity header on the stack
 // list, activation, and every stack's own tree, and refuses an unlisted login

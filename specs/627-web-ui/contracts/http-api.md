@@ -123,7 +123,7 @@ recovers the current state without restarting the load.
 | `expansion` | `{ rows: OverviewRowResult[], notes: string[] }` | Cluster expansion finished after enrichment; replaces the row set (mirrors the TUI's `OverviewExpansionReadyMsg`) |
 | `ready` | `{ totals: OverviewTotals }` | Load complete |
 | `passphrase_required` | `{ stack: string }` | Encrypted stack — SPA shows masked prompt. A rejected passphrase emits `error` and then `passphrase_required` again |
-| `snapshot` | `{ phases, rows, totals, budget, progress, ready, passphraseRequired, stack, preview, errors, stateOnly, previewLoaded, detectFailed, footnote }` | State so far, including safe phase failures and whether the run is state-only; sent first on every connect and when unlock handoff starts |
+| `snapshot` | `{ phases, rows, totals, budget, progress, ready, passphraseRequired, failed, stack, preview, errors, stateOnly, previewLoaded, detectFailed, footnote }` | State so far, including safe phase failures and whether the run is state-only; sent first on every connect, when unlock handoff starts, and when a failure becomes final (`failed`: the pipeline ended with a recorded failure, #2088) |
 | `run_status` | `{ stateOnly, previewLoaded, detectFailed, footnote }` | State-only status. `footnote` is the TUI state-only note while a preview has not been applied. The three flags are always present as booleans. A successful preview sets `previewLoaded` and clears `stateOnly`, `detectFailed`, and `footnote` |
 | `preview` | `{ status, elapsedMs, rows? }` | On-demand preview progress/result |
 

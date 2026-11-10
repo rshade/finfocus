@@ -169,7 +169,20 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   stacks in `<meta name="finfocus-stacks">`, only for two or more, so `app.js`
   decides about tabs at boot with no request: a top-level `await` on a fetch
   hangs every frontend harness, whose `fetch` never settles, and would block a
-  real page behind a hung server. Tab states are `idle`, `loading`, `locked`,
+  real page behind a hung server. One Pulumi stack is named instead in
+  `<meta name="finfocus-stack">` (`Options.StackName`, from
+  `checkWebProjectSource`; none for plan, state, or Terraform input): a lone tab
+  and header label with no routing, activation, or `/api/stacks` request (#2088).
+  `runWebSession` copies that name into `params.stack`: the pipeline otherwise
+  re-reads the workspace selection at load time, after any passphrase wait, and
+  could price another stack under the label. It also sets
+  `params.workspaceStack`, so `bindStackESC` keeps the root ESC source: the
+  `pulumi stack ls` name can drop the organization that the workspace selection
+  carries, and `orgFromStack` picks the ESC organization from the stack name.
+  It is display text (may be `org/proj/stack`), so keep it out of `base()` and
+  `stackState.multi`. The lone tab reads `snapshotStackState` from the stream:
+  `passphraseRequired`, then `ready`, then the snapshot's `failed`
+  (`Session.failedLocked`, the same rule as `stackState`). Tab states are `idle`, `loading`, `locked`,
   `ready`, `failed`; `locked` is tested first because a rejected passphrase
   records a failure and prompts again, `ready` before `failed` because a failed
   on-demand preview records a failure on a stack that works, and `Session.Failed`
@@ -747,7 +760,7 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `OverviewPipeline.PassphraseStack()`, the stack the passphrase check
   resolved. Only Overview renders the prompt. A dismissed prompt keeps an
   Unlock control, and other views show `#stack-notice` for a locked single
-  stack too (`watchSingleStackLock` in `app.js`).
+  stack too (`watchSingleStack` in `app.js`).
 - The dashboard Config page and `config set` patch `config.hujson` through
   `config.PatchFile`. Do not call `Config.Save` for that write: it rewrites the
   struct from `New()`, folds environment variables into the file, and drops
