@@ -167,10 +167,18 @@ func (s *Server) activateStack(name string) (StackEntry, bool) {
 	if child == nil {
 		return StackEntry{}, false
 	}
-	if child.activated.CompareAndSwap(false, true) && child.activate != nil {
-		child.activate()
-	}
+	child.activateSelf()
 	return StackEntry{Name: name, State: stackState(child)}, true
+}
+
+// activateSelf runs a stack's Activate callback on the first call only. The
+// root activation route and the stack's own page both call it, so a page
+// opened at /s/<name>/ starts its stack instead of streaming from one that
+// never runs.
+func (s *Server) activateSelf() {
+	if s.activated.CompareAndSwap(false, true) && s.activate != nil {
+		s.activate()
+	}
 }
 
 // stackState derives a stack's load state. A pending prompt wins over a

@@ -112,13 +112,15 @@ async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse,
   label.hidden = true;
   const announcer = node('div');
   const status = node('span');
+  const notice = node('p');
+  notice.hidden = true;
   const navLinks = ['overview', 'cost'].map((route) => {
     const link = node('a');
     link.dataset.route = route;
     link.setAttribute('href', `#/${route}`);
     return link;
   });
-  const byId = { view, main, 'stack-tabs': tablist, 'stack-label': label, 'view-announcer': announcer, 'connection-status': status };
+  const byId = { view, main, 'stack-tabs': tablist, 'stack-label': label, 'view-announcer': announcer, 'connection-status': status, 'stack-notice': notice };
   const document = {
     createElement: node,
     getElementById: (id) => byId[id] ?? null,
@@ -234,7 +236,7 @@ async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse,
     fetches,
     log,
     mounts,
-    nodes: { view, tablist, label, announcer, status, navLinks },
+    nodes: { view, tablist, label, announcer, status, navLinks, notice },
     loc: location,
     doc,
     state,
@@ -460,6 +462,41 @@ test('after a stream error the tab states refresh and the failed tab is marked',
   assert.deepEqual(t.names(), ['a', 'b'], 'a failed stack keeps its tab');
 });
 
+const noticeText = (t) => t.nodes.notice.children.map((child) => (typeof child === 'string' ? child : child.textContent)).join('');
+const noticeLink = (t) => t.nodes.notice.children.find((child) => typeof child === 'object')?.getAttribute('href');
+
+test('a locked stack seen from another view points to its Overview', async () => {
+  const t = await setup({ stacks: entries('a', 'b'), hash: '#/s/a/cost' });
+  assert.equal(t.nodes.notice.hidden, true, 'no notice while the stack is fine');
+  t.state.stacks = [{ name: 'a', state: 'locked' }, { name: 'b', state: 'idle' }];
+  t.emit(t.lastSource(), 'passphrase_required', { stack: 'a' });
+  await settle();
+
+  assert.equal(t.nodes.notice.hidden, false);
+  assert.equal(noticeText(t), 'a needs a passphrase. Open Overview to unlock it.');
+  assert.equal(noticeLink(t), '#/s/a/overview');
+
+  await t.hashchange('#/s/a/overview');
+  assert.equal(t.nodes.notice.hidden, true, 'Overview shows the prompt itself');
+});
+
+test('a failed stack seen from another view points to its Overview, and the notice is not rewritten on refresh', async () => {
+  const t = await setup({ stacks: entries('a', 'b'), hash: '#/s/a/estimate' });
+  t.state.stacks = [{ name: 'a', state: 'failed' }, { name: 'b', state: 'idle' }];
+  t.emit(t.lastSource(), 'error', { message: 'Overview loading failed', phase: 1 });
+  await settle();
+  assert.equal(noticeText(t), 'a failed to load. Open Overview for details.');
+  const children = t.nodes.notice.children;
+
+  t.emit(t.lastSource(), 'snapshot', {});
+  await settle();
+  assert.ok(t.nodes.notice.children === children, 'an unchanged notice is left alone');
+
+  t.state.stacks = [{ name: 'a', state: 'failed' }, { name: 'b', state: 'ready' }];
+  await t.hashchange('#/s/b/estimate');
+  assert.equal(t.nodes.notice.hidden, true, 'the notice belongs to the active stack');
+});
+
 test('a rejected passphrase ends locked, not failed, whichever way the refreshes land', async () => {
   const t = await setup({ stacks: entries('a', 'b') });
   const first = deferred();
@@ -518,9 +555,9 @@ test('the tablist exposes tablist, tab, selected state, roving tabindex, and a p
   assert.equal(t.nodes.view.getAttribute('aria-labelledby'), tabs[1].id);
 });
 
-const keydown = (t, tab, key) => {
+const keydown = (t, tab, key, modifiers = {}) => {
   let prevented = false;
-  t.nodes.tablist.listeners.get('keydown')({ key, target: tab, preventDefault() { prevented = true; } });
+  t.nodes.tablist.listeners.get('keydown')({ key, target: tab, ...modifiers, preventDefault() { prevented = true; } });
   return prevented;
 };
 
@@ -579,4 +616,15 @@ test('keys other than the tab keys are left alone and keep the view', async () =
   assert.equal(t.loc.hash, '#/s/a/cost');
   keydown(t, tabs[0], 'ArrowRight');
   assert.equal(t.loc.hash, '#/s/b/cost', 'a tab switch keeps the current view');
+});
+
+test('a tab key with Alt, Ctrl, or Meta is left to the browser', async () => {
+  const t = await setup({ stacks: entries('a', 'b'), hash: '#/s/a/cost' });
+  const tabs = t.nodes.tablist.tabs;
+  for (const modifiers of [{ altKey: true }, { ctrlKey: true }, { metaKey: true }]) {
+    for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End']) {
+      assert.equal(keydown(t, tabs[0], key, modifiers), false, `${key} with ${Object.keys(modifiers)[0]}`);
+    }
+  }
+  assert.equal(t.loc.hash, '#/s/a/cost');
 });

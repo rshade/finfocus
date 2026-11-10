@@ -203,6 +203,20 @@ body {
   content: "\26A0\FE0E ";
 }
 
+.stack-notice {
+  margin: 0 0 1rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.stack-notice a {
+  color: inherit;
+}
+
 .connection-status {
   margin-left: auto;
   font-size: 0.875rem;

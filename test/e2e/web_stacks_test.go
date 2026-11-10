@@ -131,6 +131,22 @@ func TestWebUIMultiStackTabs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, issues, "unselected failed tab contrast")
 
+	_, err = page.Evaluate(`() => { location.hash = '#/s/bad/cost'; }`)
+	require.NoError(t, err)
+	webWait(t, page, `() => !document.querySelector('#stack-notice')?.hidden && `+
+		`document.querySelector('#stack-notice').textContent.includes('bad failed to load.')`)
+	link, err := page.Locator("#stack-notice a").GetAttribute("href")
+	require.NoError(t, err)
+	assert.Equal(t, "#/s/bad/overview", link, "the notice points to the failed stack's Overview")
+	issues, err = page.Evaluate(webContrastScript)
+	require.NoError(t, err)
+	assert.Empty(t, issues, "stack notice contrast")
+	require.NoError(t, page.Locator("#stack-notice a").Click())
+	webWait(t, page, `() => location.hash === '#/s/bad/overview' && document.querySelector('#stack-notice').hidden`)
+	_, err = page.Evaluate(`() => { location.hash = '#/s/dev/overview'; }`)
+	require.NoError(t, err)
+	webWait(t, page, webOnStack("dev")+` && `+webTableHas("existing"))
+
 	for _, width := range []int{1280, 390} {
 		require.NoError(t, page.SetViewportSize(width, 900))
 		offenders, overflowErr := page.Evaluate(`() => [...document.querySelectorAll('body *')]

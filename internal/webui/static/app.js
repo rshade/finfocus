@@ -471,7 +471,14 @@ const ctx = {
 
 const stackTabs = document.getElementById('stack-tabs');
 const stackLabel = document.getElementById('stack-label');
+const stackNotice = document.getElementById('stack-notice');
 const STACK_STATE_MARKERS = { failed: 'failed', locked: 'locked' };
+// Only the Overview view prompts for a passphrase and shows a load failure, so
+// another view of a locked or failed stack points there instead of waiting.
+const STACK_NOTICES = {
+  locked: { text: 'needs a passphrase.', link: 'Open Overview to unlock it.' },
+  failed: { text: 'failed to load.', link: 'Open Overview for details.' },
+};
 const TAB_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 const tabNodes = new Map();
 let currentView = DEFAULT_ROUTE;
@@ -546,6 +553,28 @@ function updateStackChrome() {
   for (const link of document.querySelectorAll('.app-nav a[data-route]')) {
     link.setAttribute('href', `#/s/${stackState.active}/${link.dataset.route}`);
   }
+  updateStackNotice();
+}
+
+// updateStackNotice rewrites the notice only when what it says changes, so a
+// screen reader does not announce it again on every stack list refresh.
+function updateStackNotice() {
+  if (!stackNotice) return;
+  const entry = stackState.entries.find((item) => item.name === stackState.active);
+  const notice = entry && currentView !== 'overview' ? STACK_NOTICES[entry.state] : undefined;
+  const key = notice ? `${entry.name}:${entry.state}` : '';
+  if (stackNotice.dataset.key === key) return;
+  stackNotice.dataset.key = key;
+  if (!notice) {
+    stackNotice.hidden = true;
+    stackNotice.replaceChildren();
+    return;
+  }
+  stackNotice.replaceChildren(
+    `${entry.name} ${notice.text} `,
+    el('a', { href: `#/s/${entry.name}/overview`, text: notice.link }),
+  );
+  stackNotice.hidden = false;
 }
 
 // refreshStackList reads the stack states again. The error event arrives before
@@ -567,7 +596,7 @@ async function refreshStackList() {
 }
 
 function onTabKey(event) {
-  if (!TAB_KEYS.has(event.key)) return;
+  if (!TAB_KEYS.has(event.key) || event.altKey || event.ctrlKey || event.metaKey) return;
   const names = stackState.entries.map((entry) => entry.name);
   const tab = event.target?.closest?.('[role="tab"]') ?? event.target;
   const from = Math.max(names.indexOf(tab?.dataset?.stack), 0);
@@ -594,7 +623,7 @@ async function switchStack(name, version) {
   try {
     await api.post(`/api/stacks/${encodeURIComponent(name)}/activate`, {}, { root: true });
   } catch (err) {
-    console.error(`activating stack "${name}" failed`, err);
+    console.error('activating stack "%s" failed', name, err);
   }
   if (version !== routeVersion) return false;
   stackState.streaming = name;

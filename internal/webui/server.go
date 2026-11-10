@@ -544,6 +544,9 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "internal", "SPA shell unavailable")
 		return
 	}
+	if s.parent != nil {
+		s.activateSelf()
+	}
 	data = bytes.Replace(data, []byte(basePlaceholder),
 		[]byte(`<meta name="finfocus-base" content="`+html.EscapeString(s.prefix)+`">`+s.stacksMeta()), 1)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
