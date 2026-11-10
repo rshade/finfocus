@@ -316,7 +316,7 @@ jobs:
             "### dir $packDir"
             ''
             '```text'
-            $listing.Trim()
+            "$listing".Trim()
             '```'
           ) -join "`n" >> $env:GITHUB_STEP_SUMMARY
 
@@ -334,8 +334,8 @@ jobs:
         env:
           FINFOCUS_LOG_LEVEL: info
           PULUMI_SKIP_UPDATE_CHECK: 'true'
-          # PowerShell removes a variable set to an empty string, so the
-          # throwaway stack gets a fixed passphrase instead.
+          # Windows cannot hold an empty environment variable (PowerShell
+          # removes one set to ''), so the throwaway stack gets a passphrase.
           PULUMI_CONFIG_PASSPHRASE: policy-pack-smoke
         run: |
           # Pulumi writes UTF-8; without this its emoji reach the summary as mojibake.
@@ -665,7 +665,7 @@ jobs:
   notify-failure:
     name: Notify on Failure
     runs-on: ubuntu-latest
-    needs: [cross-platform-tests, integration, e2e, analyzer-e2e, deep-fuzz, cross-platform-builds, benchmarks, aws-cleanup]
+    needs: [cross-platform-tests, integration, e2e, analyzer-e2e, analyzer-policy-pack, analyzer-policy-pack-windows, deep-fuzz, cross-platform-builds, benchmarks, aws-cleanup]
     if: always() && github.event_name == 'schedule' && failure()
     steps:
       - name: Create failure issue
