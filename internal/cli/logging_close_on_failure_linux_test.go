@@ -52,3 +52,22 @@ func TestFailedCommandReleasesItsLogFile(t *testing.T) {
 	require.NotEqual(t, 0, failed.ExitCode)
 	assert.Zero(t, openHandlesTo(t, logPath), "a failing command closes its log file too")
 }
+
+// The cost group validates its configuration in PersistentPreRunE, after the
+// root hook has opened the log file, so RunE never runs when validation fails.
+//
+//nolint:paralleltest // isolateConfig sets the environment, and the test counts process-wide descriptors.
+func TestFailedPreRunReleasesItsLogFile(t *testing.T) {
+	isolateConfig(t)
+	isolateFromPulumiProject(t)
+	home := os.Getenv("FINFOCUS_HOME")
+	logPath := filepath.Join(home, "logs", "finfocus.log")
+	require.NoError(t, os.WriteFile(filepath.Join(home, "config.hujson"),
+		[]byte(`{"cost":{"history":{"pulumi_cloud":{"enabled":"maybe"}}}}`), 0o600))
+
+	failed := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"cost", "actual", "--from", "2026-10-01", "--to", "2026-10-02"})
+	require.Equal(t, 2, failed.ExitCode, string(failed.Stderr))
+	require.FileExists(t, logPath, "the pre-run opened the log file before validation failed")
+	assert.Zero(t, openHandlesTo(t, logPath), "a command whose pre-run fails closes its log file")
+}

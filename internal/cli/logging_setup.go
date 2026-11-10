@@ -207,24 +207,37 @@ func (s *loggingSession) Close() error {
 	return s.closeErr
 }
 
-// closeLoggingOnFailure closes the logging session when a command returns an
-// error. Cobra runs PersistentPostRunE only after a successful RunE, so a
-// failing command otherwise left its log file and audit logger open until the
-// process exited. That was harmless for a one-shot process, but it kept the log
-// file locked on Windows (a test could not remove its temp directory) and
-// skipped the audit logger's flush on failed commands. stopLogging is a no-op
-// while an MCP server hosts dispatched calls, and closing is idempotent.
+// closeLoggingOnFailure closes the logging session when a command's
+// PersistentPreRunE, PreRunE, or RunE returns an error. Cobra runs
+// PersistentPostRunE only after every earlier hook succeeds, so a failing
+// command otherwise left its log file and audit logger open until the process
+// exited. The pre-run hooks matter as much as RunE: the root hook opens the
+// session before attachESCSource, and the cost group validates its config after
+// calling the root hook. An open log file stays locked on Windows, so a test
+// could not remove its temp directory. stopLogging is a no-op while an MCP
+// server hosts dispatched calls, and closing is idempotent, so a hook that
+// calls another wrapped hook may close twice.
 func closeLoggingOnFailure(root *cobra.Command, lifecycle *commandLifecycle) {
-	if run := root.RunE; run != nil {
-		root.RunE = func(cmd *cobra.Command, args []string) error {
-			err := run(cmd, args)
-			if err != nil {
-				_ = lifecycle.stopLogging()
-			}
-			return err
-		}
-	}
+	root.PersistentPreRunE = stopLoggingOnError(root.PersistentPreRunE, lifecycle)
+	root.PreRunE = stopLoggingOnError(root.PreRunE, lifecycle)
+	root.RunE = stopLoggingOnError(root.RunE, lifecycle)
 	for _, child := range root.Commands() {
 		closeLoggingOnFailure(child, lifecycle)
+	}
+}
+
+func stopLoggingOnError(
+	hook func(*cobra.Command, []string) error,
+	lifecycle *commandLifecycle,
+) func(*cobra.Command, []string) error {
+	if hook == nil {
+		return nil
+	}
+	return func(cmd *cobra.Command, args []string) error {
+		err := hook(cmd, args)
+		if err != nil {
+			_ = lifecycle.stopLogging()
+		}
+		return err
 	}
 }
