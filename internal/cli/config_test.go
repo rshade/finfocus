@@ -532,7 +532,7 @@ func TestConfigGetNamesShadowingProjectConfig(t *testing.T) {
 	assert.NotEqual(t, 0, result.ExitCode)
 	stderr := string(result.Stderr)
 	assert.Contains(t, stderr, "no budget configured")
-	assert.Contains(t, stderr, projectFile)
+	assert.Contains(t, stderr, envelopeText(t, projectFile))
 	assert.Contains(t, stderr, "replaces the global")
 }
 

@@ -84,7 +84,7 @@ func TestLogs_MissingDefaultFileExitsOneWithPath(t *testing.T) {
 
 	result := runLogs(t)
 	assert.Equal(t, ax.ExitInternal, result.ExitCode)
-	assert.Contains(t, string(result.Stderr), filepath.Join(home, "logs", "finfocus.log"))
+	assert.Contains(t, string(result.Stderr), envelopeText(t, filepath.Join(home, "logs", "finfocus.log")))
 	_, err := os.Stat(filepath.Join(home, "logs", "finfocus.log"))
 	assert.True(t, os.IsNotExist(err), "the command must not create the log file")
 }
@@ -96,7 +96,7 @@ func TestLogs_MissingExplicitFileExitsValidation(t *testing.T) {
 
 	result := runLogs(t, "--file", missing)
 	assert.Equal(t, ax.ExitValidation, result.ExitCode)
-	assert.Contains(t, string(result.Stderr), missing)
+	assert.Contains(t, string(result.Stderr), envelopeText(t, missing))
 }
 
 //nolint:paralleltest // root command and t.Setenv

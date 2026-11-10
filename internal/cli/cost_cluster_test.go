@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -230,7 +231,11 @@ func TestCostCluster_WindowKeepsUsageSourceSelection(t *testing.T) {
 		require.NoError(t, os.MkdirAll(dir, 0o750))
 		data, readErr := os.ReadFile(bin)
 		require.NoError(t, readErr)
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "finfocus-plugin-"+name), data, 0o755))
+		file := "finfocus-plugin-" + name
+		if runtime.GOOS == "windows" {
+			file += ".exe" // discovery looks for the .exe on Windows
+		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, file), data, 0o755))
 	}
 
 	marker := filepath.Join(t.TempDir(), "getstats")

@@ -218,10 +218,20 @@ func assertDiagnoseSentinels(t *testing.T, docs string) {
 	bin := filepath.Join(dir, "demo")
 	require.NoError(t, os.WriteFile(bin, []byte("not-a-script"), 0o644))
 	err = ValidatePlugin(context.Background(), registry.PluginInfo{Path: bin, Name: "demo", Version: "1.0.0"})
-	require.EqualError(t, err, "plugin binary is not executable")
+	notExecutable := "plugin binary is not executable"
+	if runtime.GOOS == "windows" {
+		notExecutable += " (Windows requires .exe extension)"
+	}
+	require.EqualError(t, err, notExecutable)
 	assert.Contains(t, docs, err.Error())
 
-	require.NoError(t, os.Chmod(bin, 0o755))
+	if runtime.GOOS == "windows" {
+		// Windows marks a binary executable by its extension, not a mode bit.
+		require.NoError(t, os.Rename(bin, bin+".exe"))
+		bin += ".exe"
+	} else {
+		require.NoError(t, os.Chmod(bin, 0o755))
+	}
 	manifest := []byte(`{"name":"other","version":"1.0.0"}`)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "plugin.manifest.json"), manifest, 0o644))
 	err = ValidatePlugin(context.Background(), registry.PluginInfo{Path: bin, Name: "demo", Version: "1.0.0"})
