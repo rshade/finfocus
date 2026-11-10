@@ -80,11 +80,11 @@ func LoadState(ctx context.Context, src Source) (*Snapshot, error) {
 		err = errors.New("no state input")
 	}
 	if err != nil {
-		return nil, fileReadError("state", src.StatePath, err)
+		return nil, fileReadError(OperationState, src.StatePath, err)
 	}
 	state, err := ingest.ParseStackExportWithContext(ctx, data)
 	if err != nil {
-		return nil, invalidInputError("state", src.StatePath, err)
+		return nil, invalidInputError(OperationState, src.StatePath, err)
 	}
 	result := emptySnapshot(src)
 	result.RawState = state.GetCustomResourcesWithContext(ctx)
@@ -128,16 +128,16 @@ func LoadPlan(ctx context.Context, src Source) (*Snapshot, error) {
 		err = errors.New("no plan input")
 	}
 	if err != nil && src.PlanPath == "" && src.ProjectDir != "" {
-		result := classifiedError("plan", err)
+		result := classifiedError(OperationPlan, err)
 		result.cause = err
 		return nil, result
 	}
 	if err != nil {
-		return nil, fileReadError("plan", src.PlanPath, err)
+		return nil, fileReadError(OperationPlan, src.PlanPath, err)
 	}
 	plan, err := ingest.ParsePulumiPlanWithContext(ctx, data)
 	if err != nil {
-		return nil, invalidInputError("plan", src.PlanPath, err)
+		return nil, invalidInputError(OperationPlan, src.PlanPath, err)
 	}
 	return emptySnapshot(src).WithPlan(plan), nil
 }

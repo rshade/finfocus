@@ -66,7 +66,7 @@ func TestOverviewPreviewOnlyWarningPersistsInWebSession(t *testing.T) {
 	})
 	session := webui.NewSession(t.Context(), webui.SessionOptions{})
 	t.Cleanup(session.Close)
-	bindWebPipeline(t.Context(), pipe, session, params, engine.DateRange{})
+	bindWebPipeline(t.Context(), pipe, session, engine.DateRange{})
 	require.NoError(t, pipe.Run(t.Context()))
 	t.Cleanup(pipe.Cleanup())
 	server, err := webui.New(webui.Options{Session: session})

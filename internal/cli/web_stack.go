@@ -58,7 +58,7 @@ func newWebStack(
 	wireConfigEditor(ctx, &options, cmd, audit)
 	wirePlugins(ctx, &options, cmd, data)
 	session := webui.NewSession(pipeCtx, options)
-	bindWebPipeline(ctx, pipe, session, params, dateRange)
+	bindWebPipeline(ctx, pipe, session, dateRange)
 	data.publishGraph = session.SetDependencyGraph
 	data.bindPipelineSource(pipeCtx, pipe)
 	webPipelineHook(pipe)

@@ -350,7 +350,6 @@ func bindWebPipeline(
 	ctx context.Context,
 	pipe *OverviewPipeline,
 	session *webui.Session,
-	params overviewParams,
 	dateRange engine.DateRange,
 ) {
 	log := logging.FromContext(ctx)
@@ -365,7 +364,7 @@ func bindWebPipeline(
 	pipe.OnBudget = session.Budget
 	pipe.OnExpansion = session.Expansion
 	pipe.OnReady = func(result OverviewPipelineResult) { session.Ready(result.Rows) }
-	pipe.OnPassphraseRequired = func() { session.RequirePassphrase(params.stack) }
+	pipe.OnPassphraseRequired = func() { session.RequirePassphrase(pipe.PassphraseStack()) }
 	pipe.OnError = func(phase int, runErr error) {
 		// Pulumi errors can include subprocess stderr. Publish and log safe labels.
 		message := "Overview loading failed"

@@ -480,6 +480,21 @@ test('a locked stack seen from another view points to its Overview', async () =>
   assert.equal(t.nodes.notice.hidden, true, 'Overview shows the prompt itself');
 });
 
+test('a single locked stack seen from another view points to Overview', async () => {
+  const t = await setup({ stacks: [], hash: '#/cost' });
+  assert.equal(t.nodes.notice.hidden, true, 'no notice while the stack is fine');
+  t.emit(t.lastSource(), 'passphrase_required', { stack: 'dev' });
+  await settle();
+
+  // Only Overview renders the prompt, and the load waits for it.
+  assert.equal(t.nodes.notice.hidden, false, 'a locked single stack must say so on every view');
+  assert.match(noticeText(t), /needs a passphrase/);
+  assert.equal(noticeLink(t), '#/overview');
+
+  await t.hashchange('#/overview');
+  assert.equal(t.nodes.notice.hidden, true, 'Overview shows the prompt itself');
+});
+
 test('a failed stack seen from another view points to its Overview, and the notice is not rewritten on refresh', async () => {
   const t = await setup({ stacks: entries('a', 'b'), hash: '#/s/a/estimate' });
   t.state.stacks = [{ name: 'a', state: 'failed' }, { name: 'b', state: 'idle' }];

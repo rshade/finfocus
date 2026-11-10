@@ -730,6 +730,24 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.
+- Startup preview fallback and passphrases (#2087): `loadTUIOverviewPreview`
+  falls back to current state when the startup preview fails. That is not a
+  load failure, so it must never call `OnError` (the web painted phase 3 red,
+  and the TUI quits on an init error). It logs the reason and relabels phase 3.
+  `pulumi stack export` does not decrypt secrets and accepts a wrong
+  passphrase, so the preview is where a rejection shows up. When the pipeline
+  can ask again (`retryPassphrase`), that rejection is returned so
+  `loadWithPassphraseRetry` asks again, reporting the phase that rejected it
+  (`PhaseError.Phase`). `stackload` sorts any preview error that mentions a
+  password (a missing secret config value) into `passphrase_required`, so
+  `rejectedPassphrase` reads only the message for an `OperationPlan` error; the category
+  decides only for redacted state errors. Otherwise the retry, which has no
+  attempt limit, asks for a correct passphrase forever. An empty passphrase is valid (`&""`),
+  so the web dialog must not require a value. The prompt names
+  `OverviewPipeline.PassphraseStack()`, the stack the passphrase check
+  resolved. Only Overview renders the prompt. A dismissed prompt keeps an
+  Unlock control, and other views show `#stack-notice` for a locked single
+  stack too (`watchSingleStackLock` in `app.js`).
 - The dashboard Config page and `config set` patch `config.hujson` through
   `config.PatchFile`. Do not call `Config.Save` for that write: it rewrites the
   struct from `New()`, folds environment variables into the file, and drops

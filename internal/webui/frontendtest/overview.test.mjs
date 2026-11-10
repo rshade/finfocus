@@ -926,3 +926,41 @@ test('a left-out note follows the scroll container so it can wrap', async () => 
   assert.equal(scroll.className, 'table-wrap blast-scroll');
   t.mounted.unmount();
 });
+
+// ---- passphrase prompt (empty passphrase, dismissal) -------------------------
+
+test('an empty passphrase can be submitted, since a Pulumi stack may use one', async () => {
+  const t = await setup(); t.stream.emit('passphrase_required', { stack: 'dev' });
+  const input = t.container.querySelector('#passphrase-input');
+  assert.equal('required' in input.attrs, false, 'native validation would block an empty passphrase');
+  input.value = '';
+  t.container.querySelector('.passphrase-form').dispatch('submit');
+  const unlock = t.calls.find((call) => call.path === '/api/passphrase');
+  assert.ok(unlock, 'an empty passphrase must reach the server, which already accepts ""');
+  assert.equal(unlock.body.passphrase, '');
+  assert.equal(t.container.querySelector('#passphrase-error').hidden, true);
+  t.mounted.unmount();
+});
+
+const hiddenInside = (node, root) => {
+  for (let current = node; current && current !== root; current = current.parent) if (current.hidden) return true;
+  return false;
+};
+
+for (const close of ['Cancel', 'Escape']) {
+  test(`after ${close} dismisses a pending prompt, the overview offers a way to reopen it`, async () => {
+    const t = await setup(); t.stream.emit('passphrase_required', { stack: 'dev' });
+    const dialog = t.container.querySelector('.passphrase-dialog');
+    if (close === 'Cancel') t.container.querySelector('.dialog-cancel').dispatch('click');
+    else dialog.close(); // native Escape closes a modal dialog
+    assert.equal(dialog.open, false);
+    // The server still waits for a passphrase, so the load cannot continue.
+    const reopen = t.container.querySelectorAll('button').find((button) => !button.closest('dialog')
+      && !hiddenInside(button, t.container) && /unlock/i.test(button.textContent));
+    assert.ok(reopen, 'a visible Unlock control outside the dialog must stay while the passphrase is required');
+    reopen.dispatch('click');
+    assert.equal(dialog.open, true);
+    assert.equal(t.document.activeElement.id, 'passphrase-input');
+    t.mounted.unmount();
+  });
+}

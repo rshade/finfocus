@@ -54,6 +54,7 @@ const (
 	overviewPhaseReadPlanName        = "Reading plan..."
 	overviewPhasePlanLoadedName      = "Plan already loaded..."
 	overviewPhaseSkipPreviewName     = "Skipping preview (current state only)..."
+	overviewPhasePreviewFailedName   = "Preview unavailable; showing current state"
 	overviewPhaseMergeResourcesName  = "Merging resources..."
 	overviewPhaseStartPluginsName    = "Starting cost plugins..."
 	overviewPhasePrepareEngineName   = "Preparing cost engine..."
@@ -218,14 +219,15 @@ type OverviewPipeline struct {
 
 	cfg overviewPipelineConfig
 
-	mu             sync.Mutex
-	passphrase     *string
-	lastPhase      int
-	cleanup        func()
-	budgetDone     <-chan struct{}
-	result         OverviewPipelineResult
-	expansionNotes []string
-	rowsEnriched   int
+	mu              sync.Mutex
+	passphrase      *string
+	passphraseStack string
+	lastPhase       int
+	cleanup         func()
+	budgetDone      <-chan struct{}
+	result          OverviewPipelineResult
+	expansionNotes  []string
+	rowsEnriched    int
 	// fallbackBudget is set when the last budget event came from the config
 	// fallback, so it must follow the row set when rows are added later.
 	fallbackBudget bool
@@ -585,11 +587,26 @@ func (p *OverviewPipeline) resolvePassphrase(ctx context.Context) (*string, erro
 	if p.cfg.passphrases == nil {
 		return nil, nil //nolint:nilnil // nil passphrase = check disabled, nil error = no failure.
 	}
-	return resolveOverviewPassphrase(ctx, p.cfg.params, p.cfg.passphrases, func() {
+	return resolveOverviewPassphrase(ctx, p.cfg.params, p.cfg.passphrases, func(stack string) {
+		p.mu.Lock()
+		p.passphraseStack = stack
+		p.mu.Unlock()
 		if p.OnPassphraseRequired != nil {
 			p.OnPassphraseRequired()
 		}
 	})
+}
+
+// PassphraseStack names the stack a passphrase prompt is for: the stack the
+// encrypted-stack check resolved (which covers the workspace's selected stack
+// when --stack is absent), else the --stack value.
+func (p *OverviewPipeline) PassphraseStack() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.passphraseStack != "" {
+		return p.passphraseStack
+	}
+	return p.cfg.params.stack
 }
 
 // openPlugins runs the configured (or production) plugin opener.
@@ -943,7 +960,12 @@ func pulumiTUIOverviewLoader(ctx context.Context, p *OverviewPipeline) (*Overvie
 	}, nil
 }
 
-// loadTUIOverviewPreview keeps interactive project sessions usable when preview fails.
+// loadTUIOverviewPreview keeps interactive project sessions usable when preview
+// fails: the session falls back to current state, which the caller reports as
+// state-only so the on-demand preview can retry. That fallback is not a load
+// failure. A passphrase the preview rejects is returned instead when the
+// pipeline can ask again, because stack export does not decrypt secrets and so
+// accepts a wrong passphrase that only the preview catches.
 func loadTUIOverviewPreview(
 	ctx context.Context,
 	p *OverviewPipeline,
@@ -962,9 +984,14 @@ func loadTUIOverviewPreview(
 	if p.cfg.params.pulumiJSON != "" || ctx.Err() != nil {
 		return nil, err
 	}
-	if p.OnError != nil {
-		p.OnError(OverviewPhaseRunPreview, errors.New("preview unavailable; showing current state"))
+	if pw != nil && p.cfg.retryPassphrase && p.cfg.passphrases != nil && rejectedPassphrase(err) {
+		return nil, err
 	}
+	// The reason goes only to the log; the phase and error events carry no Pulumi stderr.
+	logging.FromContext(ctx).Warn().Ctx(ctx).Err(err).
+		Str("component", "cli").Str("operation", "overview_preview").Str("stack", base.StackName).
+		Msg("pulumi preview failed; showing current state")
+	p.emitPhase(OverviewPhaseRunPreview, overviewPhasePreviewFailedName)
 	return base, nil
 }
 
@@ -1058,9 +1085,15 @@ func (p *OverviewPipeline) loadWithPassphraseRetry(ctx context.Context) (*Overvi
 			return data, err
 		}
 		p.clearPassphrase()
+		// Stack export or the startup preview can reject the passphrase; the
+		// retry is reported against the phase that did.
+		phase := OverviewPhaseLoadStackState
+		if phaseErr, ok := errors.AsType[*PhaseError](err); ok {
+			phase = phaseErr.Phase
+		}
 		p.emitError(
 			&PhaseError{
-				Phase: OverviewPhaseLoadStackState,
+				Phase: phase,
 				Err:   errors.New("unable to decrypt stack; try the passphrase again"),
 			},
 		)
@@ -1080,9 +1113,15 @@ func (p *OverviewPipeline) loadWithPassphraseRetry(ctx context.Context) (*Overvi
 		}
 	}
 }
+
+// rejectedPassphrase reports whether err means the passphrase was wrong. A
+// state error is redacted to its category, so the category decides there. A
+// preview error keeps Pulumi's message, and its category also matches any
+// mention of a password (a missing secret config value), so only the message
+// decides.
 func rejectedPassphrase(err error) bool {
-	var loadErr *stackload.Error
-	if errors.As(err, &loadErr) && loadErr.Reason == stackload.ReasonPassphraseRequired {
+	if loadErr, ok := errors.AsType[*stackload.Error](err); ok && loadErr.Operation != stackload.OperationPlan &&
+		loadErr.Reason == stackload.ReasonPassphraseRequired {
 		return true
 	}
 	message := strings.ToLower(err.Error())

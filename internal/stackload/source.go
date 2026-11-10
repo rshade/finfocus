@@ -37,3 +37,11 @@ const (
 	// ReasonReadFailed means the input could not be read or parsed.
 	ReasonReadFailed = "read_failed"
 )
+
+// Inputs an Error's Operation names.
+const (
+	// OperationState is the deployed stack state.
+	OperationState = "state"
+	// OperationPlan is the preview, read from a file or run for the project.
+	OperationPlan = "plan"
+)
