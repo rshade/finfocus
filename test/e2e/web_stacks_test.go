@@ -45,6 +45,17 @@ func webOnStack(stack string) string {
 		`document.querySelector('#view .view-loading') === null`
 }
 
+// webFocusedStack names the stack tab that holds keyboard focus, or "" when
+// focus is anywhere else. A tab switch must leave focus on the new tab.
+func webFocusedStack(t *testing.T, page playwright.Page) string {
+	t.Helper()
+	raw, err := page.Evaluate(`() => document.activeElement?.closest('[role="tab"]')?.dataset.stack ?? ''`)
+	require.NoError(t, err)
+	name, ok := raw.(string)
+	require.True(t, ok)
+	return name
+}
+
 // webTableHas waits for a resource to be in the overview table: an empty table
 // already has a row, so a row alone does not mean the stack has loaded.
 func webTableHas(text string) string {
@@ -91,7 +102,7 @@ func TestWebUIMultiStackTabs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "prod", label)
 
-	webTab(t, page, `[role="tab"][aria-selected="true"]`)
+	assert.Equal(t, "prod", webFocusedStack(t, page), "focus stays on the selected tab")
 	require.NoError(t, page.Keyboard().Press("End"))
 	webWait(t, page, webOnStack("bad")+
 		` && document.querySelector('[role="tab"][data-stack="bad"]')?.getAttribute('aria-label') === 'bad, failed'`)
@@ -104,9 +115,10 @@ func TestWebUIMultiStackTabs(t *testing.T) {
 	assert.Empty(t, issues, "failed tab contrast")
 	webScreenshot(t, page, "stacks-bad", false)
 
-	webTab(t, page, `[role="tab"][aria-selected="true"]`)
+	assert.Equal(t, "bad", webFocusedStack(t, page), "focus stays on the selected tab")
 	require.NoError(t, page.Keyboard().Press("Home"))
 	webWait(t, page, webOnStack("dev")+` && `+webTableHas("existing"))
+	assert.Equal(t, "dev", webFocusedStack(t, page), "focus stays on the selected tab")
 	again, err := page.Locator(".overview-table").TextContent()
 	require.NoError(t, err)
 	assert.Contains(t, again, "existing")
