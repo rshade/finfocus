@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.6](https://github.com/rshade/finfocus/compare/prometheus-v0.1.5...prometheus-v0.1.6) (2026-11-10)
+
+
+### Dependencies
+
+* bump finfocus-spec to v0.7.12 ([7aad7d6](https://github.com/rshade/finfocus/commit/7aad7d64600ee1ff7ce8dbfa9027f03a9a3f84eb))
+* update go dependencies ([#2027](https://github.com/rshade/finfocus/issues/2027)) ([54ec590](https://github.com/rshade/finfocus/commit/54ec590dd9345caadea086616e6ea4996c6d6d7f))
+* update go dependencies ([#2034](https://github.com/rshade/finfocus/issues/2034)) ([a2690ce](https://github.com/rshade/finfocus/commit/a2690ce34b819cf9b04fc4f12e5b302af559def1))
+* update go dependencies ([#2084](https://github.com/rshade/finfocus/issues/2084)) ([cf80d44](https://github.com/rshade/finfocus/commit/cf80d44ee080500307cddbef24beb98df2641030))
+
 ## [0.1.5](https://github.com/rshade/finfocus/compare/prometheus-v0.1.4...prometheus-v0.1.5) (2026-11-04)
 
 
