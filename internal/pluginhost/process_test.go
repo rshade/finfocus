@@ -854,8 +854,10 @@ func TestProcessLauncher_StartPluginEnvironment(t *testing.T) {
 		<-exited
 	}()
 
-	// Wait for the process to complete with a timeout
-	waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// The bound only limits a hung fake; a loaded Windows runner can take
+	// seconds to start one.
+	const fakeWait = 30 * time.Second
+	waitCtx, cancel := context.WithTimeout(ctx, fakeWait)
 	defer cancel()
 
 	select {
@@ -905,11 +907,12 @@ func TestProcessLauncher_StartPluginEnvironment(t *testing.T) {
 		}
 
 	case <-waitCtx.Done():
-		// Timeout - kill the process and report failure
-		stdoutStr := stdout.String()
-		stderrStr := stderr.String()
-		t.Fatalf("plugin process timed out after 5 seconds\nstdout: %s\nstderr: %s",
-			stdoutStr, stderrStr)
+		// exec's copy goroutines write the buffers until Wait returns, so stop
+		// the process and join the waiter before reading them.
+		_ = cmd.Process.Kill()
+		<-exited
+		require.FailNowf(t, "plugin process timed out", "after %s\nstdout: %s\nstderr: %s",
+			fakeWait, stdout.String(), stderr.String())
 	}
 }
 
@@ -988,11 +991,17 @@ func createEnvCheckingScript(t *testing.T) string {
 	t.Helper()
 
 	if runtime.GOOS == "windows" {
-		// Windows batch script that invokes PowerShell
-		// This avoids the "not a valid Win32 application" error when executing .ps1 directly
+		// Plain cmd.exe: PowerShell's cold start on a loaded runner outlasted
+		// the test's wait (nightly 2026-11-09).
 		script := fmt.Sprintf(`@echo off
-powershell -NoProfile -NonInteractive -Command "$envPort = $env:%s; $fallbackPort = $env:PORT; if (-not $envPort) { Write-Error '%s environment variable not set'; exit 1 }; Write-Output ('%s=' + $envPort); if ($fallbackPort) { Write-Output ('PORT=' + $fallbackPort + ' (WARNING: should not be set by core)') }; Start-Sleep -Milliseconds 100; exit 0"
-`, pluginsdk.EnvPort, pluginsdk.EnvPort, pluginsdk.EnvPort)
+if not defined %[1]s (
+  echo ERROR: %[1]s environment variable not set 1>&2
+  exit /b 1
+)
+echo %[1]s=%%%[1]s%%
+if defined PORT echo PORT=%%PORT%% ^(WARNING: should not be set by core^)
+exit /b 0
+`, pluginsdk.EnvPort)
 		return createScript(t, script, ".bat")
 	}
 
