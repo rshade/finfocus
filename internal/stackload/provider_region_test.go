@@ -509,3 +509,30 @@ func rowFor(t *testing.T, rows []engine.OverviewRow, urn string) engine.Overview
 	require.Failf(t, "row missing", "no row for %s", urn)
 	return engine.OverviewRow{}
 }
+
+func TestProviderRegionUsesStepProviderWhenNewStateHasNone(t *testing.T) {
+	t.Parallel()
+	westURN := "urn:pulumi:dev::app::pulumi:providers:aws::west"
+	westRef := westURN + "::provider-id-west"
+	state := []ingest.StackExportResource{
+		awsProviderResource(map[string]any{"region": "us-east-1"}),
+		{URN: westURN, Type: "pulumi:providers:aws", Custom: true, ID: "provider-id-west",
+			Inputs: map[string]any{"region": "us-west-2"}},
+		regionlessInstance(testProviderRef, nil),
+	}
+	plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{{
+		Op:       "update",
+		URN:      testInstanceURN,
+		Type:     testInstanceType,
+		Provider: westRef,
+		NewState: &ingest.PulumiState{
+			Type:   testInstanceType,
+			URN:    testInstanceURN,
+			Inputs: map[string]any{"instanceType": "t3.micro", "subnetId": "subnet-1"},
+		},
+	}}}
+	snapshot := (&Snapshot{RawState: state, StateStatus: Status{Loaded: true}}).WithPlan(plan)
+
+	desc := instanceDescriptor(t, snapshot.Descriptors())
+	assert.Equal(t, "us-west-2", desc.Properties[proto.ProviderRegionProperty])
+}
