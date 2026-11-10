@@ -1227,15 +1227,16 @@ func checkAndPromptPassphrase(
 	params overviewParams,
 	passphraseChan chan string,
 ) (*string, error) {
-	return resolveOverviewPassphrase(ctx, params, passphraseChan, func() {
+	return resolveOverviewPassphrase(ctx, params, passphraseChan, func(string) {
 		p.Send(tui.OverviewPassphraseRequiredMsg{})
 	})
 }
 
 // resolveOverviewPassphrase detects if the Pulumi stack uses passphrase encryption.
 // If PULUMI_CONFIG_PASSPHRASE is not set and the stack YAML contains an encryptionsalt,
-// it invokes prompt (to surface the request to the user) and blocks until a
-// passphrase arrives on passphraseChan (or the context is cancelled).
+// it invokes prompt with the stack it resolved (the --stack value or the
+// workspace's selected stack) and blocks until a passphrase arrives on
+// passphraseChan (or the context is cancelled).
 //
 // Returns a *string passphrase and any error:
 //   - nil    = not provided (subprocess inherits parent env via [os.Environ])
@@ -1252,7 +1253,7 @@ func resolveOverviewPassphrase(
 	ctx context.Context,
 	params overviewParams,
 	passphraseChan <-chan string,
-	prompt func(),
+	prompt func(stack string),
 ) (*string, error) {
 	if _, terraformInput, _ := overviewTerraformSource(params); terraformInput {
 		return nil, nil //nolint:nilnil // Terraform does not use Pulumi passphrases.
@@ -1265,7 +1266,7 @@ func resolvePulumiOverviewPassphrase(
 	ctx context.Context,
 	params overviewParams,
 	passphraseChan <-chan string,
-	prompt func(),
+	prompt func(stack string),
 ) (*string, error) {
 	log := logging.FromContext(ctx)
 
@@ -1332,7 +1333,7 @@ func resolvePulumiOverviewPassphrase(
 
 	// Stack is encrypted and no passphrase is set — surface the request and
 	// block until the user provides the passphrase or the context is cancelled.
-	prompt()
+	prompt(stackName)
 	select {
 	case pw := <-passphraseChan:
 		return &pw, nil

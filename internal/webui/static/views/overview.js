@@ -97,6 +97,8 @@ export function mount(container, ctx) {
     runStatus: { stateOnly: false, previewLoaded: false, detectFailed: false },
     footnote: '',
     sourceWarning: '',
+    passphraseRequired: false,
+    passphraseStack: '',
   };
 
   // --- Static DOM skeleton -------------------------------------------------
@@ -105,6 +107,13 @@ export function mount(container, ctx) {
 
   const errorBanner = el('div', { class: 'error-banner', role: 'alert' });
   errorBanner.hidden = true;
+
+  // A dismissed prompt leaves the load waiting on the server, so the view
+  // keeps a way back to it for as long as the passphrase is required.
+  const unlockButton = el('button', { type: 'button', class: 'passphrase-reopen-button', text: 'Unlock stack' });
+  const unlockPrompt = el('p', { class: 'passphrase-reopen' },
+    'Loading is waiting for the stack passphrase. ', unlockButton);
+  unlockPrompt.hidden = true;
 
   const checklist = el('ol', { class: 'phase-checklist', 'aria-label': 'Loading checklist' });
   const phaseItems = new Map();
@@ -196,6 +205,7 @@ export function mount(container, ctx) {
     el('section', { class: 'overview-view', 'aria-labelledby': 'overview-heading' },
       heading,
       errorBanner,
+      unlockPrompt,
       checklist,
       progressLine,
       toolbar,
@@ -460,6 +470,10 @@ export function mount(container, ctx) {
     const extra = previewBase.at > 0 ? Date.now() - previewBase.at : 0;
     const ms = (state.previewElapsedMs ?? 0) + extra;
     return `${Math.round(ms / 1000)}s elapsed`;
+  }
+
+  function renderUnlockPrompt() {
+    unlockPrompt.hidden = !state.passphraseRequired || passphraseDialog.isOpen;
   }
 
   function showError(message) {
@@ -821,7 +835,6 @@ export function mount(container, ctx) {
       id: 'passphrase-input',
       type: 'password',
       autocomplete: 'off',
-      required: '',
       'aria-describedby': 'passphrase-error',
     });
     const errorText = el('p', { id: 'passphrase-error', class: 'dialog-error', role: 'alert' });
@@ -850,11 +863,7 @@ export function mount(container, ctx) {
       const passphrase = input.value;
       const version = promptVersion;
       const requirement = stream.passphraseGeneration;
-      if (!passphrase) {
-        errorText.textContent = 'Enter the stack passphrase.';
-        errorText.hidden = false;
-        return;
-      }
+      // An empty passphrase is valid: Pulumi stacks can be created with one.
       busy = true;
       submit.disabled = true;
       errorText.hidden = true;
@@ -862,6 +871,8 @@ export function mount(container, ctx) {
         await api.post('/api/passphrase', { passphrase }, { signal: aborter.signal });
         stream.acceptPassphrase(requirement);
         if (version === promptVersion && !aborter.signal.aborted) {
+          // A newer prompt that arrived meanwhile keeps the requirement.
+          state.passphraseRequired = stream.snapshot?.passphraseRequired === true;
           dialog.close();
         }
       } catch (err) {
@@ -884,6 +895,7 @@ export function mount(container, ctx) {
       input.value = '';
       busy = false;
       submit.disabled = false;
+      renderUnlockPrompt();
     });
 
     return {
@@ -901,6 +913,7 @@ export function mount(container, ctx) {
         if (!dialog.open) errorText.hidden = true;
         input.value = '';
         if (!dialog.open) dialog.showModal();
+        renderUnlockPrompt();
         input.focus();
       },
       fail(message) {
@@ -955,7 +968,11 @@ export function mount(container, ctx) {
       for (const error of data.errors) onError(error);
     }
     if (data?.passphraseRequired) onPassphraseRequired({ stack: data.stack });
-    else if (data?.passphraseRequired === false) passphraseDialog.close();
+    else if (data?.passphraseRequired === false) {
+      state.passphraseRequired = false;
+      passphraseDialog.close();
+      renderUnlockPrompt();
+    }
     applyRunStatus(data);
     runQuery();
   }
@@ -1055,6 +1072,8 @@ export function mount(container, ctx) {
     if (totals) state.totals = totals;
     state.ready = true;
     state.loading = false;
+    state.passphraseRequired = false;
+    renderUnlockPrompt();
     for (const [phase, info] of state.phases) {
       if (info.status === 'active') state.phases.set(phase, { ...info, status: 'done' });
     }
@@ -1066,7 +1085,10 @@ export function mount(container, ctx) {
   }
 
   function onPassphraseRequired(data) {
-    passphraseDialog.open(pick(data, 'stack'));
+    state.passphraseRequired = true;
+    const stack = pick(data, 'stack');
+    if (stack) state.passphraseStack = stack;
+    passphraseDialog.open(state.passphraseStack);
     // A rejection can arrive after the POST was accepted and the previous
     // dialog closed. Keep that error next to the retry input as well.
     if (!errorBanner.hidden) {
@@ -1169,6 +1191,7 @@ export function mount(container, ctx) {
   });
 
   previewButton.addEventListener('click', triggerPreview);
+  unlockButton.addEventListener('click', () => passphraseDialog.open(state.passphraseStack));
 
   document.addEventListener('keydown', onEscape);
   function onEscape(event) {

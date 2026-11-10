@@ -741,6 +741,19 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.passphrase-reopen {
+  margin: 0.5rem 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.passphrase-reopen-button {
+  margin-left: 0.5rem;
+}
+
 /* --- Passphrase dialog ------------------------------------------------------------- */
 
 .passphrase-dialog {

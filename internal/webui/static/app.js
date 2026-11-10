@@ -556,13 +556,44 @@ function updateStackChrome() {
   updateStackNotice();
 }
 
+// A single-stack page has no stack list to read states from, so it follows
+// the lock from the stream itself.
+const singleStack = { locked: false, name: '' };
+
+function watchSingleStackLock() {
+  const follow = (locked, data) => {
+    singleStack.locked = locked;
+    if (typeof data?.stack === 'string' && data.stack) singleStack.name = data.stack;
+    updateStackNotice();
+  };
+  stream.on('passphrase_required', (data) => follow(true, data));
+  stream.on('snapshot', (data) => {
+    if (typeof data?.passphraseRequired === 'boolean') follow(data.passphraseRequired, data);
+  });
+  stream.on('ready', (data) => follow(false, data));
+}
+
+// activeStackNotice is what the notice should say on the current view, or
+// undefined. Overview shows the prompt and the failure itself.
+function activeStackNotice() {
+  if (currentView === 'overview') return undefined;
+  if (stackState.multi) {
+    const entry = stackState.entries.find((item) => item.name === stackState.active);
+    const notice = entry && STACK_NOTICES[entry.state];
+    if (!notice) return undefined;
+    return { key: `${entry.name}:${entry.state}`, name: entry.name, href: `#/s/${entry.name}/overview`, ...notice };
+  }
+  if (!singleStack.locked) return undefined;
+  const name = singleStack.name || 'The stack';
+  return { key: `${name}:locked`, name, href: '#/overview', ...STACK_NOTICES.locked };
+}
+
 // updateStackNotice rewrites the notice only when what it says changes, so a
 // screen reader does not announce it again on every stack list refresh.
 function updateStackNotice() {
   if (!stackNotice) return;
-  const entry = stackState.entries.find((item) => item.name === stackState.active);
-  const notice = entry && currentView !== 'overview' ? STACK_NOTICES[entry.state] : undefined;
-  const key = notice ? `${entry.name}:${entry.state}` : '';
+  const notice = activeStackNotice();
+  const key = notice ? notice.key : '';
   if (stackNotice.dataset.key === key) return;
   stackNotice.dataset.key = key;
   if (!notice) {
@@ -571,8 +602,8 @@ function updateStackNotice() {
     return;
   }
   stackNotice.replaceChildren(
-    `${entry.name} ${notice.text} `,
-    el('a', { href: `#/s/${entry.name}/overview`, text: notice.link }),
+    `${notice.name} ${notice.text} `,
+    el('a', { href: notice.href, text: notice.link }),
   );
   stackNotice.hidden = false;
 }
@@ -682,6 +713,7 @@ async function renderRoute() {
   }
   currentView = name;
   updateNav(name);
+  if (!stackState.multi) updateStackNotice();
   announcer.textContent = '';
 
   if (activeView && typeof activeView.unmount === 'function') {
@@ -740,6 +772,7 @@ async function renderRoute() {
 
 readStackList();
 if (stackState.multi) buildStackChrome();
+else watchSingleStackLock();
 window.addEventListener('hashchange', renderRoute);
 document.querySelector('.skip-link')?.addEventListener('click', (event) => {
   event.preventDefault();
