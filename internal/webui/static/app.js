@@ -610,8 +610,16 @@ document.addEventListener('focusin', () => {
   focusGains += 1;
 });
 
+// A tab focuses itself before it changes the address, so that focus gain
+// predates the route; checking the tablist keeps focus on the tab, as the
+// WAI-ARIA tabs pattern expects, instead of pulling it into the view.
+function stackTabHasFocus() {
+  const active = document.activeElement;
+  return Boolean(active) && [...tabNodes.values()].some(({ link }) => link === active);
+}
+
 function focusHeading(focusGainsAtStart) {
-  if (focusGains !== focusGainsAtStart) return;
+  if (focusGains !== focusGainsAtStart || stackTabHasFocus()) return;
   const heading = viewContainer.querySelector('h2');
   if (heading && !viewContainer.querySelector('dialog[open]')) {
     heading.setAttribute('tabindex', '-1');

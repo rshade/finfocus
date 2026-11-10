@@ -204,6 +204,7 @@ async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse,
         ['mount', 'probeLogs'],
         function () {
           this.setExport('mount', (container, viewCtx) => {
+            container.append(new FakeNode('h2', doc));
             const record = { view: name, container, ctx: viewCtx, unmounted: false };
             mounts.push(record);
             log.push(`mount:${name}`);
@@ -531,12 +532,12 @@ test('arrow keys wrap, Home and End jump, and each moves focus and selection', a
   assert.equal(keydown(t, tabs[0], 'ArrowLeft'), true);
   await t.hashchange();
   assert.equal(selected(), 2, 'Left from the first tab wraps to the last');
-  assert.equal(t.doc.activeElement, tabs[2]);
+  assert.ok(t.doc.activeElement === tabs[2], 'focus stays on the newly selected tab');
 
   keydown(t, tabs[2], 'ArrowRight');
   await t.hashchange();
   assert.equal(selected(), 0, 'Right from the last tab wraps to the first');
-  assert.equal(t.doc.activeElement, tabs[0]);
+  assert.ok(t.doc.activeElement === tabs[0], 'focus stays on the newly selected tab');
 
   keydown(t, tabs[0], 'End');
   await t.hashchange();
@@ -551,6 +552,23 @@ test('arrow keys wrap, Home and End jump, and each moves focus and selection', a
   assert.equal(selected(), 1);
   assert.equal(t.loc.hash, '#/s/b/overview');
   assert.deepEqual(tabs.map((tab) => tab.getAttribute('tabindex')), ['-1', '0', '-1']);
+});
+
+test('clicking a tab keeps focus on it after the stack view mounts', async () => {
+  const t = await setup({ stacks: entries('a', 'b') });
+  const tabs = t.nodes.tablist.tabs;
+  tabs[1].focus();
+  await t.hashchange('#/s/b/overview');
+  assert.equal(t.mounts.at(-1).view, 'overview');
+  assert.ok(t.doc.activeElement === tabs[1], 'focus stays on the clicked tab');
+});
+
+test('a stack switch that does not start in the tablist still focuses the view heading', async () => {
+  const t = await setup({ stacks: entries('a', 'b') });
+  assert.equal(t.doc.activeElement?.tag, 'h2', 'the first view takes focus at boot');
+  await t.hashchange('#/s/b/overview');
+  assert.equal(t.doc.activeElement?.tag, 'h2');
+  assert.ok(t.doc.activeElement !== t.mounts[0].container.children[0], 'focus moved to the new view');
 });
 
 test('keys other than the tab keys are left alone and keep the view', async () => {
