@@ -521,7 +521,8 @@ resource, action, description, savings, and the spot label.
 `--include-dismissed` lists a dismissed recommendation with those details after
 the plugin stops returning it, and the overview counts it in the Recs column
 (`3(-1)`). The lookup is best effort. Without `--pulumi-json`, or when no plugin
-returns the id, the recommendation is still dismissed, with no details.
+returns the id, the recommendation is still dismissed and records no new
+details; details saved by an earlier dismissal of the same id are kept.
 
 ### Options (cost recommendations)
 

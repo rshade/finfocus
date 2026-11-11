@@ -225,3 +225,30 @@ func TestMergeDismissalRecordsIntoResult_MatchesSameRecommendation(t *testing.T)
 	assert.Equal(t, "Move to t4g.micro", merged.Description)
 	assert.Equal(t, engine.PricingCategory("DYNAMIC"), merged.PricingCategory)
 }
+
+// A resource id is not a recommendation id: an active recommendation on
+// resource "rec-7" does not hide a different dismissed recommendation whose
+// id is "rec-7".
+func TestMergeDismissalRecordsIntoResult_ResourceIDIsNotRecommendationID(t *testing.T) {
+	t.Parallel()
+
+	result := &engine.RecommendationsResult{
+		Recommendations: []engine.Recommendation{
+			{ID: "rec-1", ResourceID: "rec-7", Type: "MODIFY", Description: "Move to t3a.micro"},
+		},
+	}
+	records := map[string]*config.DismissalRecord{
+		"rec-7": {
+			RecommendationID: "rec-7",
+			Status:           config.StatusDismissed,
+			LastKnown: &config.LastKnownRecommendation{
+				ResourceID: "i-999", Type: "TERMINATE", Description: "Delete idle instance",
+			},
+		},
+	}
+
+	mergeDismissalRecordsIntoResult(records, result)
+
+	require.Len(t, result.Recommendations, 2)
+	assert.Equal(t, "rec-7", result.Recommendations[1].ID)
+}

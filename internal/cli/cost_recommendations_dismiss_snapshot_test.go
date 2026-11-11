@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -24,7 +25,8 @@ import (
 
 const snapshotInstanceURN = "urn:pulumi:dev::test-stack::aws:ec2/instance:Instance::new"
 
-// snapshotPlugin answers recommendation queries with a fixed list or error.
+// snapshotPlugin answers recommendation queries with a fixed list or error,
+// omitting excluded ids as the spec requires even with include_dismissed set.
 // Other RPCs are unused.
 type snapshotPlugin struct {
 	proto.CostSourceClient
@@ -46,7 +48,13 @@ func (p *snapshotPlugin) GetRecommendations(
 	if p.err != nil {
 		return nil, p.err
 	}
-	return &proto.GetRecommendationsResponse{Recommendations: p.recs}, nil
+	recs := make([]*proto.Recommendation, 0, len(p.recs))
+	for _, rec := range p.recs {
+		if !slices.Contains(in.ExcludedRecommendationIDs, rec.ID) {
+			recs = append(recs, rec)
+		}
+	}
+	return &proto.GetRecommendationsResponse{Recommendations: recs}, nil
 }
 
 func (p *snapshotPlugin) Supports(
@@ -205,6 +213,35 @@ func TestSnoozeCmd_AlreadyDismissedKeepsSnapshot(t *testing.T) {
 	assertSpotSnapshot(t, record)
 }
 
+// A recommendation dismissed earlier without a plan has no snapshot. Snoozing
+// it with a plan must take its id out of the exclusions, or a plugin that
+// honors them cannot return it.
+//
+//nolint:paralleltest // sets FINFOCUS_HOME, the working directory, and the dismiss plugin opener
+func TestSnoozeCmd_AddsSnapshotToEarlierDismissal(t *testing.T) {
+	plugin := &snapshotPlugin{recs: []*proto.Recommendation{spotRecommendation("rec-spot-4")}}
+	planPath, _ := setupDismissSnapshot(t, plugin)
+
+	result := runRecommendationsCmd(t, "dismiss", "rec-spot-4", "--reason", "deferred", "--yes")
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	record, ok := loadDismissal(t, "rec-spot-4")
+	require.True(t, ok)
+	require.Nil(t, record.LastKnown)
+
+	until := time.Now().AddDate(0, 1, 0).Format("2006-01-02")
+	result = runRecommendationsCmd(t, "snooze", "rec-spot-4",
+		"--until", until, "--pulumi-json", planPath, "--yes")
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+
+	reqs := plugin.requests()
+	require.Len(t, reqs, 1)
+	assert.True(t, reqs[0].IncludeDismissed)
+	assert.NotContains(t, reqs[0].ExcludedRecommendationIDs, "rec-spot-4")
+	record, ok = loadDismissal(t, "rec-spot-4")
+	require.True(t, ok)
+	assertSpotSnapshot(t, record)
+}
+
 //nolint:paralleltest // sets FINFOCUS_HOME, the working directory, and the dismiss plugin opener
 func TestDismissCmd_LookupMissStillDismisses(t *testing.T) {
 	tests := []struct {
@@ -265,6 +302,9 @@ func TestDismissCmd_DryRunSkipsLookupAndWrite(t *testing.T) {
 			store, err := config.NewDismissalStore("")
 			require.NoError(t, err)
 			assert.NoFileExists(t, store.FilePath())
+			cacheEntries, err := os.ReadDir(os.Getenv("FINFOCUS_CACHE_DIR"))
+			require.NoError(t, err)
+			assert.Empty(t, cacheEntries, "dry run must not create cache files")
 		})
 	}
 }

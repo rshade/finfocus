@@ -986,8 +986,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   (`findDismissedRecommendation`, #2057) so the record carries `LastKnown`,
   which `--include-dismissed` and the overview dismissed count need. The match
   is on id only; any miss or failure still dismisses, with no snapshot, and
-  logs at debug. The lookup runs inside the `ax.Perform` commit, so `--dry-run`
-  sends nothing. Overwriting a record without details keeps its earlier
+  logs at debug. The lookup, and the cache it opens, run inside the
+  `ax.Perform` commit, so `--dry-run` sends and creates nothing. An id that is
+  already dismissed is looked up with `GetRecommendationsIncludingID`, which
+  drops it from the excluded ids: the spec omits an excluded id even with
+  `include_dismissed`. Overwriting a record without details keeps its earlier
   `LastKnown`. The `--include-dismissed` merge hides a record only when an
   active recommendation has its id, or its resource, action type, and
   description together. aws-public mints new ids on every call, so a lookup

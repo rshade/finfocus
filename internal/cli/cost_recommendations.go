@@ -1068,7 +1068,6 @@ func mergeDismissalRecordsIntoResult(records map[string]*config.DismissalRecord,
 	activeRecommendationIDs := make(map[string]bool, len(result.Recommendations))
 	for _, rec := range result.Recommendations {
 		activeRecommendations[sameRecommendation{rec.ResourceID, rec.Type, rec.Description}] = true
-		activeRecommendationIDs[rec.ResourceID] = true
 		if rec.ID != "" {
 			activeRecommendationIDs[rec.ID] = true
 		}

@@ -194,7 +194,7 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 	}
 
 	// Create engine with or without plugins
-	eng, cleanup, engineErr := createDismissEngine(ctx, cmd, params.planPath, params.adapter, store)
+	eng, cleanup, engineErr := createDismissEngine(ctx, params.planPath, params.adapter, store)
 	if engineErr != nil {
 		return engineErr
 	}
@@ -305,7 +305,7 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 	}
 
 	// Create engine with or without plugins
-	eng, cleanup, engineErr := createDismissEngine(ctx, cmd, params.planPath, params.adapter, store)
+	eng, cleanup, engineErr := createDismissEngine(ctx, params.planPath, params.adapter, store)
 	if engineErr != nil {
 		return engineErr
 	}
@@ -364,13 +364,12 @@ func loadDismissalStore() (*config.DismissalStore, error) {
 }
 
 // createDismissEngine creates an engine instance, optionally with plugin connections.
-// With a plan it gets the same cache, router, and dismissal store as
-// `cost recommendations`, so the snapshot lookup can reuse a cached answer and
-// see the ids that query returned. It returns a non-nil error if plugin
-// initialization fails.
+// With a plan it gets the same router and dismissal store as
+// `cost recommendations`. The cache is opened only by the snapshot lookup, which
+// runs in the commit, so a dry run creates no cache files. It returns a non-nil
+// error if plugin initialization fails.
 func createDismissEngine(
 	ctx context.Context,
-	cmd *cobra.Command,
 	planPath string,
 	adapter string,
 	store *config.DismissalStore,
@@ -390,11 +389,7 @@ func createDismissEngine(
 		return nil, nil, fmt.Errorf("opening plugins: %w", err)
 	}
 
-	eng, _, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
-	return eng.WithDismissalStore(store), func() {
-		cacheCleanup()
-		cleanup()
-	}, nil
+	return buildEngine(ctx, clients, nil, config.New()).WithDismissalStore(store), cleanup, nil
 }
 
 // findDismissedRecommendation looks up the recommendation being dismissed in
@@ -402,6 +397,10 @@ func createDismissEngine(
 // inventory and asks the plugins the way `cost recommendations` does, and
 // matches on the id alone: a plugin may mint new ids on every call, and a
 // match by resource or type could snapshot a different recommendation.
+//
+// It uses the recommendations cache, so a plugin that mints new ids on every
+// call can still match the id from the `cost recommendations` run that showed
+// it, while the cache entry lasts.
 //
 // The lookup is best effort. Without a plan, on a load or plugin failure, or
 // when no recommendation has the id, it returns nil and the dismissal goes
@@ -443,12 +442,23 @@ func findDismissedRecommendation(
 		return nil
 	}
 
+	if cacheStore := initCacheFromConfig(ctx, cmd, config.New()); cacheStore != nil {
+		eng.WithCache(cacheStore)
+		defer func() {
+			eng.WithCache(nil)
+			if closeErr := cacheStore.Close(); closeErr != nil {
+				log.Debug().Ctx(ctx).Err(closeErr).Msg("failed to close cache store")
+			}
+		}()
+	}
+
 	// A recommendation that is already dismissed or snoozed is excluded from
-	// the default query, so only then ask the plugins to include it. The
-	// default query otherwise shares its cache key with `cost recommendations`.
+	// the default query, so only then ask the plugins to include it, with its
+	// id taken out of the exclusions. The default query otherwise shares its
+	// cache key with `cost recommendations`.
 	var result *engine.RecommendationsResult
 	if slices.Contains(store.GetDismissedIDs(), recommendationID) {
-		result, err = eng.GetRecommendationsForResourcesWithDismissed(ctx, resources)
+		result, err = eng.GetRecommendationsIncludingID(ctx, resources, recommendationID)
 	} else {
 		result, err = eng.GetRecommendationsForResources(ctx, resources)
 	}
