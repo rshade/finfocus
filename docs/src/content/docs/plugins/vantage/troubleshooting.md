@@ -634,7 +634,7 @@ The plugin has no debug switch of its own. Run FinFocus with `--debug` to log
 its side of each plugin call:
 
 ```bash
-finfocus --debug cost actual --adapter vantage --pulumi-state state.json --from 2024-01-01
+finfocus --debug cost actual --adapter vantage --pulumi-state state.json --from 2024-01-01 --to 2024-01-31
 ```
 
 ### Check Plugin Status
