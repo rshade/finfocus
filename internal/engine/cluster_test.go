@@ -832,7 +832,7 @@ func TestFormatWindow(t *testing.T) {
 		{
 			name: "same-day RFC3339",
 			from: day.Add(8 * time.Hour), to: day.Add(14*time.Hour + 30*time.Minute),
-			want: "2026-09-28T08:00:00Z to 2026-09-28T14:30:00Z, 6.5 h",
+			want: "2026-09-28T08:00:00Z to 2026-09-28T14:30:00Z, 6 hours 30 minutes",
 		},
 		{
 			name: "whole days not at midnight",
@@ -850,6 +850,39 @@ func TestFormatWindow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tt.want, FormatWindow(tt.from, tt.to))
+		})
+	}
+}
+
+func TestWindowLength(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		d    time.Duration
+		want string
+	}{
+		{name: "minutes and seconds keep minutes", d: 2*time.Minute + 27*time.Second, want: "2 minutes"},
+		{name: "one minute", d: time.Minute, want: "1 minute"},
+		{name: "minutes", d: 45 * time.Minute, want: "45 minutes"},
+		{name: "whole hours", d: 6 * time.Hour, want: "6 hours"},
+		{name: "one hour one minute", d: time.Hour + time.Minute, want: "1 hour 1 minute"},
+		{
+			name: "fractional hours print hours and minutes",
+			d:    20*time.Hour + 24*time.Minute + 27*time.Second,
+			want: "20 hours 24 minutes",
+		},
+		{name: "day and hours", d: 36 * time.Hour, want: "1 day 12 hours"},
+		{name: "one day", d: 24 * time.Hour, want: "1 day"},
+		{name: "week", d: 7 * 24 * time.Hour, want: "7 days"},
+		{name: "days drop minutes", d: 2*24*time.Hour + 30*time.Minute, want: "2 days"},
+		{name: "sub-minute", d: 27 * time.Second, want: "under 1 minute"},
+		{name: "empty", d: 0, want: "0 minutes"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, windowLength(tt.d))
 		})
 	}
 }

@@ -42,7 +42,10 @@ projected monthly price is not requested on this path.
 `mode` is `historical`. `period` is `engine.FormatWindow`: the bounds and
 the length, for example `2026-09-28 to 2026-10-05, 7 days`, not `monthly`.
 Bounds are UTC dates when both fall on UTC midnight, otherwise RFC3339. A
-whole number of days prints in days, any other length in hours.
+whole number of days prints in days. Any other length prints its largest
+unit (days, hours, or minutes) and the next one when it is not zero, for
+example `1 day 12 hours` or `20 hours 24 minutes`; a length under a minute is
+`under 1 minute`.
 
 `priced[].monthly` keeps its name. For `mode=historical` the number is the
 window `TotalCost`, not a monthly rate. `priced=false` and a note still mean
