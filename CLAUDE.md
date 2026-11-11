@@ -635,6 +635,15 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   line from the probe it already read. When nothing matches, the suffix
   decode starts at EOF. Fewer than `--tail` matches still decodes from byte 0
   so `seq` matches `Decode`.
+- `cost cluster` exit 2 for plugin answers follows one rule: gRPC
+  `InvalidArgument` counts as the user's input only when the request held
+  nothing else. GetStats carries only `--context`, `--namespace`,
+  `--selector`, and the window (`engine.UsageRequestError`). The usage-free
+  Allocate (`ShowAllocationPolicy`, run before GetStats whenever a policy file
+  is non-empty) carries only the policy (`engine.PolicyRejectedError`). The
+  main Allocate carries plugin usage and prices, so its `InvalidArgument`
+  stays exit 1. A `--usage-source`/`--allocator` that names nothing, or is
+  needed to choose, is a `pluginChoiceError` (exit 2); no capable plugin is exit 1.
 - `cost anomalies` (`specs/1923-cost-anomalies/`) runs the overview pipeline
   and lists rows whose `CostDrift` is set through `engine.SelectAnomalies`,
   the one selector the CLI, MCP tool, and web handler share. It adds no rule

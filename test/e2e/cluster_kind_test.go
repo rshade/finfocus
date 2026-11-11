@@ -164,11 +164,13 @@ func TestCostCluster_Kind_BadPolicyFails(t *testing.T) {
 	_, _, err := runCluster(t, "--policy", p)
 	var exitErr *exec.ExitError
 	require.ErrorAs(t, err, &exitErr)
-	assert.Equal(t, 1, exitErr.ExitCode())
+	assert.Equal(t, 2, exitErr.ExitCode(), "a policy the allocator rejects is user input")
 	// stderr carries an ax JSON error envelope, so the policy key appears with
 	// escaped quotes; match the decoder's wording and the offending key.
+	assert.Contains(t, string(exitErr.Stderr), "validation_error")
 	assert.Contains(t, string(exitErr.Stderr), "unknown field")
 	assert.Contains(t, string(exitErr.Stderr), "idel")
+	assert.NotContains(t, string(exitErr.Stderr), "rpc error")
 }
 
 func TestCostCluster_Kind_ShowPolicyNeedsNoCluster(t *testing.T) {

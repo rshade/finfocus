@@ -109,22 +109,18 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	if params.showPolicy {
 		allocClient, selErr := selectCapablePlugin(clients, pluginhost.CapabilityAllocation, params.allocator)
 		if selErr != nil {
-			return selErr
+			return pluginSelectionError(ctx, selErr)
 		}
 		effective, digest, showErr := engine.ShowAllocationPolicy(ctx,
 			pbc.NewAllocatorServiceClient(allocClient.Conn), policy.JSON)
 		if showErr != nil {
-			return showErr
+			return policyError(ctx, showErr, allocClient.Name, policy)
 		}
 		policyOut.Digest, policyOut.Effective = digest, effective
 		return renderPolicy(cmd, format, policyOut)
 	}
 
-	usage, err := selectUsageSource(clients, params.usageSource)
-	if err != nil {
-		return err
-	}
-	allocClient, err := selectCapablePlugin(clients, pluginhost.CapabilityAllocation, params.allocator)
+	usage, usageName, alloc, err := clusterPlugins(ctx, clients, params, policy)
 	if err != nil {
 		return err
 	}
@@ -138,7 +134,7 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	res, err := engine.RunClusterAllocation(
 		ctx,
 		usage,
-		pbc.NewAllocatorServiceClient(allocClient.Conn),
+		alloc,
 		eng,
 		engine.ClusterRequest{
 			Scope:      params.context,
@@ -150,7 +146,7 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 		},
 	)
 	if err != nil {
-		return clusterRunError(ctx, err)
+		return clusterRunError(ctx, err, usageName)
 	}
 	groups, err := engine.GroupClusterRows(res.Rows, params.groupBy)
 	if err != nil {
@@ -163,21 +159,83 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	return renderClusterResult(cmd, format, newClusterOutput(res, groups, params.groupBy, policyOut))
 }
 
-// clusterRunError maps a RunClusterAllocation failure. Several installed
-// usage sources serving the requested mode is the user's choice to make, so
-// it exits 2 and names --usage-source; other failures pass through.
-func clusterRunError(ctx context.Context, err error) error {
+// clusterPlugins selects the usage source (and its name, empty for a set) and
+// the allocator for a cluster run. A policy file is the user's input, so the
+// allocator checks it with the same usage-free call --show-policy makes,
+// before any usage is gathered or priced: a bad policy fails fast and cannot
+// be confused with an allocator rejecting the plugins' data.
+func clusterPlugins(
+	ctx context.Context, clients []*pluginhost.Client, params costClusterParams, policy config.AllocationPolicy,
+) (engine.UsageSource, string, engine.Allocator, error) {
+	usage, usageName, err := selectUsageSource(clients, params.usageSource)
+	if err != nil {
+		return nil, "", nil, pluginSelectionError(ctx, err)
+	}
+	allocClient, err := selectCapablePlugin(clients, pluginhost.CapabilityAllocation, params.allocator)
+	if err != nil {
+		return nil, "", nil, pluginSelectionError(ctx, err)
+	}
+	alloc := pbc.NewAllocatorServiceClient(allocClient.Conn)
+	if len(policy.JSON) > 0 {
+		if _, _, checkErr := engine.ShowAllocationPolicy(ctx, alloc, policy.JSON); checkErr != nil {
+			return nil, "", nil, policyError(ctx, checkErr, allocClient.Name, policy)
+		}
+	}
+	return usage, usageName, alloc, nil
+}
+
+// clusterRunError maps a RunClusterAllocation failure. Two failures are the
+// user's to fix, so they exit 2: several installed usage sources serving the
+// requested mode (choose with --usage-source), and a usage source answering
+// InvalidArgument, because the GetStats request holds only --context,
+// --namespace, --selector, and the window. usageName names the source in that
+// message when one was selected. Other failures, including an allocator
+// rejecting a request that carries the plugins' usage and prices, exit 1.
+func clusterRunError(ctx context.Context, err error, usageName string) error {
 	if ambiguous, ok := errors.AsType[*engine.AmbiguousUsageSourceError](err); ok {
 		return toValidationError(ctx, fmt.Errorf("%w; choose one with --usage-source", ambiguous))
+	}
+	if rejected, ok := errors.AsType[*engine.UsageRequestError](err); ok {
+		return toValidationError(ctx, &engine.UsageRequestError{Source: usageName, Err: rejected.Err})
 	}
 	return err
 }
 
-// selectUsageSource returns the usage source for a cluster run: the explicit
-// --usage-source plugin, the only installed one, or, when several are
-// installed, an engine.UsageSourceSet that asks each one and uses the single
-// source that accepts the request's mode.
-func selectUsageSource(clients []*pluginhost.Client, explicit string) (engine.UsageSource, error) {
+// policyError maps a failure of the usage-free allocator call. An allocator
+// rejecting a policy file the user supplied exits 2 and names the allocator
+// and the file; the built-in default policy is not the user's, so a rejection
+// of it stays exit 1 like any other allocator failure.
+func policyError(ctx context.Context, err error, allocator string, policy config.AllocationPolicy) error {
+	rejected, ok := errors.AsType[*engine.PolicyRejectedError](err)
+	if !ok || len(policy.JSON) == 0 {
+		return err
+	}
+	return toValidationError(ctx, &engine.PolicyRejectedError{
+		Allocator: allocator, Source: policy.Source, Err: rejected.Err,
+	})
+}
+
+// pluginChoiceError reports a --usage-source or --allocator value that names no
+// capable plugin, or several capable plugins and no flag to choose between
+// them. The flag fixes both. No capable plugin installed at all is not one.
+type pluginChoiceError struct{ msg string }
+
+func (e *pluginChoiceError) Error() string { return e.msg }
+
+// pluginSelectionError makes a *pluginChoiceError exit 2; other selection failures
+// pass through.
+func pluginSelectionError(ctx context.Context, err error) error {
+	if _, ok := errors.AsType[*pluginChoiceError](err); ok {
+		return toValidationError(ctx, err)
+	}
+	return err
+}
+
+// selectUsageSource returns the usage source for a cluster run and its plugin
+// name: the explicit --usage-source plugin, the only installed one, or, when
+// several are installed, an engine.UsageSourceSet (name empty) that asks each
+// one and uses the single source that accepts the request's mode.
+func selectUsageSource(clients []*pluginhost.Client, explicit string) (engine.UsageSource, string, error) {
 	var sources []engine.NamedUsageSource
 	for _, c := range clients {
 		if c.HasCapability(pluginhost.CapabilityUsageStats) {
@@ -189,11 +247,11 @@ func selectUsageSource(clients []*pluginhost.Client, explicit string) (engine.Us
 	if explicit != "" || len(sources) < 2 {
 		client, err := selectCapablePlugin(clients, pluginhost.CapabilityUsageStats, explicit)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return pbc.NewUsageSourceServiceClient(client.Conn), nil
+		return pbc.NewUsageSourceServiceClient(client.Conn), client.Name, nil
 	}
-	return engine.NewUsageSourceSet(sources), nil
+	return engine.NewUsageSourceSet(sources), "", nil
 }
 
 // selectCapablePlugin picks the plugin serving capability: the explicit name,
@@ -218,8 +276,8 @@ func selectCapablePlugin(clients []*pluginhost.Client, capability, explicit stri
 				return c, nil
 			}
 		}
-		return nil, fmt.Errorf("plugin %q is not installed or lacks %s (available: %s)",
-			explicit, capability, strings.Join(names, ", "))
+		return nil, &pluginChoiceError{msg: fmt.Sprintf("plugin %q is not installed or lacks %s (available: %s)",
+			explicit, capability, strings.Join(names, ", "))}
 	}
 	switch len(candidates) {
 	case 0:
@@ -228,8 +286,8 @@ func selectCapablePlugin(clients []*pluginhost.Client, capability, explicit stri
 	case 1:
 		return candidates[0], nil
 	default:
-		return nil, fmt.Errorf("several plugins provide %s (%s); choose one with %s",
-			capability, strings.Join(names, ", "), flag)
+		return nil, &pluginChoiceError{msg: fmt.Sprintf("several plugins provide %s (%s); choose one with %s",
+			capability, strings.Join(names, ", "), flag)}
 	}
 }
 
