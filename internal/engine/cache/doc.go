@@ -35,6 +35,10 @@
 // Entries written under the older recommendations/multi/{sorted-types} format are not
 // matched by the current format and expire by TTL.
 //
+// The actual {from} and {to} bounds are UTC. A bound at UTC midnight is a date
+// (2006-01-02); any other bound is RFC3339 with fractional seconds, so two windows
+// on the same date never share an entry.
+//
 // # Concurrency
 //
 // BoltDB supports concurrent reads via read-only transactions. Writes are serialized

@@ -362,6 +362,22 @@ func TestGenerateActualCostCacheKey(t *testing.T) {
 			reason: "different time ranges should produce different keys",
 		},
 		{
+			name: "sub-day windows on the same date produce different keys",
+			request1: func() ActualCostRequest {
+				r := baseRequest()
+				r.From = time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
+				r.To = time.Date(2026, 11, 11, 20, 20, 0, 0, time.UTC)
+				return r
+			}(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.From = time.Date(2026, 11, 11, 13, 0, 0, 0, time.UTC)
+				r.To = time.Date(2026, 11, 11, 14, 0, 0, 0, time.UTC)
+				return r
+			}(),
+			reason: "a window's price must not be served for another window on the same date",
+		},
+		{
 			name: "different tags produce different keys",
 			request1: func() ActualCostRequest {
 				r := baseRequest()
@@ -530,6 +546,42 @@ func TestActualCostCacheIntegration(t *testing.T) {
 		require.Len(t, results.Results, 1)
 		assert.NotContains(t, results.Results[0].Adapter, "(cached)")
 		assert.Positive(t, mc.setCalls, "cache miss should store result")
+	})
+
+	t.Run("another window on the same date is not served from cache", func(t *testing.T) {
+		t.Parallel()
+		mc := newMockCache(true)
+
+		request := func(from, to time.Time) ActualCostRequest {
+			return ActualCostRequest{
+				Resources:        []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"}},
+				From:             from,
+				To:               to,
+				FallbackEstimate: true,
+			}
+		}
+		first := request(
+			time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC), time.Date(2026, 11, 11, 20, 20, 0, 0, time.UTC))
+		second := request(
+			time.Date(2026, 11, 11, 13, 0, 0, 0, time.UTC), time.Date(2026, 11, 11, 14, 0, 0, 0, time.UTC))
+
+		mc.preloadResults(generateActualCostCacheKey(first), []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Adapter:      "aws-public",
+				Currency:     "USD",
+				TotalCost:    0.80,
+			},
+		})
+
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		results, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), second)
+		require.NoError(t, err)
+		require.Len(t, results.Results, 1)
+		assert.NotContains(t, results.Results[0].Adapter, "(cached)")
 	})
 
 	t.Run("cache disabled skips all cache operations", func(t *testing.T) {

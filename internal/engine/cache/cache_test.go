@@ -107,6 +107,71 @@ func TestBuildActualKey(t *testing.T) {
 	})
 }
 
+func TestBuildActualKeyTimeOfDay(t *testing.T) {
+	t.Parallel()
+
+	at := func(hour, minute int, loc *time.Location) time.Time {
+		return time.Date(2026, 11, 11, hour, minute, 0, 0, loc)
+	}
+	key := func(from, to time.Time) string {
+		return BuildActualKey("aws", []string{"aws:ec2/instance:Instance"}, from, to, nil)
+	}
+	chicago := time.FixedZone("CST", -6*60*60)
+
+	t.Run("sub-day windows on the same date get different keys", func(t *testing.T) {
+		t.Parallel()
+		assert.NotEqual(
+			t,
+			key(at(12, 0, time.UTC), at(20, 20, time.UTC)),
+			key(at(13, 0, time.UTC), at(14, 0, time.UTC)),
+		)
+	})
+
+	t.Run("bounds differing only in minutes get different keys", func(t *testing.T) {
+		t.Parallel()
+		assert.NotEqual(
+			t,
+			key(at(13, 0, time.UTC), at(14, 0, time.UTC)),
+			key(at(13, 0, time.UTC), at(14, 30, time.UTC)),
+		)
+	})
+
+	t.Run("sub-second bounds get different keys", func(t *testing.T) {
+		t.Parallel()
+		from := at(13, 0, time.UTC)
+		to := at(14, 0, time.UTC)
+		assert.NotEqual(t, key(from, to), key(from, to.Add(time.Millisecond)))
+	})
+
+	t.Run("sub-day bounds use UTC RFC3339", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t,
+			"actual/aws/aws:ec2/instance:Instance/2026-11-11T13:00:00Z/2026-11-11T14:00:00Z/_",
+			key(at(13, 0, time.UTC), at(14, 0, time.UTC)))
+	})
+
+	t.Run("the same instants in another zone share the key", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, key(at(13, 0, time.UTC), at(14, 0, time.UTC)), key(at(7, 0, chicago), at(8, 0, chicago)))
+	})
+
+	t.Run("whole UTC days keep the date-only key", func(t *testing.T) {
+		t.Parallel()
+		from := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+		to := time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)
+		assert.Equal(t, "actual/aws/aws:ec2/instance:Instance/2026-11-01/2026-11-11/_", key(from, to))
+	})
+
+	t.Run("local midnight is not shortened to its local date", func(t *testing.T) {
+		t.Parallel()
+		from := time.Date(2026, 11, 1, 0, 0, 0, 0, chicago)
+		to := time.Date(2026, 11, 11, 0, 0, 0, 0, chicago)
+		assert.Equal(t,
+			"actual/aws/aws:ec2/instance:Instance/2026-11-01T06:00:00Z/2026-11-11T06:00:00Z/_",
+			key(from, to))
+	})
+}
+
 func TestBuildRecommendationsKey(t *testing.T) {
 	t.Parallel()
 
