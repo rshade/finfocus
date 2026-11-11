@@ -43,7 +43,7 @@ plugins:
 Environment variables are ideal for CI/CD and container deployments.
 
 - `FINFOCUS_LOG_LEVEL`: Set logging verbosity (debug, info, warn, error)
-- `FINFOCUS_CONFIG_FILE`: Path to a custom configuration file
+- `FINFOCUS_HOME`: Directory that holds `config.hujson`, plugins, cache, and logs
 - `FINFOCUS_PLUGIN_DIR`: Override the plugin directory
 
 See the full list in [Environment Variables](../reference/environment-variables.md).

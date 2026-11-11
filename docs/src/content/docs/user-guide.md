@@ -353,7 +353,6 @@ Plugins may require additional configuration:
 ```bash
 # Set plugin-specific environment variables
 export KUBECOST_API_URL="http://kubecost.example.com:9090"
-export AWS_PRICING_API_KEY="your-api-key"
 
 # Run with plugin configuration
 finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --adapter kubecost

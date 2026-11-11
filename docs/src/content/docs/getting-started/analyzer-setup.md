@@ -35,19 +35,12 @@ The pack directory must be on your PATH, and the preview must point at that
 directory. Pulumi 3.270.0 and later starts `pulumi-language-finfocus` from
 PATH. Older releases start `pulumi-analyzer-policy-finfocus` the same way.
 
-#### Option A: CLI Flag (Recommended for testing)
+Pass the pack with the `--policy-pack` flag, locally and in CI/CD. Pulumi has
+no environment variable that selects a local policy pack.
 
 ```bash
 export PATH="${HOME}/.finfocus/analyzer:${PATH}"
 pulumi preview --policy-pack ~/.finfocus/analyzer
-```
-
-#### Option B: Environment Variable (Recommended for CI/CD)
-
-```bash
-export PATH="${HOME}/.finfocus/analyzer:${PATH}"
-export PULUMI_POLICY_PACK_PATH="$HOME/.finfocus/analyzer"
-pulumi preview
 ```
 
 ## Usage

@@ -701,9 +701,9 @@ finfocus --debug cost actual --adapter kubecost --from 2025-01-01
 # Enable debug logging
 finfocus --debug plugin validate
 
-# Plugin-specific debugging
-export PLUGIN_DEBUG=1
-export PLUGIN_LOG_LEVEL=debug
+# Debug logging for FinFocus and for plugins that read FINFOCUS_LOG_LEVEL
+# (plugin processes inherit it; --debug does not reach them)
+export FINFOCUS_LOG_LEVEL=debug
 finfocus cost actual --adapter kubecost --from 2025-01-01
 ```
 

@@ -630,12 +630,11 @@ params:
 
 ### Enable Debug Logging
 
-```bash
-# Set debug environment variable
-export VANTAGE_DEBUG=1
+The plugin has no debug switch of its own. Run FinFocus with `--debug` to log
+its side of each plugin call:
 
-# Run plugin
-finfocus cost actual --plugin vantage --start-date 2024-01-01
+```bash
+finfocus --debug cost actual --adapter vantage --pulumi-state state.json --from 2024-01-01
 ```
 
 ### Check Plugin Status
@@ -736,7 +735,7 @@ When reporting issues, include:
 4. **Debug Logs** (redact tokens):
 
    ```bash
-   VANTAGE_DEBUG=1 finfocus cost actual --plugin vantage 2>&1 | \
+   finfocus --debug cost actual --adapter vantage --pulumi-state state.json 2>&1 | \
      sed 's/Bearer .*/Bearer REDACTED/' > debug.log
    ```
 

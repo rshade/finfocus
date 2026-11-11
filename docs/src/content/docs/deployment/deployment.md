@@ -146,7 +146,7 @@ Use CI/CD to automate cost analysis in pull requests and deployments.
 #### Environment Variables
 
 - `FINFOCUS_LOG_LEVEL`: Sets logging verbosity.
-- `FINFOCUS_CONFIG_FILE`: Path to a custom configuration file.
+- `FINFOCUS_HOME`: Directory that holds `config.hujson`, plugins, cache, and logs.
 - `FINFOCUS_PLUGIN_DIR`: Directory used to cache plugins.
 
 #### Credentials
