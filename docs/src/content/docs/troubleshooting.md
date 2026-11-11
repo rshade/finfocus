@@ -429,8 +429,9 @@ Failed: plugin failed to bind to port within 20s: timeout waiting for plugin to 
 2. `finfocus plugin list` and the dashboard's plugin checks wait 20 seconds
    for a plugin to start and answer. Cost commands wait up to 65 seconds for
    the plugin to open its port (125 seconds when `CI=true`), then up to 10
-   seconds to connect to it. These limits are fixed, and no environment
-   variable changes them, including `PLUGIN_TIMEOUT`.
+   seconds to connect to it. These limits are fixed. Apart from the longer
+   bind wait under `CI=true`, no environment variable changes them;
+   FinFocus does not read `PLUGIN_TIMEOUT`.
 3. A plugin that never opens its port within those limits is stuck, not slow.
    FinFocus does not start it a second time. Run the command with `--debug`
    and read the FinFocus log file.
