@@ -118,7 +118,7 @@ Use `require.*` for setup failures and nil checks, `assert.*` for value comparis
 
 ### Security and Configuration
 
-- Never commit secrets; use `FINFOCUS_PLUGIN_*` env vars or `~/.finfocus/config.yaml`.
+- Never commit secrets; use `FINFOCUS_PLUGIN_*` env vars or `~/.finfocus/config.hujson`.
 - Plugins live in `~/.finfocus/plugins/<name>/<version>/`.
 - Validate plugins with `finfocus plugin validate` and `finfocus plugin certify`.
 - Scrub Pulumi plan fixtures if identifiers appear.

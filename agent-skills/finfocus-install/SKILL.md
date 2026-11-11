@@ -103,11 +103,11 @@ finfocus plugin install aws-public --force --clean
 ```bash
 # Inside a Pulumi project → project-local config
 finfocus config init
-# Creates: $PROJECT/.finfocus/config.yaml + .gitignore
+# Creates: $PROJECT/.finfocus/config.hujson + .gitignore
 
 # Global config
 finfocus config init --global
-# Creates: ~/.finfocus/config.yaml
+# Creates: ~/.finfocus/config.hujson
 ```
 
 Config precedence: project-local > global > env vars > defaults.
@@ -141,7 +141,7 @@ finfocus plugin list --available  # Show registry plugins
 
 ```text
 ~/.finfocus/
-├── config.yaml          # Global configuration
+├── config.hujson        # Global configuration
 ├── plugins/             # Plugin binaries
 │   ├── aws-public/<version>/finfocus-plugin-aws-public
 │   └── opencost/<version>/finfocus-plugin-opencost

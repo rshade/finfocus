@@ -55,7 +55,8 @@ Get started with budgets in under 5 minutes.
 
 ### Step 1: Configure Budget
 
-Create or edit your `~/.finfocus/config.yaml` to define a budget:
+Create or edit your `~/.finfocus/config.hujson` to define a budget.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 # yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
@@ -109,14 +110,15 @@ Complete reference for all budget configuration options.
 
 ### File Location
 
-Configuration is stored in `~/.finfocus/config.yaml`.
+Configuration is stored in `~/.finfocus/config.hujson`. Examples on this page
+show the keys in YAML form; the file uses JSON syntax.
 
 ### Schema Reference
 
 For IDE autocomplete and validation, add this comment to your config file:
 
-```yaml
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+```jsonc
+// yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
 ```
 
 ### Configuration Options

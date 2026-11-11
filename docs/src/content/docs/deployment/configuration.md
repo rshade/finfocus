@@ -11,14 +11,15 @@ FinFocus loads configuration in this order:
 
 1. CLI flags (highest priority)
 2. Environment variables
-3. `config.yaml` (default: `~/.finfocus/config.yaml`)
+3. `config.hujson` (default: `~/.finfocus/config.hujson`)
 
 Use environment variables for secrets and pipeline-provided settings to avoid
 committing sensitive data.
 
 ## File-Based Configuration
 
-The default configuration file lives at `~/.finfocus/config.yaml`.
+The default configuration file lives at `~/.finfocus/config.hujson`.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 output:
@@ -54,7 +55,7 @@ See the full list in [Environment Variables](../reference/environment-variables.
 
 ```bash
 # Use the default config file
-echo "logging:\n  level: debug" > ~/.finfocus/config.yaml
+finfocus config set logging.level debug
 finfocus cost projected --pulumi-json plan.json
 ```
 

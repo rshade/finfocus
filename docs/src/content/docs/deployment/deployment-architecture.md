@@ -8,7 +8,7 @@ This diagram summarizes how FinFocus is deployed across workstations, CI/CD, and
 ```mermaid
 graph TD
     Developer[Developer Workstation] --> CLI[FinFocus CLI]
-    CLI --> Config[~/.finfocus/config.yaml]
+    CLI --> Config[~/.finfocus/config.hujson]
     CLI --> Plugins[~/.finfocus/plugins]
     CLI --> Specs[~/.finfocus/specs]
 

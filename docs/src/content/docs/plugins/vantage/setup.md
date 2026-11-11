@@ -262,18 +262,11 @@ finfocus-vantage backfill --config config.yaml --months 12
 Check imported data:
 
 ```bash
-# Query projected costs using FinFocus CLI
-finfocus cost projected \
-  --plugin vantage \
-  --provider aws \
-  --start-date 2024-01-01 \
-  --end-date 2024-01-31
-
-# Query actual costs
+# Query actual costs for the imported range
 finfocus cost actual \
-  --plugin vantage \
-  --start-date 2024-01-01 \
-  --end-date 2024-01-31
+  --adapter vantage \
+  --from 2024-01-01 \
+  --to 2024-01-31
 ```
 
 ### Setup Scheduled Sync
