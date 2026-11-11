@@ -321,12 +321,13 @@ kubecost: FAILED - connection timeout
    # Should start and show port information
    ```
 
-2. **Check plugin logs**: plugin processes inherit `FINFOCUS_LOG_LEVEL`, so a
-   plugin that reads it logs at debug level too. `--debug` raises only
-   FinFocus's own log level.
+2. **Check plugin logs**: `plugin validate` checks only the binary and its
+   manifest, while `plugin list` starts each plugin to read its metadata.
+   Plugin processes inherit `FINFOCUS_LOG_LEVEL`, so a plugin that reads it
+   logs at debug level too. `--debug` raises only FinFocus's own log level.
 
    ```bash
-   FINFOCUS_LOG_LEVEL=debug finfocus plugin validate --plugin kubecost
+   FINFOCUS_LOG_LEVEL=debug finfocus plugin list --verbose
    ```
 
 3. **Network connectivity**:
@@ -716,9 +717,10 @@ Error: no cost data available for time range
    export HTTPS_PROXY=http://proxy.company.com:8080
    ```
 
-4. **Retries**: FinFocus has no retry setting. It retries a plugin that
-   reports a rate limit (`ResourceExhausted`) up to three times. Any other
-   retry policy belongs to the plugin, so check the plugin's documentation.
+4. **Retries**: FinFocus has no retry setting. A call that a plugin answers
+   with a rate limit (`ResourceExhausted`) gets three attempts in all. Any
+   other retry policy belongs to the plugin, so check the plugin's
+   documentation.
 
 ## Configuration Issues
 
