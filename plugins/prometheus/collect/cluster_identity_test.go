@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
@@ -51,6 +53,28 @@ func TestCollect_MissingIdentityOmitsPriceable(t *testing.T) {
 	for _, item := range resp.GetPriceable() {
 		assert.NotEqual(t, pluginsdk.KindNode, item.GetTags()[pluginsdk.SubjectKind])
 	}
+}
+
+func TestCollect_LiveIdentityWarns(t *testing.T) {
+	t.Parallel()
+
+	live := fake.NewSimpleClientset(&corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: "node-x", Labels: map[string]string{
+			"node.kubernetes.io/instance-type": "m5.large",
+			"topology.kubernetes.io/region":    "us-east-1",
+			"finfocus.dev/provider":            "aws",
+		}},
+	})
+	resp, _, err := collectRaw(t, missingIdentitySamples, Options{Live: live, APIHost: "https://127.0.0.1:6443"})
+	require.NoError(t, err)
+	stampHistorical(resp)
+	require.NoError(t, plugintesting.ValidateStatsResponse(resp))
+	assert.Equal(t, "m5.large", nodePriceable(t, resp, "node-x").GetSku())
+	assert.Equal(t, []string{
+		"node node-x: provider, instance type, region taken from the live node, not from metrics recorded " +
+			"for the window; the window may predate the node's current labels",
+		controlPlaneNotEKS,
+	}, resp.GetWarnings())
 }
 
 func TestCollect_MultipleClustersRequireScope(t *testing.T) {

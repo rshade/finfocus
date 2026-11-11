@@ -256,6 +256,15 @@ the Prometheus Operator service. The
 [plugin README](https://github.com/rshade/finfocus/blob/main/plugins/prometheus/README.md)
 lists the address, the bearer token, and the install gate.
 
+A node's provider, instance type, and region come from those recorded
+series. When they lack a value the node needs, the source reads the node as
+it is now through your kubeconfig and prices it with the current labels. The
+report then carries a warning that names the node and the fields read from
+the live node, such as
+`node ip-10-0-1-5: instance type, region taken from the live node, ...`.
+A node that was replaced or relabeled after the window can be priced with
+its new instance type. The warning does not mark the report incomplete.
+
 Pod labels come from kube-state-metrics, which exports only the labels named
 in its `--metric-labels-allowlist` flag and replaces every character that is
 not a letter, digit, or underscore with `_`. A historical `--group-by` uses

@@ -108,35 +108,50 @@ func Descriptor(n NodeLabels) (*pbc.ResourceDescriptor, bool) {
 	if IsFargate(n.Labels) {
 		return nil, false
 	}
-	provider := n.Labels[labelProvider]
-	if provider == "" {
-		scheme, _, _ := strings.Cut(n.ProviderID, "://")
-		provider = providerSchemes[scheme]
-	}
-	sku := firstLabel(n.Labels, labelInstanceType, labelInstanceTypeOld)
-	region := firstLabel(n.Labels, labelRegion, labelRegionOld)
-	if provider == "" || sku == "" || region == "" {
+	f := pricingFieldsOf(n)
+	if f.provider == "" || f.sku == "" || f.region == "" {
 		return nil, false
-	}
-	resourceType := resourceTypeFor(provider)
-	capacity := capacityOnDemand
-	if strings.EqualFold(n.Labels[labelEKSCapacity], capacitySpot) ||
-		strings.EqualFold(n.Labels[labelKarpenterCap], capacitySpot) {
-		capacity = capacitySpot
 	}
 	tags := map[string]string{
 		pluginsdk.SubjectKind: pluginsdk.KindNode,
 		providerIDLabel:       n.ProviderID,
-		"capacity_type":       capacity,
+		"capacity_type":       f.capacity,
 	}
 	if n.Cluster != "" {
 		tags[pluginsdk.SubjectCluster] = n.Cluster
 		tags[pluginsdk.SubjectNode] = n.Name
 	}
 	return &pbc.ResourceDescriptor{
-		Provider: provider, ResourceType: resourceType, Sku: sku, Region: region, Id: n.Name,
+		Provider: f.provider, ResourceType: resourceTypeFor(f.provider), Sku: f.sku, Region: f.region, Id: n.Name,
 		Tags: tags,
 	}, true
+}
+
+// pricingFields are the node identity values a price depends on.
+type pricingFields struct {
+	provider string
+	sku      string
+	region   string
+	capacity string
+}
+
+func pricingFieldsOf(n NodeLabels) pricingFields {
+	provider := n.Labels[labelProvider]
+	if provider == "" {
+		scheme, _, _ := strings.Cut(n.ProviderID, "://")
+		provider = providerSchemes[scheme]
+	}
+	capacity := capacityOnDemand
+	if strings.EqualFold(n.Labels[labelEKSCapacity], capacitySpot) ||
+		strings.EqualFold(n.Labels[labelKarpenterCap], capacitySpot) {
+		capacity = capacitySpot
+	}
+	return pricingFields{
+		provider: provider,
+		sku:      firstLabel(n.Labels, labelInstanceType, labelInstanceTypeOld),
+		region:   firstLabel(n.Labels, labelRegion, labelRegionOld),
+		capacity: capacity,
+	}
 }
 
 // ControlPlane detects an EKS API server host and returns the control plane

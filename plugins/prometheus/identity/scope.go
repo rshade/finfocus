@@ -59,8 +59,9 @@ func SelectCluster(values []string, scope string) (string, error) {
 // Priceables resolves priceable identity for node names.
 //
 // A recorded identity that can build a descriptor wins over the live object.
-// A node with no recorded identity is read from live when the client is set.
-// Neither source omits the priceable and warns with the incomplete prefix.
+// A node with no recorded identity is read from live when the client is set,
+// and a node priced that way adds a warning naming the fields the live object
+// supplied, without the incomplete prefix. Neither source omits the priceable and warns with the incomplete prefix.
 // kubeconfigErr warns with that prefix and skips the live client.
 //
 // An EKS control-plane priceable is emitted only when live is set and apiHost
@@ -100,21 +101,58 @@ func oneNode(
 	live kubernetes.Interface,
 	cluster string,
 ) (*pbc.ResourceDescriptor, string) {
-	if rec, ok := recorded[name]; ok {
+	rec, ok := recorded[name]
+	if ok {
 		rec.Cluster = cluster
 		if desc, done := descriptorOrFargate(rec); done {
 			return desc, ""
 		}
 	}
-	if live != nil {
-		node, err := live.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
-		if err == nil {
-			if desc, done := descriptorOrFargate(NodeLabelsFromObject(node, cluster)); done {
-				return desc, ""
-			}
+	if current, found := liveNodeLabels(ctx, live, name, cluster); found {
+		if desc, done := descriptorOrFargate(current); done {
+			return desc, liveFieldsWarning(desc, rec, current)
 		}
 	}
 	return nil, fmt.Sprintf("%s node %s: cannot determine provider, instance type, or region", IncompletePrefix, name)
+}
+
+func liveNodeLabels(ctx context.Context, live kubernetes.Interface, name, cluster string) (NodeLabels, bool) {
+	if live == nil {
+		return NodeLabels{}, false
+	}
+	node, err := live.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return NodeLabels{}, false
+	}
+	return NodeLabelsFromObject(node, cluster), true
+}
+
+// liveFieldsWarning names the pricing fields a live node supplied that the
+// recorded series did not hold with the same value. The window can predate the
+// node's current labels, so the price may not match the node that ran then.
+// It does not use the incomplete prefix: the node is priced. A nil desc is a
+// Fargate node, which is not priced and gets no warning.
+func liveFieldsWarning(desc *pbc.ResourceDescriptor, recorded, current NodeLabels) string {
+	if desc == nil {
+		return ""
+	}
+	rec, now := pricingFieldsOf(recorded), pricingFieldsOf(current)
+	var fields []string
+	for _, field := range []struct{ label, rec, now string }{
+		{"provider", rec.provider, now.provider},
+		{"instance type", rec.sku, now.sku},
+		{"region", rec.region, now.region},
+		{"capacity type", rec.capacity, now.capacity},
+	} {
+		if field.rec != field.now {
+			fields = append(fields, field.label)
+		}
+	}
+	if len(fields) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("node %s: %s taken from the live node, not from metrics recorded for the window; "+
+		"the window may predate the node's current labels", current.Name, strings.Join(fields, ", "))
 }
 
 // descriptorOrFargate reports done when the node is identified. A Fargate node

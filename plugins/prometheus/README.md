@@ -37,6 +37,22 @@ kube-state-metrics must publish node labels. The source reads
 and region. A node that those series and the live API both cannot identify is
 omitted.
 
+When the recorded series cannot identify a node, the source reads the Node
+object as it is now through the kubeconfig and prices it from the current
+labels. Labels added, changed, or removed after the window are then used for
+a window that may predate them. The response carries one warning for that
+node, naming the fields that came from the live node:
+
+```text
+node ip-10-0-1-5: instance type, region taken from the live node, not from metrics recorded for the window; the window may predate the node's current labels
+```
+
+The fields are `provider`, `instance type`, `region`, and `capacity type`.
+A field is named when the recorded series lack it or hold a different value.
+The warning does not start with `incomplete:`, so the report is not marked
+incomplete; the node is priced. When the recorded series identify the node,
+the live node is not read and there is no warning.
+
 ## Pod annotations
 
 The source reads pod labels from `kube_pod_labels` and does not read pod
