@@ -441,7 +441,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   stays in `pendingPorts` until its plugin binds. A skipped pending port's
   listener is closed at once: the readiness probe is a bare TCP dial, so a
   held listener would answer for another plugin.
-- Always `cmd.Wait()` after `cmd.Process.Kill()`.
+- Always `cmd.Wait()` after `cmd.Process.Kill()`. In `ProcessLauncher`,
+  `watchProcess` owns that one `cmd.Wait`; cleanup goes through
+  `pluginProcess.stop`, never a second `cmd.Wait`.
+- A plugin that exits before it binds fails at once with `pluginExitError`:
+  exit status plus a bounded stderr excerpt (JSON lines reduced to
+  `message`/`error`, credential-named and ESC env values masked, URL userinfo
+  and control characters removed). It is retried only when its stderr says
+  `address already in use`. The `--port` guidance is for a live process only.
 - Core never sets `PORT`; plugins use `--port` or `FINFOCUS_PLUGIN_PORT`.
 - `NewClient` injects delivered settings before `Launcher.Start`. A descriptor
   key uses `descriptor.env`. A key with no descriptor uses

@@ -205,7 +205,7 @@ func TestCreateCloseFn_ClosesLogTapAfterWait(t *testing.T) {
 		return factory.tap.String() != ""
 	}, 5*time.Second, 10*time.Millisecond)
 	require.False(t, factory.tap.isClosed())
-	require.NoError(t, launcher.createCloseFn(ctx, conn, cmd)())
+	require.NoError(t, launcher.createCloseFn(ctx, conn, watchProcess(cmd))())
 
 	assert.True(t, factory.tap.isClosed())
 	assert.True(t, strings.HasPrefix(factory.tap.String(), "no newline"))

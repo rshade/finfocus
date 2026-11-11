@@ -382,6 +382,28 @@ Error: failed to connect to plugin: context deadline exceeded
    ps aux | grep finfocus
    ```
 
+### Plugin Exits at Startup
+
+**Problem**: A plugin stops before it starts serving, usually because its
+configuration is missing or invalid. FinFocus reports the exit status and the
+last lines the plugin wrote to stderr, for example in the Notes column of
+`finfocus plugin list`:
+
+```text
+Failed: plugin exited before binding to port (exit status 1): config: config: baseUrl must be an http(s) URL with a host
+```
+
+**Solutions**:
+
+1. Fix the setting the message names, then run `finfocus plugin list` again.
+2. The excerpt is short. For the full plugin output, read the FinFocus log
+   file or run the command with `--debug`.
+
+FinFocus does not retry a plugin that exits on its own, unless the plugin
+reports that its port was already in use. The `--port` and pluginsdk upgrade
+hint in the log applies only to a plugin that keeps running without binding
+its port.
+
 ## Cost Calculation Issues
 
 ### No Cost Data Available

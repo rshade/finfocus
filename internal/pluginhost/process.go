@@ -163,7 +163,9 @@ func (p *ProcessLauncher) StartWithRetry(
 			return conn, closeFn, nil
 		}
 
-		// Check if error is port-related
+		// A port collision is retried with a new port. A plugin that exits on
+		// its own is not, unless its stderr says its port was taken: a config
+		// or startup error fails the same way on every attempt.
 		if isPortCollisionError(err) {
 			lastErr = err
 			continue
@@ -219,7 +221,7 @@ func (p *ProcessLauncher) startOnce(
 	}
 	_ = pl // Silence unused variable warning
 
-	cmd, stdoutBuf, err := p.startPlugin(ctx, path, port, args)
+	cmd, out, err := p.startPlugin(ctx, path, port, args)
 	if err != nil {
 		log.Error().
 			Ctx(ctx).
@@ -237,11 +239,13 @@ func (p *ProcessLauncher) startOnce(
 		Int("pid", cmd.Process.Pid).
 		Msg("plugin process started")
 
+	proc := watchProcess(cmd)
+
 	// Wait for plugin to bind to port, with stdout port detection fallback
-	connectPort, bindErr := p.waitForPluginBindWithFallback(ctx, port, stdoutBuf, path)
+	connectPort, bindErr := p.waitForPluginBindWithFallback(ctx, port, &out.stdout, path, proc.exited)
 	if bindErr != nil {
-		p.killProcess(cmd)
-		return nil, nil, fmt.Errorf("plugin failed to bind to port: %w", bindErr)
+		proc.stop()
+		return nil, nil, bindFailure(ctx, path, proc, out, bindErr)
 	}
 
 	log.Debug().
@@ -250,7 +254,7 @@ func (p *ProcessLauncher) startOnce(
 		Int("port", connectPort).
 		Msg("plugin bound to port successfully")
 
-	conn, err := p.connectToPlugin(ctx, fmt.Sprintf("127.0.0.1:%d", connectPort), cmd)
+	conn, err := p.connectToPlugin(ctx, fmt.Sprintf("127.0.0.1:%d", connectPort), proc)
 	if err != nil {
 		log.Error().
 			Ctx(ctx).
@@ -269,8 +273,31 @@ func (p *ProcessLauncher) startOnce(
 		Int("pid", cmd.Process.Pid).
 		Msg("plugin connected successfully")
 
-	closeFn := p.createCloseFn(ctx, conn, cmd)
+	closeFn := p.createCloseFn(ctx, conn, proc)
 	return conn, closeFn, nil
+}
+
+// bindFailure builds the launch error for a plugin that did not bind. Call it
+// after proc.stop, so an exited plugin's status and stderr are complete.
+func bindFailure(
+	ctx context.Context,
+	path string,
+	proc *pluginProcess,
+	out *pluginOutput,
+	bindErr error,
+) error {
+	if !errors.Is(bindErr, errPluginExited) {
+		return fmt.Errorf("plugin failed to bind to port: %w", bindErr)
+	}
+	exitErr := newPluginExitError(proc, &out.stderr, out.secrets)
+	logging.FromContext(ctx).Error().
+		Ctx(ctx).
+		Str("component", "pluginhost").
+		Str("plugin_path", path).
+		Str("exit_status", exitErr.status).
+		Str("stderr_excerpt", exitErr.stderr).
+		Msg("plugin exited before binding to port")
+	return exitErr
 }
 
 // allocatePort allocates a port (legacy method, still available for backward compatibility).
@@ -375,8 +402,12 @@ func (p *ProcessLauncher) releasePortListener(port int) error {
 	return nil
 }
 
-// waitForPluginBind polls until the plugin binds to the specified port or timeout.
-func (p *ProcessLauncher) waitForPluginBind(ctx context.Context, port int) error {
+// errPluginExited reports that the plugin process ended while core waited for it to bind.
+var errPluginExited = errors.New("plugin process exited")
+
+// waitForPluginBind polls until the plugin binds to the specified port, the
+// context ends, or exited is closed. A nil exited channel never fires.
+func (p *ProcessLauncher) waitForPluginBind(ctx context.Context, port int, exited <-chan struct{}) error {
 	ticker := time.NewTicker(bindCheckInterval)
 	defer ticker.Stop()
 
@@ -387,6 +418,8 @@ func (p *ProcessLauncher) waitForPluginBind(ctx context.Context, port int) error
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("timeout waiting for plugin to bind: %w", ctx.Err())
+		case <-exited:
+			return errPluginExited
 		case <-ticker.C:
 			// Try to connect - if plugin is listening, this will succeed
 			conn, err := dialer.DialContext(ctx, "tcp", address)
@@ -402,12 +435,15 @@ func (p *ProcessLauncher) waitForPluginBind(ctx context.Context, port int) error
 // waitForPluginBindWithFallback waits for the plugin to bind to the assigned port.
 // If binding fails within stdoutPortFallback, it checks whether the plugin wrote
 // a port number to stdout (backward-compatible protocol for older plugins).
+// A closed exited channel ends every wait with errPluginExited, so the --port
+// guidance is logged only for a process that is still running.
 // Returns the port to connect on and any error.
 func (p *ProcessLauncher) waitForPluginBindWithFallback(
 	ctx context.Context,
 	assignedPort int,
 	stdoutBuf *lockedBuffer,
 	pluginPath string,
+	exited <-chan struct{},
 ) (int, error) {
 	log := logging.FromContext(ctx)
 
@@ -419,8 +455,12 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 	shortCtx, shortCancel := context.WithTimeout(ctx, fallback)
 	defer shortCancel()
 
-	if err := p.waitForPluginBind(shortCtx, assignedPort); err == nil {
+	shortErr := p.waitForPluginBind(shortCtx, assignedPort, exited)
+	if shortErr == nil {
 		return assignedPort, nil
+	}
+	if errors.Is(shortErr, errPluginExited) {
+		return 0, shortErr
 	}
 
 	// Short timeout elapsed — check if plugin wrote a port to stdout
@@ -437,9 +477,12 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 		fullCtx, fullCancel := context.WithTimeout(ctx, getPluginBindTimeout())
 		defer fullCancel()
 
-		err := p.waitForPluginBind(fullCtx, stdoutPort)
+		err := p.waitForPluginBind(fullCtx, stdoutPort, exited)
 		if err == nil {
 			return stdoutPort, nil
+		}
+		if errors.Is(err, errPluginExited) {
+			return 0, err
 		}
 		return 0, fmt.Errorf("plugin advertised port %d on stdout but failed to bind: %w",
 			stdoutPort, err)
@@ -456,7 +499,10 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 	fullCtx, fullCancel := context.WithTimeout(ctx, getPluginBindTimeout())
 	defer fullCancel()
 
-	if err := p.waitForPluginBind(fullCtx, assignedPort); err != nil {
+	if err := p.waitForPluginBind(fullCtx, assignedPort, exited); err != nil {
+		if errors.Is(err, errPluginExited) {
+			return 0, err
+		}
 		log.Error().
 			Ctx(ctx).
 			Str("component", "pluginhost").
@@ -507,9 +553,14 @@ func parsePortFromStdout(data []byte) (int, bool) {
 }
 
 // isPortCollisionError reports whether err indicates a port or address collision.
+// A plugin that exited before binding counts only when its stderr reported the
+// collision; its excerpt is never matched as text.
 func isPortCollisionError(err error) bool {
 	if err == nil {
 		return false
+	}
+	if exitErr, ok := errors.AsType[*pluginExitError](err); ok {
+		return exitErr.portCollision
 	}
 
 	// Use string matching which is portable across OS/locales.
@@ -569,12 +620,21 @@ func dropOverrides(environ []string, overrides map[string]bool) []string {
 	return filtered
 }
 
+// pluginOutput holds what core keeps of a plugin's output: stdout for the
+// legacy port protocol, and the end of stderr to explain an early exit.
+type pluginOutput struct {
+	stdout lockedBuffer
+	stderr stderrTail
+	// secrets are values in the plugin environment that a stderr excerpt masks.
+	secrets []string
+}
+
 func (p *ProcessLauncher) startPlugin(
 	ctx context.Context,
 	path string,
 	port int,
 	args []string,
-) (*exec.Cmd, *lockedBuffer, error) {
+) (*exec.Cmd, *pluginOutput, error) {
 	log := logging.FromContext(ctx)
 
 	// FR-008: Log DEBUG message when PORT is detected in user's environment
@@ -617,18 +677,19 @@ func (p *ProcessLauncher) startPlugin(
 		)
 	}
 	cmd.Env = appendDeliveredEnv(ctx, cmd.Env)
+	delivered, _ := DeliveredEnvFromContext(ctx)
+	out := &pluginOutput{secrets: credentialValues(cmd.Env, delivered.Origins)}
 
 	// Determine where plugin stdout/stderr should go.
 	// Priority: file logging (always capture) > analyzer mode (discard) >
 	// default (stderr passthrough when interactive, discard otherwise)
-	var stdoutBuf lockedBuffer
 	pluginWriter := logging.PluginLogWriterFromContext(ctx)
 
 	switch {
 	case pluginWriter != nil:
 		// Redirect plugin output to the core log file for a clean terminal experience.
 		cmd.Stderr = pluginWriter
-		cmd.Stdout = io.MultiWriter(pluginWriter, &stdoutBuf)
+		cmd.Stdout = io.MultiWriter(pluginWriter, &out.stdout)
 	case os.Getenv(constants.EnvAnalyzerMode) == envValueTrue:
 		// In analyzer mode, suppress plugin output to prevent cluttering Pulumi preview output.
 		// This addresses issue #401 where plugin JSON messages appear in user-facing output.
@@ -638,7 +699,7 @@ func (p *ProcessLauncher) startPlugin(
 			Str("plugin_path", path).
 			Msg("suppressing plugin stderr output in analyzer mode")
 		cmd.Stderr = io.Discard
-		cmd.Stdout = io.MultiWriter(io.Discard, &stdoutBuf)
+		cmd.Stdout = io.MultiWriter(io.Discard, &out.stdout)
 	default:
 		// Fallback (debug mode or no file logging): pass plugin output through to
 		// Core's stderr only when it is an interactive terminal. When stderr is a
@@ -647,8 +708,9 @@ func (p *ProcessLauncher) startPlugin(
 		// indefinitely (issue #1231).
 		stderrW := resolveStderrPassthrough(os.Stderr)
 		cmd.Stderr = stderrW
-		cmd.Stdout = io.MultiWriter(stderrW, &stdoutBuf)
+		cmd.Stdout = io.MultiWriter(stderrW, &out.stdout)
 	}
+	cmd.Stderr = io.MultiWriter(cmd.Stderr, &out.stderr)
 	if tap != nil {
 		cmd.Stderr = newTappedStderr(cmd.Stderr, tap(pluginNameFromPath(path)))
 	}
@@ -669,20 +731,20 @@ func (p *ProcessLauncher) startPlugin(
 	if err := cmd.Start(); err != nil {
 		return nil, nil, fmt.Errorf("starting plugin: %w", err)
 	}
-	return cmd, &stdoutBuf, nil
+	return cmd, out, nil
 }
 
 func (p *ProcessLauncher) connectToPlugin(
 	ctx context.Context,
 	address string,
-	cmd *exec.Cmd,
+	proc *pluginProcess,
 ) (*grpc.ClientConn, error) {
 	connCtx, cancel := context.WithTimeout(ctx, p.timeout)
 	defer cancel()
 
 	for {
 		if connCtx.Err() != nil {
-			p.killProcess(cmd)
+			proc.stop()
 			return nil, fmt.Errorf("timeout connecting to plugin: %w", connCtx.Err())
 		}
 
@@ -734,18 +796,10 @@ func resolveStderrPassthrough(stderr *os.File) io.Writer {
 	return io.Discard
 }
 
-func (p *ProcessLauncher) killProcess(cmd *exec.Cmd) {
-	if cmd != nil && cmd.Process != nil {
-		_ = killProcessGroup(cmd)
-		_ = cmd.Wait()
-		closeLogTap(cmd)
-	}
-}
-
 func (p *ProcessLauncher) createCloseFn(
 	ctx context.Context,
 	conn *grpc.ClientConn,
-	cmd *exec.Cmd,
+	proc *pluginProcess,
 ) func() error {
 	return func() error {
 		log := logging.FromContext(ctx)
@@ -764,11 +818,9 @@ func (p *ProcessLauncher) createCloseFn(
 				Msg("error closing gRPC connection")
 			closeErr = fmt.Errorf("closing connection: %w", err)
 		}
-		if cmd.Process != nil {
-			pid := cmd.Process.Pid
-			_ = killProcessGroup(cmd)
-			_ = cmd.Wait()
-			closeLogTap(cmd)
+		if proc != nil && proc.cmd.Process != nil {
+			pid := proc.cmd.Process.Pid
+			proc.stop()
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "pluginhost").
