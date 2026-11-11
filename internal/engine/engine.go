@@ -4795,9 +4795,13 @@ func (e *Engine) tryActualCostCache(ctx context.Context, request ActualCostReque
 		return nil
 	}
 
-	// Append "(cached)" to each result's Adapter field
+	// The label is rebuilt from the stored bounds so an entry written by an
+	// older FormatPeriod does not keep its old text.
 	for i := range results {
 		results[i].Adapter += " (cached)"
+		if results[i].CostPeriod != "" && !results[i].StartDate.IsZero() && !results[i].EndDate.IsZero() {
+			results[i].CostPeriod = FormatPeriod(results[i].StartDate, results[i].EndDate)
+		}
 	}
 
 	return results

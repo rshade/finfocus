@@ -1157,3 +1157,33 @@ func TestCarbonFreshOnMonetaryCacheHit(t *testing.T) {
 		})
 	}
 }
+
+func TestTryActualCostCache_RefreshesPeriodLabel(t *testing.T) {
+	t.Parallel()
+
+	from := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)
+	stateStart := time.Date(2026, 11, 4, 6, 0, 0, 0, time.UTC)
+	request := ActualCostRequest{
+		Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"}},
+		From:      from,
+		To:        to,
+	}
+
+	mc := newMockCache(true)
+	mc.preloadResults(generateActualCostCacheKey(request), []CostResult{
+		{ResourceID: "plugin", StartDate: from, EndDate: to, CostPeriod: "1 weeks"},
+		{ResourceID: "state", StartDate: stateStart, EndDate: to, CostPeriod: "6 days"},
+		{ResourceID: "unlabeled", StartDate: from, EndDate: to},
+		{ResourceID: "undated", CostPeriod: "1 months"},
+	})
+	eng := New(nil, nil)
+	eng.cache = mc
+
+	results := eng.tryActualCostCache(context.Background(), request)
+	require.Len(t, results, 4)
+	assert.Equal(t, "10 days", results[0].CostPeriod)
+	assert.Equal(t, "6 days 18 hours", results[1].CostPeriod)
+	assert.Empty(t, results[2].CostPeriod)
+	assert.Equal(t, "1 months", results[3].CostPeriod)
+}
