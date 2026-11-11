@@ -37,6 +37,17 @@ kube-state-metrics must publish node labels. The source reads
 and region. A node that those series and the live API both cannot identify is
 omitted.
 
+## Pod annotations
+
+The source reads pod labels from `kube_pod_labels` and does not read pod
+annotations. `finfocus cost cluster --group-by pulumi-stack` therefore puts
+every workload under `<none>` with this source, and JSON and NDJSON groups
+have no `pulumi_urns`, even when kube-state-metrics exports the
+`finfocus.dev/pulumi-urn` annotation through `--metric-annotations-allowlist`.
+Group by Pulumi stack in run-rate mode (no `--from` or `--to`, and
+`--usage-source kubernetes` when several sources are installed), where the
+kubernetes source reads the annotation from the live pods.
+
 ## Install
 
 `finfocus plugin install prometheus` waits on tag `prometheus-v0.1.0` and on
