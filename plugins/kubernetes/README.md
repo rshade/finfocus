@@ -139,7 +139,7 @@ The plugin inherits FinFocus's environment. Set the variables before running
 
 Rates must be finite and not negative. A rate of `0` is an explicit free
 price. An invalid value does not stop the plugin; the workloads that need it
-are reported as unpriced with a note naming the variable.
+are reported as unpriced with a note naming every invalid variable they use.
 
 ### Formula
 
@@ -180,8 +180,22 @@ reason, never a `$0` price. The first reason that applies is reported:
 | a count or request is not known until deployment | the value is computed by Pulumi at deploy time |
 | a quantity is not valid (names the field path) | fix the quantity in the pod spec |
 | no resource requests declared | set `resources.requests` |
-| no rate set, or a rate is invalid (names the variable) | set the rate variables |
-| DaemonSet node count or Job hours missing or invalid | set the hint variable |
+| no rate set (names the variable) | set the rate variables |
+| DaemonSet node count or Job hours not set | set the hint variable |
+| a rate or the kind's hint is invalid (names every one) | fix each named variable |
+
+Once every variable the kind needs is set, one reason lists every invalid one
+the kind uses, in table order, so a single run shows them all. A DaemonSet
+reason never names the Job hours, and a Deployment reason names neither hint:
+
+```text
+FINFOCUS_KUBERNETES_CPU_HOURLY_RATE="-1" must not be negative; ..._MEMORY_GIB_HOURLY_RATE="abc" is not a number; ..._DAEMONSET_NODE_COUNT="0" must be at least 1
+```
+
+A reason is at most 160 characters. When the values do not fit, they are
+left out (`FINFOCUS_KUBERNETES_CPU_HOURLY_RATE must not be negative; ...`),
+and when the problems do not fit either, the reason only names the variables
+(`fix the invalid FINFOCUS_KUBERNETES_CPU_HOURLY_RATE, ...`).
 
 `replicas: 0` is a real `$0` price with a "scaled to zero" note.
 

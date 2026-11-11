@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -126,7 +127,8 @@ type podCount struct {
 // hours, with rates and hints from cfg. It declines, in order: a resource from
 // another provider; a kubernetes type it does not price; no attributes; a
 // Pulumi unknown count or quantity; an invalid count or quantity; no requests
-// declared; a missing or invalid rate; a missing or invalid hint for the kind.
+// declared; a missing rate; a missing hint for the kind; then every invalid
+// rate or hint the kind uses, in one reason.
 func Estimate(desc *pbc.ResourceDescriptor, cfg Config) Result {
 	if desc.GetProvider() != provider {
 		return declined(ReasonWrongProvider)
@@ -148,10 +150,7 @@ func Estimate(desc *pbc.ResourceDescriptor, cfg Config) Result {
 	if !requests.CPUDeclared && !requests.MemoryDeclared {
 		return declined("the workload declares no resource requests; set resource requests (cpu, memory) to price it")
 	}
-	if reason := rateReason(cfg); reason != "" {
-		return declined(reason)
-	}
-	if reason := hintReason(k, cfg); reason != "" {
+	if reason := settingsReason(k, cfg); reason != "" {
 		return declined(reason)
 	}
 
@@ -226,7 +225,20 @@ func shortValue(value *structpb.Value) string {
 	return strconv.Quote(text)
 }
 
-func rateReason(cfg Config) string {
+// settingsReason declines for an unset variable first, with the reason that
+// says what to set, and otherwise names every invalid variable the kind uses
+// at once so one run reports them all.
+func settingsReason(k kind, cfg Config) string {
+	if reason := missingRateReason(cfg); reason != "" {
+		return reason
+	}
+	if reason := missingHintReason(k, cfg); reason != "" {
+		return reason
+	}
+	return invalidReason(invalidSettings(k, cfg))
+}
+
+func missingRateReason(cfg Config) string {
 	cpu, mem := cfg.CPUHourlyRate, cfg.MemoryGiBHourlyRate
 	switch {
 	case !cpu.Set && !mem.Set:
@@ -235,28 +247,83 @@ func rateReason(cfg Config) string {
 		return "set " + EnvCPUHourlyRate + " (USD per vCPU-hour) to price workloads" + liveClusterTip
 	case !mem.Set:
 		return "set " + EnvMemoryGiBHourlyRate + " (USD per GiB-hour) to price workloads" + liveClusterTip
-	case cpu.Err != nil:
-		return cpu.Err.Error()
-	case mem.Err != nil:
-		return mem.Err.Error()
 	default:
 		return ""
 	}
 }
 
-func hintReason(k kind, cfg Config) string {
+func missingHintReason(k kind, cfg Config) string {
 	switch {
 	case k.count == countFromNodeHint && !cfg.DaemonSetNodeCount.Set:
 		return "set " + EnvDaemonSetNodeCount + " to the number of nodes to price a DaemonSet"
-	case k.count == countFromNodeHint && cfg.DaemonSetNodeCount.Err != nil:
-		return cfg.DaemonSetNodeCount.Err.Error()
 	case k.usesHours && !cfg.JobHoursPerMonth.Set:
 		return "set " + EnvJobHoursPerMonth + " to the hours it runs each month to price a Job or CronJob"
-	case k.usesHours && cfg.JobHoursPerMonth.Err != nil:
-		return cfg.JobHoursPerMonth.Err.Error()
 	default:
 		return ""
 	}
+}
+
+// invalidSettings returns the rejected values the kind uses, in the order the
+// variables are documented: both rates, then the kind's hint.
+func invalidSettings(k kind, cfg Config) []error {
+	errs := []error{cfg.CPUHourlyRate.Err, cfg.MemoryGiBHourlyRate.Err}
+	if k.count == countFromNodeHint {
+		errs = append(errs, cfg.DaemonSetNodeCount.Err)
+	}
+	if k.usesHours {
+		errs = append(errs, cfg.JobHoursPerMonth.Err)
+	}
+	return slices.DeleteFunc(errs, func(err error) bool { return err == nil })
+}
+
+// invalidReason joins the rejected values with "; ", writing each later
+// variable as "..._<rest>". When that does not fit in MaxReasonLength it
+// drops the values, and then the problems, so every variable stays named.
+func invalidReason(errs []error) string {
+	if len(errs) == 0 {
+		return ""
+	}
+	for _, render := range []func(error) string{error.Error, withoutValue} {
+		parts := make([]string, len(errs))
+		for i, err := range errs {
+			parts[i] = render(err)
+			if i > 0 {
+				parts[i] = abbreviated(parts[i])
+			}
+		}
+		if reason := strings.Join(parts, "; "); utf8.RuneCountInString(reason) <= MaxReasonLength {
+			return reason
+		}
+	}
+	names := make([]string, len(errs))
+	for i, err := range errs {
+		names[i] = settingName(err)
+		if i > 0 {
+			names[i] = abbreviated(names[i])
+		}
+	}
+	return "fix the invalid " + joinAnd(names)
+}
+
+func withoutValue(err error) string {
+	if setting, ok := errors.AsType[*SettingError](err); ok {
+		return setting.Name + " " + setting.Problem
+	}
+	return err.Error()
+}
+
+func settingName(err error) string {
+	if setting, ok := errors.AsType[*SettingError](err); ok {
+		return setting.Name
+	}
+	return err.Error()
+}
+
+func abbreviated(text string) string {
+	if rest, ok := strings.CutPrefix(text, envPrefix); ok {
+		return "..._" + rest
+	}
+	return text
 }
 
 func pricedNote(k kind, count podCount, requests PodRequests, cfg Config, podHourly, hours float64) string {

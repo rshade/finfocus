@@ -2,6 +2,8 @@
 // their pod templates' resource requests and rates the operator configures.
 package workload
 
+import "fmt"
+
 // Environment variables the plugin reads at startup.
 const (
 	EnvCPUHourlyRate       = "FINFOCUS_KUBERNETES_CPU_HOURLY_RATE"
@@ -9,6 +11,23 @@ const (
 	EnvDaemonSetNodeCount  = "FINFOCUS_KUBERNETES_DAEMONSET_NODE_COUNT"
 	EnvJobHoursPerMonth    = "FINFOCUS_KUBERNETES_JOB_HOURS_PER_MONTH"
 )
+
+// envPrefix is shared by every variable; a reason that names several writes
+// the later names as "..._" plus the rest, as the no-rate reason does.
+const envPrefix = "FINFOCUS_KUBERNETES_"
+
+// SettingError explains why a present value was rejected. Its message reads
+// `<Name>="<Raw>" <Problem>`; Estimate also renders it without the value, or
+// by name alone, when several no longer fit in one decline reason.
+type SettingError struct {
+	Name    string
+	Raw     string
+	Problem string
+}
+
+func (e *SettingError) Error() string {
+	return fmt.Sprintf("%s=%q %s", e.Name, e.Raw, e.Problem)
+}
 
 // Setting is one configuration value: Set reports whether the variable was
 // present, and Err why a present value was rejected. Value is meaningful only

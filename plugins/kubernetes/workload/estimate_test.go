@@ -483,6 +483,124 @@ func TestEstimate_InvalidSettings(t *testing.T) {
 	}
 }
 
+func rejected[T any](name, raw, problem string) Setting[T] {
+	return Setting[T]{Set: true, Err: &SettingError{Name: name, Raw: raw, Problem: problem}}
+}
+
+// allInvalid is the walkthrough configuration: every variable set, none valid.
+func allInvalid() Config {
+	return Config{
+		CPUHourlyRate:       rejected[float64](EnvCPUHourlyRate, "-1", "must not be negative"),
+		MemoryGiBHourlyRate: rejected[float64](EnvMemoryGiBHourlyRate, "abc", "is not a number"),
+		DaemonSetNodeCount:  rejected[int](EnvDaemonSetNodeCount, "0", "must be at least 1"),
+		JobHoursPerMonth:    rejected[float64](EnvJobHoursPerMonth, "800", "must be above 0 and at most 744"),
+	}
+}
+
+func TestSettingError_KeepsTheVariableWording(t *testing.T) {
+	t.Parallel()
+
+	err := &SettingError{Name: EnvCPUHourlyRate, Raw: "-1", Problem: "must not be negative"}
+	assert.Equal(t, `FINFOCUS_KUBERNETES_CPU_HOURLY_RATE="-1" must not be negative`, err.Error())
+}
+
+func TestEstimate_ReportsEveryInvalidSetting(t *testing.T) {
+	t.Parallel()
+
+	const rates = `FINFOCUS_KUBERNETES_CPU_HOURLY_RATE="-1" must not be negative; ` +
+		`..._MEMORY_GIB_HOURLY_RATE="abc" is not a number`
+	const withoutValues = "FINFOCUS_KUBERNETES_CPU_HOURLY_RATE must not be negative; " +
+		"..._MEMORY_GIB_HOURLY_RATE is not a number; ..._JOB_HOURS_PER_MONTH must be above 0 and at most 744"
+	job := map[string]any{"template": podTemplate("500m", "1Gi")}
+	cronJob := map[string]any{"jobTemplate": map[string]any{"spec": job}}
+
+	tests := []struct {
+		name   string
+		desc   func(t *testing.T) *pbc.ResourceDescriptor
+		reason string
+	}{
+		{
+			name:   "deployment names both rates and no hint",
+			desc:   func(t *testing.T) *pbc.ResourceDescriptor { return descriptor(t, typeDeployment, replicated(3.0)) },
+			reason: rates,
+		},
+		{
+			name:   "statefulset names both rates and no hint",
+			desc:   func(t *testing.T) *pbc.ResourceDescriptor { return descriptor(t, typeStatefulSet, replicated(3.0)) },
+			reason: rates,
+		},
+		{
+			name:   "daemonset adds the node count",
+			desc:   func(t *testing.T) *pbc.ResourceDescriptor { return descriptor(t, typeDaemonSet, job) },
+			reason: rates + `; ..._DAEMONSET_NODE_COUNT="0" must be at least 1`,
+		},
+		{
+			name:   "job adds the hours and drops the values to fit",
+			desc:   func(t *testing.T) *pbc.ResourceDescriptor { return descriptor(t, typeJob, job) },
+			reason: withoutValues,
+		},
+		{
+			name:   "cronjob adds the hours and drops the values to fit",
+			desc:   func(t *testing.T) *pbc.ResourceDescriptor { return descriptor(t, typeCronJob, cronJob) },
+			reason: withoutValues,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := Estimate(tt.desc(t), allInvalid())
+			require.False(t, got.Priced())
+			assert.Equal(t, tt.reason, got.Reason)
+			assert.LessOrEqual(t, utf8.RuneCountInString(got.Reason), MaxReasonLength)
+		})
+	}
+}
+
+func TestEstimate_InvalidSettingsThatDoNotApplyAreNotReported(t *testing.T) {
+	t.Parallel()
+
+	cfg := standard()
+	cfg.DaemonSetNodeCount = rejected[int](EnvDaemonSetNodeCount, "0", "must be at least 1")
+	cfg.JobHoursPerMonth = rejected[float64](EnvJobHoursPerMonth, "800", "must be above 0 and at most 744")
+
+	got := Estimate(descriptor(t, typeDeployment, replicated(3.0)), cfg)
+	assert.True(t, got.Priced(), got.Reason)
+
+	cfg.CPUHourlyRate = rejected[float64](EnvCPUHourlyRate, "-1", "must not be negative")
+	got = Estimate(descriptor(t, typeDeployment, replicated(3.0)), cfg)
+	assert.Equal(t, `FINFOCUS_KUBERNETES_CPU_HOURLY_RATE="-1" must not be negative`, got.Reason)
+}
+
+func TestEstimate_InvalidSettingsFallBackToNames(t *testing.T) {
+	t.Parallel()
+
+	cfg := Config{
+		CPUHourlyRate:       rejected[float64](EnvCPUHourlyRate, "-1", "must not be negative"),
+		MemoryGiBHourlyRate: rejected[float64](EnvMemoryGiBHourlyRate, "-1", "must not be negative"),
+		JobHoursPerMonth:    rejected[float64](EnvJobHoursPerMonth, "800", "must be above 0 and at most 744"),
+	}
+	got := Estimate(descriptor(t, typeJob, map[string]any{"template": podTemplate("500m", "1Gi")}), cfg)
+
+	assert.Equal(t, "fix the invalid FINFOCUS_KUBERNETES_CPU_HOURLY_RATE, ..._MEMORY_GIB_HOURLY_RATE, and "+
+		"..._JOB_HOURS_PER_MONTH", got.Reason)
+}
+
+func TestEstimate_MissingSettingsComeBeforeInvalidOnes(t *testing.T) {
+	t.Parallel()
+
+	daemonSet := map[string]any{"template": podTemplate("500m", "1Gi")}
+
+	cfg := allInvalid()
+	cfg.MemoryGiBHourlyRate = Setting[float64]{}
+	got := Estimate(descriptor(t, typeDaemonSet, daemonSet), cfg)
+	assert.Contains(t, got.Reason, "set "+EnvMemoryGiBHourlyRate)
+
+	cfg = allInvalid()
+	cfg.DaemonSetNodeCount = Setting[int]{}
+	got = Estimate(descriptor(t, typeDaemonSet, daemonSet), cfg)
+	assert.Contains(t, got.Reason, "set "+EnvDaemonSetNodeCount)
+}
+
 func TestSetting_Usable(t *testing.T) {
 	t.Parallel()
 
