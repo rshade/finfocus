@@ -30,8 +30,9 @@ type clusterOutput struct {
 	Currency        string                 `json:"currency"`
 	GroupBy         string                 `json:"group_by"`
 	Total           float64                `json:"total"`
-	Idle            *float64               `json:"idle,omitempty"` // nil when namespace-scoped
+	Idle            *float64               `json:"idle,omitempty"` // nil when namespace- or selector-scoped
 	NamespaceScoped bool                   `json:"namespace_scoped"`
+	SelectorScoped  bool                   `json:"selector_scoped"`
 	Incomplete      bool                   `json:"incomplete"`
 	Groups          []engine.ClusterGroup  `json:"groups"`
 	Capacity        []engine.CapacityGroup `json:"capacity"`
@@ -44,12 +45,12 @@ func newClusterOutput(
 	res *engine.ClusterResult, groups []engine.ClusterGroup, groupBy string, policy clusterPolicyOutput,
 ) clusterOutput {
 	out := clusterOutput{
-		Mode: res.Mode, Period: res.Period, Currency: res.Currency, GroupBy: groupBy,
-		Total: res.Total, NamespaceScoped: res.NamespaceScoped, Incomplete: res.Incomplete,
+		Mode: res.Mode, Period: res.Period, Currency: res.Currency, GroupBy: groupBy, Total: res.Total,
+		NamespaceScoped: res.NamespaceScoped, SelectorScoped: res.SelectorScoped, Incomplete: res.Incomplete,
 		Groups: groups, Capacity: capacityOrEmpty(res.Capacity), Priced: res.Priced,
 		Policy: policy, Warnings: res.Warnings,
 	}
-	if !res.NamespaceScoped {
+	if !res.Scoped() {
 		idle := res.Idle
 		out.Idle = &idle
 	}
@@ -112,7 +113,7 @@ func renderClusterTable(cmd *cobra.Command, out clusterOutput) error {
 	cmd.Printf("Mode:    %s\n", clusterModeLine(out))
 	cmd.Printf("Total:   $%.2f %s\n", out.Total, out.Currency)
 	if out.Idle == nil {
-		cmd.Println("Idle:    omitted (--namespace scoped)")
+		cmd.Printf("Idle:    omitted (%s scoped)\n", clusterScopeFlags(out))
 	} else {
 		pct := 0.0
 		if out.Total > 0 {
@@ -160,6 +161,18 @@ func renderCapacityTable(cmd *cobra.Command, out clusterOutput) error {
 			idle, strings.Join(g.Notes, "; "))
 	}
 	return w.Flush()
+}
+
+// clusterScopeFlags names the flags that scoped the report.
+func clusterScopeFlags(out clusterOutput) string {
+	var flags []string
+	if out.NamespaceScoped {
+		flags = append(flags, "--namespace")
+	}
+	if out.SelectorScoped {
+		flags = append(flags, "--selector")
+	}
+	return strings.Join(flags, " and ")
 }
 
 func clusterModeLine(out clusterOutput) string {

@@ -111,10 +111,18 @@ type ClusterResult struct {
 	Total           float64
 	Idle            float64
 	NamespaceScoped bool
+	SelectorScoped  bool
 	Incomplete      bool
 	PolicyDigest    string
 	EffectivePolicy json.RawMessage
 	Warnings        []string
+}
+
+// Scoped reports whether the request selected a subset of pods (by namespace,
+// label selector, or both). Capacity that the unselected pods use would then
+// look idle, so a scoped result carries only workload rows and no idle.
+func (r *ClusterResult) Scoped() bool {
+	return r.NamespaceScoped || r.SelectorScoped
 }
 
 // RunClusterAllocation gathers usage, prices the reported resources, allocates,
@@ -202,6 +210,7 @@ func newClusterResult(
 		Currency:        currency,
 		Priced:          summaries,
 		NamespaceScoped: req.Namespace != "",
+		SelectorScoped:  len(req.Selector) > 0,
 		PolicyDigest:    resp.GetPolicyDigest(),
 		EffectivePolicy: json.RawMessage(resp.GetEffectivePolicyJson()),
 		Warnings:        append(append([]string{}, stats.GetWarnings()...), resp.GetWarnings()...),
@@ -219,7 +228,7 @@ func newClusterResult(
 	}
 	for _, r := range resp.GetRows() {
 		kind := r.GetSubject()[subjectKeyKind]
-		if res.NamespaceScoped && kind != rowKindWorkload {
+		if res.Scoped() && kind != rowKindWorkload {
 			continue
 		}
 		res.Rows = append(res.Rows, ClusterRow{
@@ -232,7 +241,7 @@ func newClusterResult(
 		}
 	}
 	res.Capacity = GroupClusterByCapacity(res.Rows, capacityByNode(stats.GetPriceable()))
-	if res.NamespaceScoped {
+	if res.Scoped() {
 		res.Capacity = withoutIdle(res.Capacity)
 	}
 	return res

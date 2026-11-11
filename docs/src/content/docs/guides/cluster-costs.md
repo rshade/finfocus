@@ -142,11 +142,16 @@ finfocus cost cluster --group-by pulumi-stack
 Use `--context` to pick a kubeconfig context, and `--selector key=value`
 (repeatable) to restrict pods by label.
 
-## Namespace scope
+## Namespace and selector scope
 
-`--namespace payments` restricts allocation to one namespace. Workload rows
-are exact for that namespace; the `__idle__` and `__cluster__` rows are
-omitted and the footer says so (`Idle: omitted (--namespace scoped)`).
+`--namespace payments` restricts allocation to one namespace, and
+`--selector team=storefront` to pods with that label. Either one, or both,
+scopes the report. Workload rows are exact for the selected pods. The
+`__idle__` and `__cluster__` rows are omitted, because node capacity that
+unselected pods use would otherwise be reported as idle. The footer names the
+flags that scoped the report: `Idle: omitted (--namespace scoped)`,
+`Idle: omitted (--selector scoped)`, or
+`Idle: omitted (--namespace and --selector scoped)`.
 
 ## Allocation policy
 
@@ -193,13 +198,15 @@ traced back to the exact policy that produced it.
 ## Automation: JSON, NDJSON, and MCP
 
 `--output json` emits a single document with `mode`, `period`, `currency`,
-`group_by`, `total`, `idle` (omitted when namespace-scoped),
-`namespace_scoped`, `incomplete`, `groups`, `capacity`, `priced`, `policy`,
-and `warnings`. `capacity` is an array (empty when there are no rows) of
-`capacity_type`, `cpu_cost`, `mem_cost`, `total_cost`, `idle_cost`
-(omitted when namespace-scoped, like the top-level `idle`), `nodes`, `rows`, and
-`notes` (omitted when the group has none); the `total_cost` values sum to `total`. With `--namespace`, the table
-shows `-` in the IDLE column. In historical mode, `priced[].monthly` is the window total
+`group_by`, `total`, `idle` (omitted when scoped), `namespace_scoped`
+(true with `--namespace`), `selector_scoped` (true with `--selector`),
+`incomplete`, `groups`, `capacity`, `priced`, `policy`, and `warnings`. The
+report is scoped when either flag is true. `capacity` is an array (empty when
+there are no rows) of `capacity_type`, `cpu_cost`, `mem_cost`, `total_cost`,
+`idle_cost` (omitted when scoped, like the top-level `idle`), `nodes`, `rows`,
+and `notes` (omitted when the group has none); the `total_cost` values sum to
+`total`. With `--namespace` or `--selector`, the table shows `-` in the IDLE
+column. In historical mode, `priced[].monthly` is the window total
 (`TotalCost`), not a 730-hour projection. Each group may include `pulumi_urns` when a workload in it
 carries annotation `finfocus.dev/pulumi-urn`. `--output ndjson` emits a `summary` line followed by one `group`
 line per group. The command is also exposed as an MCP tool (`finfocus

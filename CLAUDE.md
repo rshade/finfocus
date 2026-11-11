@@ -1157,6 +1157,12 @@ Specs 613-623 hold the details. Invariants:
   Kubernetes node name.
 - The idle row stays at `$0`: `ValidateAllocateResponse` needs one per priced
   node. Fargate pods are their own priceables and never fold into idle.
+- `--namespace` and `--selector` both scope a report (`ClusterResult.Scoped`):
+  only workload rows are kept and idle is omitted, since capacity that
+  unselected pods use would otherwise read as idle. Conservation is checked on
+  the full allocator response before that filter. JSON keeps
+  `namespace_scoped` for `--namespace` only; `selector_scoped` is the separate
+  flag for `--selector`.
 - `plugins/kubernetes` and `plugins/prometheus` must not import core or each
   other. Prometheus node identity copies the descriptor rules from
   `plugins/kubernetes/usage/nodes.go`.
