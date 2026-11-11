@@ -321,10 +321,12 @@ kubecost: FAILED - connection timeout
    # Should start and show port information
    ```
 
-2. **Check plugin logs**:
+2. **Check plugin logs**: plugin processes inherit `FINFOCUS_LOG_LEVEL`, so a
+   plugin that reads it logs at debug level too. `--debug` raises only
+   FinFocus's own log level.
 
    ```bash
-   PLUGIN_DEBUG=1 finfocus plugin validate --adapter kubecost
+   FINFOCUS_LOG_LEVEL=debug finfocus plugin validate --plugin kubecost
    ```
 
 3. **Network connectivity**:
@@ -714,12 +716,9 @@ Error: no cost data available for time range
    export HTTPS_PROXY=http://proxy.company.com:8080
    ```
 
-4. **Retry configuration**:
-
-   ```bash
-   export MAX_RETRIES=5
-   export RETRY_DELAY=5s
-   ```
+4. **Retries**: FinFocus has no retry setting. It retries a plugin that
+   reports a rate limit (`ResourceExhausted`) up to three times. Any other
+   retry policy belongs to the plugin, so check the plugin's documentation.
 
 ## Configuration Issues
 
@@ -856,11 +855,10 @@ Error: x509: certificate signed by unknown authority
    sudo yum update ca-certificates
    ```
 
-2. **Disable SSL verification (temporary)**:
-
-   ```bash
-   export INSECURE_SKIP_VERIFY=true
-   ```
+2. **Do not look for a switch to skip verification**: FinFocus has none. A
+   plugin that calls an external API may offer its own option, so check the
+   plugin's documentation, but trusting the CA certificate (next step) is the
+   fix.
 
 3. **Add custom CA certificate**:
 
@@ -905,9 +903,9 @@ Error: x509: certificate signed by unknown authority
 # Global debug mode
 finfocus --debug cost projected --pulumi-json plan.json
 
-# Plugin-specific debugging
-export PLUGIN_DEBUG=1
-export PLUGIN_LOG_LEVEL=debug
+# Debug logging for FinFocus and for plugins that read FINFOCUS_LOG_LEVEL
+# (plugin processes inherit it; --debug does not reach them)
+export FINFOCUS_LOG_LEVEL=debug
 finfocus cost actual --adapter kubecost --from 2025-01-01
 ```
 

@@ -172,7 +172,6 @@ The plugin supports these environment variables:
 | ------------------------------------ | -------------- | ------ | ----------------- |
 | `FINFOCUS_VANTAGE_TOKEN`             | Main API token | String | `vantage_3f4g...` |
 | `FINFOCUS_VANTAGE_COST_REPORT_TOKEN` | Cost Report    | `cr_*` | `cr_abc123`       |
-| `FINFOCUS_VANTAGE_WORKSPACE_TOKEN`   | Workspace      | `ws_*` | `ws_xyz789`       |
 
 ### Setting Environment Variables
 
@@ -297,7 +296,9 @@ spec:
 
 ### Docker Secrets
 
-For Docker Swarm deployments:
+For Docker Swarm deployments. The plugin reads the token only from
+`FINFOCUS_VANTAGE_TOKEN` and has no `_FILE` variant, so the container must
+export the mounted secret before it runs FinFocus:
 
 ```bash
 # Create secret
@@ -307,8 +308,10 @@ echo "your_vantage_token" | docker secret create vantage_token -
 docker service create \
   --name finfocus-vantage \
   --secret vantage_token \
-  --env FINFOCUS_VANTAGE_TOKEN_FILE=/run/secrets/vantage_token \
   finfocus-vantage:latest
+
+# Inside the container, before running finfocus
+export FINFOCUS_VANTAGE_TOKEN="$(cat /run/secrets/vantage_token)"
 ```
 
 ---

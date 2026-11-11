@@ -123,7 +123,7 @@ Solution:
 
 ```bash
 # Verify credentials
-echo $VANTAGE_API_KEY  # For Vantage
+[ -n "$FINFOCUS_VANTAGE_TOKEN" ] && echo "set"  # For Vantage
 
 # Or check config
 cat ~/.finfocus/config.yaml
