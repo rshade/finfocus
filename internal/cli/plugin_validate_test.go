@@ -111,7 +111,7 @@ func TestPluginValidateCmdExamples(t *testing.T) {
 	assert.Contains(t, cmd.Example, "finfocus plugin validate")
 	assert.Contains(t, cmd.Example, "finfocus plugin validate --plugin aws-plugin")
 	assert.Contains(t, cmd.Example, "Validate a specific plugin")
-	assert.Contains(t, cmd.Example, "kubecost")
+	assert.Contains(t, cmd.Example, "--plugin opencost")
 }
 
 //nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)

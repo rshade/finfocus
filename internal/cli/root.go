@@ -243,7 +243,7 @@ const rootCmdExample = `  # Calculate projected costs from a Pulumi plan
   finfocus cost recommendations --pulumi-json plan.json --cache-ttl 300
 
   # Install a plugin from registry
-  finfocus plugin install kubecost
+  finfocus plugin install opencost
 
   # List installed plugins
   finfocus plugin list
