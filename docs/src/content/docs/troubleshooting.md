@@ -362,7 +362,7 @@ Error: failed to connect to plugin: context deadline exceeded
 
    ```bash
    finfocus --debug cost actual --adapter opencost --from 2025-01-01
-   finfocus logs --source opencost --level warn
+   finfocus logs --grep opencost
    ```
 
 2. **Check port conflicts**:
@@ -708,7 +708,7 @@ Error: no cost data available for time range
    log entries:
 
    ```bash
-   finfocus logs --source opencost --level warn
+   finfocus logs --grep opencost
    ```
 
 3. **Configure proxy**:
