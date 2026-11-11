@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"text/tabwriter"
-	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
@@ -354,8 +353,9 @@ func fetchSinglePluginMetadata(
 	plugin registry.PluginInfo,
 ) *enrichedPluginInfo {
 	log := logging.FromContext(ctx)
-	const launchTimeout = 5 * time.Second
-	launchCtx, cancel := context.WithTimeout(ctx, launchTimeout)
+	// The dashboard probe's budget: a large plugin's first start can page in
+	// hundreds of megabytes before it binds its port.
+	launchCtx, cancel := context.WithTimeout(ctx, pluginProbeTimeout)
 	defer cancel()
 
 	// Initialize result with N/A values

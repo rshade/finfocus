@@ -451,6 +451,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   file), with credential-named and ESC env values masked and URL userinfo and
   control characters removed. It is retried only when its raw stderr says
   `address already in use`. The `--port` guidance is for a live process only.
+- `StartWithRetry` stops retrying once the caller's context ends (the backoff
+  wait included) and returns the last attempt's error. A retry with an expired
+  context only fails `cmd.Start`, and `plugin list` once showed that
+  `starting plugin: context deadline exceeded` instead of the bind timeout.
+  `plugin list` probes use `pluginProbeTimeout` (20s), like the dashboard: a
+  cold first start of aws-public (246 MB) took longer than the old 5s.
 - Core never sets `PORT`; plugins use `--port` or `FINFOCUS_PLUGIN_PORT`.
 - `NewClient` injects delivered settings before `Launcher.Start`. A descriptor
   key uses `descriptor.env`. A key with no descriptor uses

@@ -37,6 +37,7 @@ const (
 	ciPluginBindTimeout = 120 * time.Second      // Increased timeout for CI environments
 	bindCheckInterval   = 100 * time.Millisecond // Interval between bind checks
 	stdoutPortFallback  = 5 * time.Second        // Time to wait for stdout port before full timeout
+	bindWaitPrecision   = 100 * time.Millisecond // Rounding of the bind wait shown in a timeout error
 
 	// Retry configuration for port collision handling.
 	maxPortRetries    = 5
@@ -154,7 +155,9 @@ func (p *ProcessLauncher) StartWithRetry(
 				Int("max_attempts", p.maxRetries).
 				Dur("backoff", backoff).
 				Msg("retrying plugin launch after port collision")
-			time.Sleep(backoff)
+			if !sleepContext(ctx, backoff) {
+				return nil, nil, retryStopped(attempt, lastErr)
+			}
 			backoff = min(backoff*backoffMultiplier, maxBackoff)
 		}
 
@@ -166,16 +169,38 @@ func (p *ProcessLauncher) StartWithRetry(
 		// A port collision is retried with a new port. A plugin that exits on
 		// its own is not, unless its stderr says its port was taken: a config
 		// or startup error fails the same way on every attempt.
-		if isPortCollisionError(err) {
-			lastErr = err
-			continue
+		if !isPortCollisionError(err) {
+			return nil, nil, err
 		}
-
-		// Non-port error, fail immediately
-		return nil, nil, err
+		lastErr = err
+		// Once the caller's context has ended, another attempt can only fail to
+		// start, and its error would hide why this one failed.
+		if ctx.Err() != nil {
+			return nil, nil, retryStopped(attempt+1, lastErr)
+		}
 	}
 
 	return nil, nil, fmt.Errorf("failed after %d attempts: %w", p.maxRetries, lastErr)
+}
+
+// retryStopped reports the last launch failure when the retries end early.
+func retryStopped(attempts int, lastErr error) error {
+	if attempts <= 1 {
+		return lastErr
+	}
+	return fmt.Errorf("failed after %d attempts: %w", attempts, lastErr)
+}
+
+// sleepContext waits for d and reports false when ctx ends first.
+func sleepContext(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
 }
 
 // startOnce performs a single attempt to start the plugin.
@@ -242,10 +267,11 @@ func (p *ProcessLauncher) startOnce(
 	proc := watchProcess(cmd)
 
 	// Wait for plugin to bind to port, with stdout port detection fallback
+	bindStart := time.Now()
 	connectPort, bindErr := p.waitForPluginBindWithFallback(ctx, port, &out.stdout, path, proc.exited)
 	if bindErr != nil {
 		proc.stop()
-		return nil, nil, bindFailure(ctx, path, proc, out, bindErr)
+		return nil, nil, bindFailure(ctx, path, proc, out, bindErr, time.Since(bindStart))
 	}
 
 	log.Debug().
@@ -285,9 +311,11 @@ func bindFailure(
 	proc *pluginProcess,
 	out *pluginOutput,
 	bindErr error,
+	waited time.Duration,
 ) error {
 	if !errors.Is(bindErr, errPluginExited) {
-		return fmt.Errorf("plugin failed to bind to port: %w", bindErr)
+		return fmt.Errorf("plugin failed to bind to port within %s: %w",
+			waited.Round(bindWaitPrecision), bindErr)
 	}
 	exitErr := newPluginExitError(proc, &out.stderr, out.secrets)
 	logging.FromContext(ctx).Error().

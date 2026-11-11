@@ -1,0 +1,96 @@
+//go:build unix
+
+package pluginhost
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// slowPluginScript writes a fake plugin that records its pid and then sleeps
+// without binding, like a large binary still paging in when its deadline ends.
+func slowPluginScript(t *testing.T) (string, string) {
+	t.Helper()
+	pids := filepath.Join(t.TempDir(), "pids")
+	script := createScript(t, fmt.Sprintf(`#!/bin/sh
+echo $$ >> '%s'
+exec sleep 30
+`, pids), ".sh")
+	return script, pids
+}
+
+func startedPIDs(t *testing.T, path string) []int {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var pids []int
+	for field := range strings.FieldsSeq(string(data)) {
+		pid, convErr := strconv.Atoi(field)
+		require.NoError(t, convErr)
+		pids = append(pids, pid)
+	}
+	return pids
+}
+
+//nolint:paralleltest // writes and executes a script; a parallel fork inherits the write fd (text file busy)
+func TestStartWithRetry_SlowBindStopsAtDeadline(t *testing.T) {
+	script, pids := slowPluginScript(t)
+	launcher := NewProcessLauncherWithRetries(5)
+	launcher.stdoutFallback = 200 * time.Millisecond
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	begin := time.Now()
+	conn, closeFn, err := launcher.StartWithRetry(ctx, script)
+	elapsed := time.Since(begin)
+
+	require.Error(t, err)
+	assert.Nil(t, conn)
+	assert.Nil(t, closeFn)
+	assert.Less(t, elapsed, 2*time.Second, "an expired context must not be retried")
+
+	msg := err.Error()
+	assert.Contains(t, msg, "plugin failed to bind to port within 1s")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.NotContains(t, msg, "starting plugin", "the bind timeout must not be replaced by a retry's start failure")
+	assert.NotContains(t, msg, "failed after")
+
+	started := startedPIDs(t, pids)
+	require.Len(t, started, 1, "a plugin whose deadline passed is started once")
+	assert.ErrorIs(t, syscall.Kill(started[0], 0), syscall.ESRCH, "the timed-out plugin must not be left running")
+}
+
+//nolint:paralleltest // writes and executes a script; a parallel fork inherits the write fd (text file busy)
+func TestStartWithRetry_CollisionBackoffStopsAtDeadline(t *testing.T) {
+	script, starts := exitingPluginScript(
+		t,
+		`{"level":"fatal","error":"failed to listen: listen tcp 127.0.0.1:1: bind: address already in use","message":"serve"}`,
+		1,
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	defer cancel()
+
+	begin := time.Now()
+	_, _, err := NewProcessLauncherWithRetries(10).StartWithRetry(ctx, script)
+	elapsed := time.Since(begin)
+
+	require.Error(t, err)
+	assert.Less(t, elapsed, 600*time.Millisecond, "the retry backoff must end with the context")
+	assert.Contains(t, err.Error(), "address already in use")
+	assert.NotContains(t, err.Error(), "starting plugin")
+	var exitErr *pluginExitError
+	require.ErrorAs(t, err, &exitErr, "the last collision is reported")
+	assert.Less(t, countStarts(t, starts), 10)
+}
