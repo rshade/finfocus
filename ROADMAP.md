@@ -6,58 +6,46 @@ guardrails in `CONTEXT.md`.
 
 ## Table of Contents
 
-- [Immediate Focus (Post v0.5.0)](#immediate-focus-post-v050)
+- [Immediate Focus (Post v0.5.7)](#immediate-focus-post-v057)
 - [Near-Term Vision (Forecasting & Profiles)](#near-term-vision-forecasting--profiles)
 - [Future Vision (Later)](#future-vision-later---notifications-integrations--backlog)
 - [Completed Milestones](#completed-milestones)
 - [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
 - [Boundary Safeguards](#boundary-safeguards)
 
-## Immediate Focus (Post v0.5.0)
+## Immediate Focus (Post v0.5.7)
 
-*v0.5.0 released 2026-10-19 with finfocus-spec v0.7.7. Everything below
-targets the next release.*
+*v0.5.7 released 2026-11-11. Everything below targets the next release.*
 
-The 2026-10-02 Overnight Queue finished: all 22 items closed 2026-10-03 (see
-Completed Milestones, 2026-Q4).
-
-- [ ] **Shared Stack Loader Correctness** *(from #1733)*
-  - [ ] Count a Pulumi replacement once in the estimate and recommendations
-        inventory ([#1910](https://github.com/rshade/finfocus/issues/1910)) [S]
-  - [ ] Fix Terraform no-change output in JSON and NDJSON modes
-        ([#1904](https://github.com/rshade/finfocus/issues/1904)) [S]
-  - *Promoted by /roadmap sync on 2026-10-30 — two small correctness bugs
-    in the same loader, batched as quick wins.*
-- *Closed 2026-10-30: the recommendation lifecycle detail panel (#1934, PR
-  #1936) and the cost history web API hooks (#1860, PR #1938).*
-- *Closed 2026-10-29: the Overview Performance Pipeline (#658 scalability
-  fixture), the recommendation lifecycle and forecast web API hooks (#1858,
-  #1859), and historical carbon (#1920, #1921). See Completed Milestones,
-  2026-Q4.*
+- [ ] Record the last-known snapshot when recommendations are dismissed or
+      snoozed ([#2057](https://github.com/rshade/finfocus/issues/2057)) [M]
+  - *Promoted by /roadmap sync on 2026-11-11 — a correctness bug in shipped
+    recommendation lifecycle, ahead of the small web follow-ups.*
 
 ## Near-Term Vision (Forecasting & Profiles)
 
-- [ ] **Web Parity — Cost History UX** *(Constitution Principle VII)*
-  - [ ] Draw cost history in the detail panels and Cost view
-        ([#1939](https://github.com/rshade/finfocus/issues/1939)) [L]
-  - *The UX-only `web-ui` issue filed when the #1860 API hook shipped
-    2026-10-30.*
-- [ ] **Shared Stack Loader Follow-ups** *(from #1733)*
-  - [ ] Decide whether cost forecast includes unchanged stack resources
-        ([#1903](https://github.com/rshade/finfocus/issues/1903)) [M]
-  - [ ] Run a real policy pack preview on Windows in CI
-        ([#1918](https://github.com/rshade/finfocus/issues/1918)) [S]
+- [ ] **v0.5.7 Follow-ups** *(found while shipping and verifying 0.5.4 to
+      0.5.7)*
+  - [ ] Keep the web Forecast view pricing unchanged resources after Run
+        preview ([#1971](https://github.com/rshade/finfocus/issues/1971)) [S]
+        *Follow-up to #1903, which closed 2026-11-02; check whether it still
+        reproduces*
+  - [ ] Show a text marker on stack tabs while a stack is loading
+        ([#2098](https://github.com/rshade/finfocus/issues/2098)) [S]
+  - [ ] Stop the web Logs view showing raw Pulumi stderr from a failed preview
+        ([#2093](https://github.com/rshade/finfocus/issues/2093)) [S]
+  - [ ] Run the web Logs e2e test that was compiled but never run
+        ([#2021](https://github.com/rshade/finfocus/issues/2021)) [S]
 - [ ] **Estimate What-If Usability** *(#1731 shipped 2026-10-18)*
   - [ ] Show cost-affecting properties by default in What-If
         ([#1732](https://github.com/rshade/finfocus/issues/1732)) [M]
 - [ ] **Kubernetes Cost Allocation — Usage & Pricing**
   - *Cross-Repo:* spot pricing for EC2 nodes was tracked in
     [finfocus-plugin-aws-ce issue 56](https://github.com/rshade/finfocus-plugin-aws-ce/issues/56)
-    (moved from finfocus-plugin-aws-public). It is still open and says
-    aws-public has no spot pricing, while #1838 expects aws-public to
-    populate the on-demand equivalent for spot results. Decide which plugin
-    owns spot pricing before #1838 starts. The Prometheus usage source
-    (#1529) shipped 2026-10-06.
+    (moved from finfocus-plugin-aws-public). Core spot savings (#1838)
+    shipped 2026-11-03 and reads the on-demand equivalent from whichever
+    plugin supplies it. The Prometheus usage source (#1529) shipped
+    2026-10-06.
 - [x] **Azure Resource Resolution — Sparse-SKU Pre-Flight** *(decided in
       #1610)*
   - *Decision:* a projected resource with `ref.*` tags and an empty SKU uses
@@ -92,24 +80,10 @@ Completed Milestones, 2026-Q4).
 - [ ] Custom plugin registry sources for the web UI and CLI
       ([#1766](https://github.com/rshade/finfocus/issues/1766)) [L]
       *Follow-up to #1765*
-- [ ] **Spot Market Advisor**
-      ([#367](https://github.com/rshade/finfocus/issues/367)) [L]
-  - [ ] Spot badge: show spot pricing and interruption risk on every cost
-        surface ([#1836](https://github.com/rshade/finfocus/issues/1836)) [M]
-  - [ ] Spot exposure totals: spot share of spend and weighted interruption
-        risk ([#1837](https://github.com/rshade/finfocus/issues/1837)) [M]
-  - [ ] Spot savings vs on-demand from a plugin-supplied on-demand equivalent
-        ([#1838](https://github.com/rshade/finfocus/issues/1838)) [L]
-  - [ ] Spot recommendations from plugins
-        ([#1839](https://github.com/rshade/finfocus/issues/1839)) [L]
-  - [ ] Kubernetes cluster spend split by capacity type (spot vs on-demand)
-        ([#1840](https://github.com/rshade/finfocus/issues/1840)) [M]
-  - [ ] Optional: what-if estimate mode priced as spot
-        ([#1841](https://github.com/rshade/finfocus/issues/1841)) [M]
-  - *Cross-Repo:* spot is `FocusPricingCategory.DYNAMIC` in
-    [finfocus-spec](https://github.com/rshade/finfocus-spec), not a
-    `PricingTier`. The on-demand equivalent field shipped in spec v0.7.7
-    (finfocus-spec#646), so #1838 now waits on the plugin, then core.
+- [ ] Optional: what-if estimate mode priced as spot
+      ([#1841](https://github.com/rshade/finfocus/issues/1841)) [M]
+      *Left the Spot Market Advisor epic (#367) when it closed 2026-11-11.
+      Decide whether spot recommendations (#1839) already cover it.*
 - [ ] **Mixed-Currency Aggregation Strategy (MCP Alignment)**
   - *Objective*: Implement core-level grouping for multi-currency stacks so
     MCP clients of the built-in server (`finfocus --mcp` /
@@ -158,14 +132,20 @@ Completed Milestones, 2026-Q4).
 - [ ] **Plugin Host Pooling** *(cross-repo)*
   - [ ] Pool opted-in plugins and pass per-request credentials
         ([#1539](https://github.com/rshade/finfocus/issues/1539)) [L]
+  - [ ] Share plugin processes across web stacks whose plugin environment
+        matches ([#2086](https://github.com/rshade/finfocus/issues/2086)) [L]
+- [ ] **Encrypted Support Bundles**
+  - [ ] `finfocus support` command for encrypted support bundles
+        ([#1981](https://github.com/rshade/finfocus/issues/1981)) [L]
+  - [ ] Encrypt support bundles to an embedded maintainer public key
+        ([#1983](https://github.com/rshade/finfocus/issues/1983)) [M]
+  - [ ] Opt-in upload of encrypted support bundles
+        ([#1984](https://github.com/rshade/finfocus/issues/1984)) [L]
 - [ ] **Cost Anomaly Detection**
-  - [ ] Flag-only `cost anomalies` over overview drift, exposed as an MCP tool
-        ([#1590](https://github.com/rshade/finfocus/issues/1590)) [M]
-  - [ ] Daily actual-cost series beside the projected timeline
-        ([#1862](https://github.com/rshade/finfocus/issues/1862)) [L]
   - [ ] Robust-median method on `cost anomalies`
         ([#1863](https://github.com/rshade/finfocus/issues/1863)) [M]
-        *Blocked by #1590 and #1862*
+        *Unblocked: `cost anomalies` (#1590) and the daily series (#1862)
+        shipped 2026-10-31 and 2026-11-02*
 - [ ] **Recommendation Scoring — Jev Plugin Ideas** *(brainstorm 2026-10-01;
       ideas only, no issues or specs yet)*
   - *Placement rule:* Jev stays in `plugins/scorer`. Core and
@@ -273,6 +253,32 @@ Completed Milestones, 2026-Q4).
 
 ### 2026-Q4
 
+- [x] #367 `spot`: Spot Market Advisor epic; #1841 left as standalone.
+      Closed 2026-11-11. [L]
+- [x] #1918 `ci`: run a real policy pack preview on Windows.
+      Closed 2026-11-10. [S]
+- [x] #1939 `webui`: draw cost history in the detail panels and Cost view.
+      Closed 2026-11-09. [L]
+- [x] #1839 `recommendations`: spot recommendations from plugins.
+      Closed 2026-11-09. [L]
+- [x] #1836 `engine`: spot badge with pricing and interruption risk.
+      Closed 2026-11-03. [M]
+- [x] #1837 `engine`: spot exposure totals and weighted interruption risk.
+      Closed 2026-11-03. [M]
+- [x] #1838 `engine`: spot savings vs a plugin-supplied on-demand equivalent.
+      Closed 2026-11-03. [L]
+- [x] #1840 `cluster`: split cluster spend by spot vs on-demand capacity.
+      Closed 2026-11-03. [M]
+- [x] #1862 `history`: store a daily actual-cost series per stack.
+      Closed 2026-11-02. [L]
+- [x] #1903 `forecast`: include unchanged stack resources in the forecast.
+      Closed 2026-11-02. [M]
+- [x] #1910 `stackload`: count a Pulumi replacement once in the inventory.
+      Closed 2026-11-02. [S]
+- [x] #1904 `terraform`: fix no-change output in JSON and NDJSON modes.
+      Closed 2026-10-31. [S]
+- [x] #1590 `cli`: `cost anomalies` over overview drift, as an MCP tool.
+      Closed 2026-10-31. [M]
 - [x] #1860 `webui`: expose cost history view, diff, and series hooks.
       Closed 2026-10-30. [L]
 - [x] #1934 `webui`: show recommendation lifecycle in the detail panel.
