@@ -922,8 +922,8 @@ finfocus cost actual --group-by type --from 2024-01-01
 # By date (daily breakdown)
 finfocus cost actual --group-by daily --from 2024-01-01 --to 2024-01-31
 
-# Only resources tagged env=prod (tag:key=value filters; it does not group)
-finfocus cost actual --group-by "tag:env=prod" --from 2024-01-01
+# Only resources tagged env=prod (a filter; there is no grouping by tag)
+finfocus cost actual --filter "tag:env=prod" --from 2024-01-01 --to 2024-01-31
 ```
 
 ---
