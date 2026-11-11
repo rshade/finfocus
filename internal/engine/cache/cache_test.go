@@ -146,7 +146,7 @@ func TestBuildActualKeyTimeOfDay(t *testing.T) {
 	t.Run("sub-day bounds use UTC RFC3339", func(t *testing.T) {
 		t.Parallel()
 		assert.Equal(t,
-			"actual/aws/aws:ec2/instance:Instance/2026-11-11T13:00:00Z/2026-11-11T14:00:00Z/_",
+			"actual/aws/aws:ec2/instance:Instance/2026-11-11T13:00:00Z/2026-11-11T14:00:00Z/_/actual-v2",
 			key(at(13, 0, time.UTC), at(14, 0, time.UTC)))
 	})
 
@@ -155,11 +155,21 @@ func TestBuildActualKeyTimeOfDay(t *testing.T) {
 		assert.Equal(t, key(at(13, 0, time.UTC), at(14, 0, time.UTC)), key(at(7, 0, chicago), at(8, 0, chicago)))
 	})
 
-	t.Run("whole UTC days keep the date-only key", func(t *testing.T) {
+	t.Run("whole UTC days use date bounds", func(t *testing.T) {
 		t.Parallel()
 		from := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)
-		assert.Equal(t, "actual/aws/aws:ec2/instance:Instance/2026-11-01/2026-11-11/_", key(from, to))
+		assert.Equal(t, "actual/aws/aws:ec2/instance:Instance/2026-11-01/2026-11-11/_/actual-v2", key(from, to))
+	})
+
+	t.Run("a pre-fix key for a sub-day window is not a whole-day key", func(t *testing.T) {
+		t.Parallel()
+		// Before the bounds carried the time of day, the window
+		// 2026-11-01T00:00Z..2026-11-11T12:00Z was stored under this key.
+		preFix := "actual/aws/aws:ec2/instance:Instance/2026-11-01/2026-11-11/_"
+		from := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+		to := time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)
+		assert.NotEqual(t, preFix, key(from, to))
 	})
 
 	t.Run("local midnight is not shortened to its local date", func(t *testing.T) {
@@ -167,7 +177,7 @@ func TestBuildActualKeyTimeOfDay(t *testing.T) {
 		from := time.Date(2026, 11, 1, 0, 0, 0, 0, chicago)
 		to := time.Date(2026, 11, 11, 0, 0, 0, 0, chicago)
 		assert.Equal(t,
-			"actual/aws/aws:ec2/instance:Instance/2026-11-01T06:00:00Z/2026-11-11T06:00:00Z/_",
+			"actual/aws/aws:ec2/instance:Instance/2026-11-01T06:00:00Z/2026-11-11T06:00:00Z/_/actual-v2",
 			key(from, to))
 	})
 }

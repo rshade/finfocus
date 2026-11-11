@@ -584,6 +584,34 @@ func TestActualCostCacheIntegration(t *testing.T) {
 		assert.NotContains(t, results.Results[0].Adapter, "(cached)")
 	})
 
+	t.Run("an entry under the pre-fix key is not served to a whole-day request", func(t *testing.T) {
+		t.Parallel()
+		mc := newMockCache(true)
+
+		request := ActualCostRequest{
+			Resources:        []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"}},
+			From:             time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC),
+			To:               time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC),
+			FallbackEstimate: true,
+		}
+		// The pre-fix key had no version segment and wrote every bound as a
+		// date, so a 2026-11-01T00:00Z..2026-11-11T12:00Z window was stored
+		// under exactly this key.
+		preFixKey := strings.TrimSuffix(generateActualCostCacheKey(request), "/actual-v2")
+		require.NotEqual(t, generateActualCostCacheKey(request), preFixKey)
+		mc.preloadResults(preFixKey, []CostResult{{
+			ResourceType: "aws:ec2:Instance", ResourceID: "i-1", Adapter: "aws-public", Currency: "USD", TotalCost: 999,
+		}})
+
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		results, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), request)
+		require.NoError(t, err)
+		require.Len(t, results.Results, 1)
+		assert.NotContains(t, results.Results[0].Adapter, "(cached)")
+	})
+
 	t.Run("cache disabled skips all cache operations", func(t *testing.T) {
 		t.Parallel()
 		mc := newMockCache(false)

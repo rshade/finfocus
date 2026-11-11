@@ -973,6 +973,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - Cache hits append "(cached)", with a leading space, to the adapter. A
   corrupt cache is deleted and recreated. `cost.cache.lru_enabled` wraps
   Bolt in `cache.TieredStore`.
+- Actual-cost keys (`cache.BuildActualKey`) carry each window bound in UTC,
+  a date at UTC midnight and RFC3339 otherwise, and end in `/actual-v2`
+  before `/penv-`. Bump that segment whenever a key could name a different
+  window or result than before: older entries keep matching otherwise (a
+  pre-v2 date-only key named sub-day windows too).
 - Budget health: OK < 80%, WARNING 80-89%, CRITICAL 90-100%, EXCEEDED > 100%;
   aggregation takes the worst.
 - `GetBudgets` skips a client that does not advertise `budgets`
