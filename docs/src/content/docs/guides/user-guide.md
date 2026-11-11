@@ -197,7 +197,7 @@ finfocus cost projected --pulumi-json plan.json
 finfocus cost actual --pulumi-json plan.json --from 2024-01-01 --to 2024-01-31
 ```
 
-**Note:** Requires plugin setup (Vantage, Kubecost, etc.)
+**Note:** Requires plugin setup (Vantage, OpenCost, etc.)
 
 ---
 

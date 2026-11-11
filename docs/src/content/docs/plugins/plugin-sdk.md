@@ -49,7 +49,7 @@ type Plugin interface {
 - **`Name() string`**
   - Returns the plugin's unique identifier
   - Must be lowercase, alphanumeric with hyphens
-  - Example: `"kubecost"`, `"vantage-api"`
+  - Example: `"opencost"`, `"vantage-api"`
 
 - **`GetProjectedCost(ctx, req) (resp, error)`**
   - Calculates projected monthly cost for a resource
