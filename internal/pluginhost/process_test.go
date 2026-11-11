@@ -627,50 +627,41 @@ func TestIsPortCollisionError(t *testing.T) {
 		err      error
 		expected bool
 	}{
+		{name: "nil error", err: nil, expected: false},
 		{
-			name:     "nil error",
-			err:      nil,
+			name:     "plugin exited after its port was taken",
+			err:      &pluginExitError{status: "exit status 1", portCollision: true},
+			expected: true,
+		},
+		{
+			name:     "wrapped plugin exit after its port was taken",
+			err:      fmt.Errorf("launch: %w", &pluginExitError{status: "exit status 1", portCollision: true}),
+			expected: true,
+		},
+		{
+			name:     "plugin exited for another reason mentioning a bind failure",
+			err:      &pluginExitError{status: "exit status 1", stderr: "failed to bind to port 9"},
 			expected: false,
 		},
 		{
-			name:     "address already in use",
-			err:      errors.New("listen tcp 127.0.0.1:8080: address already in use"),
-			expected: true,
-		},
-		{
-			name:     "bind address already in use",
-			err:      errors.New("bind: address already in use"),
-			expected: true,
-		},
-		{
-			name:     "port is already allocated",
-			err:      errors.New("port is already allocated"),
-			expected: true,
-		},
-		{
-			name:     "failed to bind to port",
-			err:      errors.New("plugin failed to bind to port: context deadline exceeded"),
-			expected: true,
-		},
-		{
-			name:     "unrelated error",
-			err:      errors.New("connection refused"),
+			name:     "bind timeout of a running plugin",
+			err:      errors.New("plugin failed to bind to port within 60s: timeout waiting for plugin to bind"),
 			expected: false,
 		},
 		{
-			name:     "file not found",
-			err:      errors.New("no such file or directory"),
+			name:     "collision text without a plugin exit",
+			err:      errors.New("creating listener: listen tcp 127.0.0.1:0: bind: address already in use"),
 			expected: false,
 		},
+		{name: "port is already allocated text", err: errors.New("port is already allocated"), expected: false},
+		{name: "unrelated error", err: errors.New("connection refused"), expected: false},
+		{name: "file not found", err: errors.New("no such file or directory"), expected: false},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result := isPortCollisionError(tc.err)
-			if result != tc.expected {
-				t.Errorf("isPortCollisionError(%v) = %v, want %v", tc.err, result, tc.expected)
-			}
+			assert.Equal(t, tc.expected, isPortCollisionError(tc.err))
 		})
 	}
 }

@@ -450,7 +450,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   since a secret in it can hide under any name or encoding; it stays in the log
   file), with credential-named and ESC env values masked and URL userinfo and
   control characters removed. It is retried only when its raw stderr says
-  `address already in use`. The `--port` guidance is for a live process only.
+  `address already in use`. That flag is the only retry cause:
+  `isPortCollisionError` matches no error text, and a bind timeout is never
+  retried, since a taken port makes the plugin exit rather than wait. The
+  `--port` guidance is logged only when the whole bind timeout passed with the
+  process running, not when the caller's context cut the wait short.
 - `StartWithRetry` stops retrying once the caller's context ends (the backoff
   wait included) and returns the last attempt's error. A retry with an expired
   context only fails `cmd.Start`, and `plugin list` once showed that
