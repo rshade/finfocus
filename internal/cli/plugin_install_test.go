@@ -122,7 +122,7 @@ func TestPluginInstallCmd_Examples(t *testing.T) {
 	// Check for example commands
 	examples := []string{
 		"finfocus plugin install opencost",
-		"opencost@v0.1.0",
+		"opencost@v0.1.2",
 		"--force",
 		"--no-save",
 		"--clean",

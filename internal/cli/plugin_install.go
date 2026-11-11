@@ -24,7 +24,7 @@ const (
 
 Plugins can be specified in several formats:
   - Registry name: opencost
-  - Registry name with version: opencost@v0.1.0
+  - Registry name with version: opencost@v0.1.2
   - GitHub URL: github.com/owner/repo
   - GitHub URL with version: github.com/owner/repo@v1.0.0
 
@@ -41,7 +41,7 @@ Fallback Behavior:
   finfocus plugin install opencost
 
   # Install specific version from registry
-  finfocus plugin install opencost@v0.1.0
+  finfocus plugin install opencost@v0.1.2
 
   # Install from GitHub URL
   finfocus plugin install github.com/rshade/finfocus-plugin-aws-public

@@ -130,12 +130,12 @@ func ValidateRegistryEntry(entry RegistryEntry) error {
 // ParsePluginSpecifier parses a plugin specifier string.
 // Formats:
 //   - "opencost" - registry plugin, latest version
-//   - "opencost@v0.1.0" - registry plugin, specific version
+//   - "opencost@v0.1.2" - registry plugin, specific version
 //   - "github.com/owner/repo" - GitHub URL, latest version
 //
 // ParsePluginSpecifier parses a plugin specifier string into a PluginSpecifier.
 // It accepts either a registry name or a GitHub URL with an optional version suffix
-// separated by `@` (for example: `opencost`, `opencost@v0.1.0`, `github.com/owner/repo`, or
+// separated by `@` (for example: `opencost`, `opencost@v0.1.2`, `github.com/owner/repo`, or
 // `github.com/owner/repo@v1.0.0`).
 //
 // The `spec` parameter is the plugin specifier to parse. If `spec` is empty, the function
