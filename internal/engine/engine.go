@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -3746,7 +3747,7 @@ func (e *Engine) GetRecommendationsForResources(
 	ctx context.Context,
 	resources []ResourceDescriptor,
 ) (*RecommendationsResult, error) {
-	return e.getRecommendationsForResources(ctx, resources, false)
+	return e.getRecommendationsForResources(ctx, resources, false, "")
 }
 
 // GetRecommendationsForResourcesWithDismissed is GetRecommendationsForResources with
@@ -3756,13 +3757,26 @@ func (e *Engine) GetRecommendationsForResourcesWithDismissed(
 	ctx context.Context,
 	resources []ResourceDescriptor,
 ) (*RecommendationsResult, error) {
-	return e.getRecommendationsForResources(ctx, resources, true)
+	return e.getRecommendationsForResources(ctx, resources, true, "")
+}
+
+// GetRecommendationsIncludingID is GetRecommendationsForResourcesWithDismissed
+// with id left out of the excluded recommendation IDs. Plugins omit an excluded
+// ID even with include_dismissed set, so this is how a host finds a
+// recommendation it has already dismissed.
+func (e *Engine) GetRecommendationsIncludingID(
+	ctx context.Context,
+	resources []ResourceDescriptor,
+	id string,
+) (*RecommendationsResult, error) {
+	return e.getRecommendationsForResources(ctx, resources, true, id)
 }
 
 func (e *Engine) getRecommendationsForResources(
 	ctx context.Context,
 	resources []ResourceDescriptor,
 	includeDismissed bool,
+	keepID string,
 ) (*RecommendationsResult, error) {
 	log := logging.FromContext(ctx)
 	result := &RecommendationsResult{
@@ -3775,6 +3789,9 @@ func (e *Engine) getRecommendationsForResources(
 	}
 
 	excludedIDs := loadExcludedRecommendationIDs(ctx, e.dismissalStore)
+	if keepID != "" {
+		excludedIDs = slices.DeleteFunc(excludedIDs, func(id string) bool { return id == keepID })
+	}
 
 	// Compute cache key once for both read and write paths.
 	recommendationsCacheKey := e.recommendationsCacheKey(resources, excludedIDs, includeDismissed)
@@ -4315,12 +4332,14 @@ func (e *Engine) DismissRecommendation(
 		},
 	}
 
-	// Preserve existing history if overwriting
+	// Preserve existing history and snapshot if overwriting. A re-snooze whose
+	// lookup found nothing must not erase the details recorded earlier.
 	if existing, ok := store.Get(req.RecommendationID); ok {
 		record.History = append(existing.History, record.History...)
+		record.LastKnown = existing.LastKnown
 	}
 
-	// Add LastKnown snapshot if recommendation details provided
+	// A fresh snapshot replaces the earlier one
 	if req.Recommendation != nil {
 		record.LastKnown = NewRecommendationSnapshot(req.Recommendation)
 	}

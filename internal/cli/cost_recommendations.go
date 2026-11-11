@@ -94,8 +94,8 @@ exclusive. --include-workspace overrides the Terraform history identity setting 
 this run and is ignored for Pulumi. FinFocus does not run init or configure credentials.
 Saved plan input errors exit 2; plan execution failures exit 1.
 
-The dismiss and snooze subcommands use local state without planning. Their optional
---pulumi-json flag enables plugin communication; they reject --terraform-plan.
+The dismiss and snooze subcommands use local state without planning. --pulumi-json looks the
+recommendation up in that preview so the dismissal keeps its details; both reject --terraform-plan.
 
 By default, shows a summary with the top 5 recommendations sorted by savings.
 Use --verbose to see all recommendations with full details.
@@ -1057,14 +1057,17 @@ func mergeDismissedRecommendations(ctx context.Context, result *engine.Recommend
 }
 
 // mergeDismissalRecordsIntoResult appends dismissed/snoozed records into the result,
-// skipping any that match active recommendations. It uses separate maps for
-// ResourceID and RecommendationID deduplication to prevent false matches.
+// skipping any that match active recommendations. A record matches by
+// recommendation id, or by resource, action type, and description together,
+// which is the same recommendation returned under a new id (aws-public mints a
+// new id on every call). Another recommendation on the same resource, even
+// one with the same action type, does not hide the record.
 func mergeDismissalRecordsIntoResult(records map[string]*config.DismissalRecord, result *engine.RecommendationsResult) {
-	activeResourceIDs := make(map[string]bool, len(result.Recommendations))
+	type sameRecommendation struct{ resourceID, actionType, description string }
+	activeRecommendations := make(map[sameRecommendation]bool, len(result.Recommendations))
 	activeRecommendationIDs := make(map[string]bool, len(result.Recommendations))
 	for _, rec := range result.Recommendations {
-		activeResourceIDs[rec.ResourceID] = true
-		activeRecommendationIDs[rec.ResourceID] = true
+		activeRecommendations[sameRecommendation{rec.ResourceID, rec.Type, rec.Description}] = true
 		if rec.ID != "" {
 			activeRecommendationIDs[rec.ID] = true
 		}
@@ -1076,8 +1079,10 @@ func mergeDismissalRecordsIntoResult(records map[string]*config.DismissalRecord,
 			continue
 		}
 
-		// Skip if this dismissed record's resource matches an active recommendation
-		if record.LastKnown != nil && activeResourceIDs[record.LastKnown.ResourceID] {
+		if record.LastKnown != nil &&
+			activeRecommendations[sameRecommendation{
+				record.LastKnown.ResourceID, record.LastKnown.Type, record.LastKnown.Description,
+			}] {
 			continue
 		}
 		// Check the recommendation ID against active recommendation IDs

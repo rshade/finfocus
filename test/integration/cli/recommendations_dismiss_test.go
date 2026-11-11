@@ -16,6 +16,12 @@ import (
 // T032: Integration test for full dismiss lifecycle.
 // Tests: dismiss -> list excludes dismissed -> include-dismissed shows all ->
 // undismiss restores -> history shows events.
+//
+// These tests seed LastKnown by hand, so they cannot tell whether the dismiss
+// command writes it (#2057). The recorder plugin declines every Supports call
+// and never answers a recommendations query, so the command is driven instead
+// in internal/cli/cost_recommendations_dismiss_snapshot_test.go, with a fake
+// plugin that returns the recommendation being dismissed.
 
 // TestDismissLifecycle_LocalOnly tests the full dismiss lifecycle using local-only operations
 // (no plugin connection needed).

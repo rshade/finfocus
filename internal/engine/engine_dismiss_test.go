@@ -256,6 +256,37 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		assert.Equal(t, "USD", record.LastKnown.Currency)
 	})
 
+	t.Run("overwrite without details keeps the earlier snapshot", func(t *testing.T) {
+		t.Parallel()
+		engine := createTestEngine()
+		store := createTestStore(t)
+		first := &enginepkg.Recommendation{ResourceID: "i-abc123", Type: "RIGHTSIZE", Description: "first"}
+		_, err := engine.DismissRecommendation(ctx, store, enginepkg.DismissRequest{
+			RecommendationID: "rec-keep", Reason: "deferred", Recommendation: first,
+		})
+		require.NoError(t, err)
+
+		expires := time.Now().Add(24 * time.Hour)
+		_, err = engine.DismissRecommendation(ctx, store, enginepkg.DismissRequest{
+			RecommendationID: "rec-keep", Reason: "deferred", ExpiresAt: &expires,
+		})
+		require.NoError(t, err)
+		record, ok := store.Get("rec-keep")
+		require.True(t, ok)
+		require.NotNil(t, record.LastKnown)
+		assert.Equal(t, "first", record.LastKnown.Description)
+
+		_, err = engine.DismissRecommendation(ctx, store, enginepkg.DismissRequest{
+			RecommendationID: "rec-keep", Reason: "deferred",
+			Recommendation: &enginepkg.Recommendation{ResourceID: "i-abc123", Type: "RIGHTSIZE", Description: "second"},
+		})
+		require.NoError(t, err)
+		record, ok = store.Get("rec-keep")
+		require.True(t, ok)
+		require.NotNil(t, record.LastKnown)
+		assert.Equal(t, "second", record.LastKnown.Description)
+	})
+
 	t.Run("all valid dismissal reasons", func(t *testing.T) {
 		t.Parallel()
 		engine := createTestEngine()

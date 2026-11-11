@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,7 +16,14 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
+	"github.com/rshade/finfocus/internal/stackload"
 )
+
+// openDismissPlugins opens the plugins that dismiss and snooze talk to.
+// Tests replace it with in-process fakes.
+//
+//nolint:gochecknoglobals // test seam, swapped only by non-parallel tests
+var openDismissPlugins = openPlugins
 
 // dismissParams holds the parameters for the dismiss subcommand.
 type dismissParams struct {
@@ -75,7 +83,8 @@ Valid reasons:
 	cmd.Flags().StringVarP(&params.reason, "reason", "r", "", "Dismissal reason (required)")
 	cmd.Flags().StringVarP(&params.note, "note", "n", "", "Free-text explanation (required for 'other' reason)")
 	cmd.Flags().BoolVarP(&params.force, "force", "f", false, "Skip confirmation prompt")
-	cmd.Flags().StringVar(&params.planPath, "pulumi-json", "", "Path to Pulumi preview JSON (for plugin communication)")
+	cmd.Flags().
+		StringVar(&params.planPath, "pulumi-json", "", "Path to Pulumi preview JSON (connects plugins and records the recommendation's details)")
 	cmd.Flags().StringVar(&params.adapter, "adapter", "", "Use specific adapter plugin")
 
 	_ = cmd.MarkFlagRequired("reason")
@@ -112,7 +121,8 @@ and a snoozed recommendation can have its expiry updated by re-snoozing.`,
 	cmd.Flags().StringVarP(&params.reason, "reason", "r", "deferred", "Dismissal reason")
 	cmd.Flags().StringVarP(&params.note, "note", "n", "", "Free-text explanation")
 	cmd.Flags().BoolVarP(&params.force, "force", "f", false, "Skip confirmation prompt")
-	cmd.Flags().StringVar(&params.planPath, "pulumi-json", "", "Path to Pulumi preview JSON (for plugin communication)")
+	cmd.Flags().
+		StringVar(&params.planPath, "pulumi-json", "", "Path to Pulumi preview JSON (connects plugins and records the recommendation's details)")
 	cmd.Flags().StringVar(&params.adapter, "adapter", "", "Use specific adapter plugin")
 
 	_ = cmd.MarkFlagRequired("until")
@@ -184,7 +194,7 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 	}
 
 	// Create engine with or without plugins
-	eng, cleanup, engineErr := createDismissEngine(ctx, params.planPath, params.adapter)
+	eng, cleanup, engineErr := createDismissEngine(ctx, params.planPath, params.adapter, store)
 	if engineErr != nil {
 		return engineErr
 	}
@@ -192,6 +202,8 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 
 	// Commit: execute the dismissal (wrapping in ax.Perform for dry-run support)
 	commit := func(ctx2 context.Context) error {
+		req.Recommendation = findDismissedRecommendation(ctx2, cmd, eng, store, params.planPath, recommendationID)
+
 		// Execute dismissal
 		result, dismissErr := eng.DismissRecommendation(ctx2, store, req)
 		if dismissErr != nil {
@@ -293,7 +305,7 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 	}
 
 	// Create engine with or without plugins
-	eng, cleanup, engineErr := createDismissEngine(ctx, params.planPath, params.adapter)
+	eng, cleanup, engineErr := createDismissEngine(ctx, params.planPath, params.adapter, store)
 	if engineErr != nil {
 		return engineErr
 	}
@@ -301,6 +313,8 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 
 	// Commit: execute the snooze (wrapping in ax.Perform for dry-run support)
 	commit := func(ctx2 context.Context) error {
+		req.Recommendation = findDismissedRecommendation(ctx2, cmd, eng, store, params.planPath, recommendationID)
+
 		// Execute snooze (dismiss with expiry)
 		result, snoozeErr := eng.DismissRecommendation(ctx2, store, req)
 		if snoozeErr != nil {
@@ -350,11 +364,15 @@ func loadDismissalStore() (*config.DismissalStore, error) {
 }
 
 // createDismissEngine creates an engine instance, optionally with plugin connections.
-// It returns a non-nil error if plugin initialization fails.
+// With a plan it gets the same router and dismissal store as
+// `cost recommendations`. The cache is opened only by the snapshot lookup, which
+// runs in the commit, so a dry run creates no cache files. It returns a non-nil
+// error if plugin initialization fails.
 func createDismissEngine(
 	ctx context.Context,
 	planPath string,
 	adapter string,
+	store *config.DismissalStore,
 ) (*engine.Engine, func(), error) {
 	if planPath == "" {
 		// No plugins needed - local-only dismissal
@@ -366,14 +384,99 @@ func createDismissEngine(
 		auditKeyPulumiJSON: planPath,
 	})
 
-	clients, cleanup, err := openPlugins(ctx, adapter, audit)
+	clients, cleanup, err := openDismissPlugins(ctx, adapter, audit)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening plugins: %w", err)
 	}
 
-	cfg := config.New()
-	return engine.New(clients, nil).
-		WithRouter(createRouterForEngine(ctx, cfg, clients)), cleanup, nil
+	return buildEngine(ctx, clients, nil, config.New()).WithDismissalStore(store), cleanup, nil
+}
+
+// findDismissedRecommendation looks up the recommendation being dismissed in
+// the plan, so the dismissal can store its last-known details. It loads the
+// inventory and asks the plugins the way `cost recommendations` does, and
+// matches on the id alone: a plugin may mint new ids on every call, and a
+// match by resource or type could snapshot a different recommendation.
+//
+// It uses the recommendations cache, so a plugin that mints new ids on every
+// call can still match the id from the `cost recommendations` run that showed
+// it, while the cache entry lasts.
+//
+// The lookup is best effort. Without a plan, on a load or plugin failure, or
+// when no recommendation has the id, it returns nil and the dismissal goes
+// ahead with no snapshot. Failures are logged at debug so the command's output
+// stays as it was.
+func findDismissedRecommendation(
+	ctx context.Context,
+	cmd *cobra.Command,
+	eng *engine.Engine,
+	store *config.DismissalStore,
+	planPath string,
+	recommendationID string,
+) *engine.Recommendation {
+	if planPath == "" {
+		return nil
+	}
+	log := logging.FromContext(ctx).With().
+		Str("component", "cli").
+		Str("operation", "dismiss_lookup").
+		Str("recommendation_id", recommendationID).
+		Logger()
+
+	// The plan is loaded as loadPulumiProjected loads it, without the stack
+	// notices that would add output to a dismissal.
+	src, err := buildStackSource(ctx, cmd, planPath, "")
+	if err != nil {
+		log.Debug().Ctx(ctx).Err(err).Msg("no snapshot: cannot read the plan")
+		return nil
+	}
+	snapshot, err := stackload.Load(ctx, src)
+	if err != nil {
+		log.Debug().Ctx(ctx).Err(err).Msg("no snapshot: cannot load the plan")
+		return nil
+	}
+	resources := collapseLiveReplacements(snapshot.Descriptors())
+
+	if profileErr := applyUsageProfile(cmd, eng, config.GetGlobalConfig()); profileErr != nil {
+		log.Debug().Ctx(ctx).Err(profileErr).Msg("no snapshot: invalid usage profile")
+		return nil
+	}
+
+	if cacheStore := initCacheFromConfig(ctx, cmd, config.New()); cacheStore != nil {
+		eng.WithCache(cacheStore)
+		defer func() {
+			eng.WithCache(nil)
+			if closeErr := cacheStore.Close(); closeErr != nil {
+				log.Debug().Ctx(ctx).Err(closeErr).Msg("failed to close cache store")
+			}
+		}()
+	}
+
+	// A recommendation that is already dismissed or snoozed is excluded from
+	// the default query, so only then ask the plugins to include it, with its
+	// id taken out of the exclusions. The default query otherwise shares its
+	// cache key with `cost recommendations`.
+	var result *engine.RecommendationsResult
+	if slices.Contains(store.GetDismissedIDs(), recommendationID) {
+		result, err = eng.GetRecommendationsIncludingID(ctx, resources, recommendationID)
+	} else {
+		result, err = eng.GetRecommendationsForResources(ctx, resources)
+	}
+	if err != nil || result == nil {
+		log.Debug().Ctx(ctx).Err(err).Msg("no snapshot: recommendations query failed")
+		return nil
+	}
+
+	for i := range result.Recommendations {
+		if result.Recommendations[i].ID == recommendationID {
+			rec := result.Recommendations[i]
+			return &rec
+		}
+	}
+	log.Debug().Ctx(ctx).
+		Int("recommendation_count", len(result.Recommendations)).
+		Msg("no snapshot: no recommendation has this id")
+	return nil
 }
 
 // parseSnoozeDate parses a date string supporting both YYYY-MM-DD and RFC3339 formats.
