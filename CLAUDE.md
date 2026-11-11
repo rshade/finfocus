@@ -445,9 +445,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `watchProcess` owns that one `cmd.Wait`; cleanup goes through
   `pluginProcess.stop`, never a second `cmd.Wait`.
 - A plugin that exits before it binds fails at once with `pluginExitError`:
-  exit status plus a bounded stderr excerpt (JSON lines reduced to
-  `message`/`error`, credential-named and ESC env values masked, URL userinfo
-  and control characters removed). It is retried only when its stderr says
+  exit status plus a bounded stderr excerpt built only from the
+  `message`/`error` fields of JSON log lines (free-form stderr is never shown,
+  since a secret in it can hide under any name or encoding; it stays in the log
+  file), with credential-named and ESC env values masked and URL userinfo and
+  control characters removed. It is retried only when its raw stderr says
   `address already in use`. The `--port` guidance is for a live process only.
 - Core never sets `PORT`; plugins use `--port` or `FINFOCUS_PLUGIN_PORT`.
 - `NewClient` injects delivered settings before `Launcher.Start`. A descriptor

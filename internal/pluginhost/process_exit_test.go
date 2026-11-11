@@ -94,8 +94,11 @@ func TestStartWithRetry_PluginExitsOnPortCollisionIsRetried(t *testing.T) {
 		t.Skip("shell script not supported on Windows")
 	}
 
-	script, starts := exitingPluginScript(t,
-		"failed to listen: listen tcp 127.0.0.1:1: bind: address already in use", 1)
+	script, starts := exitingPluginScript(
+		t,
+		`{"level":"fatal","error":"failed to listen: listen tcp 127.0.0.1:1: bind: address already in use","message":"serve"}`,
+		1,
+	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -151,15 +154,33 @@ func TestStderrExcerpt(t *testing.T) {
 		{name: "json error only", data: `{"level":"fatal","error":"boom"}`, want: "boom"},
 		{name: "json without message or error is skipped", data: `{"level":"info","port":1}`, want: ""},
 		{
-			name: "last lines joined",
-			data: "one\ntwo\nthree\nfour\n",
+			name: "last structured lines joined",
+			data: `{"message":"one"}` + "\n" + `{"message":"two"}` + "\n" +
+				`{"message":"three"}` + "\n" + `{"message":"four"}` + "\n",
 			want: "two | three | four",
 		},
 		{
-			name:    "credential values masked",
-			data:    "auth failed with hunter2-secret-value\n",
+			name: "free-form lines are never shown",
+			data: "flag provided but not defined: -port\npanic: token=hunter2-secret-value\n",
+			want: "",
+		},
+		{
+			name: "free-form line with an encoded secret is never shown",
+			// base64 of "hunter2-secret-value", which masking cannot recognize.
+			data:    "auth header Basic aHVudGVyMi1zZWNyZXQtdmFsdWU=\n",
 			secrets: []string{"hunter2-secret-value"},
-			want:    "auth failed with [redacted]",
+			want:    "",
+		},
+		{
+			name:    "free-form lines skipped around a structured line",
+			data:    "raw secret-ish text\n" + `{"error":"boom","message":"serve"}` + "\nmore raw text\n",
+			secrets: nil,
+			want:    "serve: boom",
+		},
+		{
+			name: "json that does not parse is not shown",
+			data: `{"error":"cut off line with secret abc` + "\n",
+			want: "",
 		},
 		{
 			name:    "credential masked inside json",
@@ -168,24 +189,45 @@ func TestStderrExcerpt(t *testing.T) {
 			want:    "auth: bad token [redacted]",
 		},
 		{
-			name:    "short values are not masked",
-			data:    "flag is true\n",
-			secrets: []string{"true"},
-			want:    "flag is true",
+			name:    "short credentials are masked",
+			data:    `{"error":"login rejected password 12345"}`,
+			secrets: []string{"12345"},
+			want:    "login rejected password [redacted]",
+		},
+		{
+			name:    "secret with json escapes masked in decoded form",
+			data:    `{"error":"bad key a\"b\\c-secret"}`,
+			secrets: []string{`a"b\c-secret`},
+			want:    "bad key [redacted]",
 		},
 		{
 			name: "url userinfo removed",
-			data: "dial https://admin:pa55w0rd@cost.example.com/api failed\n",
+			data: `{"error":"dial https://admin:pa55w0rd@cost.example.com/api failed"}`,
 			want: "dial https://[redacted]@cost.example.com/api failed",
 		},
 		{
+			name: "url userinfo with @ in the password removed whole",
+			data: `{"error":"dial https://admin:first@second@cost.example.com/api failed"}`,
+			want: "dial https://[redacted]@cost.example.com/api failed",
+		},
+		{
+			name: "ansi-prefixed json is still reduced to its fields",
+			data: "\x1b[31m" + `{"api_key":"field-secret-value","message":"startup failed"}` + "\x1b[0m\n",
+			want: "startup failed",
+		},
+		{
+			name: "incomplete json event is withheld",
+			data: `{"api_key":"field-secret-value","message":"startup failed"` + "\n",
+			want: "",
+		},
+		{
 			name: "control characters removed",
-			data: "\x1b[31mERROR\x1b[0m boom\a\r\n",
+			data: `{"message":"\u001b[31mERROR\u001b[0m boom\u0007\r"}`,
 			want: "ERROR boom",
 		},
 		{
 			name:      "partial first line dropped when truncated",
-			data:      "et-tail-of-a-secret\nreal error\n",
+			data:      `"error":"et-tail-of-a-secret"}` + "\n" + `{"error":"real error"}` + "\n",
 			truncated: true,
 			want:      "real error",
 		},
@@ -201,7 +243,8 @@ func TestStderrExcerpt(t *testing.T) {
 func TestStderrExcerpt_IsBounded(t *testing.T) {
 	t.Parallel()
 
-	got := stderrExcerpt([]byte(strings.Repeat("é", 2000)+" last words\n"), false, nil)
+	line := `{"error":"` + strings.Repeat("é", 2000) + ` last words"}` + "\n"
+	got := stderrExcerpt([]byte(line), false, nil)
 	assert.LessOrEqual(t, len(got), maxStderrExcerptBytes)
 	assert.True(t, strings.HasPrefix(got, "..."))
 	assert.True(t, strings.HasSuffix(got, "last words"))
@@ -265,4 +308,35 @@ func TestPluginExitError_Message(t *testing.T) {
 	assert.Equal(t,
 		"plugin exited before binding to port (exit status 0) with no error output",
 		(&pluginExitError{status: "exit status 0"}).Error())
+	assert.Equal(
+		t,
+		"plugin exited before binding to port (exit status 2); its stderr is not a structured log, see the FinFocus log file",
+		(&pluginExitError{status: "exit status 2", hadOutput: true}).Error(),
+	)
+}
+
+//nolint:paralleltest // writes and executes a script; a parallel fork inherits the write fd (text file busy)
+func TestStartWithRetry_PluginExitsWithFreeFormStderr(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell script not supported on Windows")
+	}
+
+	// A secret under a name core cannot recognize, raw and base64-encoded.
+	script, starts := exitingPluginScript(t,
+		"MY_DB_PASS=opaque-value-123\nauth Basic b3BhcXVlLXZhbHVlLTEyMw==\naddress already in use", 4)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, _, err := NewProcessLauncherWithRetries(1).StartWithRetry(ctx, script)
+
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "opaque-value-123")
+	assert.NotContains(t, err.Error(), "b3BhcXVlLXZhbHVlLTEyMw==")
+	assert.Contains(t, err.Error(), "exit status 4")
+	assert.Contains(t, err.Error(), "not a structured log")
+	var exitErr *pluginExitError
+	require.ErrorAs(t, err, &exitErr)
+	assert.True(t, exitErr.portCollision, "the collision is read from raw stderr even when it is not shown")
+	assert.Equal(t, 1, countStarts(t, starts))
 }

@@ -396,8 +396,11 @@ Failed: plugin exited before binding to port (exit status 1): config: config: ba
 **Solutions**:
 
 1. Fix the setting the message names, then run `finfocus plugin list` again.
-2. The excerpt is short. For the full plugin output, read the FinFocus log
-   file or run the command with `--debug`.
+2. The excerpt is short and comes only from the plugin's structured (JSON)
+   log lines. A plugin that writes plain text instead gets
+   `its stderr is not a structured log, see the FinFocus log file`. For the
+   full plugin output, read the FinFocus log file or run the command with
+   `--debug`.
 
 FinFocus does not retry a plugin that exits on its own, unless the plugin
 reports that its port was already in use. The `--port` and pluginsdk upgrade

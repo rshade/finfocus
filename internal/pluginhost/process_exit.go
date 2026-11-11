@@ -22,9 +22,6 @@ const (
 	// in the launch error, which reaches terminals, `plugin list`, and the web UI.
 	maxStderrExcerptLines = 3
 	maxStderrExcerptBytes = 300
-	// minMaskedSecretLen keeps short values such as "true" from being masked
-	// throughout the excerpt.
-	minMaskedSecretLen = 6
 
 	redactedText     = "[redacted]"
 	excerptSeparator = " | "
@@ -32,7 +29,9 @@ const (
 )
 
 var (
-	urlUserinfo = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)[^/\s@]+@`)
+	// The userinfo match runs to the last "@" of the authority, so a password
+	// that itself holds "@" is removed whole.
+	urlUserinfo = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)[^/?#\s]*@`)
 	ansiEscape  = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
 )
 
@@ -80,6 +79,8 @@ func (pp *pluginProcess) exitStatus() string {
 type pluginExitError struct {
 	status string
 	stderr string
+	// hadOutput is set when the plugin wrote stderr that the excerpt left out.
+	hadOutput bool
 	// portCollision is set when the plugin's own stderr reports that its port
 	// was taken, the one early exit that a new port can fix.
 	portCollision bool
@@ -87,17 +88,23 @@ type pluginExitError struct {
 
 func (e *pluginExitError) Error() string {
 	msg := "plugin exited before binding to port (" + e.status + ")"
-	if e.stderr == "" {
+	switch {
+	case e.stderr != "":
+		return msg + ": " + e.stderr
+	case e.hadOutput:
+		return msg + "; its stderr is not a structured log, see the FinFocus log file"
+	default:
 		return msg + " with no error output"
 	}
-	return msg + ": " + e.stderr
 }
 
 func newPluginExitError(proc *pluginProcess, tail *stderrTail, secrets []string) *pluginExitError {
 	data, truncated := tail.snapshot()
+	excerpt := stderrExcerpt(data, truncated, secrets)
 	return &pluginExitError{
 		status:        proc.exitStatus(),
-		stderr:        stderrExcerpt(data, truncated, secrets),
+		stderr:        excerpt,
+		hadOutput:     excerpt == "" && len(bytes.TrimSpace(data)) > 0,
 		portCollision: bytes.Contains(data, []byte("address already in use")),
 	}
 }
@@ -130,13 +137,15 @@ func (t *stderrTail) snapshot() ([]byte, bool) {
 // stderrExcerpt turns the end of a plugin's stderr into a short single-line
 // reason for a launch error. That error reaches places the log file does not
 // (terminal, `plugin list` Notes, the dashboard), so the excerpt is reduced
-// before it leaves: a structured log line contributes only its message and
-// error fields, values of credential-named variables in the plugin's
-// environment are masked, URL userinfo and control characters are removed,
-// and the result is cut to maxStderrExcerptBytes.
+// before it leaves: only structured log lines contribute, and only their
+// message and error fields; values of credential-named variables in the
+// plugin's environment are masked, URL userinfo and control characters are
+// removed, and the result is cut to maxStderrExcerptBytes.
 func stderrExcerpt(data []byte, truncated bool, secrets []string) string {
-	text := maskSecrets(string(data), secrets)
-	lines := strings.Split(text, "\n")
+	// Masking runs on the decoded fields, not the raw JSON: there it matches
+	// the value as the plugin received it, and a short secret cannot break
+	// the line's syntax.
+	lines := strings.Split(string(data), "\n")
 	if truncated && len(lines) > 0 {
 		lines = lines[1:]
 	}
@@ -154,15 +163,20 @@ func stderrExcerpt(data []byte, truncated bool, secrets []string) string {
 	return keepEnd(excerpt, maxStderrExcerptBytes)
 }
 
+// renderStderrLine returns the message and error of a structured (JSON) log
+// line. Any other line, including a JSON object that does not parse, gives
+// nothing: free-form stderr can hold a secret under any name or encoding that
+// masking cannot recognize, so it stays in the log file.
 func renderStderrLine(line string) string {
-	line = strings.TrimSpace(line)
-	if strings.HasPrefix(line, "{") {
-		var fields map[string]any
-		if json.Unmarshal([]byte(line), &fields) == nil {
-			line = joinLogFields(fields)
-		}
+	line = strings.TrimSpace(stripControl(line))
+	if !strings.HasPrefix(line, "{") {
+		return ""
 	}
-	return strings.TrimSpace(stripControl(line))
+	var fields map[string]any
+	if json.Unmarshal([]byte(line), &fields) != nil {
+		return ""
+	}
+	return strings.TrimSpace(stripControl(joinLogFields(fields)))
 }
 
 func joinLogFields(fields map[string]any) string {
@@ -188,9 +202,11 @@ func stripControl(s string) string {
 	}, s)
 }
 
+// maskSecrets replaces every nonempty secret, however short: a value that
+// credentialValues selected is a credential whatever its length.
 func maskSecrets(s string, secrets []string) string {
 	for _, secret := range secrets {
-		if len(secret) >= minMaskedSecretLen {
+		if secret != "" {
 			s = strings.ReplaceAll(s, secret, redactedText)
 		}
 	}
