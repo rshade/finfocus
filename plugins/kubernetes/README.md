@@ -422,7 +422,12 @@ URN into the annotation. Name-based matching is not used.
   workload the larger of its request and its actual usage when both are
   available, but the usage collector only collects
   `cpu_request`/`mem_request` (no metrics-server integration yet), so
-  allocation is effectively requests-based today.
+  allocation from this source is effectively requests-based today. A pod
+  that sets no CPU or memory request (Kubernetes copies a limit into a
+  missing request) is charged `$0`, and its part of the node stays on the idle row. The
+  prometheus usage source is the reverse: it reports `cpu_usage`/`mem_usage`
+  over a window and no requests, so the same rule charges consumption in a
+  historical report.
 - **Spot nodes priced on-demand**: spot/preemptible nodes are priced at the
   on-demand rate for the same instance type and region — every row on that
   node carries a `spot node priced on-demand` note so this is visible.
