@@ -33,8 +33,8 @@ func NewPluginValidateCmd() *cobra.Command {
   # Validate a specific plugin
   finfocus plugin validate --plugin aws-plugin
 
-  # Validate kubecost plugin specifically
-  finfocus plugin validate --plugin kubecost`,
+  # Validate the opencost plugin specifically
+  finfocus plugin validate --plugin opencost`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runPluginValidateCmd(cmd, targetPlugin)
 		},

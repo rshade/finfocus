@@ -23,8 +23,8 @@ const (
 	pluginInstallLong = `Install a plugin from the registry or directly from a GitHub URL.
 
 Plugins can be specified in several formats:
-  - Registry name: kubecost
-  - Registry name with version: kubecost@v1.0.0
+  - Registry name: opencost
+  - Registry name with version: opencost@v0.1.0
   - GitHub URL: github.com/owner/repo
   - GitHub URL with version: github.com/owner/repo@v1.0.0
 
@@ -38,10 +38,10 @@ Fallback Behavior:
 
 	// pluginInstallExample contains usage examples for the install command.
 	pluginInstallExample = `  # Install latest version from registry
-  finfocus plugin install kubecost
+  finfocus plugin install opencost
 
   # Install specific version from registry
-  finfocus plugin install kubecost@v1.0.0
+  finfocus plugin install opencost@v0.1.0
 
   # Install from GitHub URL
   finfocus plugin install github.com/rshade/finfocus-plugin-aws-public
@@ -50,19 +50,19 @@ Fallback Behavior:
   finfocus plugin install github.com/rshade/finfocus-plugin-aws-public@v0.1.0
 
   # Force reinstall even if already installed
-  finfocus plugin install kubecost --force
+  finfocus plugin install opencost --force
 
   # Install without saving to config
-  finfocus plugin install kubecost --no-save
+  finfocus plugin install opencost --no-save
 
   # Install and remove all other versions (cleanup disk space)
-  finfocus plugin install kubecost --clean
+  finfocus plugin install opencost --clean
 
   # Auto-fallback to latest stable if requested version lacks assets (CI mode)
-  finfocus plugin install kubecost@v1.0.0 --fallback-to-latest
+  finfocus plugin install opencost@v0.1.0 --fallback-to-latest
 
   # Fail immediately if requested version lacks assets (strict mode)
-  finfocus plugin install kubecost@v1.0.0 --no-fallback
+  finfocus plugin install opencost@v0.1.0 --no-fallback
 
   # Install with region metadata (selects region-specific binary)
   finfocus plugin install aws-public --metadata="region=us-west-2"`

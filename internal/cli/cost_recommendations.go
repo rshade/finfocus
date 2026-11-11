@@ -129,7 +129,7 @@ Valid action types for filtering:
   finfocus cost recommendations --pulumi-json plan.json --filter "action=RIGHTSIZE,TERMINATE"
 
   # Use a specific adapter plugin
-  finfocus cost recommendations --pulumi-json plan.json --adapter kubecost
+  finfocus cost recommendations --pulumi-json plan.json --adapter aws-public
 
   # With scoring enabled in the config: list the lowest-risk recommendations first
   finfocus cost recommendations --pulumi-json plan.json --sort risk:asc --filter "risk<=0.3"
