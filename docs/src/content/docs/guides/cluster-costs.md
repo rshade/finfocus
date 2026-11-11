@@ -145,6 +145,17 @@ other workloads on the same node. The formula is locked in
 effective policy JSON, including whichever of those values is in effect,
 and a digest that changes when they change.
 
+`charge` is always `max-request-usage`. A workload's share of a node's CPU
+cost is `max(cpu_request, cpu_usage)` over the node's allocatable CPU, and
+memory works the same way. Which of the two inputs exists depends on the
+usage source. The kubernetes source reports requests and no usage, so a
+run-rate report charges requests. A pod that sets no CPU or memory request
+(Kubernetes copies a limit into a missing request) is charged `$0`, and the
+node cost it would have claimed stays in `__idle__`. `idle: "share"` does not change that,
+because idle is shared in proportion to the cost a workload already holds.
+The Prometheus source reports usage and no requests; see
+[Historical window](#historical-window).
+
 Print the effective policy (defaults plus overrides) and its digest without
 contacting a cluster:
 
@@ -225,6 +236,17 @@ When Prometheus holds no data for the start of the window, for example
 because its retention is shorter than the window, the report is marked
 incomplete with a warning naming the time stored data starts. The missing
 part is not counted as zero usage.
+
+A historical window charges what workloads consumed. The Prometheus source
+reports `cpu_usage` and `mem_usage` in core-hours and GiB-hours over the
+window, and no requests, so `max-request-usage` reduces to usage: a
+workload's share is its consumed core-hours over the node's allocatable
+core-hours for the window. A pod that requested a full core and used almost
+none costs almost nothing, and the rest of the node's cost goes to
+`__idle__`. The policy and its digest are the same in both modes, but the
+inputs differ: a namespace's share of the node cost can be much smaller over
+a window than in a run-rate report, and `__idle__` is larger when workloads
+use less than they request.
 
 Prometheus must be scraping cAdvisor and kube-state-metrics, including the
 node-label metrics `kube_node_labels` and `kube_node_info`. Outside a

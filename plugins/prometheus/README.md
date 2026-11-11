@@ -19,6 +19,17 @@ Any other chart sets `FINFOCUS_PROMETHEUS_URL`.
 `FINFOCUS_PROMETHEUS_BEARER_TOKEN`, when set, is sent as a bearer credential.
 The token is not written to logs or errors.
 
+## Usage data
+
+Each workload row carries `cpu_usage` and `mem_usage` integrated over the
+window, in core-hours and GiB-hours. Each node row carries allocatable CPU
+and memory integrated the same way. The source reports no `cpu_request` or
+`mem_request`. The kubernetes allocator charges `max(request, usage)` (policy
+`charge: max-request-usage`), so with this source a workload is charged for
+what it consumed, not what it reserved. Node capacity that no workload
+consumed stays on the node's `__idle__` row unless the policy sets
+`idle: "share"`.
+
 ## Node labels
 
 kube-state-metrics must publish node labels. The source reads
