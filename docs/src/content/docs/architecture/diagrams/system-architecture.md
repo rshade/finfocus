@@ -20,7 +20,7 @@ graph TB
 
     subgraph "Plugin System"
         PluginHost[Plugin Host<br/>internal/pluginhost<br/>gRPC Client Manager]
-        Plugin1[Plugin: Kubecost]
+        Plugin1[Plugin: OpenCost]
         Plugin2[Plugin: Vantage]
         Plugin3[Plugin: Custom]
     end
@@ -32,7 +32,7 @@ graph TB
 
     subgraph "External Systems"
         PulumiCLI[Pulumi CLI<br/>pulumi preview --json]
-        KubecostAPI[Kubecost API]
+        KubecostAPI[OpenCost or Kubecost API]
         VantageAPI[Vantage API]
         CloudAPIs[Cloud Provider APIs]
     end
@@ -91,7 +91,7 @@ graph TB
 
 - **Plugin Host** (`internal/pluginhost`) - Manages gRPC connections to
   plugins, handles process lifecycle
-- **Plugins** - External cost source integrations (Kubecost, Vantage, custom
+- **Plugins** - External cost source integrations (OpenCost, Vantage, custom
   implementations)
 
 ### Fallback System
@@ -105,7 +105,7 @@ graph TB
 
 - **Pulumi CLI** - Generates infrastructure plan JSON via
   `pulumi preview --json`
-- **Cost Source APIs** - External APIs (Kubecost, Vantage, cloud providers)
+- **Cost Source APIs** - External APIs (OpenCost, Kubecost, Vantage, cloud providers)
   queried by plugins
 
 ## Communication Patterns

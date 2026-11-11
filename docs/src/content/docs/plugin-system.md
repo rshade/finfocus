@@ -60,9 +60,9 @@ graph TD
 
 ```text
 ~/.finfocus/plugins/
-├── kubecost/
-│   └── 1.0.0/
-│       ├── finfocus-kubecost          # Plugin binary
+├── opencost/
+│   └── v0.1.2/
+│       ├── finfocus-plugin-opencost   # Plugin binary
 │       └── plugin.manifest.json        # Optional manifest
 ├── aws-plugin/
 │   └── 0.1.0/
@@ -98,10 +98,10 @@ finfocus plugin list
 **Sample Output:**
 
 ```text
-NAME        VERSION  STATUS    SUPPORTS                    BINARY
-kubecost    1.0.0    ready     projected,actual           finfocus-kubecost
-aws-plugin  0.1.0    ready     projected                  finfocus-aws
-azure-cost  0.2.0    error     -                          finfocus-azure
+Name        Version  Providers
+----        -------  ---------
+aws-public  v0.2.5   aws
+opencost    v0.1.2   kubernetes
 ```
 
 ### Validate Plugin Installation
@@ -111,7 +111,7 @@ azure-cost  0.2.0    error     -                          finfocus-azure
 finfocus plugin validate
 
 # Validate specific plugin
-finfocus plugin validate --adapter kubecost
+finfocus plugin validate --plugin opencost
 ```
 
 **Validation Checks:**
@@ -127,26 +127,18 @@ finfocus plugin validate --adapter kubecost
 
 ```bash
 # Create plugin directory
-mkdir -p ~/.finfocus/plugins/kubecost/1.0.0/
+mkdir -p ~/.finfocus/plugins/opencost/v0.1.2/
 
-# Download and install plugin binary
-curl -L https://github.com/rshade/finfocus-plugin-kubecost/releases/latest/download/finfocus-kubecost-linux-amd64 \
-  -o ~/.finfocus/plugins/kubecost/1.0.0/finfocus-kubecost
+# Download the release archive and unpack the plugin binary into it
+curl -L https://github.com/rshade/finfocus-plugin-opencost/releases/download/v0.1.2/finfocus-plugin-opencost_0.1.2_Linux_x86_64.tar.gz \
+  | tar -xz -C ~/.finfocus/plugins/opencost/v0.1.2/
 
 # Make executable
-chmod +x ~/.finfocus/plugins/kubecost/1.0.0/finfocus-kubecost
-
-# Optional: Create manifest
-cat > ~/.finfocus/plugins/kubecost/1.0.0/plugin.manifest.json << EOF
-{
-  "name": "kubecost",
-  "version": "1.0.0",
-  "binary": "finfocus-kubecost",
-  "supports": ["projected_cost", "actual_cost", "batch_cost"],
-  "description": "Kubecost integration for Kubernetes cost analysis"
-}
-EOF
+chmod +x ~/.finfocus/plugins/opencost/v0.1.2/finfocus-plugin-opencost
 ```
+
+`finfocus plugin install opencost` does the same download, checksum check, and
+unpacking for you.
 
 > **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
 >
@@ -160,7 +152,7 @@ EOF
 
 ```bash
 # Coming soon
-finfocus plugin install kubecost@1.0.0
+finfocus plugin install opencost@v0.1.2
 finfocus plugin install aws-plugin@latest
 ```
 
@@ -183,8 +175,9 @@ accepts catalog names only.
 Most plugins use environment variables for configuration:
 
 ```bash
-# Kubecost plugin configuration
-export KUBECOST_API_URL="http://kubecost.example.com:9090"
+# opencost plugin reading a Kubecost endpoint
+export OPENCOST_PROFILE="kubecost"
+export KUBECOST_BASE_URL="https://kubecost.example.com"
 export KUBECOST_API_TOKEN="your-api-token"
 
 # AWS plugin configuration
@@ -200,20 +193,20 @@ export AZURE_TENANT_ID="your-tenant-id"
 
 #### Configuration Files
 
-Some plugins support configuration files:
+Some plugins support configuration files. The `opencost` plugin reads the
+YAML file named by `OPENCOST_CONFIG` (or `KUBECOST_CONFIG`):
 
 ```yaml
-# ~/.finfocus/plugins/kubecost/1.0.0/config.yaml
-api_url: 'http://kubecost.example.com:9090'
-api_token: 'your-api-token'
+# export OPENCOST_CONFIG=~/opencost.yaml
+baseUrl: https://kubecost.example.com
+profile: kubecost
+currency: USD
 timeout: 30s
-retry_attempts: 3
-clusters:
-  - name: 'production'
-    context: 'prod-k8s'
-  - name: 'staging'
-    context: 'staging-k8s'
 ```
+
+It reads the API token only from `KUBECOST_API_TOKEN`, never from the file. See
+the [plugin README](https://github.com/rshade/finfocus-plugin-opencost#configuration-reference)
+for every key.
 
 ## Available Plugins
 
@@ -240,9 +233,12 @@ finfocus plugin install opencost
 **Configuration:**
 
 ```bash
-export KUBECOST_BASE_URL="http://opencost.example.com:9003"
-export KUBECOST_API_TOKEN="optional-api-token"
+export KUBECOST_BASE_URL="https://opencost.example.com"
+export OPENCOST_CURRENCY="USD"
 ```
+
+For a Kubecost endpoint, also set `OPENCOST_PROFILE=kubecost` and, when the
+endpoint needs one, `KUBECOST_API_TOKEN`.
 
 **Usage:**
 
@@ -671,28 +667,29 @@ chmod +x ~/.finfocus/plugins/*/*/finfocus-*
 #### Connection Failures
 
 ```bash
-# Test plugin directly
-~/.finfocus/plugins/kubecost/1.0.0/finfocus-kubecost
+# Test plugin directly (it prints PORT=<number> once it is serving)
+~/.finfocus/plugins/opencost/v0.1.2/finfocus-plugin-opencost
 
-# Check network connectivity
-curl -v http://kubecost.example.com:9090/api/v1/costDataModel
+# Check network connectivity (the plugin's health probe)
+curl -v "$KUBECOST_BASE_URL/healthz"
 
-# Verify authentication
+# Verify authentication (kubecost profile; it sends the token as a bearer token)
 export KUBECOST_API_TOKEN="test-token"
-finfocus plugin validate --adapter kubecost
+curl -H "Authorization: Bearer $KUBECOST_API_TOKEN" \
+  "$KUBECOST_BASE_URL/model/allocation?window=1d"
 ```
 
 #### Authentication Issues
 
 ```bash
 # Check environment variables
-env | grep -E "(AWS|AZURE|GCP|KUBECOST)"
+env | grep -E "(AWS|AZURE|GCP|KUBECOST|OPENCOST)"
 
 # Test API access
 curl -H "Authorization: Bearer $API_TOKEN" https://api.provider.com/test
 
 # Review plugin logs
-finfocus --debug cost actual --adapter kubecost --from 2025-01-01
+finfocus --debug cost actual --adapter opencost --from 2025-01-01
 ```
 
 ### Debug Mode
@@ -704,7 +701,7 @@ finfocus --debug plugin validate
 # Debug logging for FinFocus and for plugins that read FINFOCUS_LOG_LEVEL
 # (plugin processes inherit it; --debug does not reach them)
 export FINFOCUS_LOG_LEVEL=debug
-finfocus cost actual --adapter kubecost --from 2025-01-01
+finfocus cost actual --adapter opencost --from 2025-01-01
 ```
 
 ### Plugin Development Debugging
@@ -747,7 +744,7 @@ func (p *MyCloudPlugin) GetProjectedCost(ctx context.Context, req *pb.GetProject
 finfocus plugin search aws
 
 # Install from registry
-finfocus plugin install kubecost@1.0.0
+finfocus plugin install opencost
 
 # Update plugins
 finfocus plugin update --all

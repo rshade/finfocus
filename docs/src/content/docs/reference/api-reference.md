@@ -81,7 +81,7 @@ message NameResponse {
 
 **Fields:**
 
-- `name` (string) - Plugin display name (e.g., "kubecost", "vantage")
+- `name` (string) - Plugin display name (e.g., "opencost", "vantage")
 
 **Example:**
 
@@ -92,7 +92,7 @@ grpcurl -plaintext localhost:50051 \
 
 # Response
 {
-  "name": "kubecost"
+  "name": "opencost"
 }
 ```
 
