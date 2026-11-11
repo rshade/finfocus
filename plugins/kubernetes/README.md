@@ -202,6 +202,15 @@ and when the problems do not fit either, the reason only names the variables
 For the cost of a running cluster from real node prices, use
 `finfocus cost cluster`; it is the authoritative live number.
 
+### When the OpenCost plugin is also installed
+
+The OpenCost plugin prices the same workload types from observed cost.
+Without routing configuration, FinFocus asks plugins in name order, so this
+plugin's estimate replaces OpenCost's observed cost whenever this plugin can
+price the workload. To prefer OpenCost, give it a `routing`
+priority; see
+[When another plugin prices the same workload](../../docs/src/content/docs/guides/cluster-costs.md#when-another-plugin-prices-the-same-workload).
+
 ## Required RBAC
 
 The plugin only **lists** four resource kinds — it never watches, gets,

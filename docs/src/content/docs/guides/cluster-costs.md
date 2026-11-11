@@ -213,6 +213,48 @@ pull request. `cost cluster` remains the authoritative number for a running
 cluster. The variables, the decline reasons, and the request rules are in the
 [plugin README](https://github.com/rshade/finfocus/blob/main/plugins/kubernetes/README.md#projected-cost-from-a-pulumi-plan).
 
+### When another plugin prices the same workload
+
+The [OpenCost plugin](../plugins/opencost.md) prices these workload types
+too, from what the cluster has really cost: a 30-day trailing average of the
+workload's OpenCost allocation, projected to 730 hours. With both plugins
+installed, FinFocus offers the workload to one plugin at a time and uses the
+first price it gets. A plugin that cannot price the workload declines and the
+next one is asked.
+
+Without a `routing` section in `config.hujson`, the order is the plugin
+name, so `kubernetes` is asked before `opencost`:
+
+| Kubernetes plugin | Workload priced by |
+| --- | --- |
+| Prices it: rates set, requests declared, and any DaemonSet or Job hint set | `kubernetes`, the configured-rate estimate |
+| Declines it, for example a rate unset or no requests declared | `opencost`, the observed cost |
+
+Setting the rates therefore replaces the observed cost of a workload OpenCost
+already knows with the configured-rate estimate. The `adapter` field of the
+JSON output names the plugin that priced each workload, and the note on the
+result names the method.
+
+To prefer the observed cost, give `opencost` a priority in `config.hujson`
+(`~/.finfocus/config.hujson`, or `.finfocus/config.hujson` in the project):
+
+```json
+{
+  "routing": {
+    "plugins": [
+      { "name": "opencost", "priority": 10 }
+    ]
+  }
+}
+```
+
+A higher priority is asked first, and a plugin that is not listed keeps
+priority 0. Fallback is on by default: when OpenCost has no data for the
+workload, for example because it is not deployed yet, or cannot be reached,
+the `kubernetes` estimate is used if that plugin can price it.
+`finfocus config routes list` shows the rules in effect, and the
+[routing guide](./routing.md) covers the rest of the configuration.
+
 ## Historical window
 
 `--from` and `--to` price actual spend over that window. Both accept
