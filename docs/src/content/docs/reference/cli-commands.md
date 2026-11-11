@@ -514,8 +514,14 @@ exclusive. Saved plan files must use format version 1 and be at most 32 MiB;
 invalid or missing files exit 2. Planning failures exit 1 with an actionable hint.
 FinFocus does not run init, log in, or store credentials.
 
-`dismiss` and `snooze` never plan. Their `--pulumi-json` flag stays optional
-for plugin communication, and both reject `--terraform-plan`.
+`dismiss` and `snooze` never plan, and both reject `--terraform-plan`. Their
+optional `--pulumi-json` flag connects the plugins and looks the recommendation
+up in that saved preview, so the dismissal keeps its last-known details:
+resource, action, description, savings, and the spot label.
+`--include-dismissed` lists a dismissed recommendation with those details after
+the plugin stops returning it, and the overview counts it in the Recs column
+(`3(-1)`). The lookup is best effort. Without `--pulumi-json`, or when no plugin
+returns the id, the recommendation is still dismissed, with no details.
 
 ### Options (cost recommendations)
 
@@ -595,13 +601,13 @@ finfocus cost recommendations dismiss <recommendation-id> [options]
 
 ### Options (cost recommendations dismiss)
 
-| Flag            | Description                                            | Default  |
-| --------------- | ------------------------------------------------------ | -------- |
-| `-r, --reason`  | Dismissal reason (required)                            | Required |
-| `-n, --note`    | Free-text explanation (required for `other` reason)    | None     |
-| `-f, --force`   | Skip confirmation prompt                               | false    |
-| `--pulumi-json` | Path to Pulumi preview JSON (for plugin communication) | None     |
-| `--adapter`     | Use specific adapter plugin                            | None     |
+| Flag            | Description                                                                  | Default  |
+| --------------- | ---------------------------------------------------------------------------- | -------- |
+| `-r, --reason`  | Dismissal reason (required)                                                  | Required |
+| `-n, --note`    | Free-text explanation (required for `other` reason)                          | None     |
+| `-f, --force`   | Skip confirmation prompt                                                     | false    |
+| `--pulumi-json` | Path to Pulumi preview JSON (connects plugins and records the recommendation's details) | None     |
+| `--adapter`     | Use specific adapter plugin                                                  | None     |
 
 ### Valid Reasons
 
@@ -649,7 +655,7 @@ finfocus cost recommendations snooze <recommendation-id> [options]
 | `-r, --reason`  | Dismissal reason                                                           | `deferred` |
 | `-n, --note`    | Free-text explanation                                                      | None       |
 | `-f, --force`   | Skip confirmation prompt                                                   | false      |
-| `--pulumi-json` | Path to Pulumi preview JSON (for plugin communication)                     | None       |
+| `--pulumi-json` | Path to Pulumi preview JSON (connects plugins and records the recommendation's details) | None       |
 | `--adapter`     | Use specific adapter plugin                                                | None       |
 
 ### Examples (cost recommendations snooze)

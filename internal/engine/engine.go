@@ -4315,12 +4315,14 @@ func (e *Engine) DismissRecommendation(
 		},
 	}
 
-	// Preserve existing history if overwriting
+	// Preserve existing history and snapshot if overwriting. A re-snooze whose
+	// lookup found nothing must not erase the details recorded earlier.
 	if existing, ok := store.Get(req.RecommendationID); ok {
 		record.History = append(existing.History, record.History...)
+		record.LastKnown = existing.LastKnown
 	}
 
-	// Add LastKnown snapshot if recommendation details provided
+	// A fresh snapshot replaces the earlier one
 	if req.Recommendation != nil {
 		record.LastKnown = NewRecommendationSnapshot(req.Recommendation)
 	}

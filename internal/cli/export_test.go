@@ -48,6 +48,20 @@ func SetHistoryPluginOpenerForTest(
 	t.Cleanup(func() { historyPluginOpener = prev })
 }
 
+// SetDismissPluginOpenerForTest replaces plugin discovery for dismiss and
+// snooze and restores it when the test ends.
+func SetDismissPluginOpenerForTest(
+	t *testing.T,
+	opener func(context.Context) ([]*pluginhost.Client, func(), error),
+) {
+	t.Helper()
+	prev := openDismissPlugins
+	openDismissPlugins = func(ctx context.Context, _ string, _ *auditContext) ([]*pluginhost.Client, func(), error) {
+		return opener(ctx)
+	}
+	t.Cleanup(func() { openDismissPlugins = prev })
+}
+
 // SetNotificationClientForTest routes budget notifications through client and
 // returns a function that restores the previous client.
 func SetNotificationClientForTest(client *http.Client) func() {

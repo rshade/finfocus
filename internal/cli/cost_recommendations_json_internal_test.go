@@ -186,3 +186,42 @@ func TestMergeDismissalRecordsIntoResult_SkipsActiveByRecommendationID(t *testin
 	require.Len(t, result.Recommendations, 2)
 	assert.Equal(t, "other", result.Recommendations[1].ResourceID)
 }
+
+// A dismissed recommendation stays listed beside another active
+// recommendation on the same resource, even one with the same action type.
+// The same resource, action, and description is the same recommendation under
+// a new id, and is not listed twice.
+func TestMergeDismissalRecordsIntoResult_MatchesSameRecommendation(t *testing.T) {
+	t.Parallel()
+
+	result := &engine.RecommendationsResult{
+		Recommendations: []engine.Recommendation{
+			{ID: "rec-new-id", ResourceID: "i-123", Type: "MODIFY", Description: "Move to t3a.micro"},
+		},
+	}
+	records := map[string]*config.DismissalRecord{
+		"rec-graviton": {
+			RecommendationID: "rec-graviton",
+			Status:           config.StatusDismissed,
+			LastKnown: &config.LastKnownRecommendation{
+				ResourceID: "i-123", Type: "MODIFY", Description: "Move to t4g.micro", PricingCategory: "DYNAMIC",
+			},
+		},
+		"rec-old-id": {
+			RecommendationID: "rec-old-id",
+			Status:           config.StatusSnoozed,
+			LastKnown: &config.LastKnownRecommendation{
+				ResourceID: "i-123", Type: "MODIFY", Description: "Move to t3a.micro",
+			},
+		},
+	}
+
+	mergeDismissalRecordsIntoResult(records, result)
+
+	require.Len(t, result.Recommendations, 2)
+	merged := result.Recommendations[1]
+	assert.Equal(t, "rec-graviton", merged.ID)
+	assert.Equal(t, engine.RecommendationStatusDismissed, merged.Status)
+	assert.Equal(t, "Move to t4g.micro", merged.Description)
+	assert.Equal(t, engine.PricingCategory("DYNAMIC"), merged.PricingCategory)
+}

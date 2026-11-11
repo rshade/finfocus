@@ -396,7 +396,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - **Recorder** (reference/contract plugin): `FINFOCUS_RECORDER_OUTPUT_DIR`
   (default `./recorded_data`), `FINFOCUS_RECORDER_MOCK_RESPONSE`. It
   advertises only the `test` provider, so the engine fallback does not
-  send it a resource of another cloud.
+  send it a resource of another cloud. Its `Supports` declines every resource, so the
+  engine never sends it `GetRecommendations`; a CLI test that needs a
+  recommendation uses an in-process fake client.
 - **Recommendation scorer** (`plugins/scorer/`): opt-in; `SCORER_BACKEND=jev|clef`
   defaults to Jev. `SCORER_API_KEY` is the selected backend token; it
   never appears in logs, errors, tests, or files. The recommendation id never
@@ -980,6 +982,17 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - Recommendations: `Recommendation.ID` is the dismissal id. The cache key hashes
   inputs plus dismissed ids; `--include-dismissed` still sends excluded ids and
   adds `/include-dismissed`.
+- `dismiss` and `snooze` with `--pulumi-json` look the id up before saving
+  (`findDismissedRecommendation`, #2057) so the record carries `LastKnown`,
+  which `--include-dismissed` and the overview dismissed count need. The match
+  is on id only; any miss or failure still dismisses, with no snapshot, and
+  logs at debug. The lookup runs inside the `ax.Perform` commit, so `--dry-run`
+  sends nothing. Overwriting a record without details keeps its earlier
+  `LastKnown`. The `--include-dismissed` merge hides a record only when an
+  active recommendation has its id, or its resource, action type, and
+  description together. aws-public mints new ids on every call, so a lookup
+  matches only when the recommendations cache serves the answer the user saw.
+  Tests swap plugins with `SetDismissPluginOpenerForTest`.
 - Recommendations page through every plugin call (`fetchRecommendationPages`,
   `maxRecommendationPages` = 100). A repeated token, a page past the cap, or a
   page error fails that request: a sequential plugin drops all its rows, and a
