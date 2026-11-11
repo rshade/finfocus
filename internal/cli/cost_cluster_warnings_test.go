@@ -191,6 +191,26 @@ func TestPrintClusterWarnings(t *testing.T) {
 		}, lines)
 	})
 
+	t.Run("a repeated subject counts once", func(t *testing.T) {
+		t.Parallel()
+
+		in := []string{
+			"incomplete: ns/worker-0: gap in cpu_usage",
+			"incomplete: ns/worker-0: gap in cpu_usage",
+			"incomplete: ns/worker-1: gap in cpu_usage",
+			"incomplete: ns/solo: gap in mem_usage",
+			"incomplete: ns/solo: gap in mem_usage",
+		}
+		lines := warningsTo(t, outputFormatTable, in)
+		assert.Equal(t, []string{
+			"warning: incomplete: ns/solo: gap in mem_usage",
+			"warning: incomplete: ns/solo: gap in mem_usage",
+			"warning: incomplete: gap in cpu_usage for 2 resources (ns/worker-0, ns/worker-1)",
+			"warning: 3 warnings summarized above; --output json lists each one under \"warnings\"",
+		}, lines)
+		assert.Contains(t, footer(t, incompleteOutput(in)), "  - gap in cpu_usage for 2 resources\n")
+	})
+
 	t.Run("single and unprefixed warnings stay as written", func(t *testing.T) {
 		t.Parallel()
 

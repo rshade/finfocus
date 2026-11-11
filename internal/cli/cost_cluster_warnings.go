@@ -13,7 +13,7 @@ import (
 // warningExamples is how many subjects a summarized warning names.
 const warningExamples = 3
 
-// minGroupedWarnings is the smallest number of subjects sharing a detail
+// minGroupedWarnings is the smallest number of distinct subjects sharing a detail
 // that is folded into one line.
 const minGroupedWarnings = 2
 
@@ -31,10 +31,13 @@ type clusterWarnings struct {
 	groups []warningGroup
 }
 
-// warningGroup is the incomplete warnings that share one detail.
+// warningGroup is the incomplete warnings that share one detail. A usage
+// source can repeat a subject (one pod name on two nodes), so subjects are
+// distinct and entries counts the warnings folded into the group.
 type warningGroup struct {
 	detail   string
 	subjects []string
+	entries  int
 }
 
 func (g warningGroup) summary() string {
@@ -56,7 +59,7 @@ func (g warningGroup) examples() string {
 func (w clusterWarnings) summarized() int {
 	n := 0
 	for _, g := range w.groups {
-		n += len(g.subjects)
+		n += g.entries
 	}
 	return n
 }
@@ -75,19 +78,21 @@ func sortClusterWarnings(warnings []string) clusterWarnings {
 		byDetail[detail] = append(byDetail[detail], subject)
 	}
 
+	grouped := map[string]bool{}
 	var out clusterWarnings
-	for _, w := range warnings {
-		if _, detail, ok := splitIncompleteWarning(w); !ok || len(byDetail[detail]) < minGroupedWarnings {
-			out.single = append(out.single, w)
-		}
-	}
 	for _, detail := range order {
-		subjects := byDetail[detail]
+		entries := len(byDetail[detail])
+		subjects := slices.Compact(slices.Sorted(slices.Values(byDetail[detail])))
 		if len(subjects) < minGroupedWarnings {
 			continue
 		}
-		slices.Sort(subjects)
-		out.groups = append(out.groups, warningGroup{detail: detail, subjects: subjects})
+		grouped[detail] = true
+		out.groups = append(out.groups, warningGroup{detail: detail, subjects: subjects, entries: entries})
+	}
+	for _, w := range warnings {
+		if _, detail, ok := splitIncompleteWarning(w); !ok || !grouped[detail] {
+			out.single = append(out.single, w)
+		}
 	}
 	return out
 }
