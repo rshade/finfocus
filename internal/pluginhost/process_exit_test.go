@@ -195,6 +195,20 @@ func TestStderrExcerpt(t *testing.T) {
 			want:    "login rejected password [redacted]",
 		},
 		{
+			name: "multiline credential masked before control characters are removed",
+			data: `{"error":"bad key -----BEGIN KEY-----\nMIIBOgIBAAJBAK\n-----END KEY-----\n","message":"auth"}`,
+			secrets: []string{
+				"-----BEGIN KEY-----\nMIIBOgIBAAJBAK\n-----END KEY-----\n",
+			},
+			want: "auth: bad key [redacted]",
+		},
+		{
+			name:    "credential with surrounding whitespace masked before trimming",
+			data:    `{"error":"  tok-with-space  "}`,
+			secrets: []string{"  tok-with-space  "},
+			want:    "[redacted]",
+		},
+		{
 			name:    "secret with json escapes masked in decoded form",
 			data:    `{"error":"bad key a\"b\\c-secret"}`,
 			secrets: []string{`a"b\c-secret`},

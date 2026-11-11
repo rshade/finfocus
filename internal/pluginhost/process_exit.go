@@ -152,7 +152,7 @@ func stderrExcerpt(data []byte, truncated bool, secrets []string) string {
 	}
 	var rendered []string
 	for _, line := range lines {
-		if out := renderStderrLine(line); out != "" {
+		if out := renderStderrLine(line, secrets); out != "" {
 			rendered = append(rendered, out)
 		}
 	}
@@ -168,7 +168,12 @@ func stderrExcerpt(data []byte, truncated bool, secrets []string) string {
 // line. Any other line, including a JSON object that does not parse, gives
 // nothing: free-form stderr can hold a secret under any name or encoding that
 // masking cannot recognize, so it stays in the log file.
-func renderStderrLine(line string) string {
+//
+// Stripping control characters from the raw line cannot touch a value inside
+// a JSON string, where they are always escaped. The decoded fields are masked
+// before they are normalized, so a credential with newlines or other control
+// characters (a PEM key) still matches its environment value.
+func renderStderrLine(line string, secrets []string) string {
 	line = strings.TrimSpace(stripControl(line))
 	if !strings.HasPrefix(line, "{") {
 		return ""
@@ -177,12 +182,14 @@ func renderStderrLine(line string) string {
 	if json.Unmarshal([]byte(line), &fields) != nil {
 		return ""
 	}
-	return strings.TrimSpace(stripControl(joinLogFields(fields)))
+	return strings.TrimSpace(stripControl(joinLogFields(fields, secrets)))
 }
 
-func joinLogFields(fields map[string]any) string {
+func joinLogFields(fields map[string]any, secrets []string) string {
 	message, _ := fields["message"].(string)
 	errText, _ := fields["error"].(string)
+	message = maskSecrets(message, secrets)
+	errText = maskSecrets(errText, secrets)
 	switch {
 	case message != "" && errText != "":
 		return message + ": " + errText
