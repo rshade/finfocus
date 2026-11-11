@@ -10,9 +10,9 @@ This page lists common error codes and messages returned by FinFocus.
 ### ERR-001: Config File Error
 
 **Message**: "Failed to load configuration file"
-**Cause**: The configuration file at `~/.finfocus/config.yaml` is invalid
+**Cause**: The configuration file at `~/.finfocus/config.hujson` is invalid
 or unreadable.
-**Fix**: Check permissions and YAML syntax.
+**Fix**: Check permissions and run `finfocus config validate`.
 
 ### ERR-002: Plugin Not Found
 

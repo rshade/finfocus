@@ -951,7 +951,7 @@ The interactive TUI mode allows you to:
 ## config init
 
 Initialize a configuration file with default values. When run inside a Pulumi
-project, creates project-local configuration at `$PROJECT/.finfocus/config.yaml`
+project, creates project-local configuration at `$PROJECT/.finfocus/config.hujson`
 along with a `.gitignore` to protect user-specific data. Use `--global` to force
 global initialization even inside a project.
 
@@ -1028,7 +1028,7 @@ export FINFOCUS_PLUGIN_AWS_SECRET_KEY="mysecret"
 
 ## config get
 
-Get a configuration value using dot notation from `~/.finfocus/config.yaml`.
+Get a configuration value using dot notation from `~/.finfocus/config.hujson`.
 
 ### Usage (config get)
 
@@ -1054,7 +1054,7 @@ finfocus config get logging.level
 
 ## config list
 
-List all configuration values from `~/.finfocus/config.yaml`.
+List all configuration values from `~/.finfocus/config.hujson`.
 
 ### Usage (config list)
 
@@ -1066,7 +1066,7 @@ finfocus config list [options]
 
 | Flag         | Description                      | Default |
 | ------------ | -------------------------------- | ------- |
-| `--format`   | Output format: `yaml` or `json`  | `yaml`  |
+| `--as`, `-f` | Output style: `yaml` or `json`   | `yaml`  |
 
 ### Examples (config list)
 
@@ -1246,20 +1246,25 @@ Install a FinFocus plugin from a registry or URL.
 ### Usage (plugin install)
 
 ```bash
-finfocus plugin install <plugin-name> [--version <version>] [--url <url>] [options]
+finfocus plugin install <plugin-name>[@<version>] [options]
+finfocus plugin install github.com/<owner>/<repo>[@<version>] [options]
 ```
 
 ### Options (plugin install)
 
-| Flag        | Description                                        | Default           |
-| ----------- | -------------------------------------------------- | ----------------- |
-| `--version` | Specify plugin version to install                  | latest            |
-| `--url`     | URL to plugin binary (for custom installs)         | (registry lookup) |
-| `--force`   | Force overwrite existing plugin installation       | false             |
-| `--clean`   | Remove all other versions after successful install | false             |
-| `--metadata` | Key=value metadata pairs (e.g., `region=us-west-2`) | (none)            |
-| `--no-save` | Don't add plugin to config file                    | false             |
-| `--help`    | Show help                                          |                   |
+| Flag                   | Description                                                  | Default    |
+| ---------------------- | ------------------------------------------------------------ | ---------- |
+| `--force`, `-f`        | Reinstall even if the version already exists                 | false      |
+| `--clean`              | Remove all other versions after successful install           | false      |
+| `--metadata`           | Key=value metadata pairs (e.g., `region=us-west-2`)          | (none)     |
+| `--no-save`            | Don't add plugin to config file                              | false      |
+| `--fallback-to-latest` | Install the latest stable release when the requested one has no assets | false |
+| `--no-fallback`        | Fail when the requested version has no assets                | false      |
+| `--skip-checksum`      | Skip SHA256 checksum verification                            | false      |
+| `--plugin-dir`         | Custom plugin directory                                      | configured |
+| `--help`               | Show help                                                    |            |
+
+Pin a version with `<plugin-name>@<version>`; there is no `--version` flag.
 
 ### Examples (plugin install)
 
@@ -1268,13 +1273,13 @@ finfocus plugin install <plugin-name> [--version <version>] [--url <url>] [optio
 finfocus plugin install vantage
 
 # Install a specific version of a plugin
-finfocus plugin install opencost --version 0.1.2
+finfocus plugin install opencost@v0.1.2
 
 # Install and remove all other versions (cleanup disk space)
 finfocus plugin install opencost --clean
 
-# Install from a custom URL
-finfocus plugin install my-plugin --url https://example.com/my-plugin-0.1.0.tar.gz
+# Install from a GitHub repository
+finfocus plugin install github.com/rshade/finfocus-plugin-aws-public
 
 # Install with region metadata (selects region-specific binary)
 finfocus plugin install aws-public --metadata="region=us-west-2"
@@ -1311,11 +1316,15 @@ finfocus plugin update <plugin-name> [options]
 
 ### Options (plugin update)
 
-| Flag        | Description                                 | Default |
-| ----------- | ------------------------------------------- | ------- |
-| `--version` | Specify target version (defaults to latest) | latest  |
-| `--all`     | Update all installed plugins                | false   |
-| `--help`    | Show help                                   |         |
+| Flag              | Description                                 | Default    |
+| ----------------- | ------------------------------------------- | ---------- |
+| `--version`       | Specify target version (defaults to latest) | latest     |
+| `--skip-checksum` | Skip SHA256 checksum verification           | false      |
+| `--plugin-dir`    | Custom plugin directory                     | configured |
+| `--help`          | Show help                                   |            |
+
+`plugin update` takes one plugin name; there is no option to update every
+installed plugin at once.
 
 ### Examples (plugin update)
 
@@ -1323,8 +1332,8 @@ finfocus plugin update <plugin-name> [options]
 # Update the Vantage plugin to the latest version
 finfocus plugin update vantage
 
-# Update all installed plugins
-finfocus plugin update --all
+# Update to a specific version
+finfocus plugin update vantage --version v0.2.0
 ```
 
 ## plugin upgrade
@@ -1395,10 +1404,14 @@ finfocus plugin remove <plugin-name> [options]
 
 ### Options (plugin remove)
 
-| Flag     | Description                  | Default |
-| -------- | ---------------------------- | ------- |
-| `--all`  | Remove all installed plugins | false   |
-| `--help` | Show help                    |         |
+| Flag            | Description                       | Default    |
+| --------------- | --------------------------------- | ---------- |
+| `--keep-config` | Keep the plugin entry in config   | false      |
+| `--plugin-dir`  | Custom plugin directory           | configured |
+| `--help`        | Show help                         |            |
+
+`plugin remove` takes one plugin name. It is also available as
+`plugin uninstall` and `plugin rm`.
 
 ### Examples (plugin remove)
 
@@ -1406,8 +1419,8 @@ finfocus plugin remove <plugin-name> [options]
 # Remove the Vantage plugin
 finfocus plugin remove vantage
 
-# Remove all installed plugins
-finfocus plugin remove --all
+# Remove but keep the config entry for a later reinstall
+finfocus plugin remove vantage --keep-config
 ```
 
 ## plugin list
@@ -1645,12 +1658,13 @@ finfocus analyzer serve [options]
 
 ### Options (analyzer serve)
 
-| Flag              | Description                                  | Default     |
-| ----------------- | -------------------------------------------- | ----------- |
-| `--logtostderr`   | Log messages to stderr rather than log files | false       |
-| `--v`             | Log level for V-logging (verbose logging)    | 0           |
-| `--pulumilogfile` | Pulumi log file name (internal use)          | (generated) |
-| `--help`          | Show help                                    |             |
+| Flag      | Description                    | Default |
+| --------- | ------------------------------ | ------- |
+| `--debug` | Enable debug logging (global)  | false   |
+| `--help`  | Show help                      |         |
+
+When Pulumi starts the binary as `pulumi-analyzer-finfocus`, the arguments it
+passes are ignored.
 
 ### Examples (analyzer serve)
 

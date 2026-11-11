@@ -187,8 +187,7 @@ finfocus cost actual --group-by daily \
 
 ```bash
 # Cost by team
-finfocus cost actual --filter "tag:team=platform" \
-  --group-by "tag:project"
+finfocus cost actual --filter "tag:team=platform"
 
 # Cost by environment
 finfocus cost actual --filter "tag:env=prod" \

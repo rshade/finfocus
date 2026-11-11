@@ -19,13 +19,13 @@ and priority.
 
 ## No Config = No Routing
 
-Without a `routing:` section in config.yaml, the engine queries **all** plugins
+Without a `routing:` section in config.hujson, the engine queries **all** plugins
 for every resource. Add routing config only when you need control.
 
 ## Config Format
 
 ```yaml
-# ~/.finfocus/config.yaml (or $PROJECT/.finfocus/config.yaml)
+# ~/.finfocus/config.hujson (or $PROJECT/.finfocus/config.hujson), keys shown in YAML
 routing:
   plugins:
     - name: aws-public        # Must match installed plugin name

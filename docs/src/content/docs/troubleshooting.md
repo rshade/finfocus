@@ -792,12 +792,10 @@ Error: no cost data available for time range
    ls -la ~/.finfocus/plugins/*/*/config.*
    ```
 
-2. **Validate YAML syntax**:
+2. **Validate the FinFocus configuration**:
 
    ```bash
-   python -c "import yaml; yaml.safe_load(open('config.yaml'))"
-   # or
-   yq eval '.' config.yaml
+   finfocus config validate
    ```
 
 3. **Check file permissions**:
@@ -911,11 +909,10 @@ finfocus cost actual --adapter opencost --from 2025-01-01
 
 ### Verbose Output
 
-```bash
-# Increase verbosity
-finfocus -v cost projected --pulumi-json plan.json
+There is no `-v` verbosity flag: `finfocus -v` prints the version. `--debug`
+is the only switch that raises log detail:
 
-# Maximum verbosity
+```bash
 finfocus --debug cost actual --adapter opencost --from 2025-01-01
 ```
 

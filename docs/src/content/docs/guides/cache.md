@@ -49,7 +49,9 @@ Enable the cache in under 2 minutes.
 
 ### Step 1: Add Cache Config
 
-Edit `~/.finfocus/config.yaml` (global) or your project's `.finfocus/config.yaml`:
+Edit `~/.finfocus/config.hujson` (global) or your project's
+`.finfocus/config.hujson`.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 # yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
@@ -90,8 +92,8 @@ The `(cached)` suffix on the Adapter column confirms results came from disk.
 
 Cache settings belong under the `cost.cache` key in either:
 
-- `~/.finfocus/config.yaml` - global default, applies to all projects
-- `$PROJECT/.finfocus/config.yaml` - project-local override (takes precedence)
+- `~/.finfocus/config.hujson` - global default, applies to all projects
+- `$PROJECT/.finfocus/config.hujson` - project-local override (takes precedence)
 
 ### Configuration Options
 
@@ -219,7 +221,7 @@ and `analyzer serve` all participate in caching when enabled.
 
 **Use Case**: Speed up repeated `cost projected` runs during active development.
 
-**Configuration** (in `$PROJECT/.finfocus/config.yaml`):
+**Configuration** (in `$PROJECT/.finfocus/config.hujson`, shown as YAML):
 
 ```yaml
 cost:

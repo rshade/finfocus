@@ -69,7 +69,7 @@ Use this model for individual developers or small teams validating costs during 
 
 #### Standalone CLI
 
-- Install the CLI and configure `~/.finfocus/config.yaml`.
+- Install the CLI and configure `~/.finfocus/config.hujson`.
 - Plugins live in `~/.finfocus/plugins` and specs in `~/.finfocus/specs`.
 - Run `finfocus cost projected` against Pulumi plan JSON output.
 
@@ -163,7 +163,7 @@ A typical deployment uses the same core components across environments:
 - **CLI**: The `finfocus` binary that runs cost analysis and plugin management.
 - **Plugins**: Provider-specific pricing sources (for example, Vantage).
 - **Specs**: Local pricing data stored under `~/.finfocus/specs`.
-- **Config**: `config.yaml` or environment variables for runtime settings.
+- **Config**: `config.hujson` or environment variables for runtime settings.
 
 For a visual overview, see the [Deployment Architecture Diagram](deployment-architecture.md).
 For configuration reference, see the [Configuration Guide](configuration.md).
@@ -172,7 +172,7 @@ For configuration reference, see the [Configuration Guide](configuration.md).
 
 ### Configuration Management
 
-- Config priority: CLI flags, environment variables, then `config.yaml`.
+- Config priority: CLI flags, environment variables, then `config.hujson`.
 - Use environment variables for secrets and dynamic settings.
 - Centralize config templates for consistent defaults.
 
@@ -225,7 +225,7 @@ See the [Architecture Overview](../architecture/system-overview.md) for context.
 
 | Method               | Use case                | Configuration              | Documentation                                          |
 | -------------------- | ----------------------- | -------------------------- | ------------------------------------------------------ |
-| Local CLI            | Interactive cost checks | `~/.finfocus/config.yaml`  | [Installation](../getting-started/installation.md)     |
+| Local CLI            | Interactive cost checks | `~/.finfocus/config.hujson` | [Installation](../getting-started/installation.md)     |
 | Analyzer policy pack | Pulumi previews         | `~/.finfocus/analyzer`     | [Analyzer Setup](../getting-started/analyzer-setup.md) |
 | Docker               | Consistent runtime      | `/home/finfocus/.finfocus` | [Docker](docker.md)                                    |
 | CI/CD                | Automated checks        | Env vars, secrets          | [CI/CD Integration](cicd-integration.md)               |

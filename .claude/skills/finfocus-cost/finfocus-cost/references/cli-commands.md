@@ -7,7 +7,7 @@
 - [Cost Projected](#cost-projected)
 - [Cost Actual](#cost-actual)
 - [Cost Recommendations](#cost-recommendations)
-- [Cost Budget](#cost-budget)
+- [Budgets](#budgets)
 - [Plugin Management](#plugin-management)
 - [Analyzer](#analyzer)
 - [Auto-Detection](#auto-detection)
@@ -20,12 +20,12 @@ finfocus
 │   ├── projected         # Estimate from Pulumi preview
 │   ├── actual            # Historical costs with time ranges
 │   ├── estimate          # Cost estimation
-│   ├── budget            # Budget monitoring
-│   ├── recommendations   # Optimization suggestions
-│   │   ├── dismiss       # Dismiss a recommendation
-│   │   ├── undismiss     # Undo dismissal
-│   │   └── history       # View dismissal history
-│   └── overview          # Dashboard view
+│   └── recommendations   # Optimization suggestions
+│       ├── dismiss       # Dismiss a recommendation
+│       ├── snooze        # Dismiss until a date
+│       ├── undismiss     # Undo dismissal
+│       └── history       # View dismissal history
+├── overview              # Dashboard view (alias: ov)
 ├── plugin
 │   ├── init              # Scaffold new plugin
 │   ├── install           # Install plugin
@@ -47,7 +47,7 @@ finfocus
 | Flag | Purpose |
 |------|---------|
 | `--debug` | Enable debug logging |
-| `--config` | Config file path |
+| `--project-dir` | Pulumi project directory for config resolution |
 
 ## Cost Projected
 
@@ -90,24 +90,19 @@ finfocus cost recommendations [flags]
 | Flag | Type | Required | Description |
 |------|------|----------|-------------|
 | `--pulumi-json` | string | No* | Pulumi JSON path |
-| `--action-type` | string | No | Comma-separated action type filter |
+| `--filter` | string | No | Filter expression, e.g. `action=RIGHTSIZE,TERMINATE` |
 | `--output` | string | No | Output format |
 
-## Cost Budget
+## Budgets
 
-```bash
-finfocus cost budget [flags]
-```
+There is no `cost budget` command. `cost projected` and `cost actual` print
+budget status and take these budget flags:
 
 | Flag | Type | Required | Description |
 |------|------|----------|-------------|
-| `--filter` | string | No | Provider or tag filter (repeatable) |
-| `--output` | string | No | Output format |
-
-Filter syntax:
-
-- `provider=aws` - Provider filter (case-insensitive, OR logic)
-- `tag:key=value` - Tag filter (case-sensitive, AND logic, glob patterns)
+| `--budget-scope` | string | No | Scopes to show: global, provider, provider=aws, tag, type |
+| `--exit-on-threshold` | bool | No | Exit non-zero when a threshold is exceeded |
+| `--exit-code` | int | No | Exit code for an exceeded threshold (default 1) |
 
 ## Plugin Management
 

@@ -150,18 +150,13 @@ FinFocus supports various ways to aggregate and group cost data:
 
 ### Example: Grouping by Type
 
+`--group-by` is a `cost actual` flag; `cost projected` has no grouping.
+
 ```bash
-finfocus cost projected --pulumi-json plan.json --group-by type
+finfocus cost actual --pulumi-json plan.json --from 2024-01-01 --group-by type
 ```
 
-Output:
-
-```text
-TYPE                          MONTHLY   CURRENCY
-aws:ec2/instance:Instance     $750.00   USD
-aws:s3/bucket:Bucket          $5.00     USD
-aws:rds/instance:Instance     $200.00   USD
-```
+Each row then holds the summed actual cost of one resource type.
 
 ## Budgets and Thresholds
 
@@ -169,7 +164,8 @@ FinFocus supports budget enforcement with configurable thresholds.
 
 ### Budget Configuration
 
-Budgets are configured in `~/.finfocus/config.yaml`:
+Budgets are configured in `~/.finfocus/config.hujson`.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 cost:

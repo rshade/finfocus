@@ -503,7 +503,7 @@ mkdir -p ~/.finfocus/plugins/mycloud/1.0.0/
 cp finfocus-mycloud ~/.finfocus/plugins/mycloud/1.0.0/
 
 # Validate plugin
-finfocus plugin validate --adapter mycloud
+finfocus plugin validate --plugin mycloud
 
 # Test cost calculation
 finfocus cost projected --pulumi-json test-plan.json --adapter mycloud
@@ -737,15 +737,15 @@ func (p *MyCloudPlugin) GetProjectedCost(ctx context.Context, req *pb.GetProject
 3. Create documentation
 4. Submit to plugin registry (coming soon)
 
-### Plugin Registry (Future)
+### Plugin Registry
 
 ```bash
-# Search available plugins
-finfocus plugin search aws
+# List plugins available from the registry
+finfocus plugin list --available
 
 # Install from registry
 finfocus plugin install opencost
 
-# Update plugins
-finfocus plugin update --all
+# Update one installed plugin
+finfocus plugin update opencost
 ```

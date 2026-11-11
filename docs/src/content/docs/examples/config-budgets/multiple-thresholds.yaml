@@ -29,4 +29,4 @@ cost:
         type: actual
 
 # Usage:
-#   finfocus cost actual --start-date 2024-01-01
+#   finfocus cost actual --from 2024-01-01

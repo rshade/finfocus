@@ -599,7 +599,8 @@ infrastructure spending.
 
 ### Configuring a Budget
 
-Add a budget configuration to your `~/.finfocus/config.yaml`:
+Add a budget configuration to your `~/.finfocus/config.hujson`.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 cost:
@@ -921,8 +922,8 @@ finfocus cost actual --group-by type --from 2024-01-01
 # By date (daily breakdown)
 finfocus cost actual --group-by daily --from 2024-01-01 --to 2024-01-31
 
-# By tag
-finfocus cost actual --group-by "tag:env" --from 2024-01-01
+# Only resources tagged env=prod (tag:key=value filters; it does not group)
+finfocus cost actual --group-by "tag:env=prod" --from 2024-01-01
 ```
 
 ---
@@ -981,7 +982,7 @@ Log settings are applied in this order (highest priority first):
 
 1. **CLI flags** (`--debug`)
 2. **Environment variables** (`FINFOCUS_LOG_LEVEL`)
-3. **Config file** (`~/.finfocus/config.yaml`)
+3. **Config file** (`~/.finfocus/config.hujson`)
 4. **Defaults** (info level, text format)
 
 ### Trace ID for Debugging
@@ -1004,7 +1005,8 @@ FinFocus provides comprehensive logging capabilities for debugging, monitoring, 
 
 ### Configuration File
 
-Create or edit `~/.finfocus/config.yaml` to configure logging:
+Create or edit `~/.finfocus/config.hujson` to configure logging.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 logging:

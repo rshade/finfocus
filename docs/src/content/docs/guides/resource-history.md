@@ -113,7 +113,7 @@ For actual costs, pass `--terraform-state`; FinFocus does not plan for actual co
 ## Configuration
 
 ```yaml
-# ~/.finfocus/config.yaml
+# ~/.finfocus/config.hujson (keys shown in YAML form)
 cost:
   history:
     enabled: true          # default: true
@@ -295,7 +295,7 @@ ctx.RegisterStackTransformation(func(args *pulumi.ResourceTransformationArgs) *p
 After setting up tags on your cloud resources, configure FinFocus to use them:
 
 ```yaml
-# ~/.finfocus/config.yaml
+# ~/.finfocus/config.hujson (keys shown in YAML form)
 cost:
   allocation:
     enabled: true

@@ -311,7 +311,7 @@ FAIL: No pricing data available for eu-west-1/aws:ec2:Instance
 ./bin/finfocus plugin list
 
 # Install region-specific plugin if missing
-./bin/finfocus plugin install aws-public --version <version>
+./bin/finfocus plugin install aws-public@<version> --metadata="region=<region>"
 ```
 
 #### 2. Test Fails: "Network failure after 3 retries"
