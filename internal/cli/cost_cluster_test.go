@@ -123,6 +123,81 @@ func TestCostCluster_ValidatesFlagsBeforeLoadingPlugins(t *testing.T) {
 	}
 }
 
+// A policy file that is not valid HuJSON, whether named by --policy or
+// discovered, exits 2 before any plugin starts, names the file and the parse
+// position, and talks about the allocation policy rather than config.hujson.
+//
+//nolint:paralleltest // builds a root command, which sets the process-wide resolved project dir
+func TestCostCluster_PolicyParseErrorNamesFile(t *testing.T) {
+	truncated := []byte(`{ "idle": `)
+	writeFile := func(t *testing.T, dir string) string {
+		t.Helper()
+		require.NoError(t, os.MkdirAll(dir, 0o750))
+		p := filepath.Join(dir, config.AllocationPolicyFile)
+		require.NoError(t, os.WriteFile(p, truncated, 0o600))
+		return p
+	}
+	tests := []struct {
+		name string
+		// setup writes the policy and returns its path and the extra args.
+		setup func(t *testing.T) (string, []string)
+	}{
+		{"--policy", func(t *testing.T) (string, []string) {
+			t.Helper()
+			p := writeFile(t, t.TempDir())
+			return p, []string{"--policy", p}
+		}},
+		{"--policy with --show-policy", func(t *testing.T) (string, []string) {
+			t.Helper()
+			p := writeFile(t, t.TempDir())
+			return p, []string{"--policy", p, "--show-policy"}
+		}},
+		{"discovered project file", func(t *testing.T) (string, []string) {
+			t.Helper()
+			project := t.TempDir()
+			return writeFile(t, filepath.Join(project, ".finfocus")), []string{"--project-dir", project}
+		}},
+		{"discovered global file", func(t *testing.T) (string, []string) {
+			t.Helper()
+			return writeFile(t, os.Getenv("FINFOCUS_HOME")), nil
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateClusterTestConfig(t)
+			path, extra := tt.setup(t)
+			args := append([]string{"cost", "cluster", "--usage-source", "kubernetes"}, extra...)
+
+			res := axtest.Run(context.Background(), t, NewRootCmd("test"), args)
+
+			require.Equal(t, ax.ExitValidation, res.ExitCode, "%s", res.Stderr)
+			envelope := decodeErrorEnvelope(t, res.Stderr)
+			assert.Equal(t, "config_invalid", envelope.ErrorCode)
+			assert.Equal(t,
+				"allocation policy "+path+" is not valid HuJSON: line 1, column 11: parsing value: unexpected EOF",
+				envelope.Message)
+			assert.Equal(t,
+				"fix the HuJSON syntax at line 1, column 11 of the allocation policy "+path+" and retry",
+				envelope.ActionableFix)
+			assert.Equal(t, path, envelope.Context["path"])
+		})
+	}
+}
+
+//nolint:paralleltest // builds a root command, which sets the process-wide resolved project dir
+func TestCostCluster_UnreadablePolicyNamesFile(t *testing.T) {
+	isolateClusterTestConfig(t)
+	dir := t.TempDir()
+
+	res := axtest.Run(context.Background(), t, NewRootCmd("test"),
+		[]string{"cost", "cluster", "--policy", dir, "--show-policy"})
+
+	require.Equal(t, ax.ExitValidation, res.ExitCode, "%s", res.Stderr)
+	envelope := decodeErrorEnvelope(t, res.Stderr)
+	assert.Equal(t, "validation_error", envelope.ErrorCode)
+	assert.True(t, strings.HasPrefix(envelope.Message, "cannot read allocation policy "+dir+": "), envelope.Message)
+}
+
 //nolint:paralleltest // builds a root command, which sets the process-wide resolved project dir
 func TestCostCluster_NoPluginsInstalled(t *testing.T) {
 	isolateClusterTestConfig(t)
@@ -538,19 +613,23 @@ func TestCostCluster_PluginRejectionsOfUserInput(t *testing.T) {
 // that ax.Execute writes to stderr when the output is not a terminal.
 func errorEnvelope(t *testing.T, stderr []byte) (string, string) {
 	t.Helper()
+	envelope := decodeErrorEnvelope(t, stderr)
+	return envelope.ErrorCode, envelope.Message
+}
+
+// decodeErrorEnvelope returns the whole JSON error envelope on stderr.
+func decodeErrorEnvelope(t *testing.T, stderr []byte) ax.Error {
+	t.Helper()
 	for line := range strings.Lines(string(stderr)) {
 		if !strings.HasPrefix(line, "{") {
 			continue
 		}
-		var envelope struct {
-			ErrorCode string `json:"error_code"`
-			Message   string `json:"message"`
-		}
+		var envelope ax.Error
 		require.NoError(t, json.Unmarshal([]byte(line), &envelope))
-		return envelope.ErrorCode, envelope.Message
+		return envelope
 	}
 	require.Failf(t, "no error envelope", "stderr: %s", stderr)
-	return "", ""
+	return ax.Error{}
 }
 
 func TestCostCluster_NoWindowLeavesBoundsUnset(t *testing.T) {
