@@ -10,7 +10,7 @@
 # ---------------------------------------------------------------- build & test
 
 # Keep in sync with the `go` directive in go.mod.
-go = "1.27.3"
+go = "1.27.4"
 
 # Terraform-compatible plan generation uses the MPL-2.0 OpenTofu distribution.
 opentofu = "1.13.9"
