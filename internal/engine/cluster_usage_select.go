@@ -88,6 +88,10 @@ func (s *UsageSourceSet) GetStats(
 			return nil, err
 		}
 		r, err := src.Source.GetStats(ctx, in, opts...)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			// A call cut short by the caller is neither an acceptance nor a rejection.
+			return nil, ctxErr
+		}
 		if status.Code(err) == codes.InvalidArgument {
 			rejected.names = append(rejected.names, src.Name)
 			rejected.reasons = append(rejected.reasons, err)

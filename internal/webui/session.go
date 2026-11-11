@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sync"
 	"time"
 
@@ -111,6 +112,9 @@ type Session struct {
 	presentedSet  bool
 	runStatus     RunStatus
 	sourceWarning string
+	// expansionNotes are the last cluster-expansion footnotes, kept so a note
+	// such as why live expansion was skipped survives readiness and reconnects.
+	expansionNotes []string
 }
 
 // RunStatus is the state-only status of an overview run. StateOnly is set by
@@ -201,6 +205,8 @@ type OverviewSnapshot struct {
 	Errors        []ErrorEvent `json:"errors"`
 	Footnote      string       `json:"footnote,omitempty"`
 	SourceWarning string       `json:"sourceWarning,omitempty"`
+	// ExpansionNotes are the cluster-expansion footnotes (the `†` notes).
+	ExpansionNotes []string `json:"expansionNotes,omitempty"`
 }
 
 // OverviewTotalsPayload adds canonical display strings to engine totals.
@@ -390,6 +396,7 @@ func (s *Session) Expansion(rows []engine.OverviewRow, notes []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.rows = cloneData(rows)
+	s.expansionNotes = slices.Clone(notes)
 	s.publishLocked("expansion", map[string]any{"rows": s.resultLocked().Rows, "notes": notes})
 }
 
@@ -558,6 +565,7 @@ func (s *Session) snapshotLocked() OverviewSnapshot {
 		RunStatus:          s.runStatus,
 		Footnote:           s.stateOnlyFootnoteLocked(),
 		SourceWarning:      s.sourceWarning,
+		ExpansionNotes:     slices.Clone(s.expansionNotes),
 	}
 }
 

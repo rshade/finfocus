@@ -143,3 +143,31 @@ func TestUsageSourceSet_StopsWhenTheCallerCancels(t *testing.T) {
 	assert.Zero(t, first.calls)
 	assert.Zero(t, second.calls)
 }
+
+// cancelingUsage cancels the caller's context while its call runs.
+type cancelingUsage struct {
+	cancel context.CancelFunc
+}
+
+func (c *cancelingUsage) GetStats(
+	ctx context.Context, _ *pbc.GetStatsRequest, _ ...grpc.CallOption,
+) (*pbc.GetStatsResponse, error) {
+	c.cancel()
+	<-ctx.Done()
+	return nil, status.FromContextError(ctx.Err()).Err()
+}
+
+func TestUsageSourceSet_CancelDuringTheLastCallIsNotAmbiguous(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	set := NewUsageSourceSet([]NamedUsageSource{
+		{Name: "a", Source: &modeOnlyUsage{}},
+		{Name: "b", Source: &cancelingUsage{cancel: cancel}},
+	})
+
+	_, err := set.GetStats(ctx, &pbc.GetStatsRequest{})
+	require.ErrorIs(t, err, context.Canceled)
+	var ambiguous *AmbiguousUsageSourceError
+	assert.NotErrorAs(t, err, &ambiguous)
+}

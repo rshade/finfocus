@@ -97,6 +97,7 @@ export function mount(container, ctx) {
     runStatus: { stateOnly: false, previewLoaded: false, detectFailed: false },
     footnote: '',
     sourceWarning: '',
+    expansionNotes: [],
     passphraseRequired: false,
     passphraseStack: '',
   };
@@ -167,6 +168,8 @@ export function mount(container, ctx) {
   detectHint.hidden = true;
   const sourceWarning = el('p', { class: 'source-warning', role: 'status' });
   sourceWarning.hidden = true;
+  const expansionNote = el('p', { class: 'expansion-notes', role: 'status' });
+  expansionNote.hidden = true;
 
   const tbody = el('tbody');
   const headerRow = el('tr');
@@ -212,6 +215,7 @@ export function mount(container, ctx) {
       stateNote,
       detectHint,
       sourceWarning,
+      expansionNote,
       totalsBar,
       tableWrap,
       pager,
@@ -956,6 +960,7 @@ export function mount(container, ctx) {
       budgetVersion += 1;
       state.budget = budget;
     }
+    setExpansionNotes(pick(data, 'expansionNotes'));
     renderPhases();
     renderTotals();
     renderBudget();
@@ -1045,6 +1050,14 @@ export function mount(container, ctx) {
     }
   }
 
+  // Cluster-expansion footnotes stay visible after loading: one can explain
+  // why live expansion was skipped.
+  function setExpansionNotes(notes) {
+    state.expansionNotes = Array.isArray(notes) ? notes.filter((n) => typeof n === 'string') : [];
+    expansionNote.hidden = state.expansionNotes.length === 0;
+    expansionNote.textContent = state.expansionNotes.map((n) => `† ${n}`).join(' ');
+  }
+
   function onExpansion(data) {
     const rows = pick(data, 'rows');
     if (Array.isArray(rows)) {
@@ -1054,11 +1067,7 @@ export function mount(container, ctx) {
         if (urn) state.rowsByUrn.set(urn, row);
       }
     }
-    const notes = pick(data, 'notes');
-    if (Array.isArray(notes) && notes.length > 0) {
-      progressLine.hidden = false;
-      progressLine.textContent = notes.join(' ');
-    }
+    setExpansionNotes(pick(data, 'notes'));
     runQuery();
   }
 

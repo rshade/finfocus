@@ -1181,7 +1181,9 @@ Specs 613-623 hold the details. Invariants:
   request (the spec's mode rejection), exactly one acceptor wins, and two
   are an `*engine.AmbiguousUsageSourceError`. `cost cluster` exits 2 on it;
   overview stops that cluster's scope search and adds a `†` note. `expand`
-  emits notes even when rows did not change. Never pick by plugin name.
+  emits notes even when rows did not change, and the web session keeps them
+  in the snapshot (`expansionNotes`) so they outlive the progress line.
+  Never pick by plugin name.
 
 ### MCP Server (`internal/cli/mcp.go`, `output_mode.go`)
 
