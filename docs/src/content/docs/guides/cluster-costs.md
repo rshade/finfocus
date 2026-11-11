@@ -59,6 +59,29 @@ The footer reports the mode and period, the priced total, idle cost and its
 share, the policy source with a short digest, and any resources that could not
 be priced.
 
+## Several usage sources
+
+The kubernetes plugin serves only the run rate and the prometheus plugin only
+a historical window, so both can stay installed. When more than one usage
+source is installed and `--usage-source` is not set, FinFocus asks each one,
+in name order, and uses the one that accepts the request. A source that
+rejects the request as invalid (`InvalidArgument`, which is how a source
+declines a mode it cannot serve) is skipped. With both plugins installed, a
+run with no window uses the kubernetes plugin and a run with `--from` uses
+Prometheus.
+
+When two sources accept the same request, FinFocus cannot choose and exits 2
+with both names:
+
+```text
+several usage sources can serve run-rate usage (kubernetes, other); choose one with --usage-source
+```
+
+When every source rejects the request, the error lists each rejection, for
+example a kubeconfig context that does not exist next to Prometheus
+declining a run with no window. `--usage-source <name>` always uses that
+plugin alone, with no other source asked.
+
 ## Spend by capacity type
 
 When the usage source tags its nodes with `capacity_type` (the kubernetes and
@@ -220,12 +243,13 @@ cluster. The variables, the decline reasons, and the request rules are in the
 An invalid window, `--group-by`, `--selector`, or `--output`, and a policy
 file that cannot be read or parsed, exit 2 before any plugin starts. Plugin,
 allocation, and conservation failures exit 1.
-Select Prometheus when more than one usage source is installed:
+With the kubernetes and prometheus plugins both installed, a window goes to
+Prometheus without `--usage-source` (see
+[Several usage sources](#several-usage-sources)):
 
 ```bash
 export FINFOCUS_PROMETHEUS_URL=http://127.0.0.1:9090
 finfocus cost cluster \
-  --usage-source prometheus \
   --from 2026-09-28 \
   --to 2026-10-05
 ```

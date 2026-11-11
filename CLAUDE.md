@@ -1175,6 +1175,13 @@ Specs 613-623 hold the details. Invariants:
     userinfo and query.
 - Pod label keys from kube-state-metrics are sanitized
   (`app.kubernetes.io/name` becomes `app_kubernetes_io_name`).
+- Usage sources advertise no mode. With several installed and no
+  `--usage-source`, `selectUsageSource` returns an `engine.UsageSourceSet`,
+  which asks each in name order: `InvalidArgument` means it cannot serve the
+  request (the spec's mode rejection), exactly one acceptor wins, and two
+  are an `*engine.AmbiguousUsageSourceError`. `cost cluster` exits 2 on it;
+  overview stops that cluster's scope search and adds a `†` note. `expand`
+  emits notes even when rows did not change. Never pick by plugin name.
 
 ### MCP Server (`internal/cli/mcp.go`, `output_mode.go`)
 

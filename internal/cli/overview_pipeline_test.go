@@ -301,8 +301,8 @@ func TestOverviewPipeline_RowEventsMatchEnrichment(t *testing.T) {
 }
 
 // TestOverviewPipeline_ExpansionEvent verifies the expansion event carries
-// exactly the rows expandOverviewClusters returned, and that no event fires
-// when expansion changes nothing.
+// exactly the rows and notes expandOverviewClusters returned, and that no
+// event fires when expansion changes nothing and leaves no note.
 //
 //nolint:paralleltest // Subtests share the parent-scoped process-wide environment.
 func TestOverviewPipeline_ExpansionEvent(t *testing.T) {
@@ -325,6 +325,10 @@ func TestOverviewPipeline_ExpansionEvent(t *testing.T) {
 	}{
 		{name: "changed row set emits expansion", expandRows: expanded, expandNotes: notes, wantExpansion: true},
 		{name: "unchanged row set emits nothing", expandRows: fakePipelineRows()},
+		{
+			name: "unchanged row set with a note emits the note", expandRows: fakePipelineRows(),
+			expandNotes: []string{"live cluster expansion skipped for eks"}, wantExpansion: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
