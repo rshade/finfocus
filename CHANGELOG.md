@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.7](https://github.com/rshade/finfocus/compare/v0.5.6...v0.5.7) (2026-11-10)
+
+
+### Added
+
+* **webui:** name the one stack in a tab on a single-stack dashboard ([#2096](https://github.com/rshade/finfocus/issues/2096)) ([835e5f9](https://github.com/rshade/finfocus/commit/835e5f940ccdac015074d966262314646bcce579))
+
+
+### Fixed
+
+* **analyzer:** print the installed version with one v ([#2095](https://github.com/rshade/finfocus/issues/2095)) ([d7ce7ff](https://github.com/rshade/finfocus/commit/d7ce7ff39a8b0e4542c2a6cf5b217c50a01393c5))
+* **cli:** close the log file when a pre-run fails and fix the last Windows tests ([#2089](https://github.com/rshade/finfocus/issues/2089)) ([046d985](https://github.com/rshade/finfocus/commit/046d985af056543cccb7ca1eb1cd8aa346c73da2))
+* **webui:** unlock encrypted stacks and stop flagging preview fallbacks ([#2091](https://github.com/rshade/finfocus/issues/2091)) ([6ec5951](https://github.com/rshade/finfocus/commit/6ec5951da5b22a2068332bcf449908b480dd0b53)), closes [#2087](https://github.com/rshade/finfocus/issues/2087) [#2090](https://github.com/rshade/finfocus/issues/2090)
+
+
+### Documentation
+
+* **architecture:** explain the core shared by every surface ([#2097](https://github.com/rshade/finfocus/issues/2097)) ([4088144](https://github.com/rshade/finfocus/commit/40881442e6bb060267ccfaf6cccfdba028f113ed))
+
 ## [0.5.6](https://github.com/rshade/finfocus/compare/v0.5.5...v0.5.6) (2026-11-10)
 
 
