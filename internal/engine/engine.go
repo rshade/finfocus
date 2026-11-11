@@ -42,7 +42,6 @@ const HoursPerMonth = 730
 const (
 	hoursPerDay                 = 24
 	hoursPerMonth               = HoursPerMonth
-	daysPerWeek                 = 7     // Days in a week
 	daysPerMonth                = 30    // Approximate days per month
 	avgDaysPerMonth             = 30.44 // Accurate average days per month for conversions
 	minProviderServiceParts     = 2     // For "provider:service"
@@ -2887,21 +2886,44 @@ func MatchesTags(resource ResourceDescriptor, tags map[string]string) bool {
 	return true
 }
 
-// FormatPeriod formats a time duration into a human-readable period string.
+// FormatPeriod labels the length of the window from..to with its largest unit
+// (days, hours, or minutes) followed by the next smaller unit when that part is
+// not zero, for example "10 days", "1 day 12 hours", "6 hours", or
+// "2 hours 30 minutes". Smaller remainders are dropped. A positive window
+// shorter than a minute is "under 1 minute"; an empty or reversed one is
+// "0 minutes".
 func FormatPeriod(from, to time.Time) string {
-	days := int(to.Sub(from).Hours() / hoursPerDay)
-	if days == 1 {
-		return "1 day"
+	d := to.Sub(from)
+	if d <= 0 {
+		return countUnit(0, "minute")
 	}
-	if days < daysPerWeek {
-		return fmt.Sprintf("%d days", days)
+	if d < time.Minute {
+		return "under 1 minute"
 	}
-	if days < daysPerMonth {
-		weeks := days / daysPerWeek
-		return fmt.Sprintf("%d weeks", weeks)
+
+	const day = hoursPerDay * time.Hour
+	switch {
+	case d >= day:
+		return joinUnits(int(d/day), "day", int(d%day/time.Hour), "hour")
+	case d >= time.Hour:
+		return joinUnits(int(d/time.Hour), "hour", int(d%time.Hour/time.Minute), "minute")
+	default:
+		return countUnit(int(d/time.Minute), "minute")
 	}
-	months := days / daysPerMonth
-	return fmt.Sprintf("%d months", months)
+}
+
+func joinUnits(major int, majorUnit string, minor int, minorUnit string) string {
+	if minor == 0 {
+		return countUnit(major, majorUnit)
+	}
+	return countUnit(major, majorUnit) + " " + countUnit(minor, minorUnit)
+}
+
+func countUnit(n int, unit string) string {
+	if n == 1 {
+		return "1 " + unit
+	}
+	return strconv.Itoa(n) + " " + unit + "s"
 }
 
 // GroupResults groups cost results by the specified grouping strategy.
