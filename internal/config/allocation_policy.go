@@ -74,11 +74,14 @@ func policyReadError(path string, err error) error {
 	return fmt.Errorf("cannot read allocation policy %s: %w", path, err)
 }
 
+// Both patterns match across newlines: an invalid quoted literal can hold raw
+// newlines, and text inside it can look like a position. The leftmost match is
+// the position tailscale/hujson prefixes, which precedes any quoted file text.
 var (
 	// hujsonPosition matches the position tailscale/hujson puts in a parse error.
-	hujsonPosition = regexp.MustCompile(`line (\d+), column (\d+): (.+)$`)
+	hujsonPosition = regexp.MustCompile(`(?s)hujson: line (\d+), column (\d+): (.+)`)
 	// hujsonLiteral matches the one hujson reason that quotes the file's text.
-	hujsonLiteral = regexp.MustCompile(`invalid literal: .*$`)
+	hujsonLiteral = regexp.MustCompile(`(?s)invalid literal: .*`)
 )
 
 // policyParseError rewrites ax-go's generic config parse errors so they name

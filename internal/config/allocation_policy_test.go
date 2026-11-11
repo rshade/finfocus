@@ -141,6 +141,32 @@ func TestResolveAllocationPolicy_ParseErrorNamesFile(t *testing.T) {
 			wantReason: "invalid literal",
 			hidden:     "sekrit",
 		},
+		{
+			name: "multiline invalid string",
+			place: func(t *testing.T, _, _, body string) (string, string) {
+				t.Helper()
+				p := writePolicy(t, t.TempDir(), body)
+				return p, p
+			},
+			body:       "{\"idle\": \"sekrit\nvalue\"}",
+			wantLine:   1,
+			wantColumn: 10,
+			wantReason: "invalid literal",
+			hidden:     "sekrit",
+		},
+		{
+			name: "multiline invalid string with position-like text",
+			place: func(t *testing.T, _, _, body string) (string, string) {
+				t.Helper()
+				p := writePolicy(t, t.TempDir(), body)
+				return p, p
+			},
+			body:       "{\"idle\": \"a\nline 42, column 7: sekrit-value\"}",
+			wantLine:   1,
+			wantColumn: 10,
+			wantReason: "invalid literal",
+			hidden:     "sekrit",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
