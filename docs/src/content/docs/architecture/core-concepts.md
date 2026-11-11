@@ -153,7 +153,7 @@ FinFocus supports various ways to aggregate and group cost data:
 `--group-by` is a `cost actual` flag; `cost projected` has no grouping.
 
 ```bash
-finfocus cost actual --pulumi-json plan.json --from 2024-01-01 --group-by type
+finfocus cost actual --pulumi-json plan.json --from 2024-01-01 --to 2024-01-31 --group-by type
 ```
 
 Each row then holds the summed actual cost of one resource type.
