@@ -277,8 +277,9 @@ func invalidSettings(k kind, cfg Config) []error {
 }
 
 // invalidReason joins the rejected values with "; ", writing each later
-// variable as "..._<rest>". When that does not fit in MaxReasonLength it
-// drops the values, and then the problems, so every variable stays named.
+// variable as "..._<rest>". When that does not fit in MaxReasonLength bytes
+// (core truncates by bytes, so a multibyte value counts in full) it drops the
+// values, and then the problems, so every variable stays named.
 func invalidReason(errs []error) string {
 	if len(errs) == 0 {
 		return ""
@@ -291,7 +292,7 @@ func invalidReason(errs []error) string {
 				parts[i] = abbreviated(parts[i])
 			}
 		}
-		if reason := strings.Join(parts, "; "); utf8.RuneCountInString(reason) <= MaxReasonLength {
+		if reason := strings.Join(parts, "; "); len(reason) <= MaxReasonLength {
 			return reason
 		}
 	}

@@ -585,6 +585,20 @@ func TestEstimate_InvalidSettingsFallBackToNames(t *testing.T) {
 		"..._JOB_HOURS_PER_MONTH", got.Reason)
 }
 
+func TestEstimate_InvalidSettingsFitTheHostByteLimit(t *testing.T) {
+	t.Parallel()
+
+	cfg := Config{
+		CPUHourlyRate:       rejected[float64](EnvCPUHourlyRate, strings.Repeat("界", 40), "is not a number"),
+		MemoryGiBHourlyRate: rejected[float64](EnvMemoryGiBHourlyRate, "abc", "is not a number"),
+	}
+	got := Estimate(descriptor(t, typeDeployment, replicated(3.0)), cfg)
+
+	assert.Equal(t, "FINFOCUS_KUBERNETES_CPU_HOURLY_RATE is not a number; "+
+		"..._MEMORY_GIB_HOURLY_RATE is not a number", got.Reason)
+	assert.LessOrEqual(t, len(got.Reason), MaxReasonLength)
+}
+
 func TestEstimate_MissingSettingsComeBeforeInvalidOnes(t *testing.T) {
 	t.Parallel()
 
