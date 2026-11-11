@@ -351,11 +351,15 @@ Error: failed to connect to plugin: context deadline exceeded
 
 **Solutions**:
 
-1. **Increase timeout**:
+1. **Run the command again**: The plugin start limits are fixed, so there is
+   no timeout to raise. A plugin that was slow on its first start usually
+   answers on the next run (see
+   [Plugin Is Slow to Start](#plugin-is-slow-to-start)). If the error repeats,
+   run the command with `--debug` and read what the plugin logged:
 
    ```bash
-   export PLUGIN_TIMEOUT=60s
-   finfocus cost actual --adapter kubecost --from 2025-01-01
+   finfocus --debug cost actual --adapter kubecost --from 2025-01-01
+   finfocus logs --source kubecost --level warn
    ```
 
 2. **Check port conflicts**:
@@ -424,8 +428,9 @@ Failed: plugin failed to bind to port within 20s: timeout waiting for plugin to 
    are much faster.
 2. `finfocus plugin list` and the dashboard's plugin checks wait 20 seconds
    for a plugin to start and answer. Cost commands wait up to 65 seconds for
-   the plugin to open its port (125 seconds when `CI=true`). These limits are
-   fixed.
+   the plugin to open its port (125 seconds when `CI=true`), then up to 10
+   seconds to connect to it. These limits are fixed, and no environment
+   variable changes them, including `PLUGIN_TIMEOUT`.
 3. A plugin that never opens its port within those limits is stuck, not slow.
    FinFocus does not start it a second time. Run the command with `--debug`
    and read the FinFocus log file.
@@ -637,12 +642,11 @@ Error: no cost data available for time range
    finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2"
    ```
 
-3. **Increase timeout**:
-
-   ```bash
-   export PLUGIN_TIMEOUT=300s
-   finfocus cost actual --pulumi-json plan.json --from 2025-01-01
-   ```
+3. **Run it again**: The first run starts every plugin it needs, and a large
+   plugin can take several seconds to load (see
+   [Plugin Is Slow to Start](#plugin-is-slow-to-start)). Projected prices are
+   cached for an hour by default, so a repeat run over the same resources asks
+   the plugins less. FinFocus has no timeout setting to raise.
 
 4. **Parallel processing**:
 
@@ -693,11 +697,13 @@ Error: no cost data available for time range
    ping kubecost.example.com
    ```
 
-2. **Increase timeouts**:
+2. **Read what the plugin reported**: FinFocus has no setting for plugin or
+   HTTP timeouts. A plugin that calls an external API applies its own limits,
+   so check the plugin's documentation for the settings it reads, and read its
+   log entries:
 
    ```bash
-   export HTTP_TIMEOUT=60s
-   export PLUGIN_TIMEOUT=300s
+   finfocus logs --source kubecost --level warn
    ```
 
 3. **Configure proxy**:
@@ -977,11 +983,14 @@ lsof -i :50051
 Error: context deadline exceeded
 ```
 
-**Solution**: Increase timeout or check network connectivity.
+**Solution**: A plugin did not answer in time. If it was starting, see
+[Plugin Is Slow to Start](#plugin-is-slow-to-start); those limits are fixed.
+Otherwise, check network connectivity to the plugin's external API, then run
+the command with `--debug` and find the call that timed out:
 
 ```bash
-export PLUGIN_TIMEOUT=60s
-# Check network connectivity to external APIs
+finfocus --debug cost projected --pulumi-json plan.json
+finfocus logs --level warn --grep deadline
 ```
 
 ### "Invalid JSON"
