@@ -29,9 +29,10 @@ const (
 )
 
 var (
-	// The userinfo match runs to the last "@" of the authority, so a password
-	// that itself holds "@" is removed whole.
-	urlUserinfo = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)[^/?#\s]*@`)
+	// The userinfo match runs to the last "@" before whitespace, so a password
+	// holding "@", "/", "?" or "#" is removed whole. Redacting part of a path
+	// or query that has an "@" is an accepted cost in an error excerpt.
+	urlUserinfo = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)\S*@`)
 	ansiEscape  = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
 )
 

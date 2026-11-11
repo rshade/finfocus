@@ -211,6 +211,26 @@ func TestStderrExcerpt(t *testing.T) {
 			want: "dial https://[redacted]@cost.example.com/api failed",
 		},
 		{
+			name: "url userinfo with / in the password removed whole",
+			data: `{"error":"dial https://user:pa/ss@cost.example.com/api failed"}`,
+			want: "dial https://[redacted]@cost.example.com/api failed",
+		},
+		{
+			name: "url userinfo with ? in the password removed whole",
+			data: `{"error":"dial https://user:p?w@cost.example.com failed"}`,
+			want: "dial https://[redacted]@cost.example.com failed",
+		},
+		{
+			name: "url userinfo with # in the password removed whole",
+			data: `{"error":"dial https://user:p#w@cost.example.com failed"}`,
+			want: "dial https://[redacted]@cost.example.com failed",
+		},
+		{
+			name: "two urls on one line are redacted separately",
+			data: `{"error":"https://a:x@one.example.com and https://b:y@two.example.com"}`,
+			want: "https://[redacted]@one.example.com and https://[redacted]@two.example.com",
+		},
+		{
 			name: "ansi-prefixed json is still reduced to its fields",
 			data: "\x1b[31m" + `{"api_key":"field-secret-value","message":"startup failed"}` + "\x1b[0m\n",
 			want: "startup failed",
