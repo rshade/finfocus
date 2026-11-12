@@ -3,7 +3,7 @@
 # Related docs: docs/guides/budgets.md
 # Tested with: FinFocus v0.1.0+ (Preview)
 
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+# yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 
 cost:
   budgets:

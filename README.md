@@ -291,7 +291,7 @@ FinFocus is configured via `~/.finfocus/config.hujson`. Configuration files use 
 ### Budget Configuration
 
 ```yaml
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+# yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 cost:
   budgets:
     amount: 500.00

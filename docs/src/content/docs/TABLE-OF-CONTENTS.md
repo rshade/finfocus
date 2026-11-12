@@ -191,7 +191,6 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 | Page                                        | Purpose                       |
 | ------------------------------------------- | ----------------------------- |
-| [GitHub Pages Setup](GITHUB-PAGES-SETUP.md) | Enable docs deployment        |
 | [Developer Setup](GETTING-STARTED-DEV.md)   | Local development environment |
 
 ### 📚 Meta Documentation
@@ -216,7 +215,6 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 - [Prerequisites](getting-started/prerequisites.md)
 - [Installation Guide](getting-started/installation.md)
-- [GitHub Pages Setup](GITHUB-PAGES-SETUP.md)
 - [Developer Setup](GETTING-STARTED-DEV.md)
 
 ### Using FinFocus

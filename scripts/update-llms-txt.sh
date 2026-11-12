@@ -2,8 +2,8 @@
 # Update llms.txt with current documentation structure
 # This script is run by GitHub Actions after documentation changes
 #
-# llms.txt is served publicly at ${BASE_URL}/llms.txt, so every link it emits
-# must be a deployed Starlight URL. Repository-relative paths do not resolve
+# llms.txt is served publicly at https://finfocus.dev/llms.txt and links to the
+# docs under ${BASE_URL}, so every link it emits must be a deployed Starlight URL. Repository-relative paths do not resolve
 # for the LLM clients that consume this file.
 
 set -euo pipefail
@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONTENT_DIR="$PROJECT_ROOT/docs/src/content/docs"
 LLMS_FILE="$PROJECT_ROOT/docs/public/llms.txt"
-BASE_URL="https://rshade.github.io/finfocus"
+BASE_URL="https://finfocus.dev/docs"
 
 if [ ! -d "$CONTENT_DIR" ]; then
     echo "ERROR: content directory not found: $CONTENT_DIR" >&2

@@ -58,7 +58,7 @@ Get started with budgets in under 5 minutes.
 Create or edit your `~/.finfocus/config.yaml` to define a budget:
 
 ```yaml
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+# yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 cost:
   budgets:
     amount: 500.00
@@ -116,7 +116,7 @@ Configuration is stored in `~/.finfocus/config.yaml`.
 For IDE autocomplete and validation, add this comment to your config file:
 
 ```yaml
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+# yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 ```
 
 ### Configuration Options
@@ -703,7 +703,7 @@ And ensure you're using the right alert type. Use `forecasted` for `cost project
 Ensure you have the correct schema directive and your indentation is correct:
 
 ```yaml
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+# yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 ```
 
 ---

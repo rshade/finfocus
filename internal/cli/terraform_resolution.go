@@ -26,7 +26,7 @@ const sourceFormatTerraform = "terraform"
 
 // terraformTypeResolutionDocsURL links to the CLI reference section explaining
 // the resolve_resource_types capability requirement for Terraform state input.
-const terraformTypeResolutionDocsURL = "https://rshade.github.io/finfocus/reference/cli-commands/#cost-projected"
+const terraformTypeResolutionDocsURL = "https://finfocus.dev/docs/reference/cli-commands/#cost-projected"
 
 // warnNoTypeResolvingPlugin emits a single stderr warning when Terraform state
 // input is used but no loaded plugin advertises the resolve_resource_types

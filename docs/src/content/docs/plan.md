@@ -587,10 +587,8 @@ Then configure domain in GitHub repository settings.
 
 ### Hosting
 
-- **GitHub Pages:** Enabled in repository settings
-- **Deploy from:** `main` branch, `docs/` folder
-- **URL:** `https://rshade.github.io/finfocus/docs` (default)
-- **Custom Domain:** `https://docs.finfocus.com` (if configured)
+- **Site:** a Cloudflare Worker built by `finfocus-dev/finfocus.dev` from this repo's `docs/src/content/docs/`
+- **URL:** `https://finfocus.dev/docs/`
 
 ---
 
