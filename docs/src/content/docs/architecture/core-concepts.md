@@ -170,13 +170,14 @@ The example shows the keys in YAML form; the file uses JSON syntax.
 ```yaml
 cost:
   budgets:
-    amount: 500.00
-    currency: USD
-    alerts:
-      - threshold: 80
-        type: actual
-      - threshold: 100
-        type: forecasted
+    global:
+      amount: 500.00
+      currency: USD
+      alerts:
+        - threshold: 80
+          type: actual
+        - threshold: 100
+          type: forecasted
 ```
 
 ### Budget Scopes

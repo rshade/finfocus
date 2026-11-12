@@ -294,13 +294,14 @@ FinFocus is configured via `~/.finfocus/config.hujson`. Configuration files use 
 # yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 cost:
   budgets:
-    amount: 500.00
-    currency: USD
-    alerts:
-      - threshold: 80
-        type: actual
-      - threshold: 100
-        type: forecasted
+    global:
+      amount: 500.00
+      currency: USD
+      alerts:
+        - threshold: 80
+          type: actual
+        - threshold: 100
+          type: forecasted
 ```
 
 See [Budget Guide](docs/src/content/docs/guides/budgets.md) for full configuration details.
@@ -621,11 +622,11 @@ FinFocus provides commands to manage configuration:
 finfocus config init [--force]
 
 # Set configuration values
-finfocus config set cost.budgets.amount 500.00
+finfocus config set cost.budgets.global.amount 500.00
 finfocus config set output.format json
 
 # Get configuration values
-finfocus config get cost.budgets.amount
+finfocus config get cost.budgets.global.amount
 
 # List all configuration
 finfocus config list [--as json|yaml]

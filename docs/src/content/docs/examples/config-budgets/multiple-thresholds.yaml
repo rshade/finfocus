@@ -7,26 +7,27 @@
 
 cost:
   budgets:
-    amount: 2000.00
-    currency: USD
-    period: monthly
+    global:
+      amount: 2000.00
+      currency: USD
+      period: monthly
 
-    alerts:
-      # Early warning at 50% utilization
-      - threshold: 50
-        type: actual
-      
-      # Warning when projected costs exceed 80%
-      - threshold: 80
-        type: forecasted
-      
-      # Critical alert at 90% utilization
-      - threshold: 90
-        type: actual
-        
-      # Breach alert at 100%
-      - threshold: 100
-        type: actual
+      alerts:
+        # Early warning at 50% utilization
+        - threshold: 50
+          type: actual
+
+        # Warning when projected costs exceed 80%
+        - threshold: 80
+          type: forecasted
+
+        # Critical alert at 90% utilization
+        - threshold: 90
+          type: actual
+
+        # Breach alert at 100%
+        - threshold: 100
+          type: actual
 
 # Usage:
 #   finfocus cost actual --from 2024-01-01 --to 2024-01-31

@@ -62,14 +62,15 @@ The example shows the keys in YAML form; the file uses JSON syntax.
 # yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 cost:
   budgets:
-    amount: 500.00
-    currency: USD
-    period: monthly
-    alerts:
-      - threshold: 80
-        type: actual
-      - threshold: 100
-        type: forecasted
+    global:
+      amount: 500.00
+      currency: USD
+      period: monthly
+      alerts:
+        - threshold: 80
+          type: actual
+        - threshold: 100
+          type: forecasted
 ```
 
 ### Step 2: Run Cost Analysis
@@ -133,6 +134,9 @@ associate the schema with it in your editor. In VS Code, add this to
 
 ### Configuration Options
 
+Each budget scope (`cost.budgets.global`, `providers.<name>`, `tags[]`, and
+`types.<pattern>`) takes these options.
+
 | Option     | Type   | Default     | Required | Description                                    |
 | ---------- | ------ | ----------- | -------- | ---------------------------------------------- |
 | `amount`   | number | -           | Yes      | Budget amount in specified currency            |
@@ -178,12 +182,13 @@ Practical examples for common budget scenarios.
 ```yaml
 cost:
   budgets:
-    amount: 1000.00
-    currency: USD
-    period: monthly
-    alerts:
-      - threshold: 100
-        type: actual
+    global:
+      amount: 1000.00
+      currency: USD
+      period: monthly
+      alerts:
+        - threshold: 100
+          type: actual
 ```
 
 **Usage:**
@@ -210,18 +215,19 @@ See [complete example](https://github.com/rshade/finfocus/blob/main/docs/src/con
 ```yaml
 cost:
   budgets:
-    amount: 2000.00
-    currency: USD
-    alerts:
-      - threshold: 50
-        type: actual
-        # Early warning at 50%
-      - threshold: 80
-        type: forecasted
-        # Warning if projected to reach 80%
-      - threshold: 100
-        type: actual
-        # Critical alert at 100%
+    global:
+      amount: 2000.00
+      currency: USD
+      alerts:
+        - threshold: 50
+          type: actual
+          # Early warning at 50%
+        - threshold: 80
+          type: forecasted
+          # Warning if projected to reach 80%
+        - threshold: 100
+          type: actual
+          # Critical alert at 100%
 ```
 
 **Explanation:**
@@ -242,10 +248,11 @@ See [complete example](https://github.com/rshade/finfocus/blob/main/docs/src/con
 ```yaml
 cost:
   budgets:
-    amount: 500.00
-    alerts:
-      - threshold: 100
-        type: forecasted
+    global:
+      amount: 500.00
+      alerts:
+        - threshold: 100
+          type: forecasted
 ```
 
 **Usage:**
@@ -269,11 +276,10 @@ See [complete example](https://github.com/rshade/finfocus/blob/main/docs/src/con
 
 ## Scoped Budgets
 
-> **Note:** FinFocus supports two budget configuration styles. The [Quick Start](#quick-start)
-> examples above use the **flat** format (`cost.budgets.amount`) for simple single-budget
-> setups. The scoped format below uses `cost.budgets.global` with nested `providers`,
-> `tags`, and `types` sections for multi-level budget control. Both are valid; use flat
-> for simplicity or scoped when you need per-provider/tag/type breakdowns.
+> **Note:** Every budget lives under a scope. The [Quick Start](#quick-start) examples
+> above set only `cost.budgets.global`; the sections below add `providers`, `tags`, and
+> `types` beside it. FinFocus does not apply `amount`, `currency`, `period`, or `alerts`
+> placed directly under `cost.budgets`, and `finfocus config validate` warns about them.
 
 Define budgets at multiple levels for granular cost control: global, per-provider, per-tag, and per-resource-type.
 
@@ -691,6 +697,8 @@ Common issues and solutions for budget configuration.
 
 **Cause:**
 
+- `amount`, `currency`, or `alerts` placed directly under `cost.budgets` instead
+  of `cost.budgets.global`; run `finfocus config validate` to find them
 - Mismatch between `currency` in config and cost data
 - Using `actual` alert type for projected costs (or vice versa)
 
