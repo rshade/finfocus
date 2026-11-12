@@ -183,7 +183,7 @@ func TestUsageSourceSet_ProbeTimeoutIsNotAcceptance(t *testing.T) {
 	_, err := set.GetStats(context.Background(), &pbc.GetStatsRequest{})
 	require.Error(t, err)
 	assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
-	assert.ErrorContains(t, err, "usage source prometheus did not answer")
+	require.ErrorContains(t, err, "usage source prometheus did not answer")
 	assert.Zero(t, next.calls)
 	var ambiguous *AmbiguousUsageSourceError
 	assert.NotErrorAs(t, err, &ambiguous)

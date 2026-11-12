@@ -105,7 +105,9 @@ func (s *UsageSourceSet) GetStats(
 			// A probe that runs out its own deadline is not a mode rejection and
 			// must not count as an acceptance, or a slow source makes selection
 			// ambiguous. Stop here so a later source is not chosen in its place.
-			return nil, fmt.Errorf("usage source %s did not answer within %s: %w", src.Name, usageSourceProbeTimeout, err)
+			return nil, fmt.Errorf(
+				"usage source %s did not answer within %s: %w", src.Name, usageSourceProbeTimeout, err,
+			)
 		}
 		if status.Code(err) == codes.InvalidArgument {
 			rejected.names = append(rejected.names, src.Name)
