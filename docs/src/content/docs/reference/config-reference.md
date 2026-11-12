@@ -109,6 +109,11 @@ output:
 - `plugin_dir`: Top-level key that overrides the computed plugin installation directory.
   Equivalent to setting the `FINFOCUS_PLUGIN_DIR` environment variable (env var takes precedence).
   Example: `plugin_dir: /opt/finfocus/plugins`
+- It is read from the global `config.hujson` only; a project `config.hujson`
+  ignores it. `config set` and `config get` do not accept it, so edit the file.
+- It is not part of the `plugins` object. `plugins.<name>` holds settings for
+  the plugin called `<name>`, so a `plugins.dir` key names a plugin `dir`. A
+  path string there fails `config validate`, and the file is ignored.
 
 ### ESC
 
