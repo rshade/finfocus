@@ -142,6 +142,7 @@ type Engine struct {
 	usageProfile          pbc.UsageProfile       // workload hint; zero is no preference
 	explainPricing        bool                   // --explain display; does not change the calculated cost
 	pricingSpecTimeout    time.Duration          // GetPricingSpec deadline; zero uses perResourceTimeout
+	supportsTimeout       time.Duration          // Supports deadline; zero uses perResourceTimeout
 	pricingDiscoveryMu    sync.Mutex             // Guards pricingDiscoveryCache
 	pricingDiscoveryCache map[string]PricingDiscovery
 	supportsCache         map[string]supportsResult // Supports() cache: client, provider, type, region, sku, feature[, attrs digest]
@@ -289,7 +290,9 @@ func (e *Engine) checkPluginSupports(
 	}
 	e.supportsMu.RUnlock()
 
-	resp, err := client.API.Supports(ctx, &pbc.SupportsRequest{
+	supportsCtx, cancel := context.WithTimeout(ctx, e.supportsDeadline())
+	defer cancel()
+	resp, err := client.API.Supports(supportsCtx, &pbc.SupportsRequest{
 		Resource: &pbc.ResourceDescriptor{
 			Provider:     resource.Provider,
 			ResourceType: resource.Type,

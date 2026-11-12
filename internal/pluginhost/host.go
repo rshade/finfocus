@@ -207,6 +207,8 @@ func pluginMetadata(info *pbc.GetPluginInfoResponse) *proto.PluginMetadata {
 		SupportedProviders: info.GetProviders(),
 		Metadata:           info.GetMetadata(),
 		Capabilities:       ConvertCapabilities(info.GetCapabilities()),
+
+		CapabilitiesDeclared: len(info.GetCapabilities()) > 0,
 	}
 }
 

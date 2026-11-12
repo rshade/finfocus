@@ -8,14 +8,17 @@ import (
 )
 
 // AdvertisesCapability reports whether core may ask the plugin for capability.
-// A plugin with no metadata or an empty capability list predates
-// GetPluginInfo capabilities and is treated as advertising every capability.
+// A plugin with no metadata, or one that listed no capability at all, predates
+// GetPluginInfo capabilities and is treated as advertising every capability. A
+// plugin that listed only capabilities core drops (COST_PARSE) made a
+// declaration and advertises none of the cost features.
 // UNSPECIFIED, and a capability core has no name for, ask nothing and return
 // true. Listed names are compared after normalization, so a legacy feature
 // name such as "ProjectedCosts" counts as projected_costs.
 func (c *Client) AdvertisesCapability(capability pbc.PluginCapability) bool {
 	if capability == pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED ||
-		c == nil || c.Metadata == nil || len(c.Metadata.Capabilities) == 0 {
+		c == nil || c.Metadata == nil ||
+		(len(c.Metadata.Capabilities) == 0 && !c.Metadata.CapabilitiesDeclared) {
 		return true
 	}
 	required := ConvertCapabilities([]pbc.PluginCapability{capability})
@@ -61,6 +64,8 @@ func capabilityFromName(name string) (pbc.PluginCapability, bool) {
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS, true
 	case "BatchCost", "batch_cost":
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, true
+	case "PricingSpec", "pricing_spec":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_PRICING_SPEC, true
 	default:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED, false
 	}

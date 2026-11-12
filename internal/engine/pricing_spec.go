@@ -42,17 +42,20 @@ func (e *Engine) WithPricingSpecFallback(enabled bool) *Engine {
 	return e
 }
 
-// pricingSpecFeature is the feature a GetPricingSpec call checks. It routes as
-// projected cost does, because a pricing spec prices the same resource.
+// pricingSpecFeature is the feature a GetPricingSpec call checks. The router
+// routes it by the ProjectedCosts rules (router.PricingSpecRoute, the same
+// string; engine cannot import router), because a pricing spec prices the same
+// resource.
 const pricingSpecFeature = "PricingSpec"
 
 // pricingSpecMatches returns the plugins that may answer GetPricingSpec for
 // resource, in the projected route's priority order (router or fallback). A
 // plugin is kept when it advertises pricing_spec and Supports accepts it, so a
 // plugin that prices projected cost without listing pricing_spec is not asked,
-// and one that lists only pricing_spec is.
+// and one that lists only pricing_spec is, also beside a projected-capable
+// plugin on a configured router.
 func (e *Engine) pricingSpecMatches(ctx context.Context, resource ResourceDescriptor) []PluginMatch {
-	matches, _ := e.selectPluginMatches(ctx, resource, "ProjectedCosts", pricingSpecFeature)
+	matches, _ := e.selectPluginMatches(ctx, resource, pricingSpecFeature, pricingSpecFeature)
 	return matches
 }
 
@@ -69,6 +72,15 @@ func (e *Engine) fallbackSpecMatches(
 		return nil
 	}
 	return e.pricingSpecMatches(ctx, resource)
+}
+
+// supportsDeadline is the longest one Supports probe may take. A stalled probe
+// then fails open, uncached, like any other transport error.
+func (e *Engine) supportsDeadline() time.Duration {
+	if e != nil && e.supportsTimeout > 0 {
+		return e.supportsTimeout
+	}
+	return perResourceTimeout
 }
 
 // pricingSpecDeadline is the longest one GetPricingSpec call may take.

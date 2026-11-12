@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
@@ -167,4 +169,31 @@ func TestPricingSpecFallbackHonoursRouterNoFallback(t *testing.T) {
 			assert.Equal(t, adapterPluginSpec, result.Adapter)
 		})
 	}
+}
+
+// stalledSupportsPlugin never answers Supports until its context ends.
+type stalledSupportsPlugin struct{ pricingSpecPlugin }
+
+func (p *stalledSupportsPlugin) Supports(
+	ctx context.Context, _ *pbc.SupportsRequest, _ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	<-ctx.Done()
+	return nil, status.FromContextError(ctx.Err()).Err()
+}
+
+func TestSupportsProbeIsBounded(t *testing.T) {
+	t.Parallel()
+
+	plugin := &stalledSupportsPlugin{pricingSpecPlugin{spec: hourlyPricingSpec()}}
+	eng := New([]*pluginhost.Client{{Name: "aws-plugin", API: plugin}}, pricingYAMLLoader()).
+		WithPricingSpecFallback(true)
+	eng.supportsTimeout = 50 * time.Millisecond
+
+	start := time.Now()
+	results, err := eng.GetProjectedCost(context.Background(), []ResourceDescriptor{pricingResource()})
+	require.NoError(t, err)
+
+	assert.Less(t, time.Since(start), 5*time.Second)
+	require.Len(t, results, 1)
+	assert.Equal(t, adapterPluginSpec, results[0].Adapter, "a stalled probe fails open")
 }
