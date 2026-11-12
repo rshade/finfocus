@@ -110,3 +110,41 @@ func TestLoadConfig_JobHours(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadConfig_InvalidValuesAreSettingErrors(t *testing.T) {
+	t.Parallel()
+
+	cfg := LoadConfig(envOf(map[string]string{
+		workload.EnvCPUHourlyRate:       "-1",
+		workload.EnvMemoryGiBHourlyRate: "abc",
+		workload.EnvDaemonSetNodeCount:  "0",
+		workload.EnvJobHoursPerMonth:    "800",
+	}))
+
+	tests := []struct {
+		name string
+		err  error
+		want workload.SettingError
+	}{
+		{"cpu", cfg.CPUHourlyRate.Err, workload.SettingError{
+			Name: workload.EnvCPUHourlyRate, Raw: "-1", Problem: "must not be negative",
+		}},
+		{"memory", cfg.MemoryGiBHourlyRate.Err, workload.SettingError{
+			Name: workload.EnvMemoryGiBHourlyRate, Raw: "abc", Problem: "is not a number",
+		}},
+		{"node count", cfg.DaemonSetNodeCount.Err, workload.SettingError{
+			Name: workload.EnvDaemonSetNodeCount, Raw: "0", Problem: "must be at least 1",
+		}},
+		{"job hours", cfg.JobHoursPerMonth.Err, workload.SettingError{
+			Name: workload.EnvJobHoursPerMonth, Raw: "800", Problem: "must be above 0 and at most 744",
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var got *workload.SettingError
+			require.ErrorAs(t, tt.err, &got)
+			assert.Equal(t, tt.want, *got)
+		})
+	}
+}

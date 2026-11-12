@@ -419,6 +419,63 @@ func TestProjectedCost_DeclinesWithoutRates(t *testing.T) {
 	assert.Contains(t, err.Error(), workload.EnvCPUHourlyRate)
 }
 
+func TestSupports_NamesEveryInvalidVariableTheKindUses(t *testing.T) {
+	t.Parallel()
+
+	cfg := LoadConfig(envOf(map[string]string{
+		workload.EnvCPUHourlyRate:       "-1",
+		workload.EnvMemoryGiBHourlyRate: "abc",
+		workload.EnvDaemonSetNodeCount:  "0",
+		workload.EnvJobHoursPerMonth:    "800",
+	}))
+	p := New(noClusters(t), cfg)
+	podSpec := map[string]any{"spec": map[string]any{"containers": []any{
+		map[string]any{"resources": map[string]any{"requests": map[string]any{"cpu": "500m", "memory": "1Gi"}}},
+	}}}
+	jobSpec := map[string]any{"template": podSpec}
+
+	tests := []struct {
+		resourceType string
+		spec         map[string]any
+		named        []string
+		notNamed     []string
+	}{
+		{"kubernetes:apps/v1:Deployment", jobSpec, []string{"CPU_HOURLY_RATE", "MEMORY_GIB_HOURLY_RATE"},
+			[]string{"DAEMONSET_NODE_COUNT", "JOB_HOURS_PER_MONTH"}},
+		{"kubernetes:apps/v1:StatefulSet", jobSpec, []string{"CPU_HOURLY_RATE", "MEMORY_GIB_HOURLY_RATE"},
+			[]string{"DAEMONSET_NODE_COUNT", "JOB_HOURS_PER_MONTH"}},
+		{"kubernetes:apps/v1:DaemonSet", jobSpec,
+			[]string{"CPU_HOURLY_RATE", "MEMORY_GIB_HOURLY_RATE", "DAEMONSET_NODE_COUNT"},
+			[]string{"JOB_HOURS_PER_MONTH"}},
+		{"kubernetes:batch/v1:Job", jobSpec,
+			[]string{"CPU_HOURLY_RATE", "MEMORY_GIB_HOURLY_RATE", "JOB_HOURS_PER_MONTH"},
+			[]string{"DAEMONSET_NODE_COUNT"}},
+		{"kubernetes:batch/v1:CronJob", map[string]any{"jobTemplate": map[string]any{"spec": jobSpec}},
+			[]string{"CPU_HOURLY_RATE", "MEMORY_GIB_HOURLY_RATE", "JOB_HOURS_PER_MONTH"},
+			[]string{"DAEMONSET_NODE_COUNT"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.resourceType, func(t *testing.T) {
+			t.Parallel()
+			attrs, err := structpb.NewStruct(map[string]any{"spec": tt.spec})
+			require.NoError(t, err)
+			desc := &pbc.ResourceDescriptor{Provider: "kubernetes", ResourceType: tt.resourceType, Attributes: attrs}
+
+			resp, err := p.Supports(context.Background(), &pbc.SupportsRequest{Resource: desc})
+			require.NoError(t, err)
+			assert.False(t, resp.GetSupported())
+			assert.LessOrEqual(t, len([]rune(resp.GetReason())), workload.MaxReasonLength)
+			assert.True(t, strings.HasPrefix(resp.GetReason(), workload.EnvCPUHourlyRate), resp.GetReason())
+			for _, name := range tt.named {
+				assert.Contains(t, resp.GetReason(), name)
+			}
+			for _, name := range tt.notNamed {
+				assert.NotContains(t, resp.GetReason(), name)
+			}
+		})
+	}
+}
+
 func TestSupports_DeclinesOtherTypes(t *testing.T) {
 	t.Parallel()
 
