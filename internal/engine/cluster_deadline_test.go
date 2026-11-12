@@ -157,19 +157,21 @@ func TestDeadlinePassed(t *testing.T) {
 	ahead := lateTimerContext{context.Background(), time.Now().Add(time.Hour)}
 
 	tests := []struct {
-		name string
-		ctx  context.Context
-		want bool
+		name   string
+		parent context.Context
+		ctx    context.Context
+		want   bool
 	}{
-		{"context timer fired", expired, true},
-		{"deadline passed, timer not yet fired", past, true},
-		{"deadline ahead", ahead, false},
-		{"no deadline", context.Background(), false},
+		{"context timer fired", context.Background(), expired, true},
+		{"deadline passed, timer not yet fired", context.Background(), past, true},
+		{"deadline ahead", context.Background(), ahead, false},
+		{"no deadline", context.Background(), context.Background(), false},
+		{"caller deadline elapsed first", past, past, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, deadlinePassed(tt.ctx))
+			assert.Equal(t, tt.want, deadlinePassed(tt.parent, tt.ctx))
 		})
 	}
 }
