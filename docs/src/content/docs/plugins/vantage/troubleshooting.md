@@ -500,14 +500,14 @@ Failed to communicate with vantage plugin
 2. Check plugin logs:
 
    ```bash
-   finfocus cost actual --plugin vantage --debug
+   finfocus cost actual --adapter vantage --debug
    ```
 
 3. Restart plugin host:
 
    ```bash
    pkill -f finfocus
-   finfocus cost actual --plugin vantage
+   finfocus cost actual --adapter vantage
    ```
 
 4. Reinstall plugin if corrupted
@@ -728,7 +728,7 @@ When reporting issues, include:
 
    ```bash
    1. Set environment: export FINFOCUS_VANTAGE_TOKEN="..."
-   2. Run command: finfocus cost actual --plugin vantage
+   2. Run command: finfocus cost actual --adapter vantage
    3. Observe error: ...
    ```
 

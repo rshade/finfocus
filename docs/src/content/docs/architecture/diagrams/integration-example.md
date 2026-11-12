@@ -241,8 +241,8 @@ pulumi up
 
 # 4. After 30 days, check actual costs
 finfocus cost actual \
-  --start-date 2024-01-01 \
-  --end-date 2024-01-31 \
+  --from 2024-01-01 \
+  --to 2024-01-31 \
   --filter "tag:project=my-pulumi-project" \
   --output json > actual-costs.json
 

@@ -95,7 +95,7 @@ finfocus analyzer install --force
 Control which plugins load when running as an analyzer:
 
 ```yaml
-# ~/.finfocus/config.yaml
+# ~/.finfocus/config.hujson (keys shown in YAML form)
 analyzer:
   plugins:
     aws-public:
@@ -120,7 +120,7 @@ symlinks only.
 ## Analyzer config tuning
 
 ```yaml
-# ~/.finfocus/config.yaml
+# ~/.finfocus/config.hujson (keys shown in YAML form)
 analyzer:
   timeout:
     per_resource: 5s       # Per-resource cost lookup timeout

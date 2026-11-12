@@ -62,7 +62,7 @@ Get cost optimization suggestions:
 finfocus cost recommendations --pulumi-json plan.json
 
 # Filter by action type
-finfocus cost recommendations --pulumi-json plan.json --action-type RIGHTSIZE,TERMINATE
+finfocus cost recommendations --pulumi-json plan.json --filter "action=RIGHTSIZE,TERMINATE"
 
 # Dismiss/undismiss
 finfocus cost recommendations dismiss <id>
@@ -75,21 +75,18 @@ MODIFY, DELETE_UNUSED, MIGRATE, CONSOLIDATE, SCHEDULE, REFACTOR, INVESTIGATE, OT
 
 ## Budgets
 
-Monitor cloud spending against budget limits:
+There is no `cost budget` command. Budget status prints with `cost projected`
+and `cost actual`, and `--budget-scope` picks which scopes to show:
 
 ```bash
-# View budgets
-finfocus cost budget
+# Budget status after a projected run
+finfocus cost projected --pulumi-json plan.json
 
-# Filter by provider
-finfocus cost budget --filter "provider=kubecost"
+# Show only the global and AWS provider scopes
+finfocus cost projected --pulumi-json plan.json --budget-scope global,provider=aws
 
-# Filter by tags
-finfocus cost budget --filter "tag:namespace=production"
-finfocus cost budget --filter "tag:namespace=prod-*"  # Glob patterns
-
-# Combined filters
-finfocus cost budget --filter "provider=aws" --filter "tag:env=staging"
+# Fail CI when a threshold is exceeded
+finfocus cost projected --pulumi-json plan.json --exit-on-threshold
 ```
 
 Health statuses: OK (<80%), WARNING (80-89%), CRITICAL (90-100%), EXCEEDED (>100%).

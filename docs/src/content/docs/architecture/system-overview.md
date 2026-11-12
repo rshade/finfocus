@@ -169,7 +169,7 @@ Cost Results → Aggregation → Output Rendering
 
 ### Actual Cost Flow
 
-1. User runs `finfocus cost actual --start-date X --end-date Y`
+1. User runs `finfocus cost actual --from X --to Y`
 2. CLI builds ActualCostRequest with time range and filters
 3. Engine connects to plugins
 4. For each resource, Engine queries plugin for actual costs

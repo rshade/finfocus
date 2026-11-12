@@ -428,7 +428,7 @@ When running as a Pulumi plugin, configuration is stored under `$PULUMI_HOME`:
 
 ```text
 $PULUMI_HOME/finfocus/
-├── config.yaml           # Main configuration
+├── config.hujson         # Main configuration
 ├── plugins/              # Cost plugins
 └── logs/                 # Log files
 ```

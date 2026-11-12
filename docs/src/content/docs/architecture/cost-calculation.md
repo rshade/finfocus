@@ -100,8 +100,8 @@ to ensure comparability.
 
 ```bash
 finfocus cost actual \
-  --start-date 2024-01-01 \
-  --end-date 2024-01-31 \
+  --from 2024-01-01 \
+  --to 2024-01-31 \
   --filter "tag:env=prod"
 ```
 
@@ -523,8 +523,8 @@ Total: 37.96 + 74.46 + 2.30 = 114.72 USD/month
 
 ```bash
 finfocus cost actual \
-  --start-date 2024-01-01 \
-  --end-date 2024-01-31 \
+  --from 2024-01-01 \
+  --to 2024-02-01 \
   --group-by daily
 ```
 

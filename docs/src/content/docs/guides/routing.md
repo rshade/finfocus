@@ -111,7 +111,8 @@ If no region binary is found, the standard binary is used as a fallback.
 
 ### Layer 2: Declarative Configuration (Advanced Control)
 
-For advanced scenarios, add routing rules to `~/.finfocus/config.yaml`:
+For advanced scenarios, add routing rules to `~/.finfocus/config.hujson`.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 routing:
@@ -709,7 +710,7 @@ Results include which plugin provided the data:
 
 - [Plugin Development Guide](../plugins/plugin-development.md) - How to build plugins with routing support
 - [CLI Commands Reference](../reference/cli-commands.md) - All CLI commands with routing options
-- [Configuration Schema](../reference/config-reference.md) - Complete config.yaml schema
+- [Configuration Schema](../reference/config-reference.md) - Complete configuration schema
 - [Architecture Overview](../architecture/system-overview.md) - How routing fits in the system
 
 ## Changelog

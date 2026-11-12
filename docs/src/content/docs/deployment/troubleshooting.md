@@ -54,12 +54,12 @@ Debugging steps:
 
 ### Config or Credentials Missing
 
-FinFocus relies on environment variables or `~/.finfocus/config.yaml` for providers.
+FinFocus relies on environment variables or `~/.finfocus/config.hujson` for providers.
 
 Debugging steps:
 
 1. Confirm required `FINFOCUS_*` variables are set in the runtime environment.
-2. Validate that `~/.finfocus/config.yaml` exists and is readable.
+2. Run `finfocus config validate` to check `~/.finfocus/config.hujson`.
 3. Log masked config values in CI to confirm they are injected.
 
 ### Network and Proxy Errors

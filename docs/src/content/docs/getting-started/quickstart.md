@@ -87,7 +87,8 @@ finfocus overview --filter type=aws:ec2/instance:Instance --plain --yes
 
 ## Step 5: Set Up Budgets (Optional)
 
-Create `~/.finfocus/config.yaml` with hierarchical budgets:
+Create `~/.finfocus/config.hujson` with hierarchical budgets.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 cost:

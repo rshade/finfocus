@@ -55,7 +55,8 @@ Get started with budgets in under 5 minutes.
 
 ### Step 1: Configure Budget
 
-Create or edit your `~/.finfocus/config.yaml` to define a budget:
+Create or edit your `~/.finfocus/config.hujson` to define a budget.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 # yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
@@ -109,14 +110,25 @@ Complete reference for all budget configuration options.
 
 ### File Location
 
-Configuration is stored in `~/.finfocus/config.yaml`.
+Configuration is stored in `~/.finfocus/config.hujson`. Examples on this page
+show the keys in YAML form; the file uses JSON syntax.
 
 ### Schema Reference
 
-For IDE autocomplete and validation, add this comment to your config file:
+For IDE autocomplete and validation, treat `config.hujson` as JSONC and
+associate the schema with it in your editor. In VS Code, add this to
+`settings.json`:
 
-```yaml
-# yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
+```jsonc
+{
+  "files.associations": { "*.hujson": "jsonc" },
+  "json.schemas": [
+    {
+      "fileMatch": ["config.hujson"],
+      "url": "https://finfocus.dev/schemas/config.json"
+    }
+  ]
+}
 ```
 
 ### Configuration Options

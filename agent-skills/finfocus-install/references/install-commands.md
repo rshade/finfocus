@@ -31,7 +31,7 @@ finfocus plugin install <specifier> [flags]
 | Flag | Description |
 |------|-------------|
 | `-f, --force` | Reinstall even if version exists |
-| `--no-save` | Don't add to config.yaml |
+| `--no-save` | Don't add to config.hujson |
 | `--clean` | Remove other versions after install |
 | `--plugin-dir` | Custom plugin directory (default: `~/.finfocus/plugins`) |
 | `--fallback-to-latest` | Auto-fallback if requested version lacks assets |
@@ -65,7 +65,7 @@ Aliases: `uninstall`, `rm`.
 
 | Flag | Description |
 |------|-------------|
-| `--keep-config` | Retain entry in config.yaml |
+| `--keep-config` | Retain entry in config.hujson |
 | `--plugin-dir` | Custom plugin directory |
 
 ## finfocus plugin list
@@ -99,8 +99,8 @@ finfocus config init [flags]
 | `--force` | Overwrite existing config |
 | `--global` | Force global config even inside Pulumi project |
 
-**Behavior:** Inside Pulumi project → creates `$PROJECT/.finfocus/config.yaml`
-with `.gitignore`. Outside or with `--global` → creates `~/.finfocus/config.yaml`.
+**Behavior:** Inside Pulumi project → creates `$PROJECT/.finfocus/config.hujson`
+with `.gitignore`. Outside or with `--global` → creates `~/.finfocus/config.hujson`.
 
 ## finfocus analyzer install
 

@@ -126,7 +126,7 @@ Solution:
 [ -n "$FINFOCUS_VANTAGE_TOKEN" ] && echo "set"  # For Vantage
 
 # Or check config
-cat ~/.finfocus/config.yaml
+finfocus config list
 ```
 
 ## Performance Issues

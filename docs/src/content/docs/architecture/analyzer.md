@@ -165,7 +165,8 @@ skipped when:
 - The result set contains mixed currencies.
 - All resources failed cost calculation (no valid total is available).
 
-The threshold is configured via `config.yaml`:
+The threshold is configured in `config.hujson`.
+The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 analyzer:

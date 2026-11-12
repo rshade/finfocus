@@ -121,24 +121,24 @@ Fetch actual historical costs from Vantage:
 ```bash
 # Daily costs for date range
 finfocus cost actual \
-  --plugin vantage \
-  --start-date 2024-01-01 \
-  --end-date 2024-01-31 \
-  --granularity day
+  --adapter vantage \
+  --from 2024-01-01 \
+  --to 2024-01-31 \
+  --group-by daily
 
-# Group by service
+# Group by resource type
 finfocus cost actual \
-  --plugin vantage \
-  --start-date 2024-01-01 \
-  --end-date 2024-01-31 \
-  --group-by service
+  --adapter vantage \
+  --from 2024-01-01 \
+  --to 2024-01-31 \
+  --group-by type
 
 # Filter by tags
 finfocus cost actual \
-  --plugin vantage \
+  --adapter vantage \
   --filter "tag:environment=production" \
-  --start-date 2024-01-01 \
-  --end-date 2024-01-31
+  --from 2024-01-01 \
+  --to 2024-01-31
 ```
 
 ### Cost Forecasting
