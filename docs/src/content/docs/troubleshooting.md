@@ -404,8 +404,8 @@ Failed: plugin exited before binding to port (exit status 1): config: config: ba
 
 FinFocus does not retry a plugin that exits on its own, unless the plugin
 reports that its port was already in use. The `--port` and pluginsdk upgrade
-hint in the log applies only to a plugin that keeps running without binding
-its port.
+hint in the log appears only when a plugin keeps running for the whole bind
+wait without opening its port.
 
 ### Plugin Is Slow to Start
 
@@ -427,7 +427,8 @@ Failed: plugin failed to bind to port within 20s: timeout waiting for plugin to 
    the plugin to open its port (125 seconds when `CI=true`). These limits are
    fixed.
 3. A plugin that never opens its port within those limits is stuck, not slow.
-   Run the command with `--debug` and read the FinFocus log file.
+   FinFocus does not start it a second time. Run the command with `--debug`
+   and read the FinFocus log file.
 
 ## Cost Calculation Issues
 

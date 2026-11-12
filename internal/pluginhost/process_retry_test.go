@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,7 +49,9 @@ func TestStartWithRetry_SlowBindStopsAtDeadline(t *testing.T) {
 	launcher := NewProcessLauncherWithRetries(5)
 	launcher.stdoutFallback = 200 * time.Millisecond
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	var logs lockedBuffer
+	logger := zerolog.New(&logs).Level(zerolog.DebugLevel)
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Second)
 	defer cancel()
 
 	begin := time.Now()
@@ -68,7 +71,40 @@ func TestStartWithRetry_SlowBindStopsAtDeadline(t *testing.T) {
 
 	started := startedPIDs(t, pids)
 	require.Len(t, started, 1, "a plugin whose deadline passed is started once")
-	assert.ErrorIs(t, syscall.Kill(started[0], 0), syscall.ESRCH, "the timed-out plugin must not be left running")
+	require.ErrorIs(t, syscall.Kill(started[0], 0), syscall.ESRCH, "the timed-out plugin must not be left running")
+	assert.NotContains(t, string(logs.Snapshot()), bindGuidance,
+		"a plugin cut off by the caller's deadline may only be slow, so the --port guidance does not apply")
+}
+
+//nolint:paralleltest // writes and executes a script; a parallel fork inherits the write fd (text file busy)
+func TestStartWithRetry_BindTimeoutIsNotRetried(t *testing.T) {
+	script, pids := slowPluginScript(t)
+	launcher := NewProcessLauncherWithRetries(5)
+	launcher.stdoutFallback = 100 * time.Millisecond
+	launcher.bindTimeout = 300 * time.Millisecond
+
+	var logs lockedBuffer
+	logger := zerolog.New(&logs).Level(zerolog.DebugLevel)
+	ctx, cancel := context.WithCancel(logger.WithContext(context.Background()))
+	defer cancel()
+
+	conn, closeFn, err := launcher.StartWithRetry(ctx, script)
+
+	require.Error(t, err)
+	assert.Nil(t, conn)
+	assert.Nil(t, closeFn)
+	msg := err.Error()
+	assert.Contains(t, msg, "plugin failed to bind to port within")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.NotContains(t, msg, "failed after", "a bind timeout is not a port collision")
+
+	started := startedPIDs(t, pids)
+	require.Len(t, started, 1, "a plugin that never binds is started once, even with no caller deadline")
+	require.ErrorIs(t, syscall.Kill(started[0], 0), syscall.ESRCH, "the timed-out plugin must not be left running")
+
+	logged := string(logs.Snapshot())
+	assert.NotContains(t, logged, "retrying plugin launch")
+	assert.Contains(t, logged, bindGuidance, "the full bind timeout passed with nothing listening on --port")
 }
 
 //nolint:paralleltest // writes and executes a script; a parallel fork inherits the write fd (text file busy)

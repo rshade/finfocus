@@ -101,6 +101,7 @@ type ProcessLauncher struct {
 	mu             sync.Mutex
 	maxRetries     int           // Maximum number of launch retries
 	stdoutFallback time.Duration // configurable for tests; 0 means use default (stdoutPortFallback)
+	bindTimeout    time.Duration // configurable for tests; 0 means use getPluginBindTimeout
 }
 
 // NewProcessLauncher creates a new ProcessLauncher configured with the package default timeout and an initialized map for tracking reserved port listeners.
@@ -166,9 +167,9 @@ func (p *ProcessLauncher) StartWithRetry(
 			return conn, closeFn, nil
 		}
 
-		// A port collision is retried with a new port. A plugin that exits on
-		// its own is not, unless its stderr says its port was taken: a config
-		// or startup error fails the same way on every attempt.
+		// Only a port collision is retried, with a new port. A plugin that exits
+		// for another reason fails the same way on every attempt, and one that
+		// never binds would only wait out the bind timeout again.
 		if !isPortCollisionError(err) {
 			return nil, nil, err
 		}
@@ -460,6 +461,14 @@ func (p *ProcessLauncher) waitForPluginBind(ctx context.Context, port int, exite
 	}
 }
 
+// pluginBindTimeout returns how long to wait on a port after the stdout fallback window.
+func (p *ProcessLauncher) pluginBindTimeout() time.Duration {
+	if p.bindTimeout > 0 {
+		return p.bindTimeout
+	}
+	return getPluginBindTimeout()
+}
+
 // waitForPluginBindWithFallback waits for the plugin to bind to the assigned port.
 // If binding fails within stdoutPortFallback, it checks whether the plugin wrote
 // a port number to stdout (backward-compatible protocol for older plugins).
@@ -502,7 +511,7 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 			Msg("plugin did not bind to --port; falling back to stdout-advertised port (older plugin protocol)")
 
 		// Try binding on the stdout-advertised port with the remaining full timeout
-		fullCtx, fullCancel := context.WithTimeout(ctx, getPluginBindTimeout())
+		fullCtx, fullCancel := context.WithTimeout(ctx, p.pluginBindTimeout())
 		defer fullCancel()
 
 		err := p.waitForPluginBind(fullCtx, stdoutPort, exited)
@@ -524,19 +533,27 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 		Str("plugin_path", pluginPath).
 		Msg("no stdout port detected, continuing to wait for --port binding")
 
-	fullCtx, fullCancel := context.WithTimeout(ctx, getPluginBindTimeout())
+	fullCtx, fullCancel := context.WithTimeout(ctx, p.pluginBindTimeout())
 	defer fullCancel()
 
 	if err := p.waitForPluginBind(fullCtx, assignedPort, exited); err != nil {
 		if errors.Is(err, errPluginExited) {
 			return 0, err
 		}
-		log.Error().
+		event := log.Error().
 			Ctx(ctx).
 			Str("component", "pluginhost").
 			Err(err).
 			Int("port", assignedPort).
-			Str("plugin_path", pluginPath).
+			Str("plugin_path", pluginPath)
+		if ctx.Err() != nil {
+			// The caller's deadline cut the wait short; the plugin may only be slow.
+			event.Msg("plugin did not bind to port before the caller's context ended")
+			return 0, err
+		}
+		// The whole bind timeout passed with the process running and nothing
+		// listening on --port or advertised on stdout.
+		event.
 			Str("guidance", "ensure the plugin supports --port flag or upgrade to pluginsdk v0.5.5+").
 			Msg("plugin failed to bind to port")
 		return 0, err
@@ -580,25 +597,16 @@ func parsePortFromStdout(data []byte) (int, bool) {
 	return 0, false
 }
 
-// isPortCollisionError reports whether err indicates a port or address collision.
-// A plugin that exited before binding counts only when its stderr reported the
-// collision; its excerpt is never matched as text.
+// isPortCollisionError reports whether a launch failed because the plugin's
+// port was taken, which a new port can fix. The only collision core can see is
+// a plugin that exits after its listen fails with "address already in use"
+// (pluginExitError.portCollision, set from its raw stderr). A bind timeout is
+// never one: a taken port makes the plugin exit, not wait, so a plugin still
+// running at the timeout is slow, hung, or ignoring --port, and another attempt
+// would only repeat the wait. Error text is not matched.
 func isPortCollisionError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if exitErr, ok := errors.AsType[*pluginExitError](err); ok {
-		return exitErr.portCollision
-	}
-
-	// Use string matching which is portable across OS/locales.
-	// The error message "address already in use" is consistent across platforms,
-	// even though the underlying syscall errors differ (EADDRINUSE vs WSAEADDRINUSE).
-	errStr := err.Error()
-	return strings.Contains(errStr, "address already in use") ||
-		strings.Contains(errStr, "bind: address already in use") ||
-		strings.Contains(errStr, "port is already allocated") ||
-		strings.Contains(errStr, "failed to bind to port")
+	exitErr, ok := errors.AsType[*pluginExitError](err)
+	return ok && exitErr.portCollision
 }
 
 // appendDeliveredEnv adds settings to the plugin process environment.

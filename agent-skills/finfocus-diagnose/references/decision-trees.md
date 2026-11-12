@@ -6,7 +6,7 @@ Symptoms: `context deadline exceeded`, `connection refused`, `broken pipe`, `EOF
 
 1. `finfocus plugin list --verbose`. No row means the plugin is not installed under the active plugin directory. `FINFOCUS_PLUGIN_DIR` wins over the directory derived from `FINFOCUS_HOME`.
 2. `finfocus plugin validate --plugin <name>`. Fix `plugin binary not found:`, `plugin binary is not executable`, or a `plugin.manifest.json` name/version mismatch before retrying a cost command.
-3. Port collisions retry inside `StartWithRetry`. The launcher holds a listener, releases it, then the plugin binds `--port`. Retryable messages are `address already in use`, `bind: address already in use`, and `port is already allocated`.
+3. Port collisions retry inside `StartWithRetry`. The launcher holds a listener, releases it, then the plugin binds `--port`. A launch is retried only when the plugin exits and its stderr says `address already in use`. A plugin that exits for another reason, or that is still running without binding when the bind timeout ends, is not started again.
 4. The bind timeout is 60 seconds. The CI bind timeout is 120 seconds. The port retries are 5. The CI port retries are 10. The stdout port fallback is 5 seconds. Those CI values apply only when `CI` is `true`.
 5. After `Kill()`, the host calls `cmd.Wait()`. A plugin left unreaped is a zombie. Do not leave a killed plugin without `Wait`.
 6. `plugin spec version incompatible with core` appears only when `plugin_host.strict_compatibility` is true and the major spec version does not match. The default is permissive.

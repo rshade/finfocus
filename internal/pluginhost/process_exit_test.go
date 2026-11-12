@@ -2,7 +2,6 @@ package pluginhost
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -283,39 +282,6 @@ func TestStderrExcerpt_IsBounded(t *testing.T) {
 	assert.True(t, strings.HasPrefix(got, "..."))
 	assert.True(t, strings.HasSuffix(got, "last words"))
 	assert.Equal(t, strings.ToValidUTF8(got, "?"), got, "excerpt must stay valid UTF-8")
-}
-
-func TestPluginExitError_PortCollision(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{
-			name: "exit after a port collision",
-			err:  &pluginExitError{status: "exit status 1", portCollision: true},
-			want: true,
-		},
-		{
-			name: "exit for another reason mentioning a bind failure",
-			err:  &pluginExitError{status: "exit status 1", stderr: "failed to bind to port 9"},
-			want: false,
-		},
-		{
-			name: "wrapped exit error",
-			err:  fmt.Errorf("launch: %w", &pluginExitError{status: "exit status 1"}),
-			want: false,
-		},
-		{name: "real bind timeout", err: errors.New("plugin failed to bind to port: timeout"), want: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, isPortCollisionError(tt.err))
-		})
-	}
 }
 
 func TestCredentialValues(t *testing.T) {
