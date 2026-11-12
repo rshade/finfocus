@@ -44,9 +44,12 @@ var (
 	ErrStatsModeMismatch = errors.New("usage stats mode does not match the request")
 )
 
+// IncompleteWarningPrefix starts every usage-source warning that marks a
+// cluster report incomplete.
+const IncompleteWarningPrefix = "incomplete:"
+
 const (
 	periodMonthly        = "monthly"
-	incompletePrefix     = "incomplete:"
 	unpricedZeroNote     = "priced at $0; treated as unpriced"
 	unpricedMissing      = "no pricing result returned"
 	nothingPricedMessage = "no priceable resource could be priced; check that a pricing plugin " +
@@ -221,7 +224,7 @@ func newClusterResult(
 		Warnings:        append(append([]string{}, stats.GetWarnings()...), resp.GetWarnings()...),
 	}
 	for _, w := range stats.GetWarnings() {
-		if strings.HasPrefix(w, incompletePrefix) {
+		if strings.HasPrefix(w, IncompleteWarningPrefix) {
 			res.Incomplete = true
 			break
 		}

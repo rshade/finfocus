@@ -278,7 +278,24 @@ window that is not whole UTC days prints RFC3339 bounds and hours. A run with no
 When Prometheus holds no data for the start of the window, for example
 because its retention is shorter than the window, the report is marked
 incomplete with a warning naming the time stored data starts. The missing
-part is not counted as zero usage.
+part is not counted as zero usage. Pods with gaps in their samples are
+reported the same way, one warning per pod and metric.
+
+The footer says why a report is incomplete: what the usage source reported
+missing, and, only when there are any, the resources that could not be
+priced:
+
+```text
+Incomplete: the usage source reported partial data
+  - stored data starts at 2026-10-27T06:00:20Z, after the window start 2026-10-01T00:00:00Z; Prometheus retention may be shorter than the window
+  - gap in cpu_usage for 20 resources
+  - gap in mem_usage for 20 resources
+```
+
+On stderr, warnings that repeat one problem for many resources are folded
+into one line with a count and a few examples, after the store-wide
+warnings. The `warnings` field of `--output json` and `--output ndjson`
+lists every warning as the plugin wrote it.
 
 A historical window charges what workloads consumed. The Prometheus source
 reports `cpu_usage` and `mem_usage` in core-hours and GiB-hours over the

@@ -123,13 +123,7 @@ func renderClusterTable(cmd *cobra.Command, out clusterOutput) error {
 	}
 	cmd.Printf("Policy:  %s · %s\n", out.Policy.Source, shortDigest(out.Policy.Digest))
 	if out.Incomplete {
-		var missing []string
-		for _, p := range out.Priced {
-			if !p.Priced {
-				missing = append(missing, fmt.Sprintf("%s: %s", p.ID, p.Note))
-			}
-		}
-		cmd.Printf("Incomplete: %d resources could not be priced (%s)\n", len(missing), strings.Join(missing, "; "))
+		renderIncompleteFooter(cmd, out)
 	}
 	return nil
 }

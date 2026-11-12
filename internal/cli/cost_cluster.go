@@ -152,9 +152,7 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	if err != nil {
 		return err
 	}
-	for _, w := range res.Warnings {
-		cmd.PrintErrln("warning: " + w)
-	}
+	printClusterWarnings(cmd, format, res.Warnings)
 	policyOut.Digest, policyOut.Effective = res.PolicyDigest, res.EffectivePolicy
 	return renderClusterResult(cmd, format, newClusterOutput(res, groups, params.groupBy, policyOut))
 }
