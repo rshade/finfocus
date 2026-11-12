@@ -1199,14 +1199,25 @@ Specs 613-623 hold the details. Invariants:
   which asks each in name order: `InvalidArgument` means it cannot serve the
   request (the spec's mode rejection), exactly one acceptor wins, and two
   are an `*engine.AmbiguousUsageSourceError`, and `cost cluster` exits 2 on
-  that. Each probe has its own `usageSourceProbeTimeout` (2 minutes; tests
-  shorten the variable). A probe that hits that deadline is its own error:
-  it is not an acceptance and it does not fall through to the next source.
-  Caller cancellation still wins. Overview stops that cluster's scope search
-  and adds a `†` note. `expand`
+  that. A probe that hits its deadline (below), or that the source reports as
+  `DeadlineExceeded` itself, is its own error: it is not an acceptance and it
+  does not fall through to the next source. Caller cancellation still wins.
+  Overview stops that cluster's scope search and adds a `†` note. `expand`
   emits notes even when rows did not change, and the web session keeps them
   in the snapshot (`expansionNotes`) so they outlive the progress line.
   Never pick by plugin name.
+- Cluster plugin calls carry their own deadlines (`engine.ClusterCallTimeouts`,
+  `internal/engine/cluster_deadline.go`): `selectUsageSource`, the set's
+  probes, and `clusterAllocator` wrap clients in `BoundUsageSource` and
+  `BoundAllocator`, which `cost cluster` and overview expansion share through
+  `cli.clusterCallTimeouts` (tests shorten it). `GetStats` is 2 minutes, plus
+  30 s per started window day, capped at 30 minutes; `Allocate` with no usage
+  and nothing priced (policy check, `--show-policy`) is 10 s, otherwise 2
+  minutes. Only a call whose own deadline passed while the caller's context
+  is still live becomes `*engine.PluginCallTimeoutError` (exit 1, names the
+  plugin and call); overview stops that cluster's scope search on it, so a
+  stalled plugin costs one deadline per cluster. Wrap any new cluster client
+  the same way.
 
 ### MCP Server (`internal/cli/mcp.go`, `output_mode.go`)
 

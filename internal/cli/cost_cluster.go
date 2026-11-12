@@ -18,6 +18,10 @@ import (
 	"github.com/rshade/finfocus/internal/spec"
 )
 
+// clusterCallTimeouts bounds the usage-source and allocator calls of cost
+// cluster and overview cluster expansion.
+var clusterCallTimeouts = engine.DefaultClusterCallTimeouts() //nolint:gochecknoglobals // tests shorten it
+
 type costClusterParams struct {
 	context     string
 	namespace   string
@@ -111,8 +115,7 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 		if selErr != nil {
 			return pluginSelectionError(ctx, selErr)
 		}
-		effective, digest, showErr := engine.ShowAllocationPolicy(ctx,
-			pbc.NewAllocatorServiceClient(allocClient.Conn), policy.JSON)
+		effective, digest, showErr := engine.ShowAllocationPolicy(ctx, clusterAllocator(allocClient), policy.JSON)
 		if showErr != nil {
 			return policyError(ctx, showErr, allocClient.Name, policy)
 		}
@@ -173,7 +176,7 @@ func clusterPlugins(
 	if err != nil {
 		return nil, "", nil, pluginSelectionError(ctx, err)
 	}
-	alloc := pbc.NewAllocatorServiceClient(allocClient.Conn)
+	alloc := clusterAllocator(allocClient)
 	if len(policy.JSON) > 0 {
 		if _, _, checkErr := engine.ShowAllocationPolicy(ctx, alloc, policy.JSON); checkErr != nil {
 			return nil, "", nil, policyError(ctx, checkErr, allocClient.Name, policy)
@@ -232,7 +235,8 @@ func pluginSelectionError(ctx context.Context, err error) error {
 // selectUsageSource returns the usage source for a cluster run and its plugin
 // name: the explicit --usage-source plugin, the only installed one, or, when
 // several are installed, an engine.UsageSourceSet (name empty) that asks each
-// one and uses the single source that accepts the request's mode.
+// one and uses the single source that accepts the request's mode. Every
+// GetStats call is bounded by clusterCallTimeouts.
 func selectUsageSource(clients []*pluginhost.Client, explicit string) (engine.UsageSource, string, error) {
 	var sources []engine.NamedUsageSource
 	for _, c := range clients {
@@ -247,9 +251,16 @@ func selectUsageSource(clients []*pluginhost.Client, explicit string) (engine.Us
 		if err != nil {
 			return nil, "", err
 		}
-		return pbc.NewUsageSourceServiceClient(client.Conn), client.Name, nil
+		usage := engine.BoundUsageSource(client.Name, pbc.NewUsageSourceServiceClient(client.Conn), clusterCallTimeouts)
+		return usage, client.Name, nil
 	}
-	return engine.NewUsageSourceSet(sources), "", nil
+	return engine.NewUsageSourceSet(sources, clusterCallTimeouts), "", nil
+}
+
+// clusterAllocator is the allocator client of a cluster run, each call
+// bounded by clusterCallTimeouts.
+func clusterAllocator(client *pluginhost.Client) engine.Allocator {
+	return engine.BoundAllocator(client.Name, pbc.NewAllocatorServiceClient(client.Conn), clusterCallTimeouts)
 }
 
 // selectCapablePlugin picks the plugin serving capability: the explicit name,

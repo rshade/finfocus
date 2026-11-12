@@ -909,7 +909,7 @@ func TestRunClusterAllocation_UsageRequestRejected(t *testing.T) {
 				return NewUsageSourceSet([]NamedUsageSource{
 					{Name: "kubernetes", Source: &fakeUsage{err: contextErr}},
 					{Name: "prometheus", Source: &modeOnlyUsage{historical: true}},
-				})
+				}, DefaultClusterCallTimeouts())
 			},
 			rejected: true,
 			want: `no usage source accepted the run-rate request: ` +
