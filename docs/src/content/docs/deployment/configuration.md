@@ -29,9 +29,14 @@ output:
 logging:
   level: info
 
-plugins:
-  dir: ~/.finfocus/plugins
+plugin_dir: /opt/finfocus/plugins
 ```
+
+`plugin_dir` is a top-level key. Do not nest it under `plugins`: that object
+holds per-plugin settings keyed by plugin name, so `plugins.dir` names a plugin
+called `dir`. A path string there fails `config validate`, and a load can leave
+the settings that were read before the error in place. FinFocus reads `plugin_dir` only from the global
+`config.hujson`, and `FINFOCUS_PLUGIN_DIR` overrides it.
 
 ### Recommended Defaults
 

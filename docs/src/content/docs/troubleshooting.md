@@ -383,11 +383,22 @@ Error: failed to connect to plugin: context deadline exceeded
 
 4. **Plugin process issues**:
 
+   FinFocus starts a plugin for each command and stops it when the command
+   ends. `finfocus --web` also stops its plugins on Ctrl-C or SIGTERM. A
+   plugin can outlive a FinFocus run that was killed, and keep its port. Find
+   that process first, then stop it by its PID:
+
    ```bash
-   # Kill any stuck plugin processes
-   pkill -f finfocus-plugin-opencost
-   ps aux | grep finfocus
+   # List plugin processes with their PIDs; narrow it to the affected
+   # plugin, for example '[f]infocus-plugin-opencost'
+   ps -eo pid,args | grep '[f]infocus-plugin-'
+   # Stop only a PID that the list shows
+   kill <pid>
    ```
+
+   Do not run `pkill -f finfocus`. The `-f` flag matches the full command
+   line of every process, so it can stop unrelated processes, including the
+   shell you run it from.
 
 ### Plugin Exits at Startup
 

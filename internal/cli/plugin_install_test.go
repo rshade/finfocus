@@ -29,7 +29,7 @@ func TestPluginInstallCmd_Help(t *testing.T) {
 		"--force",
 		"--no-save",
 		"--plugin-dir",
-		"kubecost",
+		"opencost",
 		"github.com",
 	}
 
@@ -121,8 +121,8 @@ func TestPluginInstallCmd_Examples(t *testing.T) {
 
 	// Check for example commands
 	examples := []string{
-		"finfocus plugin install kubecost",
-		"kubecost@v1.0.0",
+		"finfocus plugin install opencost",
+		"opencost@v0.1.2",
 		"--force",
 		"--no-save",
 		"--clean",

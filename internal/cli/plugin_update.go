@@ -43,13 +43,13 @@ func NewPluginUpdateCmd() *cobra.Command {
 
 The plugin must already be installed. Use 'plugin install' to install new plugins.`,
 		Example: `  # Update to latest version
-  finfocus plugin update kubecost
+  finfocus plugin update opencost
 
   # Update to specific version
-  finfocus plugin update kubecost --version v2.0.0
+  finfocus plugin update opencost --version v0.1.2
 
   # Preview update without making changes
-  finfocus plugin update kubecost --dry-run`,
+  finfocus plugin update opencost --dry-run`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPluginUpdate(cmd, args[0], version, pluginDir, skipChecksum)

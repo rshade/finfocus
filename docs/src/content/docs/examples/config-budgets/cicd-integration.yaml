@@ -7,17 +7,19 @@
 
 cost:
   budgets:
-    amount: 500.00
-    currency: USD
-    
-    alerts:
-      # Trigger alert if the NEW plan (forecasted) would exceed 100% of budget
-      - threshold: 100
-        type: forecasted
+    global:
+      amount: 500.00
+      currency: USD
+
+      alerts:
+        # Trigger alert if the NEW plan (forecasted) would exceed 100% of budget
+        - threshold: 100
+          type: forecasted
 
 # Usage in CI Pipeline:
 #   finfocus cost projected --pulumi-json plan.json || exit 1
 #
 # Note: FinFocus exits with code 0 by default even on alerts.
-# You may need to configure exit_on_alert (future feature) or parse output.
-# For now, you can grep for "Budget exceeded" or check JSON output.
+# Set exit_on_threshold: true and exit_code: 1 under global, or pass
+# --exit-on-threshold --exit-code 1, to exit non-zero when an alert is
+# exceeded. An exit code of 0 only warns.

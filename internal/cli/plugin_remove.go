@@ -30,13 +30,13 @@ func NewPluginRemoveCmd() *cobra.Command {
 
 This will delete the plugin files and remove it from the configuration.`,
 		Example: `  # Remove a plugin
-  finfocus plugin remove kubecost
+  finfocus plugin remove opencost
 
   # Remove but keep in config (for reinstalling later)
-  finfocus plugin remove kubecost --keep-config
+  finfocus plugin remove opencost --keep-config
 
   # Using alias
-  finfocus plugin uninstall kubecost`,
+  finfocus plugin uninstall opencost`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

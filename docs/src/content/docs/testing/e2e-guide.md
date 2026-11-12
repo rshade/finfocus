@@ -163,12 +163,20 @@ Plugin subprocesses can outlive a test and hold inherited `stdout`/`stderr` pipe
 indefinitely. All E2E command execution uses a `newCommand` helper that sets `exec.Cmd.WaitDelay` (30 seconds) so a
 leaked subprocess fails fast with real output instead of hanging the runner.
 
-If a test still hangs, check for orphaned plugin processes:
+If a test still hangs, check for orphaned plugin processes. The aws-public
+router starts a child per region (`finfocus-plugin-aws-public-<region>`), and
+that child can outlive the router. List the processes, then stop each orphan
+by its PID:
 
 ```bash
-# List any lingering finfocus plugin processes
-ps aux | grep finfocus-plugin
+# List any lingering finfocus plugin processes with their PIDs
+ps -eo pid,args | grep '[f]infocus-plugin'
+# Stop only a PID that the list shows
+kill <pid>
 ```
+
+Do not use `pkill -f finfocus`: it matches every command line that contains
+the name, including the shell you run it from.
 
 ### Windows Cross-Platform Notes
 
