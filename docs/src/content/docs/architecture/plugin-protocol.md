@@ -81,7 +81,7 @@ message NameResponse {
 
 ```json
 {
-  "name": "kubecost"
+  "name": "opencost"
 }
 ```
 

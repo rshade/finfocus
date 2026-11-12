@@ -149,7 +149,7 @@ finfocus cost actual --pulumi-json plan.json --from 2025-01-07
 finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --to 2025-01-31
 
 # Use specific plugin
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --adapter kubecost
+finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --adapter opencost
 ```
 
 ### Date Format Support
@@ -213,14 +213,14 @@ finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by "tag:T
       "rds": 44.21
     },
     "byAdapter": {
-      "kubecost": 156.78
+      "aws-ce": 156.78
     }
   },
   "resources": [
     {
       "resourceType": "aws:ec2/instance:Instance",
       "resourceId": "web-server",
-      "adapter": "kubecost",
+      "adapter": "aws-ce",
       "currency": "USD",
       "totalCost": 89.45,
       "dailyCosts": [2.88, 2.92, 2.85, ...],
@@ -312,9 +312,9 @@ FinFocus uses the following directory structure:
 ```text
 ~/.finfocus/
 ├── plugins/                     # Plugin binaries
-│   ├── kubecost/
-│   │   └── 1.0.0/
-│   │       └── finfocus-kubecost
+│   ├── opencost/
+│   │   └── v0.1.2/
+│   │       └── finfocus-plugin-opencost
 │   └── aws-plugin/
 │       └── 0.1.0/
 │           └── finfocus-aws
@@ -348,15 +348,23 @@ metadata:
 
 ### Plugin Configuration
 
-Plugins may require additional configuration:
+Plugins may require additional configuration. For example, the `opencost`
+plugin reads Kubernetes allocation cost from an OpenCost endpoint:
 
 ```bash
+finfocus plugin install opencost
+
 # Set plugin-specific environment variables
-export KUBECOST_API_URL="http://kubecost.example.com:9090"
+export KUBECOST_BASE_URL="https://opencost.example.com"
+export OPENCOST_CURRENCY="USD"
 
 # Run with plugin configuration
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --adapter kubecost
+finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --adapter opencost
 ```
+
+For a Kubecost endpoint, also set `OPENCOST_PROFILE=kubecost` and
+`KUBECOST_API_TOKEN`. See [OpenCost Plugin](plugins/opencost.md) for the other
+settings.
 
 ## Running as Pulumi Plugin
 

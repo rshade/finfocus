@@ -198,11 +198,11 @@ The Registry validates the plugin manifest during discovery:
 
 ```json
 {
-  "name": "kubecost",
-  "version": "1.0.0",
-  "protocol_version": "1",
-  "executable": "kubecost-plugin",
-  "description": "Kubecost cost source plugin"
+  "name": "opencost",
+  "version": "v0.1.2",
+  "description": "Kubernetes allocation cost from OpenCost or Kubecost",
+  "author": "FinFocus Team",
+  "providers": ["kubernetes"]
 }
 ```
 

@@ -285,9 +285,9 @@ No plugins found
 
    ```text
    ~/.finfocus/plugins/
-   └── kubecost/
-       └── 1.0.0/
-           └── finfocus-kubecost
+   └── opencost/
+       └── v0.1.2/
+           └── finfocus-plugin-opencost
    ```
 
 3. **Make plugin executable**:
@@ -309,7 +309,7 @@ No plugins found
 
 ```bash
 $ finfocus plugin validate
-kubecost: FAILED - connection timeout
+Validating opencost v0.1.2... FAILED: plugin binary is not executable
 ```
 
 **Solutions**:
@@ -317,8 +317,8 @@ kubecost: FAILED - connection timeout
 1. **Test plugin directly**:
 
    ```bash
-   ~/.finfocus/plugins/kubecost/1.0.0/finfocus-kubecost
-   # Should start and show port information
+   ~/.finfocus/plugins/opencost/v0.1.2/finfocus-plugin-opencost
+   # Should start and print PORT=<number>
    ```
 
 2. **Check plugin logs**: `plugin validate` checks only the binary and its
@@ -333,15 +333,15 @@ kubecost: FAILED - connection timeout
 3. **Network connectivity**:
 
    ```bash
-   # Test external API connectivity
-   curl -v http://kubecost.example.com:9090/api/v1/costDataModel
+   # Test external API connectivity (the opencost plugin's health probe)
+   curl -v "$KUBECOST_BASE_URL/healthz"
    ```
 
 4. **Authentication setup**:
 
    ```bash
    # Verify required environment variables
-   env | grep -E "(KUBECOST|AWS|AZURE|GCP)"
+   env | grep -E "(KUBECOST|OPENCOST|AWS|AZURE|GCP)"
    ```
 
 ### Plugin Communication Errors
@@ -361,8 +361,8 @@ Error: failed to connect to plugin: context deadline exceeded
    run the command with `--debug` and read what the plugin logged:
 
    ```bash
-   finfocus --debug cost actual --adapter kubecost --from 2025-01-01
-   finfocus logs --source kubecost --level warn
+   finfocus --debug cost actual --adapter opencost --from 2025-01-01
+   finfocus logs --grep opencost
    ```
 
 2. **Check port conflicts**:
@@ -385,7 +385,7 @@ Error: failed to connect to plugin: context deadline exceeded
 
    ```bash
    # Kill any stuck plugin processes
-   pkill finfocus-kubecost
+   pkill -f finfocus-plugin-opencost
    ps aux | grep finfocus
    ```
 
@@ -619,9 +619,10 @@ Error: no cost data available for time range
 4. **Plugin configuration**:
 
    ```bash
-   # Verify plugin can access billing APIs
-   export KUBECOST_API_URL="http://kubecost.example.com:9090"
-   finfocus plugin validate --adapter kubecost
+   # Verify the plugin's endpoint answers, then that the plugin starts
+   export KUBECOST_BASE_URL="https://kubecost.example.com"
+   curl -v "$KUBECOST_BASE_URL/healthz"
+   finfocus plugin list --verbose
    ```
 
 ## Performance Problems
@@ -636,7 +637,7 @@ Error: no cost data available for time range
 
    ```bash
    # Avoid querying all plugins
-   finfocus cost projected --pulumi-json plan.json --adapter kubecost
+   finfocus cost projected --pulumi-json plan.json --adapter opencost
    ```
 
 2. **Filter resources**:
@@ -698,7 +699,7 @@ Error: no cost data available for time range
 
    ```bash
    curl -v https://api.aws.com/
-   ping kubecost.example.com
+   curl -v "$KUBECOST_BASE_URL/healthz"
    ```
 
 2. **Read what the plugin reported**: FinFocus has no setting for plugin or
@@ -707,7 +708,7 @@ Error: no cost data available for time range
    log entries:
 
    ```bash
-   finfocus logs --source kubecost --level warn
+   finfocus logs --grep opencost
    ```
 
 3. **Configure proxy**:
@@ -760,13 +761,13 @@ Error: no cost data available for time range
 
    ```bash
    env | grep FINFOCUS
-   env | grep -E "(AWS|KUBECOST|AZURE)"
+   env | grep -E "(AWS|KUBECOST|OPENCOST|AZURE)"
    ```
 
 2. **Export variables properly**:
 
    ```bash
-   export KUBECOST_API_URL="http://kubecost.example.com:9090"
+   export KUBECOST_BASE_URL="https://kubecost.example.com"
    export AWS_REGION="us-west-2"
    ```
 
@@ -774,7 +775,7 @@ Error: no cost data available for time range
 
    ```bash
    # Add to shell profile
-   echo 'export KUBECOST_API_URL="http://kubecost.example.com:9090"' >> ~/.bashrc
+   echo 'export KUBECOST_BASE_URL="https://kubecost.example.com"' >> ~/.bashrc
    source ~/.bashrc
    ```
 
@@ -890,12 +891,9 @@ Error: x509: certificate signed by unknown authority
    export HTTP_PROXY=http://username:password@proxy.company.com:8080
    ```
 
-3. **Plugin-specific proxy**:
-
-   ```bash
-   # Some plugins might need specific proxy configuration
-   export KUBECOST_PROXY_URL=http://proxy.company.com:8080
-   ```
+3. **Plugin-specific proxy**: Plugin processes inherit these variables. The
+   `opencost` plugin uses `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` and has
+   no proxy setting of its own. For any other plugin, check its documentation.
 
 ## Debug Mode
 
@@ -908,7 +906,7 @@ finfocus --debug cost projected --pulumi-json plan.json
 # Debug logging for FinFocus and for plugins that read FINFOCUS_LOG_LEVEL
 # (plugin processes inherit it; --debug does not reach them)
 export FINFOCUS_LOG_LEVEL=debug
-finfocus cost actual --adapter kubecost --from 2025-01-01
+finfocus cost actual --adapter opencost --from 2025-01-01
 ```
 
 ### Verbose Output
@@ -918,7 +916,7 @@ finfocus cost actual --adapter kubecost --from 2025-01-01
 finfocus -v cost projected --pulumi-json plan.json
 
 # Maximum verbosity
-finfocus -vv cost actual --adapter kubecost --from 2025-01-01
+finfocus --debug cost actual --adapter opencost --from 2025-01-01
 ```
 
 ### Log Analysis
@@ -937,8 +935,8 @@ grep -i "grpc\|plugin\|connect" debug.log
 ### Plugin Debugging
 
 ```bash
-# Test plugin directly
-~/.finfocus/plugins/kubecost/1.0.0/finfocus-kubecost &
+# Test plugin directly on a fixed port
+~/.finfocus/plugins/opencost/v0.1.2/finfocus-plugin-opencost --port 50051 &
 PLUGIN_PID=$!
 
 # Test gRPC connection
@@ -953,14 +951,14 @@ kill $PLUGIN_PID
 ### "No such file or directory"
 
 ```bash
-Error: exec: "finfocus-kubecost": executable file not found in $PATH
+Error: exec: "finfocus-plugin-opencost": executable file not found in $PATH
 ```
 
 **Solution**: Plugin binary missing or not executable.
 
 ```bash
-ls -la ~/.finfocus/plugins/kubecost/1.0.0/
-chmod +x ~/.finfocus/plugins/kubecost/1.0.0/finfocus-kubecost
+ls -la ~/.finfocus/plugins/opencost/v0.1.2/
+chmod +x ~/.finfocus/plugins/opencost/v0.1.2/finfocus-plugin-opencost
 ```
 
 ### "Connection refused"
@@ -1044,7 +1042,7 @@ When reporting bugs, include:
 
    ```bash
    ls -la ~/.finfocus/
-   env | grep -E "(PULUMI|AWS|KUBECOST)"
+   env | grep -E "(PULUMI|AWS|KUBECOST|OPENCOST)"
    ```
 
 5. **Minimal reproduction**:

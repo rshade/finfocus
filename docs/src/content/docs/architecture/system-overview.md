@@ -108,9 +108,9 @@ The Registry discovers and manages plugin lifecycle from the filesystem.
 ```text
 ~/.finfocus/
 └── plugins/
-    ├── kubecost/
-    │   └── 1.0.0/
-    │       ├── kubecost-plugin
+    ├── opencost/
+    │   └── v0.1.2/
+    │       ├── finfocus-plugin-opencost
     │       └── plugin.manifest.json
     └── vantage/
         └── 1.0.0/
