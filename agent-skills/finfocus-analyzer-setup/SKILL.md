@@ -93,9 +93,12 @@ Policies:
 
 ## CI/CD Usage
 
+Pulumi has no environment variable that selects a local policy pack, so CI
+passes the flag too:
+
 ```bash
-export PULUMI_POLICY_PACK_PATH="$HOME/.finfocus/analyzer"
-pulumi preview    # No --policy-pack flag needed
+export PATH="$HOME/.finfocus/analyzer:$PATH"
+pulumi preview --policy-pack "$HOME/.finfocus/analyzer"
 ```
 
 ## Troubleshooting

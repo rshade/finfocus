@@ -150,7 +150,8 @@ analyzer:
 ## Important: `analyzers:` in Pulumi.yaml
 
 Adding `analyzers:` to `Pulumi.yaml` does **not** work for YAML-runtime
-projects. Use the `--policy-pack` flag or `PULUMI_POLICY_PACK_PATH` env var.
+projects. Use the `--policy-pack` flag; Pulumi has no environment variable for
+a local policy pack.
 
 ## Handshake protocol (advanced)
 
