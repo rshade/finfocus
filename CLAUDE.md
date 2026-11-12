@@ -845,6 +845,15 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   an unmapped type `custom`. An empty `SupportedProviders` list or `*` still
   receives the fallback. Do not add a provider-name table; comparison uses
   `resourcetype.NormalizeProvider`.
+- A plugin that lists capabilities is offered a routed feature (projected,
+  actual, batch, recommendations, carbon) only when it lists the capability
+  `supportsCapability` sends for it (`advertisesFeature`, applied in
+  `filterUnsupportedPlugins` for router and fallback matches alike, and the
+  router's own `matchesCapabilities` rule). A plugin that lists none stays
+  offered, except for carbon. So usage-only (prometheus) and scorer-only plugins
+  never get a pricing `Supports` and never appear in a decline note. EstimateCost,
+  pricing-spec discovery, and recommendation history still try every client:
+  civo-public and aws-ce serve `GetPricingSpec` without listing `pricing_spec`.
 - Provider means the billing cloud. `resourcetype.NormalizeProvider` holds the
   only alias table (`aws-native`→`aws`, `azure-native`/`azurerm`→`azure`,
   `google-native`/`google`→`gcp`); never split a type token for a provider
@@ -1092,7 +1101,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   changes (`/recs-v2` retired entries holding only page one). Risk never reorders.
 - Scoring (`internal/scoring`, off by default) pseudonymizes identifiers by
   default, only warns on failure, and never dismisses or hides anything.
-  Scorer-only plugins are dropped from cost features before `Supports`.
+  Scorer-only plugins list no cost capability, so routing drops them before
+  `Supports` (see Router).
 
 - Blast radius (`specs/1736-dependency-blast-radius/`): the dependency graph
   lives on `stackload.Snapshot` (`Graph()`, rebuilt by `WithPlan`), and

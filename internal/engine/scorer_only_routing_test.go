@@ -249,7 +249,7 @@ func TestScorerOnly_MixedRouteKeepsPricer(t *testing.T) {
 	assert.Positive(t, supports)
 }
 
-func TestScorerOnly_DualCapabilityStaysOffered(t *testing.T) {
+func TestScorerOnly_DualCapabilityOfferedOnlyRecommendations(t *testing.T) {
 	t.Parallel()
 
 	api := newCallClient(true, "")
@@ -260,10 +260,17 @@ func TestScorerOnly_DualCapabilityStaysOffered(t *testing.T) {
 	client := clientWithMeta("hybrid", meta, api)
 	e := New([]*pluginhost.Client{client}, nil)
 
-	matches, _ := e.selectPluginMatchesForResource(
+	projected, _ := e.selectPluginMatchesForResource(
 		context.Background(), pricedResource(), "ProjectedCosts",
 	)
-	assert.Equal(t, []string{"hybrid"}, matchNames(matches))
+	require.NotNil(t, projected)
+	assert.Empty(t, projected)
+	assertNoCostRPCs(t, api)
+
+	recommendations, _ := e.selectPluginMatchesForResource(
+		context.Background(), pricedResource(), recommendationsFeature,
+	)
+	assert.Equal(t, []string{"hybrid"}, matchNames(recommendations))
 	supports, _, _, _ := api.counts()
 	assert.Positive(t, supports)
 }
@@ -289,7 +296,7 @@ func TestScorerOnly_NoCapabilityStaysOffered(t *testing.T) {
 	assert.Positive(t, emptySupports)
 }
 
-func TestScorerOnly_RecommendationsSelectionUnchanged(t *testing.T) {
+func TestScorerOnly_RecommendationsSkipScorerBeforeSupports(t *testing.T) {
 	t.Parallel()
 
 	jevAPI := newCallClient(true, "")
@@ -303,7 +310,8 @@ func TestScorerOnly_RecommendationsSelectionUnchanged(t *testing.T) {
 	matches, _ := e.selectPluginMatchesForResource(
 		context.Background(), pricedResource(), recommendationsFeature,
 	)
-	assert.ElementsMatch(t, []string{"aws", "jev"}, matchNames(matches))
+	assert.Equal(t, []string{"aws"}, matchNames(matches))
+	assertNoCostRPCs(t, jevAPI)
 
 	targets := e.routeRecommendationTargets(context.Background(), []ResourceDescriptor{pricedResource()})
 	names := make([]string, 0, len(targets))

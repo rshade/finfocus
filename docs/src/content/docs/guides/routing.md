@@ -102,6 +102,13 @@ descriptor provider that differs from the type prefix also counts: Terraform
 labels an unmapped type `custom`. Plugins with an empty list or `*` are
 still asked.
 
+Core also asks a plugin only for the features its capabilities list, with or
+without a routing configuration. Projected cost needs `projected_costs`, actual
+cost `actual_costs`, recommendations `recommendations`, and carbon `carbon`. A
+usage source such as the `prometheus` plugin, which lists only usage stats, is
+never asked to price a resource, so its decline does not appear in a cost note.
+A plugin that lists no capabilities is still asked, except for carbon.
+
 **Metadata-Aware Binary Selection**: When a plugin is installed with
 `--metadata="region=us-west-2"`, the registry writes a `plugin.metadata.json`
 file alongside the binary.

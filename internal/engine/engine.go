@@ -483,7 +483,7 @@ func (e *Engine) filterUnsupportedPlugins(
 	filtered := make([]PluginMatch, 0, len(matches))
 	var declines []pluginDecline
 	for _, match := range matches {
-		if !allowsCarbonFeature(match.Client, feature) {
+		if match.Client == nil || !advertisesFeature(match.Client, feature) {
 			continue
 		}
 		supported, reason := e.checkPluginSupports(ctx, match.Client, resource, feature)
@@ -496,45 +496,32 @@ func (e *Engine) filterUnsupportedPlugins(
 	return filtered, declines
 }
 
-// skipScorerOnly reports whether feature must leave scorer-only plugins out.
-// Cost features drop them before Supports, so they are never offered a cost
-// RPC and never appear in an unpriced decline note. The recommendations
-// feature still returns them; routeRecommendationTargets drops them after
-// Supports.
-func skipScorerOnly(feature string) bool {
-	return feature != recommendationsFeature
-}
-
-// clientsForFeature returns the clients a feature may call. Cost features
-// omit scorer-only plugins. The recommendations feature keeps every client.
-func (e *Engine) clientsForFeature(feature string) []*pluginhost.Client {
-	if !skipScorerOnly(feature) {
-		return e.clients
+// advertisesFeature reports whether client may be offered feature. A plugin
+// that lists capabilities is offered a feature only when it lists the one the
+// Supports request names (supportsCapability), so a usage source or a scorer
+// is never asked to price and its decline never reaches an unpriced note. A
+// plugin that lists none predates GetPluginInfo capabilities and stays offered,
+// the same rule the router applies to a configured route. Carbon is opt-in: a
+// plugin must list carbon. A feature with no capability offers every plugin.
+func advertisesFeature(client *pluginhost.Client, feature string) bool {
+	if feature == carbonFeature {
+		return client.HasCapability(capabilityCarbon)
 	}
-	return clientsWithoutScorers(e.clients)
-}
-
-// clientsWithoutScorers copies clients with scorer-only plugins removed.
-// A nil client is kept. Plugins with no capabilities stay, as do plugins
-// that advertise recommendations alongside scoring.
-func clientsWithoutScorers(clients []*pluginhost.Client) []*pluginhost.Client {
-	kept := make([]*pluginhost.Client, 0, len(clients))
-	for _, client := range clients {
-		if client != nil && isScorerOnly(client) {
-			continue
-		}
-		kept = append(kept, client)
+	required := supportsCapability(feature)
+	if required == pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED ||
+		client.Metadata == nil || len(client.Metadata.Capabilities) == 0 {
+		return true
 	}
-	return kept
+	names := pluginhost.ConvertCapabilities([]pbc.PluginCapability{required})
+	return len(names) == 1 && client.HasCapability(names[0])
 }
 
-// matchesWithoutScorers copies matches with scorer-only plugins removed.
-// The result is empty and non-nil when every match was scorer-only, which
-// is distinct from a nil match list (an intentionally filtered resource).
-func matchesWithoutScorers(matches []PluginMatch) []PluginMatch {
+// matchesAdvertisingFeature copies matches whose plugin advertises feature.
+// A nil client is kept for the caller to judge.
+func matchesAdvertisingFeature(matches []PluginMatch, feature string) []PluginMatch {
 	kept := make([]PluginMatch, 0, len(matches))
 	for _, match := range matches {
-		if match.Client != nil && isScorerOnly(match.Client) {
+		if match.Client != nil && !advertisesFeature(match.Client, feature) {
 			continue
 		}
 		kept = append(kept, match)
@@ -614,7 +601,7 @@ func automaticMatches(clients []*pluginhost.Client) []PluginMatch {
 
 // selectPluginMatchesForResource returns the full PluginMatch list for a resource.
 // This includes fallback configuration and priority information for each plugin.
-// Scorer-only plugins are omitted for every feature except recommendations.
+// Plugins that do not advertise the feature are omitted (advertisesFeature).
 //
 // Parameters:
 //   - ctx: Context for cancellation and tracing
@@ -660,7 +647,7 @@ func (e *Engine) selectPluginMatches(
 			return nil, nil
 		}
 
-		candidates := clientsAdvertisingProvider(e.clientsForFeature(feature), resource)
+		candidates := clientsAdvertisingProvider(e.clients, resource)
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "engine").
@@ -686,7 +673,7 @@ func (e *Engine) selectPluginMatches(
 			return nil, nil
 		}
 
-		candidates := clientsAdvertisingProvider(e.clientsForFeature(feature), resource)
+		candidates := clientsAdvertisingProvider(e.clients, resource)
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "engine").
@@ -698,12 +685,9 @@ func (e *Engine) selectPluginMatches(
 		return e.filterUnsupportedPlugins(ctx, automaticMatches(candidates), resource, supportsFeature)
 	}
 
-	// Strip after the empty check. An explicit route that names only a
-	// scorer stays empty and does not fall back to every other client.
-	if skipScorerOnly(feature) {
-		matches = matchesWithoutScorers(matches)
-	}
-
+	// filterUnsupportedPlugins drops plugins that do not advertise the
+	// feature after this empty check, so an explicit route that names only
+	// such a plugin stays empty and does not fall back to every other client.
 	log.Debug().
 		Ctx(ctx).
 		Str("component", "engine").
@@ -3980,13 +3964,6 @@ func (e *Engine) recommendationsCacheKey(
 // that held only each plugin's first page.
 const recommendationsCacheFormat = "/recs-v2"
 
-// isScorerOnly reports whether a plugin advertises recommendation scoring without
-// recommendations. Such a plugin rates recommendations; it does not produce them.
-func isScorerOnly(client *pluginhost.Client) bool {
-	return client.HasCapability(pluginhost.CapabilityRecommendationScoring) &&
-		!client.HasCapability(capabilityRecommendations)
-}
-
 // recommendationTarget is a plugin together with the resources routed to it.
 type recommendationTarget struct {
 	client    *pluginhost.Client
@@ -4004,9 +3981,6 @@ func (e *Engine) routeRecommendationTargets(
 	for _, resource := range resources {
 		matches, _ := e.selectPluginMatchesForResource(ctx, resource, recommendationsFeature)
 		for _, match := range matches {
-			if isScorerOnly(match.Client) {
-				continue
-			}
 			byName[match.Client.Name] = append(byName[match.Client.Name], resource)
 		}
 	}

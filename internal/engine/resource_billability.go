@@ -42,7 +42,8 @@ func (e *Engine) ResourceBillability(ctx context.Context, resource ResourceDescr
 	// paths; a projected route alone cannot establish the estimate provider.
 	matches := automaticMatches(e.clients)
 	if e.router != nil {
-		matches = append(matches, matchesWithoutScorers(e.router.SelectPlugins(ctx, resource, "ProjectedCosts"))...)
+		routed := e.router.SelectPlugins(ctx, resource, "ProjectedCosts")
+		matches = append(matches, matchesAdvertisingFeature(routed, "ProjectedCosts")...)
 	}
 	if len(matches) == 0 {
 		return BillabilityUnknown
