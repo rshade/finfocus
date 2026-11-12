@@ -848,11 +848,15 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - A plugin that lists capabilities is offered a routed feature (projected,
   actual, batch, recommendations, carbon) only when it lists the capability
   `supportsCapability` sends for it (`advertisesFeature`, applied in
-  `filterUnsupportedPlugins` for router and fallback matches alike, and the
-  router's own `matchesCapabilities` rule). A plugin that lists none stays
-  offered, except for carbon. So usage-only (prometheus) and scorer-only plugins
-  never get a pricing `Supports` and never appear in a decline note. EstimateCost,
-  pricing-spec discovery, and recommendation history still try every client:
+  `filterUnsupportedPlugins` for router and fallback matches alike). The one
+  rule is `pluginhost.Client.AdvertisesCapability` (fail-open on an empty list,
+  legacy `ProjectedCosts`-style names normalized), which the router's
+  `matchesCapabilities` also calls; each layer keeps its own feature mapping
+  (the router routes BatchCost on `batch_cost`, the engine checks the query's
+  capability). A plugin that lists none stays offered, except for carbon. So
+  usage-only (prometheus) and scorer-only plugins never get a pricing
+  `Supports` and never appear in a decline note. EstimateCost, pricing-spec
+  discovery, and recommendation history still try every client:
   civo-public and aws-ce serve `GetPricingSpec` without listing `pricing_spec`.
 - Provider means the billing cloud. `resourcetype.NormalizeProvider` holds the
   only alias table (`aws-native`→`aws`, `azure-native`/`azurerm`→`azure`,

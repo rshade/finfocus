@@ -517,27 +517,6 @@ func TestCapabilityEnumFromFeature_BatchCost(t *testing.T) {
 	assert.Equal(t, pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, capability)
 }
 
-func TestCapabilityEnumFromString_BatchCost(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name  string
-		input string
-	}{
-		{"PascalCase", "BatchCost"},
-		{"snake_case", "batch_cost"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			capability, ok := capabilityEnumFromString(tt.input)
-			require.True(t, ok)
-			assert.Equal(t, pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, capability)
-		})
-	}
-}
-
 func TestSelectPlugins_InternalPulumiTypeWithPatternOverride(t *testing.T) {
 	t.Parallel()
 

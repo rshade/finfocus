@@ -496,24 +496,17 @@ func (e *Engine) filterUnsupportedPlugins(
 	return filtered, declines
 }
 
-// advertisesFeature reports whether client may be offered feature. A plugin
-// that lists capabilities is offered a feature only when it lists the one the
-// Supports request names (supportsCapability), so a usage source or a scorer
-// is never asked to price and its decline never reaches an unpriced note. A
-// plugin that lists none predates GetPluginInfo capabilities and stays offered,
-// the same rule the router applies to a configured route. Carbon is opt-in: a
-// plugin must list carbon. A feature with no capability offers every plugin.
+// advertisesFeature reports whether client may be offered feature: it must
+// advertise the capability the Supports request names (supportsCapability),
+// so a usage source or a scorer is never asked to price and its decline never
+// reaches an unpriced note. pluginhost.Client.AdvertisesCapability holds the
+// rule the router shares, including fail-open for a plugin that lists no
+// capabilities. Carbon is opt-in: a plugin must list carbon.
 func advertisesFeature(client *pluginhost.Client, feature string) bool {
 	if feature == carbonFeature {
 		return client.HasCapability(capabilityCarbon)
 	}
-	required := supportsCapability(feature)
-	if required == pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED ||
-		client.Metadata == nil || len(client.Metadata.Capabilities) == 0 {
-		return true
-	}
-	names := pluginhost.ConvertCapabilities([]pbc.PluginCapability{required})
-	return len(names) == 1 && client.HasCapability(names[0])
+	return client.AdvertisesCapability(supportsCapability(feature))
 }
 
 // matchesAdvertisingFeature copies matches whose plugin advertises feature.
