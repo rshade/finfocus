@@ -115,10 +115,20 @@ show the keys in YAML form; the file uses JSON syntax.
 
 ### Schema Reference
 
-For IDE autocomplete and validation, add this comment to your config file:
+For IDE autocomplete and validation, treat `config.hujson` as JSONC and
+associate the schema with it in your editor. In VS Code, add this to
+`settings.json`:
 
 ```jsonc
-// yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
+{
+  "files.associations": { "*.hujson": "jsonc" },
+  "json.schemas": [
+    {
+      "fileMatch": ["config.hujson"],
+      "url": "https://finfocus.dev/schemas/config.json"
+    }
+  ]
+}
 ```
 
 ### Configuration Options

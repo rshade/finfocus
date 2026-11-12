@@ -524,7 +524,7 @@ Total: 37.96 + 74.46 + 2.30 = 114.72 USD/month
 ```bash
 finfocus cost actual \
   --from 2024-01-01 \
-  --to 2024-01-31 \
+  --to 2024-02-01 \
   --group-by daily
 ```
 
