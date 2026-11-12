@@ -169,7 +169,16 @@ The allocator's policy is resolved, first found wins (files never merge):
 
 Files are HuJSON (comments and trailing commas allowed), standardized before
 being passed to the allocator. A discovered file that fails to parse is a
-fatal error — FinFocus never silently falls back to defaults. The allocator
+fatal error — FinFocus never silently falls back to defaults. A policy file
+that cannot be read or is not valid HuJSON exits 2 before any plugin starts,
+and the message names the file and, for a syntax error, the line and column
+(error code `config_invalid`), for example:
+
+```text
+allocation policy $PROJECT/.finfocus/allocation.hujson is not valid HuJSON: line 1, column 11: parsing value: unexpected EOF
+```
+
+`--show-policy` reports the same error. The allocator
 checks a policy file before any cluster data is collected or priced, so an
 unknown field or value exits 2 at once and the message names the allocator
 and the file. See `plugins/kubernetes/README.md` for the policy fields.
