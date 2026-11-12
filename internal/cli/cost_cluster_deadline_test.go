@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -131,5 +132,8 @@ func assertProcessGone(t *testing.T, pidFile string) {
 	}
 	proc, err := os.FindProcess(pid)
 	require.NoError(t, err)
-	assert.Error(t, proc.Signal(syscall.Signal(0)), "stalled plugin PID %d is still running", pid)
+	// Only "no such process" proves the PID is gone; EPERM means it still exists.
+	sigErr := proc.Signal(syscall.Signal(0))
+	assert.Truef(t, errors.Is(sigErr, syscall.ESRCH) || errors.Is(sigErr, os.ErrProcessDone),
+		"stalled plugin PID %d is still running (signal 0: %v)", pid, sigErr)
 }
