@@ -141,6 +141,7 @@ func TestBoundUsageSource(t *testing.T) {
 // timer has not fired yet when the transport already reported the deadline.
 type lateTimerContext struct {
 	context.Context
+
 	deadline time.Time
 }
 
@@ -151,7 +152,9 @@ func TestDeadlinePassed(t *testing.T) {
 	t.Parallel()
 
 	expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
-	defer cancel()
+	t.Cleanup(cancel)
+	past := lateTimerContext{context.Background(), time.Now().Add(-time.Second)}
+	ahead := lateTimerContext{context.Background(), time.Now().Add(time.Hour)}
 
 	tests := []struct {
 		name string
@@ -159,8 +162,8 @@ func TestDeadlinePassed(t *testing.T) {
 		want bool
 	}{
 		{"context timer fired", expired, true},
-		{"deadline passed, timer not yet fired", lateTimerContext{context.Background(), time.Now().Add(-time.Second)}, true},
-		{"deadline ahead", lateTimerContext{context.Background(), time.Now().Add(time.Hour)}, false},
+		{"deadline passed, timer not yet fired", past, true},
+		{"deadline ahead", ahead, false},
 		{"no deadline", context.Background(), false},
 	}
 	for _, tt := range tests {
