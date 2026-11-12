@@ -137,6 +137,23 @@ func TestBoundUsageSource(t *testing.T) {
 	})
 }
 
+func TestBoundCall_TransportDeadlineBeforeContextTimer(t *testing.T) {
+	t.Parallel()
+	const timeout = 20 * time.Millisecond
+	transport := status.Error(codes.DeadlineExceeded, "stream terminated by RST_STREAM")
+
+	_, err := boundCall(context.Background(), timeout,
+		func(context.Context) (struct{}, error) {
+			time.Sleep(timeout)
+			return struct{}{}, transport
+		},
+		func(err error) *PluginCallTimeoutError { return &PluginCallTimeoutError{Err: err} },
+	)
+
+	_, ok := errorsAsTimeout(err)
+	assert.True(t, ok, "err: %v", err)
+}
+
 // slowAllocator answers after delay, or fails when its context ends first.
 type slowAllocator struct{ delay time.Duration }
 
