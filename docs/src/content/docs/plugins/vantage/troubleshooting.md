@@ -503,12 +503,22 @@ Failed to communicate with vantage plugin
    finfocus cost actual --adapter vantage --debug
    ```
 
-3. Restart plugin host:
+3. Check for a leftover plugin process. FinFocus starts the plugin for each
+   command and stops it when the command ends, so there is no plugin host to
+   restart. A plugin can outlive a FinFocus run that was killed. Find it
+   first, stop it by its PID, then run the command again:
 
    ```bash
-   pkill -f finfocus
+   # List vantage plugin processes with their PIDs
+   ps -eo pid,args | grep '[f]infocus-plugin-vantage'
+   # Stop only a PID that the list shows
+   kill <pid>
    finfocus cost actual --adapter vantage
    ```
+
+   Do not run `pkill -f finfocus`. The `-f` flag matches the full command
+   line of every process, so it can stop unrelated processes, including the
+   shell you run it from.
 
 4. Reinstall plugin if corrupted
 
