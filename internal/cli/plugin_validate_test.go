@@ -243,6 +243,84 @@ func TestValidatePlugin(t *testing.T) {
 	}
 }
 
+// TestValidatePlugin_ManifestVersionPrefix pins the manifest version rule: one
+// leading "v" on either side is ignored, and any other difference fails.
+func TestValidatePlugin_ManifestVersionPrefix(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		dir      string
+		manifest string
+		wantErr  string
+	}{
+		{name: "bare manifest in v-prefixed dir", dir: "v0.1.2", manifest: "0.1.2"},
+		{name: "v-prefixed manifest in bare dir", dir: "0.1.2", manifest: "v0.1.2"},
+		{name: "both bare", dir: "0.1.2", manifest: "0.1.2"},
+		{name: "both v-prefixed", dir: "v0.1.2", manifest: "v0.1.2"},
+		{name: "prerelease across prefixes", dir: "v1.0.0-rc.1", manifest: "1.0.0-rc.1"},
+		{
+			name:     "real mismatch across prefixes",
+			dir:      "v0.1.2",
+			manifest: "0.1.0",
+			wantErr:  "manifest version mismatch: expected v0.1.2, got 0.1.0",
+		},
+		{
+			name:     "real mismatch bare",
+			dir:      "0.1.2",
+			manifest: "0.1.0",
+			wantErr:  "manifest version mismatch: expected 0.1.2, got 0.1.0",
+		},
+		{
+			name:     "only one v is ignored",
+			dir:      "vv0.1.2",
+			manifest: "0.1.2",
+			wantErr:  "manifest version mismatch: expected vv0.1.2, got 0.1.2",
+		},
+		{name: "non-semver equal", dir: "dev", manifest: "dev"},
+		{name: "non-semver across prefixes", dir: "vdev", manifest: "dev"},
+		{
+			name:     "non-semver mismatch",
+			dir:      "dev",
+			manifest: "main",
+			wantErr:  "manifest version mismatch: expected dev, got main",
+		},
+		{
+			name:     "empty manifest version",
+			dir:      "v0.1.2",
+			manifest: "",
+			wantErr:  "manifest version mismatch: expected v0.1.2, got ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			binName := "finfocus-plugin-demo"
+			if runtime.GOOS == "windows" {
+				binName += ".exe"
+			}
+			dir := t.TempDir()
+			bin := filepath.Join(dir, binName)
+			require.NoError(t, os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755))
+			manifest := `{"name":"demo","version":"` + tt.manifest + `"}`
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "plugin.manifest.json"), []byte(manifest), 0o644))
+
+			err := cli.ValidatePlugin(context.Background(), registry.PluginInfo{
+				Name:    "demo",
+				Version: tt.dir,
+				Path:    bin,
+			})
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
 // TestPluginValidateCmd_NoPlugins tests validation with no plugins.
 //
 //nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)

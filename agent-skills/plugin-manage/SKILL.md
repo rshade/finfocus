@@ -118,7 +118,9 @@ finfocus plugin inspect aws-public aws:ec2/instance:Instance [--version v0.1.0] 
 
 `validate` checks the binary exists, is not a directory, is executable (a `.exe`
 on Windows), and, when `plugin.manifest.json` exists, that its name and version
-match the install directory. It does not start the plugin; `list` does.
+match the install directory. One leading `v` is ignored in the version check, so
+a manifest `0.1.2` matches a `v0.1.2` directory. It does not start the plugin;
+`list` does.
 
 `inspect` launches the plugin, calls `DryRun`, and prints field mappings per
 resource type (SUPPORTED, UNSUPPORTED, CONDITIONAL, DYNAMIC). A plugin without

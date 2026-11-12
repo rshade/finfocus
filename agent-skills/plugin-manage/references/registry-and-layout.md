@@ -40,7 +40,9 @@ migrated to Hujson by the global loader on first read.
 
 `plugin.manifest.json` is flat: `name`, `version`, and optional fields.
 `plugin validate` requires `name` and `version` to equal the install directory
-names, so a plugin copied into the wrong directory fails validation.
+names, so a plugin copied into the wrong directory fails validation. The
+version comparison ignores one leading `v` on each side: `0.1.2` and `v0.1.2`
+match, `0.1.0` and `v0.1.2` do not.
 
 ## Embedded registry
 
