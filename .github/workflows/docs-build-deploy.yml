@@ -20,12 +20,10 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-# Pull requests get their own group, so a PR run never cancels a deploy from main.
+# Pull requests get their own group, so a PR run never cancels a run from main.
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('docs-pr-{0}', github.event.number) || 'pages' }}
+  group: ${{ github.event_name == 'pull_request' && format('docs-pr-{0}', github.event.number) || 'docs-main' }}
   cancel-in-progress: true
 
 jobs:
@@ -57,40 +55,6 @@ jobs:
         working-directory: ./docs
         run: npm run build
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: docs-site
-          path: docs/dist/
-          retention-days: 7
-
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-latest
-    name: Deploy to GitHub Pages
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: docs-site
-          path: ./
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
-      - name: Upload to GitHub Pages
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: './'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
 
   # finfocus.dev builds these docs from main in finfocus-dev/finfocus.dev. Tell it to
   # rebuild now; it also rebuilds daily, which covers a missed or failed dispatch.
