@@ -605,19 +605,20 @@ The example shows the keys in YAML form; the file uses JSON syntax.
 ```yaml
 cost:
   budgets:
-    amount: 1000.00
-    currency: USD
-    period: monthly
-    alerts:
-      - threshold: 50
-        type: actual
-      - threshold: 80
-        type: actual
-      - threshold: 100
-        type: forecasted
+    global:
+      amount: 1000.00
+      currency: USD
+      period: monthly
+      alerts:
+        - threshold: 50
+          type: actual
+        - threshold: 80
+          type: actual
+        - threshold: 100
+          type: forecasted
 ```
 
-**Configuration Fields:**
+**Configuration Fields** (under `cost.budgets.global`):
 
 | Field      | Description                      | Example      |
 | ---------- | -------------------------------- | ------------ |
@@ -731,11 +732,12 @@ Forecasted Spend = (Current Spend / Current Day) × Total Days in Month
 ```yaml
 cost:
   budgets:
-    amount: 500.00
-    currency: USD
-    alerts:
-      - threshold: 80
-        type: actual
+    global:
+      amount: 500.00
+      currency: USD
+      alerts:
+        - threshold: 80
+          type: actual
 ```
 
 **Comprehensive Budget with Multiple Alerts:**
@@ -743,18 +745,19 @@ cost:
 ```yaml
 cost:
   budgets:
-    amount: 2000.00
-    currency: USD
-    period: monthly
-    alerts:
-      - threshold: 50
-        type: actual # Heads-up at 50%
-      - threshold: 80
-        type: actual # Warning at 80%
-      - threshold: 100
-        type: actual # Critical at 100%
-      - threshold: 100
-        type: forecasted # Proactive: warn if forecast exceeds budget
+    global:
+      amount: 2000.00
+      currency: USD
+      period: monthly
+      alerts:
+        - threshold: 50
+          type: actual # Heads-up at 50%
+        - threshold: 80
+          type: actual # Warning at 80%
+        - threshold: 100
+          type: actual # Critical at 100%
+        - threshold: 100
+          type: forecasted # Proactive: warn if forecast exceeds budget
 ```
 
 **Proactive Forecasting Only:**
@@ -762,13 +765,14 @@ cost:
 ```yaml
 cost:
   budgets:
-    amount: 1000.00
-    currency: USD
-    alerts:
-      - threshold: 90
-        type: forecasted # Warn if forecast will hit 90%
-      - threshold: 100
-        type: forecasted # Critical if forecast will exceed budget
+    global:
+      amount: 1000.00
+      currency: USD
+      alerts:
+        - threshold: 90
+          type: forecasted # Warn if forecast will hit 90%
+        - threshold: 100
+          type: forecasted # Critical if forecast will exceed budget
 ```
 
 ### Disabling Budgets
@@ -778,7 +782,8 @@ Set the amount to 0 to disable budget tracking:
 ```yaml
 cost:
   budgets:
-    amount: 0 # Budget disabled
+    global:
+      amount: 0 # Budget disabled
 ```
 
 ### Multi-Currency Support

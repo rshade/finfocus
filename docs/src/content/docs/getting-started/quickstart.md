@@ -92,7 +92,7 @@ The example shows the keys in YAML form; the file uses JSON syntax.
 
 ```yaml
 cost:
-  scoped_budgets:
+  budgets:
     global:
       amount: 5000.00
       currency: USD

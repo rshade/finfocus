@@ -1,35 +1,33 @@
-# Webhook Notifications Budget Configuration (FUTURE)
-# Use case: Send alerts to Slack/Teams/PagerDuty when thresholds are breached
-# Related docs: docs/guides/budgets.md
-# Tested with: FinFocus v0.1.0+ (Preview)
+# Webhook Notifications Budget Configuration
+# Use case: Send alerts to Slack or an HTTPS webhook when thresholds are breached
+# Related docs: docs/guides/budgets.md#budget-notifications
+# Tested with: FinFocus v0.4.4+
 
 # yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
 
 cost:
   budgets:
-    amount: 1000.00
-    currency: USD
-    
-    alerts:
-      - threshold: 80
-        type: forecasted
-        # Send to "warning" channel
-        channels: ["slack-warning"]
-        
-      - threshold: 100
-        type: actual
-        # Send to "critical" channel
-        channels: ["pagerduty-critical"]
+    global:
+      amount: 1000.00
+      currency: USD
 
-  # Notification Channels (Future Feature)
-  notifications:
-    slack-warning:
-      type: webhook
-      url: "https://hooks.slack.com/services/..."
-      
-    pagerduty-critical:
-      type: webhook
-      url: "https://events.pagerduty.com/v2/enqueue"
+      alerts:
+        - threshold: 80
+          type: forecasted
+          # Send to the Slack warning channel
+          notifications:
+            - type: slack
+              url: "${FINFOCUS_NOTIFY_SLACK_URL}"
+              channel: "#finops-warning"
+
+        - threshold: 100
+          type: actual
+          # Send a JSON event to an HTTPS webhook
+          notifications:
+            - type: webhook
+              url: "https://events.example.com/budget-alert"
+              headers:
+                Authorization: "Bearer ${FINFOCUS_NOTIFY_API_TOKEN}"
 
 # Usage:
 #   finfocus cost actual --notify

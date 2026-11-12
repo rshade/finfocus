@@ -1,31 +1,30 @@
-# Provider-Specific Budget Configuration (FUTURE)
+# Provider-Specific Budget Configuration
 # Use case: Set different budget limits for different cloud providers
-# Related docs: docs/guides/budgets.md
-# Tested with: FinFocus v0.1.0+ (Preview)
+# Related docs: docs/guides/budgets.md#provider-budgets
+# Tested with: FinFocus v0.1.0+
 
 # yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
 
 cost:
-  # Global default budget
   budgets:
-    amount: 500.00
-    currency: USD
-    alerts:
-      - threshold: 100
-        type: actual
+    # Global budget (required when provider budgets are defined)
+    global:
+      amount: 500.00
+      currency: USD
+      alerts:
+        - threshold: 100
+          type: actual
 
-  # Provider-specific overrides (Future Feature)
-  providers:
-    aws:
-      budgets:
+    # Provider-specific budgets
+    providers:
+      aws:
         amount: 300.00
         # AWS specific limit
-    
-    azure:
-      budgets:
+
+      azure:
         amount: 150.00
         # Azure specific limit
 
 # Usage:
-#   finfocus cost projected --pulumi-json plan.json
-#   (Will check total against 500, AWS cost against 300, etc.)
+#   finfocus cost projected --pulumi-json plan.json --budget-scope=provider
+#   (Checks the total against 500, AWS cost against 300, etc.)
