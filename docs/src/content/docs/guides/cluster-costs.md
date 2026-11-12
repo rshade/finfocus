@@ -194,8 +194,9 @@ and a digest that changes when they change.
 cost is `max(cpu_request, cpu_usage)` over the node's allocatable CPU, and
 memory works the same way. Which of the two inputs exists depends on the
 usage source. The kubernetes source reports requests and no usage, so a
-run-rate report charges requests. A pod that sets no CPU or memory request
-(Kubernetes copies a limit into a missing request) claims no share of its
+run-rate report charges requests. A pod with zero effective CPU and memory
+requests (including pod overhead; Kubernetes copies a limit into a missing
+request) claims no share of its
 node. With the default policy it is charged `$0`, and the node cost it would
 have claimed stays in `__idle__`. `idle: "share"` alone does not change that,
 because idle is shared in proportion to the cost a workload already holds.
