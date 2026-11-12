@@ -2,13 +2,17 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"text/tabwriter"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/rshade/finfocus/internal/registry"
 )
@@ -165,4 +169,37 @@ func TestPluginListRowsUseInstallVersion(t *testing.T) {
 		}
 	}
 	assert.Equal(t, []string{"v0.2.0", "v0.1.9"}, versions)
+}
+
+type deadlineLauncher struct {
+	remaining time.Duration
+	hasLimit  bool
+}
+
+func (l *deadlineLauncher) Start(
+	ctx context.Context, _ string, _ ...string,
+) (*grpc.ClientConn, func() error, error) {
+	deadline, ok := ctx.Deadline()
+	l.hasLimit = ok
+	l.remaining = time.Until(deadline)
+	return nil, nil, errors.New("not started")
+}
+
+// TestFetchSinglePluginMetadataUsesProbeTimeout gives `plugin list` the same
+// launch budget as the dashboard's plugin probe, so a large plugin's first
+// start is not reported as failed while it is still loading.
+func TestFetchSinglePluginMetadataUsesProbeTimeout(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+
+	launcher := &deadlineLauncher{}
+	result := fetchSinglePluginMetadata(context.Background(), launcher, registry.PluginInfo{
+		Name:    "slow",
+		Version: "v1.0.0",
+		Path:    "/plugins/slow/v1.0.0/finfocus-plugin-slow",
+	})
+
+	require.True(t, launcher.hasLimit, "the launch must have a deadline")
+	assert.Greater(t, launcher.remaining, pluginProbeTimeout-time.Second)
+	assert.LessOrEqual(t, launcher.remaining, pluginProbeTimeout)
+	assert.Contains(t, result.Notes, "Failed: ")
 }

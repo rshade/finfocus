@@ -407,6 +407,28 @@ reports that its port was already in use. The `--port` and pluginsdk upgrade
 hint in the log applies only to a plugin that keeps running without binding
 its port.
 
+### Plugin Is Slow to Start
+
+**Problem**: A large plugin, such as `aws-public` with its embedded pricing
+data, can take several seconds to load the first time it runs after install
+or reboot. When it does not open its port in time, FinFocus reports how long
+it waited:
+
+```text
+Failed: plugin failed to bind to port within 20s: timeout waiting for plugin to bind: context deadline exceeded
+```
+
+**Solutions**:
+
+1. Run the command again. Later starts read the binary from the disk cache and
+   are much faster.
+2. `finfocus plugin list` and the dashboard's plugin checks wait 20 seconds
+   for a plugin to start and answer. Cost commands wait up to 65 seconds for
+   the plugin to open its port (125 seconds when `CI=true`). These limits are
+   fixed.
+3. A plugin that never opens its port within those limits is stuck, not slow.
+   Run the command with `--debug` and read the FinFocus log file.
+
 ## Cost Calculation Issues
 
 ### No Cost Data Available
