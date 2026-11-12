@@ -52,7 +52,7 @@ Enable the cache in under 2 minutes.
 Edit `~/.finfocus/config.yaml` (global) or your project's `.finfocus/config.yaml`:
 
 ```yaml
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+# yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 cost:
   cache:
     enabled: true

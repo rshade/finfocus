@@ -3,7 +3,7 @@
 # Related docs: docs/guides/budgets.md#example-1-single-budget-threshold
 # Tested with: FinFocus v0.1.0+
 
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+# yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 
 cost:
   budgets:

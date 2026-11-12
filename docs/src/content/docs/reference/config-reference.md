@@ -426,7 +426,7 @@ For IDE autocompletion (VS Code, JetBrains), add this comment to the top of
 `config.hujson`:
 
 ```jsonc
-// yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+// yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
 ```
 
 A legacy `config.yaml` can keep the same schema comment with a leading `#`.
