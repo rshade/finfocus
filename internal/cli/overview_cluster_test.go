@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
@@ -150,6 +151,22 @@ func (f *ambiguousUsageSource) GetStats(
 	return nil, &engine.AmbiguousUsageSourceError{
 		Mode: engine.ModeRunRate, Names: []string{"kubernetes", "other"},
 	}
+}
+
+// stalledUsageSource never answers until its context ends, and counts calls.
+type stalledUsageSource struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (f *stalledUsageSource) GetStats(
+	ctx context.Context, _ *pbc.GetStatsRequest, _ ...grpc.CallOption,
+) (*pbc.GetStatsResponse, error) {
+	f.mu.Lock()
+	f.calls++
+	f.mu.Unlock()
+	<-ctx.Done()
+	return nil, status.FromContextError(ctx.Err()).Err()
 }
 
 type fakeAllocator struct {
@@ -298,6 +315,25 @@ func TestRunLiveExpansion(t *testing.T) {
 		assert.Contains(t, notes[0], "several usage sources can serve run-rate usage (kubernetes, other)")
 		assert.Contains(t, notes[0], "finfocus plugin remove <name>")
 		assert.Contains(t, notes[0], "finfocus cost cluster --usage-source <name>")
+	})
+
+	t.Run("a stalled usage source stops that cluster's scope search and says so", func(t *testing.T) {
+		t.Parallel()
+		_, alloc, pricer := liveTestHarness()
+		stalled := &stalledUsageSource{}
+		timeouts := engine.DefaultClusterCallTimeouts()
+		timeouts.Stats = 20 * time.Millisecond
+		usage := engine.BoundUsageSource("kubernetes", stalled, timeouts)
+		rows, notes := runLiveExpansion(
+			context.Background(), newRows(), usage, alloc, pricer, nil, config.New(),
+		)
+		assert.Equal(t, 1, stalled.calls, "a stalled source must not be asked again for the current context")
+		require.Len(t, rows, 2)
+		assert.Equal(t, engine.ExpansionSourceProjected, rows[1].ExpansionSource)
+		assert.Equal(t, []string{
+			"live cluster expansion skipped for prod-cluster: " +
+				"usage source kubernetes did not answer GetStats within 20ms",
+		}, notes)
 	})
 
 	t.Run("every cluster expands after an earlier one reorders rows", func(t *testing.T) {

@@ -68,7 +68,7 @@ func TestUsageSourceSet_PicksTheSourceThatServesTheMode(t *testing.T) {
 			set := NewUsageSourceSet([]NamedUsageSource{
 				{Name: "prometheus", Source: historical},
 				{Name: "kubernetes", Source: runRate},
-			})
+			}, DefaultClusterCallTimeouts())
 
 			resp, err := set.GetStats(context.Background(), tt.req)
 			require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestUsageSourceSet_SeveralAcceptingSourcesAreAmbiguous(t *testing.T) {
 		{Name: "zeta", Source: &modeOnlyUsage{}},
 		{Name: "prometheus", Source: &modeOnlyUsage{historical: true}},
 		{Name: "kubernetes", Source: &modeOnlyUsage{}},
-	})
+	}, DefaultClusterCallTimeouts())
 
 	_, err := set.GetStats(context.Background(), &pbc.GetStatsRequest{})
 	var ambiguous *AmbiguousUsageSourceError
@@ -101,7 +101,7 @@ func TestUsageSourceSet_AcceptingSourceFailureIsReturned(t *testing.T) {
 	set := NewUsageSourceSet([]NamedUsageSource{
 		{Name: "kubernetes", Source: &modeOnlyUsage{}},
 		{Name: "prometheus", Source: &modeOnlyUsage{historical: true, err: unavailable}},
-	})
+	}, DefaultClusterCallTimeouts())
 
 	_, err := set.GetStats(context.Background(), windowRequest())
 	require.ErrorIs(t, err, unavailable)
@@ -115,7 +115,7 @@ func TestUsageSourceSet_EveryRejectionIsReported(t *testing.T) {
 	set := NewUsageSourceSet([]NamedUsageSource{
 		{Name: "prometheus", Source: &modeOnlyUsage{historical: true}},
 		{Name: "kubernetes", Source: &fakeUsage{err: contextErr}},
-	})
+	}, DefaultClusterCallTimeouts())
 
 	_, err := set.GetStats(context.Background(), &pbc.GetStatsRequest{Scope: "nope"})
 	require.Error(t, err)
@@ -135,7 +135,7 @@ func TestUsageSourceSet_StopsWhenTheCallerCancels(t *testing.T) {
 	set := NewUsageSourceSet([]NamedUsageSource{
 		{Name: "a", Source: first},
 		{Name: "b", Source: second},
-	})
+	}, DefaultClusterCallTimeouts())
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -168,26 +168,37 @@ func (s *stallUsage) GetStats(
 	return nil, status.FromContextError(ctx.Err()).Err()
 }
 
-//nolint:paralleltest // shortens the package-level usageSourceProbeTimeout
 func TestUsageSourceSet_ProbeTimeoutIsNotAcceptance(t *testing.T) {
-	// Shortens the package-level probe deadline.
-	prev := usageSourceProbeTimeout
-	usageSourceProbeTimeout = 20 * time.Millisecond
-	t.Cleanup(func() { usageSourceProbeTimeout = prev })
-
+	t.Parallel()
 	next := &modeOnlyUsage{}
 	set := NewUsageSourceSet([]NamedUsageSource{
 		{Name: "prometheus", Source: &stallUsage{}},
 		{Name: "zzz", Source: next},
-	})
+	}, shortTimeouts())
 
 	_, err := set.GetStats(context.Background(), &pbc.GetStatsRequest{})
 	require.Error(t, err)
 	assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
-	require.ErrorContains(t, err, "usage source prometheus did not answer")
+	require.EqualError(t, err, "usage source prometheus did not answer GetStats within 20ms")
 	assert.Zero(t, next.calls)
 	var ambiguous *AmbiguousUsageSourceError
 	assert.NotErrorAs(t, err, &ambiguous)
+}
+
+func TestUsageSourceSet_PluginReportedDeadlineStopsSelection(t *testing.T) {
+	t.Parallel()
+	own := status.Error(codes.DeadlineExceeded, "prometheus query timed out")
+	next := &modeOnlyUsage{}
+	set := NewUsageSourceSet([]NamedUsageSource{
+		{Name: "prometheus", Source: &fakeUsage{err: own}},
+		{Name: "zzz", Source: next},
+	}, shortTimeouts())
+
+	_, err := set.GetStats(context.Background(), &pbc.GetStatsRequest{})
+	require.ErrorIs(t, err, own)
+	require.EqualError(t, err,
+		"usage source prometheus: rpc error: code = DeadlineExceeded desc = prometheus query timed out")
+	assert.Zero(t, next.calls)
 }
 
 func TestUsageSourceSet_CancelDuringTheLastCallIsNotAmbiguous(t *testing.T) {
@@ -197,7 +208,7 @@ func TestUsageSourceSet_CancelDuringTheLastCallIsNotAmbiguous(t *testing.T) {
 	set := NewUsageSourceSet([]NamedUsageSource{
 		{Name: "a", Source: &modeOnlyUsage{}},
 		{Name: "b", Source: &cancelingUsage{cancel: cancel}},
-	})
+	}, DefaultClusterCallTimeouts())
 
 	_, err := set.GetStats(ctx, &pbc.GetStatsRequest{})
 	require.ErrorIs(t, err, context.Canceled)

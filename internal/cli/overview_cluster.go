@@ -9,8 +9,6 @@ import (
 
 	"github.com/rs/zerolog"
 
-	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
-
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
@@ -135,7 +133,7 @@ func expandClustersLive(
 	return runLiveExpansion(
 		ctx, rows,
 		usage,
-		pbc.NewAllocatorServiceClient(allocClient.Conn),
+		clusterAllocator(allocClient),
 		pricer, policy.JSON, cfg,
 	)
 }
@@ -172,6 +170,10 @@ func runLiveExpansion(
 					"(finfocus plugin remove <name>) or run finfocus cost cluster --usage-source <name>",
 				name, ambiguous.Error(),
 			))
+			continue
+		}
+		if timeout, timedOut := errors.AsType[*engine.PluginCallTimeoutError](err); timedOut {
+			notes = append(notes, fmt.Sprintf("live cluster expansion skipped for %s: %s", name, timeout.Error()))
 			continue
 		}
 		if err != nil {
@@ -235,8 +237,10 @@ func liveExpansionClusters(rows []engine.OverviewRow) ([]engine.OverviewRow, int
 // mapping, whose failure is a warning because the user asked for it. A scope
 // that several usage sources accept stops the search with that
 // *engine.AmbiguousUsageSourceError: a later, less specific scope must not
-// stand in for the cluster that was found. Any other failure of every
-// candidate returns errNoClusterScope.
+// stand in for the cluster that was found. A plugin call that runs out its
+// deadline stops the search with that *engine.PluginCallTimeoutError, so a
+// stalled plugin costs one deadline per cluster, not one per scope. Any
+// other failure of every candidate returns errNoClusterScope.
 func allocateCluster(
 	ctx context.Context,
 	cluster engine.OverviewRow,
@@ -257,6 +261,9 @@ func allocateCluster(
 			return res, c, nil
 		}
 		if _, ambiguous := errors.AsType[*engine.AmbiguousUsageSourceError](err); ambiguous {
+			return nil, clusterScope{}, err
+		}
+		if _, timedOut := errors.AsType[*engine.PluginCallTimeoutError](err); timedOut {
 			return nil, clusterScope{}, err
 		}
 		level := zerolog.DebugLevel

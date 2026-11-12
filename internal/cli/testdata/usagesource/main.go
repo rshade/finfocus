@@ -6,7 +6,10 @@
 // plugin that rejects the other mode with InvalidArgument, and any scope is
 // rejected as an unknown context. FINFOCUS_TEST_GETSTATS_UNAVAILABLE names
 // the plugin whose GetStats fails with Unavailable. FINFOCUS_TEST_ALLOCATOR
-// names the plugin that also advertises allocation.
+// names the plugin that also advertises allocation. FINFOCUS_TEST_STALL, as
+// <plugin>:<call> (GetStats or Allocate), makes that call never answer, even
+// after the caller gives up; the plugin first writes its PID to
+// <FINFOCUS_TEST_STALL_PID_DIR>/<name> when that is set.
 package main
 
 import (
@@ -14,6 +17,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
@@ -30,6 +34,8 @@ const (
 	allocatorEnv        = "FINFOCUS_TEST_ALLOCATOR"
 	allocateInternalEnv = "FINFOCUS_TEST_ALLOCATE_INTERNAL"
 	unavailableEnv      = "FINFOCUS_TEST_GETSTATS_UNAVAILABLE"
+	stallEnv            = "FINFOCUS_TEST_STALL"
+	stallPIDDirEnv      = "FINFOCUS_TEST_STALL_PID_DIR"
 )
 
 func main() {
@@ -73,6 +79,7 @@ func (s *source) GetStats(_ context.Context, req *pbc.GetStatsRequest) (*pbc.Get
 	if err := s.mark(label); err != nil {
 		return nil, status.Errorf(codes.Internal, "GetStats marker: %v", err)
 	}
+	s.stallIfAsked("GetStats")
 	if os.Getenv(unavailableEnv) == s.name {
 		return nil, status.Error(codes.Unavailable, "cluster unreachable")
 	}
@@ -96,6 +103,7 @@ func (s *source) Allocate(_ context.Context, req *pbc.AllocateRequest) (*pbc.All
 	if err := s.mark("allocate"); err != nil {
 		return nil, status.Errorf(codes.Internal, "Allocate marker: %v", err)
 	}
+	s.stallIfAsked("Allocate")
 	if os.Getenv(allocateInternalEnv) == s.name {
 		return nil, status.Error(codes.Internal, "allocator crashed")
 	}
@@ -118,6 +126,19 @@ func (s *source) Allocate(_ context.Context, req *pbc.AllocateRequest) (*pbc.All
 		}
 	}
 	return &pbc.AllocateResponse{EffectivePolicyJson: policy, PolicyDigest: "test"}, nil
+}
+
+// stallIfAsked blocks for good when FINFOCUS_TEST_STALL names this plugin and
+// call. It ignores the request context, as a hung plugin would, so only the
+// host killing the process ends it.
+func (s *source) stallIfAsked(call string) {
+	if os.Getenv(stallEnv) != s.name+":"+call {
+		return
+	}
+	if dir := os.Getenv(stallPIDDirEnv); dir != "" {
+		_ = os.WriteFile(filepath.Join(dir, s.name), []byte(strconv.Itoa(os.Getpid())), 0o600)
+	}
+	select {}
 }
 
 func (s *source) mark(label string) error {

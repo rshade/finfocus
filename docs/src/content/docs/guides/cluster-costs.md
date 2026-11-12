@@ -398,6 +398,36 @@ does not query `kube_pod_annotations`. To group by Pulumi stack, run without
 `--from` and `--to` (with `--usage-source kubernetes` when several sources are
 installed), so the kubernetes source reads the annotation from the live pods.
 
+## Plugin call deadlines
+
+Each usage-source and allocator call has its own deadline, so a plugin that
+stops answering cannot hang `cost cluster` or overview cluster expansion:
+
+| Call | Deadline |
+| --- | --- |
+| `GetStats` with no window | 2 minutes |
+| `GetStats` over a window | 2 minutes plus 30 seconds per started day, at most 30 minutes |
+| `Allocate` policy check and `--show-policy` | 10 seconds |
+| `Allocate` with usage | 2 minutes |
+
+A 7-day window gets 5 minutes 30 seconds, a 41-day window 22 minutes 30
+seconds, and a window of 56 days or more 30 minutes. The window deadline
+grows because a metrics source evaluates each query over the whole window.
+The prometheus plugin sends 15 queries in sequence, and Prometheus stops
+each one at its default `--query.timeout` of 2 minutes. The policy check
+only reads the policy.
+
+A call that runs out its deadline ends the run with exit 1 and names the
+plugin and the call, for example
+`get usage stats: usage source prometheus did not answer GetStats within 22m30s`.
+FinFocus then stops the plugin processes. With several usage sources and no
+`--usage-source`, a source that runs out its deadline stops the selection, and
+later sources are not asked. Ctrl-C still stops the run at once. In the
+overview, a deadline skips live expansion for that cluster, keeps its
+projected rows, and adds a `live cluster expansion skipped` note.
+
+Pricing calls keep the engine's own per-resource limits.
+
 ## Limitations
 
 - The kubernetes usage source still rejects a window with its run-rate-only
