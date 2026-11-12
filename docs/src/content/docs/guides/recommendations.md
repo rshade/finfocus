@@ -71,7 +71,7 @@ both reject `--terraform-plan`.
 
 The command opens an interactive table. Use arrow keys to navigate and `Enter` to see details.
 
-![Interactive recommendations table showing list of savings](/finfocus/screenshots/recommendations-table.png)
+![Interactive recommendations table showing list of savings](./screenshots/recommendations-table.png)
 
 **Figure 1**: Interactive recommendation table with savings summary.
 
