@@ -2,8 +2,10 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/rs/zerolog"
 
@@ -81,8 +83,9 @@ func clusterScopeCandidates(
 }
 
 // expandClustersLive attempts live expansion for each top-level cluster row.
-// Rows and notes are returned unchanged when no usage-source/allocator pair
-// is installed or when selection is ambiguous.
+// Rows are returned unchanged when no usage-source/allocator pair is
+// installed or when selection is ambiguous; an ambiguous choice, which only
+// the user can settle, is reported in a note.
 func expandClustersLive(
 	ctx context.Context,
 	rows []engine.OverviewRow,
@@ -96,7 +99,7 @@ func expandClustersLive(
 		return rows, nil
 	}
 
-	usageClient, usageErr := selectCapablePlugin(clients, pluginhost.CapabilityUsageStats, "")
+	usage, usageErr := selectUsageSource(clients, "")
 	allocClient, allocErr := selectCapablePlugin(clients, pluginhost.CapabilityAllocation, "")
 	if usageErr != nil || allocErr != nil {
 		// Not installed (or ambiguous): projected expansion (if any) stands.
@@ -107,6 +110,14 @@ func expandClustersLive(
 			AnErr("usage_err", usageErr).
 			AnErr("alloc_err", allocErr).
 			Msg("live cluster expansion unavailable; using projected data")
+		allocators := capablePluginNames(clients, pluginhost.CapabilityAllocation)
+		if usageErr == nil && len(allocators) > 1 {
+			return rows, []string{fmt.Sprintf(
+				"live cluster expansion skipped: several plugins provide allocation (%s); "+
+					"overview cannot choose, so remove one (finfocus plugin remove <name>)",
+				strings.Join(allocators, ", "),
+			)}
+		}
 		return rows, nil
 	}
 
@@ -123,7 +134,7 @@ func expandClustersLive(
 
 	return runLiveExpansion(
 		ctx, rows,
-		pbc.NewUsageSourceServiceClient(usageClient.Conn),
+		usage,
 		pbc.NewAllocatorServiceClient(allocClient.Conn),
 		pricer, policy.JSON, cfg,
 	)
@@ -151,11 +162,19 @@ func runLiveExpansion(
 	liveApplied := false
 	for _, cluster := range clusters {
 		name := engine.ClusterRowName(cluster)
-		res, used, ok := allocateCluster(
+		res, used, err := allocateCluster(
 			ctx, cluster, name, clusterScopeCandidates(cluster, clusterCount, cfg),
 			usage, alloc, pricer, policyJSON,
 		)
-		if !ok {
+		if ambiguous, isAmbiguous := errors.AsType[*engine.AmbiguousUsageSourceError](err); isAmbiguous {
+			notes = append(notes, fmt.Sprintf(
+				"live cluster expansion skipped for %s: %s; overview cannot choose, so remove one "+
+					"(finfocus plugin remove <name>) or run finfocus cost cluster --usage-source <name>",
+				name, ambiguous.Error(),
+			))
+			continue
+		}
+		if err != nil {
 			continue
 		}
 		children, childErr := engine.LiveChildrenFromResult(cluster.URN, res)
@@ -213,7 +232,11 @@ func liveExpansionClusters(rows []engine.OverviewRow) ([]engine.OverviewRow, int
 
 // allocateCluster tries each scope candidate until RunClusterAllocation
 // succeeds. Failed candidates are logged at debug, except an explicit config
-// mapping, whose failure is a warning because the user asked for it.
+// mapping, whose failure is a warning because the user asked for it. A scope
+// that several usage sources accept stops the search with that
+// *engine.AmbiguousUsageSourceError: a later, less specific scope must not
+// stand in for the cluster that was found. Any other failure of every
+// candidate returns errNoClusterScope.
 func allocateCluster(
 	ctx context.Context,
 	cluster engine.OverviewRow,
@@ -223,7 +246,7 @@ func allocateCluster(
 	alloc engine.Allocator,
 	pricer engine.ResourcePricer,
 	policyJSON []byte,
-) (*engine.ClusterResult, clusterScope, bool) {
+) (*engine.ClusterResult, clusterScope, error) {
 	log := logging.FromContext(ctx)
 	for _, c := range candidates {
 		res, err := engine.RunClusterAllocation(ctx, usage, alloc, pricer, engine.ClusterRequest{
@@ -231,7 +254,10 @@ func allocateCluster(
 			PolicyJSON: policyJSON,
 		})
 		if err == nil {
-			return res, c, true
+			return res, c, nil
+		}
+		if _, ambiguous := errors.AsType[*engine.AmbiguousUsageSourceError](err); ambiguous {
+			return nil, clusterScope{}, err
 		}
 		level := zerolog.DebugLevel
 		if c.explicit {
@@ -247,7 +273,22 @@ func allocateCluster(
 			Err(err).
 			Msg("live cluster expansion failed for scope; keeping projected view")
 	}
-	return nil, clusterScope{}, false
+	return nil, clusterScope{}, errNoClusterScope
+}
+
+// errNoClusterScope reports that no scope candidate produced a live allocation.
+var errNoClusterScope = errors.New("no kubeconfig context produced a live allocation")
+
+// capablePluginNames lists the sorted names of clients declaring capability.
+func capablePluginNames(clients []*pluginhost.Client, capability string) []string {
+	var names []string
+	for _, c := range clients {
+		if c.HasCapability(capability) {
+			names = append(names, c.Name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }
 
 // pluralize returns "1 singular" or "N plural".

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -119,7 +120,7 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 		return renderPolicy(cmd, format, policyOut)
 	}
 
-	usageClient, err := selectCapablePlugin(clients, pluginhost.CapabilityUsageStats, params.usageSource)
+	usage, err := selectUsageSource(clients, params.usageSource)
 	if err != nil {
 		return err
 	}
@@ -136,7 +137,7 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 
 	res, err := engine.RunClusterAllocation(
 		ctx,
-		pbc.NewUsageSourceServiceClient(usageClient.Conn),
+		usage,
 		pbc.NewAllocatorServiceClient(allocClient.Conn),
 		eng,
 		engine.ClusterRequest{
@@ -149,7 +150,7 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 		},
 	)
 	if err != nil {
-		return err
+		return clusterRunError(ctx, err)
 	}
 	groups, err := engine.GroupClusterRows(res.Rows, params.groupBy)
 	if err != nil {
@@ -160,6 +161,39 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	}
 	policyOut.Digest, policyOut.Effective = res.PolicyDigest, res.EffectivePolicy
 	return renderClusterResult(cmd, format, newClusterOutput(res, groups, params.groupBy, policyOut))
+}
+
+// clusterRunError maps a RunClusterAllocation failure. Several installed
+// usage sources serving the requested mode is the user's choice to make, so
+// it exits 2 and names --usage-source; other failures pass through.
+func clusterRunError(ctx context.Context, err error) error {
+	if ambiguous, ok := errors.AsType[*engine.AmbiguousUsageSourceError](err); ok {
+		return toValidationError(ctx, fmt.Errorf("%w; choose one with --usage-source", ambiguous))
+	}
+	return err
+}
+
+// selectUsageSource returns the usage source for a cluster run: the explicit
+// --usage-source plugin, the only installed one, or, when several are
+// installed, an engine.UsageSourceSet that asks each one and uses the single
+// source that accepts the request's mode.
+func selectUsageSource(clients []*pluginhost.Client, explicit string) (engine.UsageSource, error) {
+	var sources []engine.NamedUsageSource
+	for _, c := range clients {
+		if c.HasCapability(pluginhost.CapabilityUsageStats) {
+			sources = append(sources, engine.NamedUsageSource{
+				Name: c.Name, Source: pbc.NewUsageSourceServiceClient(c.Conn),
+			})
+		}
+	}
+	if explicit != "" || len(sources) < 2 {
+		client, err := selectCapablePlugin(clients, pluginhost.CapabilityUsageStats, explicit)
+		if err != nil {
+			return nil, err
+		}
+		return pbc.NewUsageSourceServiceClient(client.Conn), nil
+	}
+	return engine.NewUsageSourceSet(sources), nil
 }
 
 // selectCapablePlugin picks the plugin serving capability: the explicit name,

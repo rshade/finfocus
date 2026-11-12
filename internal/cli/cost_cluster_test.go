@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
 )
@@ -58,6 +59,37 @@ func TestSelectCapablePlugin(t *testing.T) {
 	assert.Equal(t, "prometheus", got.Name)
 
 	_, err = selectCapablePlugin([]*pluginhost.Client{k8s}, pluginhost.CapabilityUsageStats, "aws-public")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"aws-public" is not installed or lacks usage_stats`)
+}
+
+func TestSelectUsageSource(t *testing.T) {
+	t.Parallel()
+
+	k8s := capClient("kubernetes", pluginhost.CapabilityUsageStats, pluginhost.CapabilityAllocation)
+	prom := capClient("prometheus", pluginhost.CapabilityUsageStats)
+	aws := capClient("aws-public", "projected_costs")
+
+	_, err := selectUsageSource([]*pluginhost.Client{aws}, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "finfocus plugin install kubernetes")
+
+	got, err := selectUsageSource([]*pluginhost.Client{aws, k8s}, "")
+	require.NoError(t, err)
+	_, isSet := got.(*engine.UsageSourceSet)
+	assert.False(t, isSet, "a single source is used directly")
+
+	got, err = selectUsageSource([]*pluginhost.Client{prom, aws, k8s}, "")
+	require.NoError(t, err)
+	_, isSet = got.(*engine.UsageSourceSet)
+	assert.True(t, isSet, "several sources are asked by mode")
+
+	got, err = selectUsageSource([]*pluginhost.Client{prom, k8s}, "prometheus")
+	require.NoError(t, err)
+	_, isSet = got.(*engine.UsageSourceSet)
+	assert.False(t, isSet, "--usage-source wins over mode selection")
+
+	_, err = selectUsageSource([]*pluginhost.Client{prom, k8s}, "aws-public")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"aws-public" is not installed or lacks usage_stats`)
 }
@@ -209,12 +241,15 @@ func TestCostCluster_Window(t *testing.T) {
 	}
 }
 
-// TestCostCluster_WindowKeepsUsageSourceSelection installs two usage_stats
-// plugins and asks for a window without --usage-source. Selection still
-// fails closed and lists both candidates. The plugins record a marker if
-// GetStats runs. It stays sequential: it builds a plugin binary and sets
-// FINFOCUS_HOME.
-func TestCostCluster_WindowKeepsUsageSourceSelection(t *testing.T) {
+// TestCostCluster_UsageSourceSelection installs two usage_stats plugins,
+// kubernetes (also the allocator) and prometheus, built from
+// testdata/usagesource. Without --usage-source, the one source that accepts
+// the request's mode is used; when both accept, the run exits 2 and names
+// both. Each plugin records the modes it was asked for. The fixture returns
+// nothing to price, so a selected run still exits 1 after GetStats. It stays
+// sequential: it builds a plugin binary, sets FINFOCUS_HOME, and builds a
+// root command.
+func TestCostCluster_UsageSourceSelection(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a usage-source plugin binary")
 	}
@@ -237,24 +272,85 @@ func TestCostCluster_WindowKeepsUsageSourceSelection(t *testing.T) {
 		}
 		require.NoError(t, os.WriteFile(filepath.Join(dir, file), data, 0o755))
 	}
-
-	marker := filepath.Join(t.TempDir(), "getstats")
-	t.Setenv("FINFOCUS_TEST_GETSTATS_MARKER", marker)
+	t.Setenv("FINFOCUS_TEST_ALLOCATOR", "kubernetes")
 
 	today := time.Now().UTC().Truncate(24 * time.Hour)
-	res := axtest.Run(context.Background(), t, NewRootCmd("test"), []string{
-		"cost", "cluster",
-		"--from", today.AddDate(0, 0, -14).Format(time.DateOnly), "--to", today.AddDate(0, 0, -7).Format(time.DateOnly),
-	})
-	require.Equal(t, 1, res.ExitCode, "stderr: %s", res.Stderr)
-	stderr := string(res.Stderr)
-	assert.Contains(t, stderr, "kubernetes, prometheus")
-	assert.Contains(t, stderr, "--usage-source")
-	assert.NotContains(t, stderr, "run-rate only")
-	assert.NotContains(t, stderr, "historical only")
-	assert.NotContains(t, stderr, "GetStats must not be called")
-	_, statErr := os.Stat(marker)
-	assert.ErrorIs(t, statErr, os.ErrNotExist)
+	window := []string{
+		"--from", today.AddDate(0, 0, -14).Format(time.DateOnly),
+		"--to", today.AddDate(0, 0, -7).Format(time.DateOnly),
+	}
+	tests := []struct {
+		name        string
+		args        []string
+		modeLimited bool
+		wantCode    int
+		wantStderr  []string
+		wantAsked   map[string]string
+	}{
+		{
+			name:        "run-rate uses the run-rate source",
+			modeLimited: true,
+			wantCode:    1,
+			wantAsked:   map[string]string{"kubernetes": "run-rate\n", "prometheus": "run-rate\n"},
+		},
+		{
+			name:        "window uses the historical source",
+			args:        window,
+			modeLimited: true,
+			wantCode:    1,
+			wantAsked:   map[string]string{"kubernetes": "historical\n", "prometheus": "historical\n"},
+		},
+		{
+			name:        "explicit usage source wins",
+			args:        []string{"--usage-source", "prometheus"},
+			modeLimited: true,
+			wantCode:    1,
+			wantStderr:  []string{"prometheus usage source is historical only"},
+			wantAsked:   map[string]string{"prometheus": "run-rate\n"},
+		},
+		{
+			name:     "several accepting sources need --usage-source",
+			wantCode: ax.ExitValidation,
+			wantStderr: []string{
+				"several usage sources can serve run-rate usage (kubernetes, prometheus)",
+				"choose one with --usage-source",
+			},
+			wantAsked: map[string]string{"kubernetes": "run-rate\n", "prometheus": "run-rate\n"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			markers := t.TempDir()
+			t.Setenv("FINFOCUS_TEST_GETSTATS_MARKER_DIR", markers)
+			runRateOnly, historicalOnly := "", ""
+			if tt.modeLimited {
+				runRateOnly, historicalOnly = "kubernetes", "prometheus"
+			}
+			t.Setenv("FINFOCUS_TEST_RUN_RATE_ONLY", runRateOnly)
+			t.Setenv("FINFOCUS_TEST_HISTORICAL_ONLY", historicalOnly)
+
+			args := append([]string{"cost", "cluster"}, tt.args...)
+			res := axtest.Run(context.Background(), t, NewRootCmd("test"), args)
+			stderr := string(res.Stderr)
+			require.Equal(t, tt.wantCode, res.ExitCode, "stderr: %s", stderr)
+			for _, want := range tt.wantStderr {
+				assert.Contains(t, stderr, want)
+			}
+			if tt.wantCode != ax.ExitValidation {
+				assert.NotContains(t, stderr, "several usage sources")
+			}
+
+			asked := map[string]string{}
+			entries, readErr := os.ReadDir(markers)
+			require.NoError(t, readErr)
+			for _, e := range entries {
+				data, fileErr := os.ReadFile(filepath.Join(markers, e.Name()))
+				require.NoError(t, fileErr)
+				asked[e.Name()] = string(data)
+			}
+			assert.Equal(t, tt.wantAsked, asked)
+		})
+	}
 }
 
 func TestCostCluster_NoWindowLeavesBoundsUnset(t *testing.T) {

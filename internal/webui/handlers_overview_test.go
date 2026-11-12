@@ -259,6 +259,21 @@ func TestSessionBudgetExpansionAndClosedSnapshot(t *testing.T) {
 	_, ok := <-closed
 	assert.False(t, ok)
 }
+func TestSessionExpansionNotesSurviveReconnect(t *testing.T) {
+	t.Parallel()
+	session := NewSession(context.Background(), SessionOptions{})
+	defer session.Close()
+	note := "live cluster expansion skipped for eks: several usage sources can serve run-rate usage (a, b)"
+	session.Expansion(overviewFixtureRows(), []string{note})
+	session.Ready(overviewFixtureRows())
+
+	first, _, unsubscribe := session.subscribe()
+	defer unsubscribe()
+	require.Equal(t, "snapshot", first.name)
+	var snapshot OverviewSnapshot
+	require.NoError(t, json.Unmarshal(first.data, &snapshot))
+	assert.Equal(t, []string{note}, snapshot.ExpansionNotes)
+}
 func TestPreviewCancellationJoinsWorkersAndReportsError(t *testing.T) {
 	t.Parallel()
 	started := make(chan struct{})

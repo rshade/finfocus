@@ -336,6 +336,25 @@ test('preview-only source warning survives ready, remount, and reconnect', async
   remounted.unmount();
 });
 
+test('expansion notes survive ready and reconnect', async () => {
+  const t = await setup();
+  const note = 'live cluster expansion skipped for eks: several usage sources can serve run-rate usage (a, b)';
+  t.stream.emit('expansion', { rows: [], notes: [note] });
+  t.stream.emit('ready', { totals: {} });
+  await flush();
+  const shown = t.container.querySelector('.expansion-notes');
+  assert.equal(shown.hidden, false);
+  assert.equal(shown.textContent, `† ${note}`);
+  assert.equal(t.container.querySelector('.progress-line').hidden, true);
+  t.stream.emit('snapshot', { phases: [], rows: [], ready: true, expansionNotes: [note] });
+  await flush();
+  assert.equal(t.container.querySelector('.expansion-notes').textContent, `† ${note}`);
+  t.stream.emit('snapshot', { phases: [], rows: [], ready: true });
+  await flush();
+  assert.equal(t.container.querySelector('.expansion-notes').hidden, true);
+  t.mounted.unmount();
+});
+
 test('snapshot displays a pending passphrase prompt and progress on initial mount', async () => {
   const t = await setup(); t.mounted.unmount();
   t.stream.emit('snapshot', { phases: [{ phase: 1, name: 'Load stack', status: 'active' }], rows: [], ready: false,

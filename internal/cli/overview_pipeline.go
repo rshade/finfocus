@@ -194,7 +194,8 @@ type OverviewPipeline struct {
 	OnProgress func(loaded, total int)
 	// OnAllRowsLoaded fires once enrichment completes (not on cancellation).
 	OnAllRowsLoaded func()
-	// OnExpansion fires when cluster expansion changed the row set; rows
+	// OnExpansion fires when cluster expansion changed the row set or left a
+	// note (such as why live expansion was skipped); rows
 	// replaces the full row list.
 	OnExpansion func(rows []engine.OverviewRow, notes []string)
 	// OnBudget fires once the budget fetch resolves (plugin budgets, or the
@@ -739,7 +740,8 @@ func (p *OverviewPipeline) handleRowUpdate(
 }
 
 // expand runs cluster expansion after enrichment and, when the row set
-// changed, emits the expansion event with the expanded rows.
+// changed or expansion left a note, emits the expansion event with the rows
+// and notes. A note with unchanged rows explains why expansion was skipped.
 func (p *OverviewPipeline) expand(
 	ctx context.Context,
 	rows []engine.OverviewRow,
@@ -751,7 +753,7 @@ func (p *OverviewPipeline) expand(
 		expandFn = expandOverviewClusters
 	}
 	expandedRows, notes := expandFn(ctx, rows, clients, pricer, p.cfg.params.cfg)
-	if !overviewRowsExpanded(expandedRows) {
+	if !overviewRowsExpanded(expandedRows) && len(notes) == 0 {
 		return rows
 	}
 	p.mu.Lock()

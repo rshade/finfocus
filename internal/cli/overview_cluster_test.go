@@ -15,6 +15,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
 const testClusterURN = "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster"
@@ -134,6 +135,21 @@ func (f *scopedUsageSource) GetStats(
 		return nil, errors.New("context not found")
 	}
 	return f.resp, nil
+}
+
+// ambiguousUsageSource answers every request the way engine.UsageSourceSet
+// does when two installed sources accept it.
+type ambiguousUsageSource struct {
+	calls int
+}
+
+func (f *ambiguousUsageSource) GetStats(
+	_ context.Context, _ *pbc.GetStatsRequest, _ ...grpc.CallOption,
+) (*pbc.GetStatsResponse, error) {
+	f.calls++
+	return nil, &engine.AmbiguousUsageSourceError{
+		Mode: engine.ModeRunRate, Names: []string{"kubernetes", "other"},
+	}
 }
 
 type fakeAllocator struct {
@@ -267,6 +283,23 @@ func TestRunLiveExpansion(t *testing.T) {
 		assert.Empty(t, notes)
 	})
 
+	t.Run("ambiguous usage source keeps projected expansion and says how to fix it", func(t *testing.T) {
+		t.Parallel()
+		_, alloc, pricer := liveTestHarness()
+		usage := &ambiguousUsageSource{}
+		rows, notes := runLiveExpansion(
+			context.Background(), newRows(), usage, alloc, pricer, nil, config.New(),
+		)
+		assert.Equal(t, 1, usage.calls, "an ambiguous scope must not fall through to the current context")
+		require.Len(t, rows, 2)
+		assert.Equal(t, engine.ExpansionSourceProjected, rows[1].ExpansionSource)
+		require.Len(t, notes, 1)
+		assert.Contains(t, notes[0], "live cluster expansion skipped for prod-cluster")
+		assert.Contains(t, notes[0], "several usage sources can serve run-rate usage (kubernetes, other)")
+		assert.Contains(t, notes[0], "finfocus plugin remove <name>")
+		assert.Contains(t, notes[0], "finfocus cost cluster --usage-source <name>")
+	})
+
 	t.Run("every cluster expands after an earlier one reorders rows", func(t *testing.T) {
 		t.Parallel()
 		usage, alloc, pricer := liveTestHarness()
@@ -377,6 +410,23 @@ func TestExpandOverviewClusters_NoPluginsNoRegression(t *testing.T) {
 	require.Len(t, out, 1)
 	assert.Empty(t, out[0].ChildURNs)
 	assert.Empty(t, notes)
+}
+
+func TestExpandOverviewClusters_SeveralAllocatorsLeaveANote(t *testing.T) {
+	t.Parallel()
+	rows := engine.ExpandClustersProjected([]engine.OverviewRow{
+		testClusterRow(map[string]any{"name": "prod-cluster"}),
+	})
+	clients := []*pluginhost.Client{
+		capClient("kubernetes", pluginhost.CapabilityUsageStats, pluginhost.CapabilityAllocation),
+		capClient("other-allocator", pluginhost.CapabilityAllocation),
+	}
+	out, notes := expandOverviewClusters(context.Background(), rows, clients, fakePricer{}, config.New())
+	require.Len(t, out, 1)
+	assert.Empty(t, out[0].ChildURNs)
+	require.Len(t, notes, 1)
+	assert.Contains(t, notes[0], "several plugins provide allocation (kubernetes, other-allocator)")
+	assert.Contains(t, notes[0], "finfocus plugin remove <name>")
 }
 
 func TestOverviewRowsExpanded(t *testing.T) {

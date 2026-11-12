@@ -298,6 +298,15 @@ Two data sources feed the expansion:
   rows re-allocate node cost already shown by other rows, so they are
   excluded from the summary totals.
 
+Overview asks for the run rate. When several usage-source plugins are
+installed, it uses the one that accepts a run-rate request, as
+`cost cluster` does (see
+[Several usage sources](../guides/cluster-costs.md#several-usage-sources)),
+so the kubernetes and prometheus plugins can both be installed. Overview has
+no `--usage-source` flag: when two sources both serve the run rate, or two
+allocator plugins are installed, the cluster keeps its projected view and a
+`†` footnote names the plugins and how to resolve it.
+
 When both are available, live data wins: the projected workload rows are
 hidden and a `†` footnote reports how many were suppressed. The summary
 resource count still includes the hidden rows and does not count the live
