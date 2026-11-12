@@ -169,8 +169,10 @@ func TestProcessLauncher_CreateCloseFn(t *testing.T) {
 
 	launcher := NewProcessLauncher()
 
-	// Create a mock command for testing cleanup
-	cmd := exec.Command("sleep", "60") // Long-running command
+	// Create a mock command for testing cleanup. It leads its own process
+	// group, as a launched plugin does, so the group kill reaches it.
+	cmd := exec.Command("sleep", "60")
+	configureProcessGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start test command: %v", err)
 	}
@@ -189,7 +191,7 @@ func TestProcessLauncher_CreateCloseFn(t *testing.T) {
 		t.Fatalf("failed to create test connection: %v", err)
 	}
 
-	closeFn := launcher.createCloseFn(context.Background(), conn, cmd)
+	closeFn := launcher.createCloseFn(context.Background(), conn, watchProcess(cmd))
 
 	// Test cleanup
 	if closeErr := closeFn(); closeErr != nil {
@@ -275,34 +277,27 @@ func TestProcessLauncher_IsConnectionReady(t *testing.T) {
 	_ = ready // We can't assert specific readiness without a real gRPC server
 }
 
-func TestProcessLauncher_KillProcess(t *testing.T) {
+func TestPluginProcess_Stop(t *testing.T) {
 	t.Parallel()
 
-	launcher := NewProcessLauncher()
+	// A nil process must not panic.
+	(*pluginProcess)(nil).stop()
 
-	// Test with nil command (should not panic)
-	launcher.killProcess(nil)
-
-	// Test with valid command
 	cmd := exec.Command("sleep", "60")
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("failed to start test command: %v", err)
-	}
+	configureProcessGroup(cmd)
+	require.NoError(t, cmd.Start())
 
-	launcher.killProcess(cmd)
+	proc := watchProcess(cmd)
+	proc.stop()
 
-	// Give it time to be killed - process cleanup can take time
-	for range 10 {
-		time.Sleep(50 * time.Millisecond)
-		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-			return // Success
-		}
+	require.NotNil(t, cmd.ProcessState, "stop must join the process")
+	select {
+	case <-proc.exited:
+	default:
+		require.Fail(t, "stop returned before the process was waited on")
 	}
-
-	if cmd.ProcessState == nil || !cmd.ProcessState.Exited() {
-		t.Log("Note: Process kill timing can be system-dependent")
-		// Don't fail as this might be timing/system specific
-	}
+	// A second stop after the exit must return at once.
+	proc.stop()
 }
 
 func TestNewProcessLauncher(t *testing.T) {
@@ -543,7 +538,7 @@ func TestProcessLauncher_WaitForPluginBind_Success(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	err = launcher.waitForPluginBind(ctx, port)
+	err = launcher.waitForPluginBind(ctx, port, nil)
 	if err != nil {
 		t.Errorf("waitForPluginBind failed: %v", err)
 	}
@@ -568,7 +563,7 @@ func TestProcessLauncher_WaitForPluginBind_Timeout(t *testing.T) {
 	bindCtx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
 	defer cancel()
 
-	err = launcher.waitForPluginBind(bindCtx, port)
+	err = launcher.waitForPluginBind(bindCtx, port, nil)
 	if err == nil {
 		t.Error("expected timeout error")
 	}
@@ -600,7 +595,7 @@ func TestProcessLauncher_WaitForPluginBind_DelayedBind(t *testing.T) {
 
 	waitDone := make(chan error, 1)
 	go func() {
-		waitDone <- launcher.waitForPluginBind(waitCtx, port)
+		waitDone <- launcher.waitForPluginBind(waitCtx, port, nil)
 	}()
 
 	// Simulate delayed plugin startup
@@ -969,7 +964,7 @@ func TestProcessLauncher_GuidanceLoggingOnBindFailure(t *testing.T) {
 	defer cancel()
 
 	// waitForPluginBind should timeout and return an error
-	err = launcher.waitForPluginBind(bindCtx, port)
+	err = launcher.waitForPluginBind(bindCtx, port, nil)
 	if err == nil {
 		t.Error("expected timeout error from waitForPluginBind")
 	}
@@ -1085,7 +1080,7 @@ func TestWaitForPluginBindWithFallback_DirectBind(t *testing.T) {
 	defer cancel()
 	buf := &lockedBuffer{}
 
-	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, port, buf, "/fake/plugin")
+	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, port, buf, "/fake/plugin", nil)
 	require.NoError(t, err)
 	assert.Equal(t, port, gotPort)
 }
@@ -1114,7 +1109,7 @@ func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
 	buf := &lockedBuffer{}
 	_, _ = fmt.Fprintf(buf, "%d\n", stdoutPort)
 
-	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, unboundPort, buf, "/fake/plugin")
+	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, unboundPort, buf, "/fake/plugin", nil)
 	require.NoError(t, err)
 	assert.Equal(t, stdoutPort, gotPort)
 }
@@ -1138,7 +1133,7 @@ func TestWaitForPluginBindWithFallback_BothPortsFail(t *testing.T) {
 	buf := &lockedBuffer{}
 	_, _ = fmt.Fprintf(buf, "%d\n", unboundPort2)
 
-	_, err := launcher.waitForPluginBindWithFallback(ctx, unboundPort1, buf, "/fake/plugin")
+	_, err := launcher.waitForPluginBindWithFallback(ctx, unboundPort1, buf, "/fake/plugin", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to bind")
 }
