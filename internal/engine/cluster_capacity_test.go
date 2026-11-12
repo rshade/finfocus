@@ -310,25 +310,37 @@ func TestRunClusterAllocation_CapacitySplit(t *testing.T) {
 	assert.InDelta(t, res.Idle, idle, 1e-9, "idle is counted once")
 }
 
-func TestRunClusterAllocation_CapacitySplitNamespaceScoped(t *testing.T) {
+func TestRunClusterAllocation_CapacitySplitScoped(t *testing.T) {
 	t.Parallel()
 
-	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
-		Mode:      pbc.StatsMode_STATS_MODE_RUN_RATE,
-		Priceable: []*pbc.ResourceDescriptor{taggedNodeDesc("n1", "spot")},
-	}}
-	pricer := fakePricer{results: []CostResult{
-		{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 50, Currency: "USD"},
-	}}
+	tests := []struct {
+		name string
+		req  ClusterRequest
+	}{
+		{name: "namespace", req: ClusterRequest{Namespace: "app"}},
+		{name: "selector", req: ClusterRequest{Selector: map[string]string{"team": "storefront"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	res, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer,
-		ClusterRequest{Namespace: "app"})
-	require.NoError(t, err)
+			usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+				Mode:      pbc.StatsMode_STATS_MODE_RUN_RATE,
+				Priceable: []*pbc.ResourceDescriptor{taggedNodeDesc("n1", "spot")},
+			}}
+			pricer := fakePricer{results: []CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 50, Currency: "USD"},
+			}}
 
-	require.Len(t, res.Capacity, 1)
-	assert.Equal(t, "spot", res.Capacity[0].CapacityType)
-	assert.InDelta(t, res.Total, res.Capacity[0].TotalCost, 1e-9)
-	assert.Nil(t, res.Capacity[0].IdleCost, "scoped runs omit idle rows")
+			res, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer, tt.req)
+			require.NoError(t, err)
+
+			require.Len(t, res.Capacity, 1)
+			assert.Equal(t, "spot", res.Capacity[0].CapacityType)
+			assert.InDelta(t, res.Total, res.Capacity[0].TotalCost, 1e-9)
+			assert.Nil(t, res.Capacity[0].IdleCost, "scoped runs omit idle rows")
+		})
+	}
 }
 
 func ptr(v float64) *float64 { return &v }

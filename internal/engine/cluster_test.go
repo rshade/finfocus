@@ -103,12 +103,12 @@ func TestRunClusterAllocation_HappyPath(t *testing.T) {
 	alloc := conservingAlloc()
 
 	res, err := RunClusterAllocation(context.Background(), usage, alloc, pricer, ClusterRequest{
-		Scope: "prod", Selector: map[string]string{"app": "web"}, PolicyJSON: []byte(`{}`),
+		Scope: "prod", PolicyJSON: []byte(`{}`),
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, "prod", usage.got.GetScope())
-	assert.Equal(t, "web", usage.got.GetSelector()["app"])
+	assert.Empty(t, usage.got.GetSelector())
 	require.Len(t, alloc.got.GetPriced(), 2)
 	byID := map[string]float64{}
 	for _, p := range alloc.got.GetPriced() {
@@ -169,7 +169,61 @@ func TestRunClusterAllocation_AllUnpricedIsFatal(t *testing.T) {
 	assert.Contains(t, err.Error(), "no priceable resource could be priced")
 }
 
-func TestRunClusterAllocation_NamespaceScopeDropsSharedRows(t *testing.T) {
+func TestRunClusterAllocation_ScopeDropsSharedRows(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		req            ClusterRequest
+		wantSelector   map[string]string
+		namespaceScope bool
+		selectorScope  bool
+	}{
+		{
+			name:           "namespace",
+			req:            ClusterRequest{Namespace: "app"},
+			wantSelector:   map[string]string{"namespace": "app"},
+			namespaceScope: true,
+		},
+		{
+			name:          "selector",
+			req:           ClusterRequest{Selector: map[string]string{"team": "storefront"}},
+			wantSelector:  map[string]string{"team": "storefront"},
+			selectorScope: true,
+		},
+		{
+			name:           "namespace and selector",
+			req:            ClusterRequest{Namespace: "app", Selector: map[string]string{"team": "storefront"}},
+			wantSelector:   map[string]string{"namespace": "app", "team": "storefront"},
+			namespaceScope: true,
+			selectorScope:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+				Mode: pbc.StatsMode_STATS_MODE_RUN_RATE, Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")}}}
+			pricer := fakePricer{results: []CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 100, Currency: "USD"}}}
+			res, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer, tt.req)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantSelector, usage.got.GetSelector())
+			assert.Equal(t, tt.namespaceScope, res.NamespaceScoped)
+			assert.Equal(t, tt.selectorScope, res.SelectorScoped)
+			assert.True(t, res.Scoped())
+			require.NotEmpty(t, res.Rows)
+			for _, r := range res.Rows {
+				assert.Equal(t, "workload", r.Subject["kind"])
+			}
+			assert.InDelta(t, 60, res.Total, 1e-9)
+			assert.Zero(t, res.Idle)
+		})
+	}
+}
+
+func TestRunClusterAllocation_UnscopedKeepsIdle(t *testing.T) {
 	t.Parallel()
 
 	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
@@ -177,15 +231,11 @@ func TestRunClusterAllocation_NamespaceScopeDropsSharedRows(t *testing.T) {
 	pricer := fakePricer{results: []CostResult{
 		{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 100, Currency: "USD"}}}
 	res, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer,
-		ClusterRequest{Namespace: "app"})
+		ClusterRequest{Selector: map[string]string{}})
 	require.NoError(t, err)
-	assert.Equal(t, "app", usage.got.GetSelector()["namespace"])
-	assert.True(t, res.NamespaceScoped)
-	for _, r := range res.Rows {
-		assert.Equal(t, "workload", r.Subject["kind"])
-	}
-	assert.InDelta(t, 60, res.Total, 1e-9)
-	assert.Zero(t, res.Idle)
+	assert.False(t, res.Scoped())
+	assert.InDelta(t, 100, res.Total, 1e-9)
+	assert.InDelta(t, 40, res.Idle, 1e-9)
 }
 
 func TestRunClusterAllocation_Errors(t *testing.T) {
@@ -393,43 +443,68 @@ func TestRunClusterAllocation_HistoricalWindow(t *testing.T) {
 	assert.InDelta(t, total, res.Total, 1e-9)
 }
 
-func TestRunClusterAllocation_HistoricalNamespaceDropsSharedRows(t *testing.T) {
+func TestRunClusterAllocation_HistoricalScopeDropsSharedRows(t *testing.T) {
 	t.Parallel()
 
-	from, to := historicalWindow()
-	const total = 18.5
-	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
-		Mode:      pbc.StatsMode_STATS_MODE_HISTORICAL,
-		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
-	}}
-	pricer := &recordingPricer{window: []CostResult{{
-		ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", TotalCost: total, Currency: "USD",
-	}}}
-	alloc := &fakeAlloc{fn: func(r *pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
-		cost := r.GetPriced()[0].GetCost()
-		return &pbc.AllocateResponse{
-			PolicyDigest: "d", EffectivePolicyJson: []byte(`{"version":1}`),
-			Rows: []*pbc.AllocationRow{
-				{Subject: map[string]string{"kind": "workload", "namespace": "app", "pod": "p", "node": "n1"},
-					CpuCost: cost * 0.6, TotalCost: cost * 0.6, Currency: "USD"},
-				{Subject: map[string]string{"kind": "__idle__", "node": "n1"},
-					CpuCost: cost * 0.3, TotalCost: cost * 0.3, Currency: "USD"},
-				{Subject: map[string]string{"kind": "__cluster__"},
-					CpuCost: cost * 0.1, TotalCost: cost * 0.1, Currency: "USD"},
-			},
-		}, nil
-	}}
+	tests := []struct {
+		name           string
+		namespace      string
+		selector       map[string]string
+		wantSelector   map[string]string
+		namespaceScope bool
+		selectorScope  bool
+	}{
+		{
+			name: "namespace", namespace: "app",
+			wantSelector: map[string]string{"namespace": "app"}, namespaceScope: true,
+		},
+		{
+			name: "selector", selector: map[string]string{"team": "storefront"},
+			wantSelector: map[string]string{"team": "storefront"}, selectorScope: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	res, err := RunClusterAllocation(context.Background(), usage, alloc, pricer, ClusterRequest{
-		Namespace: "app", From: from, To: to,
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "app", usage.got.GetSelector()["namespace"])
-	assert.True(t, res.NamespaceScoped)
-	require.Len(t, res.Rows, 1)
-	assert.Equal(t, "workload", res.Rows[0].Subject["kind"])
-	assert.InDelta(t, total*0.6, res.Total, 1e-9)
-	assert.Zero(t, res.Idle)
+			from, to := historicalWindow()
+			const total = 18.5
+			usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+				Mode:      pbc.StatsMode_STATS_MODE_HISTORICAL,
+				Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+			}}
+			pricer := &recordingPricer{window: []CostResult{{
+				ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", TotalCost: total, Currency: "USD",
+			}}}
+			alloc := &fakeAlloc{fn: func(r *pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
+				cost := r.GetPriced()[0].GetCost()
+				return &pbc.AllocateResponse{
+					PolicyDigest: "d", EffectivePolicyJson: []byte(`{"version":1}`),
+					Rows: []*pbc.AllocationRow{
+						{Subject: map[string]string{"kind": "workload", "namespace": "app", "pod": "p", "node": "n1"},
+							CpuCost: cost * 0.6, TotalCost: cost * 0.6, Currency: "USD"},
+						{Subject: map[string]string{"kind": "__idle__", "node": "n1"},
+							CpuCost: cost * 0.3, TotalCost: cost * 0.3, Currency: "USD"},
+						{Subject: map[string]string{"kind": "__cluster__"},
+							CpuCost: cost * 0.1, TotalCost: cost * 0.1, Currency: "USD"},
+					},
+				}, nil
+			}}
+
+			res, err := RunClusterAllocation(context.Background(), usage, alloc, pricer, ClusterRequest{
+				Namespace: tt.namespace, Selector: tt.selector, From: from, To: to,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantSelector, usage.got.GetSelector())
+			assert.Equal(t, ModeHistorical, res.Mode)
+			assert.Equal(t, tt.namespaceScope, res.NamespaceScoped)
+			assert.Equal(t, tt.selectorScope, res.SelectorScoped)
+			require.Len(t, res.Rows, 1)
+			assert.Equal(t, "workload", res.Rows[0].Subject["kind"])
+			assert.InDelta(t, total*0.6, res.Total, 1e-9)
+			assert.Zero(t, res.Idle)
+		})
+	}
 }
 
 func TestRunClusterAllocation_IncompleteWarning(t *testing.T) {

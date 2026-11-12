@@ -26,6 +26,7 @@ type clusterJSON struct {
 	Total           float64  `json:"total"`
 	Idle            *float64 `json:"idle"`
 	NamespaceScoped bool     `json:"namespace_scoped"`
+	SelectorScoped  bool     `json:"selector_scoped"`
 	Incomplete      bool     `json:"incomplete"`
 	Groups          []struct {
 		Key       string  `json:"key"`
@@ -144,6 +145,17 @@ func TestCostCluster_Kind_NamespaceScope(t *testing.T) {
 	for _, g := range res.Groups {
 		assert.NotEqual(t, "__idle__", g.Key)
 	}
+}
+
+func TestCostCluster_Kind_SelectorScope(t *testing.T) {
+	res, out, err := runCluster(t, "--selector", "team=storefront", "--group-by", "controller")
+	require.NoError(t, err, string(out))
+	assert.False(t, res.NamespaceScoped)
+	assert.True(t, res.SelectorScoped)
+	assert.Nil(t, res.Idle, "capacity used by unselected pods is not idle")
+	require.Len(t, res.Groups, 1)
+	assert.Equal(t, "e2e/Deployment/web", res.Groups[0].Key)
+	assert.Greater(t, res.Groups[0].TotalCost, 0.0)
 }
 
 func TestCostCluster_Kind_BadPolicyFails(t *testing.T) {

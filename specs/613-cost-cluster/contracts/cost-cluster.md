@@ -30,6 +30,7 @@ finfocus cost cluster
   "total": 1234.56,
   "idle": 345.67,
   "namespace_scoped": false,
+  "selector_scoped": false,
   "incomplete": false,
   "groups": [
     {"key": "payments", "cpu_cost": 5.0, "mem_cost": 5.0, "total_cost": 10.0, "rows": 2}
@@ -43,7 +44,9 @@ finfocus cost cluster
 }
 ```
 
-- `idle` is `null`/omitted when `namespace_scoped` is true.
+- `idle` is `null`/omitted when `namespace_scoped` or `selector_scoped` is
+  true. `namespace_scoped` means `--namespace` was set and
+  `selector_scoped` means `--selector` was set; either one scopes the report.
 - `policy.source` is the file path or `"built-in defaults"`.
 - `groups[]` elements are `engine.ClusterGroup`; `priced[]` elements are
   `engine.PricedSummary`.
@@ -62,7 +65,7 @@ footer:
 ```text
 Mode:    run-rate (monthly, 730 h)
 Total:   $1,234.56 USD
-Idle:    $345.67 (28.0%)            ← or "Idle:    omitted (--namespace scoped)"
+Idle:    $345.67 (28.0%)            ← or "Idle:    omitted (--namespace scoped)" (or --selector, or both)
 Policy:  .finfocus/allocation.hujson · 3f2a9c1b4d5e   ← or "built-in defaults · …"
 Incomplete: 2 resources could not be priced (…)       ← only when incomplete
 ```

@@ -75,6 +75,58 @@ func TestRenderCluster_JSON(t *testing.T) {
 	assert.Equal(t, true, scoped["namespace_scoped"])
 }
 
+func TestRenderCluster_ScopeFooter(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		namespace bool
+		selector  bool
+		want      string
+	}{
+		{name: "namespace", namespace: true, want: "Idle:    omitted (--namespace scoped)"},
+		{name: "selector", selector: true, want: "Idle:    omitted (--selector scoped)"},
+		{name: "both", namespace: true, selector: true, want: "Idle:    omitted (--namespace and --selector scoped)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			res := &engine.ClusterResult{
+				Mode: engine.ModeRunRate, Period: "monthly", Currency: "USD", Total: 60, Idle: 0,
+				NamespaceScoped: tt.namespace, SelectorScoped: tt.selector,
+			}
+			out := newClusterOutput(res, nil, "namespace", clusterPolicyOutput{})
+			assert.Nil(t, out.Idle)
+			assert.Contains(t, renderTo(t, outputFormatTable, out), tt.want)
+
+			var got map[string]any
+			require.NoError(t, json.Unmarshal([]byte(renderTo(t, outputFormatJSON, out)), &got))
+			assert.NotContains(t, got, "idle")
+			assert.Equal(t, tt.namespace, got["namespace_scoped"], "namespace_scoped keeps its meaning")
+			assert.Equal(t, tt.selector, got["selector_scoped"])
+
+			lines := strings.Split(strings.TrimSpace(renderTo(t, outputFormatNDJSON, out)), "\n")
+			var summary map[string]any
+			require.NoError(t, json.Unmarshal([]byte(lines[0]), &summary))
+			assert.NotContains(t, summary, "idle")
+			assert.Equal(t, tt.selector, summary["selector_scoped"])
+		})
+	}
+}
+
+func TestRenderCluster_UnscopedJSONReportsIdle(t *testing.T) {
+	t.Parallel()
+
+	res := &engine.ClusterResult{Mode: engine.ModeRunRate, Period: "monthly", Currency: "USD", Total: 100, Idle: 40}
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(
+		[]byte(renderTo(t, outputFormatJSON, newClusterOutput(res, nil, "namespace", clusterPolicyOutput{}))), &got))
+	assert.InDelta(t, 40, got["idle"], 1e-9)
+	assert.Equal(t, false, got["namespace_scoped"])
+	assert.Equal(t, false, got["selector_scoped"])
+}
+
 func TestRenderCluster_HistoricalPeriod(t *testing.T) {
 	t.Parallel()
 
