@@ -157,6 +157,38 @@ func (c *cancelingUsage) GetStats(
 	return nil, status.FromContextError(ctx.Err()).Err()
 }
 
+// stallUsage blocks until the context passed to GetStats ends.
+type stallUsage struct{}
+
+func (s *stallUsage) GetStats(
+	ctx context.Context, _ *pbc.GetStatsRequest, _ ...grpc.CallOption,
+) (*pbc.GetStatsResponse, error) {
+	<-ctx.Done()
+	return nil, status.FromContextError(ctx.Err()).Err()
+}
+
+//nolint:paralleltest // shortens the package-level usageSourceProbeTimeout
+func TestUsageSourceSet_ProbeTimeoutIsNotAcceptance(t *testing.T) {
+	// Shortens the package-level probe deadline.
+	prev := usageSourceProbeTimeout
+	usageSourceProbeTimeout = 20 * time.Millisecond
+	t.Cleanup(func() { usageSourceProbeTimeout = prev })
+
+	next := &modeOnlyUsage{}
+	set := NewUsageSourceSet([]NamedUsageSource{
+		{Name: "prometheus", Source: &stallUsage{}},
+		{Name: "zzz", Source: next},
+	})
+
+	_, err := set.GetStats(context.Background(), &pbc.GetStatsRequest{})
+	require.Error(t, err)
+	assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
+	assert.ErrorContains(t, err, "usage source prometheus did not answer")
+	assert.Zero(t, next.calls)
+	var ambiguous *AmbiguousUsageSourceError
+	assert.NotErrorAs(t, err, &ambiguous)
+}
+
 func TestUsageSourceSet_CancelDuringTheLastCallIsNotAmbiguous(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())

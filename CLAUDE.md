@@ -1179,8 +1179,12 @@ Specs 613-623 hold the details. Invariants:
   `--usage-source`, `selectUsageSource` returns an `engine.UsageSourceSet`,
   which asks each in name order: `InvalidArgument` means it cannot serve the
   request (the spec's mode rejection), exactly one acceptor wins, and two
-  are an `*engine.AmbiguousUsageSourceError`. `cost cluster` exits 2 on it;
-  overview stops that cluster's scope search and adds a `†` note. `expand`
+  are an `*engine.AmbiguousUsageSourceError`, and `cost cluster` exits 2 on
+  that. Each probe has its own `usageSourceProbeTimeout` (2 minutes; tests
+  shorten the variable). A probe that hits that deadline is its own error:
+  it is not an acceptance and it does not fall through to the next source.
+  Caller cancellation still wins. Overview stops that cluster's scope search
+  and adds a `†` note. `expand`
   emits notes even when rows did not change, and the web session keeps them
   in the snapshot (`expansionNotes`) so they outlive the progress line.
   Never pick by plugin name.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -12,6 +13,12 @@ import (
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
+
+// usageSourceProbeTimeout bounds one GetStats probe. Callers of cost cluster
+// and overview expansion pass a context with no deadline, and a source that
+// accepts the connection but never answers would stall every later source.
+// Two minutes covers a historical window query; tests shorten the variable.
+var usageSourceProbeTimeout = 2 * time.Minute //nolint:gochecknoglobals // tests shorten it
 
 // NamedUsageSource is one installed usage-source plugin.
 type NamedUsageSource struct {
@@ -87,10 +94,18 @@ func (s *UsageSourceSet) GetStats(
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		r, err := src.Source.GetStats(ctx, in, opts...)
+		probeCtx, cancel := context.WithTimeout(ctx, usageSourceProbeTimeout)
+		r, err := src.Source.GetStats(probeCtx, in, opts...)
+		cancel()
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			// A call cut short by the caller is neither an acceptance nor a rejection.
 			return nil, ctxErr
+		}
+		if status.Code(err) == codes.DeadlineExceeded {
+			// A probe that runs out its own deadline is not a mode rejection and
+			// must not count as an acceptance, or a slow source makes selection
+			// ambiguous. Stop here so a later source is not chosen in its place.
+			return nil, fmt.Errorf("usage source %s did not answer within %s: %w", src.Name, usageSourceProbeTimeout, err)
 		}
 		if status.Code(err) == codes.InvalidArgument {
 			rejected.names = append(rejected.names, src.Name)
