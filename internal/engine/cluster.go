@@ -512,8 +512,8 @@ func (e *Engine) GetWindowCost(
 
 // FormatWindow labels a historical window with its bounds and length, for
 // example "2026-09-28 to 2026-10-05, 7 days". Bounds print as UTC dates when
-// both fall on UTC midnight, otherwise as RFC3339. A length of whole days
-// prints in days, any other length in hours.
+// both fall on UTC midnight, otherwise as RFC3339. The length uses its largest
+// unit and the next one, such as "1 day 12 hours" or "20 hours 24 minutes".
 func FormatWindow(from, to time.Time) string {
 	from, to = from.UTC(), to.UTC()
 	layout := time.RFC3339
@@ -527,14 +527,37 @@ func isUTCMidnight(t time.Time) bool {
 	return t.Equal(t.Truncate(hoursPerDay * time.Hour))
 }
 
+// windowLength names a window length by its largest unit (days, hours, or
+// minutes) and the next smaller unit when that part is not zero, for example
+// "7 days", "1 day 12 hours", or "20 hours 24 minutes". Smaller remainders are
+// dropped, since the bounds beside it are exact. A positive length under a
+// minute is "under 1 minute".
 func windowLength(d time.Duration) string {
 	const day = hoursPerDay * time.Hour
-	if d%day == 0 {
-		days := int(d / day)
-		if days == 1 {
-			return "1 day"
-		}
-		return strconv.Itoa(days) + " days"
+	switch {
+	case d <= 0:
+		return windowUnit(0, "minute")
+	case d < time.Minute:
+		return "under 1 minute"
+	case d >= day:
+		return windowUnits(int(d/day), "day", int(d%day/time.Hour), "hour")
+	case d >= time.Hour:
+		return windowUnits(int(d/time.Hour), "hour", int(d%time.Hour/time.Minute), "minute")
+	default:
+		return windowUnit(int(d/time.Minute), "minute")
 	}
-	return strconv.FormatFloat(d.Hours(), 'f', -1, 64) + " h"
+}
+
+func windowUnits(major int, majorUnit string, minor int, minorUnit string) string {
+	if minor == 0 {
+		return windowUnit(major, majorUnit)
+	}
+	return windowUnit(major, majorUnit) + " " + windowUnit(minor, minorUnit)
+}
+
+func windowUnit(n int, unit string) string {
+	if n == 1 {
+		return "1 " + unit
+	}
+	return strconv.Itoa(n) + " " + unit + "s"
 }
