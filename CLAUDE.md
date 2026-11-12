@@ -856,8 +856,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   capability). A plugin that lists none stays offered, except for carbon. So
   usage-only (prometheus) and scorer-only plugins never get a pricing
   `Supports` and never appear in a decline note. EstimateCost, pricing-spec
-  discovery, and recommendation history still try every client:
-  civo-public and aws-ce serve `GetPricingSpec` without listing `pricing_spec`.
+  discovery, and recommendation history still try every client; they add
+  nothing to cost notes.
 - Provider means the billing cloud. `resourcetype.NormalizeProvider` holds the
   only alias table (`aws-native`→`aws`, `azure-native`/`azurerm`→`azure`,
   `google-native`/`google`→`gcp`); never split a type token for a provider
@@ -987,7 +987,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   CLI's default page is only 10 updates.
 - `--explain`, `--pricing-spec-fallback`, and estimate-TUI discovery call
   `GetPricingSpec`; disabled runs never call it, and each call has a 5s
-  deadline. A `$0` rate is a price; a plugin must answer `zero_cost` or an
+  deadline. `--explain` and the projected fallback ask `pricingSpecMatches`:
+  the projected route (router or fallback, same order) checked as
+  `PricingSpec`, so only plugins listing `pricing_spec` are asked and a
+  spec-only plugin is not lost to the `projected_costs` gate. Never reuse the
+  projected matches for it; a stopped chain still asks none. A `$0` rate is a price; a plugin must answer `zero_cost` or an
   error for "no price". Tiers are graduated, and tiers that do not cover the
   whole quantity fall through to YAML.
 - `cost forecast` (`specs/626-cost-forecast/`) does not change `cost projected`

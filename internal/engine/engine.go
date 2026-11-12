@@ -347,7 +347,7 @@ func supportsCapability(feature string) pbc.PluginCapability {
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON
 	case recommendationsFeature:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS
-	case "PricingSpec":
+	case pricingSpecFeature:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_PRICING_SPEC
 	default:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED
@@ -985,7 +985,7 @@ func (e *Engine) GetProjectedCost(
 			if len(resourceResults) == 0 {
 				resourceResults = append(resourceResults,
 					e.projectedFallbackResult(
-						ctx, resource, specMatches(selectedMatches, chainStopped), declines, pluginErrs,
+						ctx, resource, e.fallbackSpecMatches(ctx, resource, chainStopped), declines, pluginErrs,
 					))
 			}
 
@@ -1174,7 +1174,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 					e.projectedFallbackResult(
 						ctx,
 						resource,
-						specMatches(selectedMatches, fallbackChainBroken),
+						e.fallbackSpecMatches(ctx, resource, fallbackChainBroken),
 						declines,
 						resourceErrors,
 					),

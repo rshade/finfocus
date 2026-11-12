@@ -104,8 +104,11 @@ still asked.
 
 Core also asks a plugin only for the features its capabilities list, with or
 without a routing configuration. Projected cost needs `projected_costs`, actual
-cost `actual_costs`, recommendations `recommendations`, and carbon `carbon`. A
-usage source such as the `prometheus` plugin, which lists only usage stats, is
+cost `actual_costs`, recommendations `recommendations`, and carbon `carbon`.
+`--pricing-spec-fallback` and `--explain` ask for a pricing spec only from
+plugins on the projected route that list `pricing_spec`, in the same priority
+order, so a plugin that lists only `pricing_spec` can still price a resource
+through the fallback. A usage source such as the `prometheus` plugin, which lists only usage stats, is
 never asked to price a resource, so its decline does not appear in a cost note.
 A plugin that lists no capabilities is still asked, except for carbon.
 
