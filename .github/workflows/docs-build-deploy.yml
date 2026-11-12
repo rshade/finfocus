@@ -14,6 +14,7 @@ on:
       - 'docs/**'
       - 'README.md'
       - 'CONTRIBUTING.md'
+      - '.github/workflows/docs-build-deploy.yml'
     branches:
       - main
 
@@ -22,8 +23,9 @@ permissions:
   pages: write
   id-token: write
 
+# Pull requests get their own group, so a PR run never cancels a deploy from main.
 concurrency:
-  group: 'pages'
+  group: ${{ github.event_name == 'pull_request' && format('docs-pr-{0}', github.event.number) || 'pages' }}
   cancel-in-progress: true
 
 jobs:
@@ -89,6 +91,108 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  # finfocus.dev builds these docs from main in finfocus-dev/finfocus.dev. Tell it to
+  # rebuild now; it also rebuilds daily, which covers a missed or failed dispatch.
+  dispatch-site:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    name: Rebuild finfocus.dev
+    permissions: {}
+
+    steps:
+      - name: Send repository_dispatch to finfocus-dev/finfocus.dev
+        env:
+          TOKEN: ${{ secrets.FINFOCUS_DEV_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::FINFOCUS_DEV_DISPATCH_TOKEN is not set; finfocus.dev picks up this change on its daily build."
+            exit 0
+          fi
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d '{"event_type":"docs-content-updated"}' \
+            https://api.github.com/repos/finfocus-dev/finfocus.dev/dispatches
+
+  # The finfocus.dev site repo is private, so fork PRs (which get no secrets) skip the
+  # site build. Validate Documentation still runs markdownlint and link checks for them.
+  site-token:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    name: Check for the finfocus.dev token
+    permissions: {}
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+
+    steps:
+      - id: check
+        env:
+          TOKEN: ${{ secrets.FINFOCUS_DEV_DISPATCH_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No FINFOCUS_DEV_DISPATCH_TOKEN (fork PR or not configured); skipping the finfocus.dev build."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  site-build:
+    needs: site-token
+    if: needs.site-token.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    name: Build finfocus.dev with this PR's docs
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          path: finfocus
+          persist-credentials: false
+
+      # The token is used only by this step and is not kept in the checkout, so the
+      # docs build below cannot read it.
+      - name: Checkout finfocus-dev/finfocus.dev
+        uses: actions/checkout@v7
+        with:
+          repository: finfocus-dev/finfocus.dev
+          token: ${{ secrets.FINFOCUS_DEV_DISPATCH_TOKEN }}
+          path: site
+          submodules: true
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: site/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: site/.node-version
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: site
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the site from this PR's docs
+        working-directory: site
+        env:
+          FINFOCUS_DIR: ${{ github.workspace }}/finfocus
+        run: |
+          pnpm fetch-content
+          pnpm build
+
+      - name: Check links in the built site
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --offline --root-dir ${{ github.workspace }}/site/dist --no-progress 'site/dist/**/*.html'
 
   notify:
     if: always()
