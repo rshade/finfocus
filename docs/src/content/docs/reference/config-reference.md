@@ -113,7 +113,8 @@ output:
   ignores it. `config set` and `config get` do not accept it, so edit the file.
 - It is not part of the `plugins` object. `plugins.<name>` holds settings for
   the plugin called `<name>`, so a `plugins.dir` key names a plugin `dir`. A
-  path string there fails `config validate`, and the file is ignored.
+  path string there fails `config validate`, and a load can leave the settings
+  that were read before the error in place.
 
 ### ESC
 

@@ -100,10 +100,6 @@ cost:
     providers:
       aws:
         amount: 3000.00
-    tags:
-      - selector: 'team:platform'
-        priority: 100
-        amount: 2000.00
 ```
 
 Budget status appears automatically in the overview. For projected costs:

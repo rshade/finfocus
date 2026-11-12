@@ -389,8 +389,9 @@ Error: failed to connect to plugin: context deadline exceeded
    that process first, then stop it by its PID:
 
    ```bash
-   # List opencost plugin processes with their PIDs
-   ps -eo pid,args | grep '[f]infocus-plugin-opencost'
+   # List plugin processes with their PIDs; narrow it to the affected
+   # plugin, for example '[f]infocus-plugin-opencost'
+   ps -eo pid,args | grep '[f]infocus-plugin-'
    # Stop only a PID that the list shows
    kill <pid>
    ```

@@ -786,6 +786,9 @@ cost:
       amount: 0 # Budget disabled
 ```
 
+Remove any provider, tag, and type budgets first: they need an enabled global
+budget, and configuration validation fails without one.
+
 ### Multi-Currency Support
 
 FinFocus supports multiple currencies for budget display:
