@@ -227,13 +227,12 @@ docs/
 ├── package.json                 # Node.js dependencies
 ├── astro.config.mjs            # Astro/Starlight configuration
 ├── tsconfig.json               # TypeScript configuration
-├── public/                     # Static assets (images, etc.)
-│   └── screenshots/            # UI screenshots
+├── public/                     # Static assets (favicon, llms.txt, etc.)
 ├── src/
 │   └── content/
 │       └── docs/               # Documentation content
 │           ├── getting-started/ # Quick start guides
-│           ├── guides/         # Audience guides
+│           ├── guides/         # Audience guides (screenshots/ holds their images)
 │           ├── architecture/   # Architecture docs
 │           ├── plugins/        # Plugin docs
 │           ├── reference/      # API reference

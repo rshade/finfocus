@@ -91,7 +91,7 @@ RESOURCE                          ADAPTER     MONTHLY   CURRENCY  NOTES
 aws:ec2/instance:Instance         aws-spec    $375.00   USD       t3.xlarge
 ```
 
-![Budget status display with color-coded threshold bars and emoji indicators](/finfocus/screenshots/budget-tty-mode.png)
+![Budget status box with a usage bar and forecasted threshold warnings](./screenshots/budget-tty-mode.png)
 
 **Figure 1**: Budget display showing usage against defined threshold.
 

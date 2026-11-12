@@ -132,7 +132,7 @@ RESOURCE                          ADAPTER     MONTHLY   CURRENCY  NOTES
 aws:ec2/instance:Instance         aws-spec    $375.00   USD       t3.xlarge
 ```
 
-![Budget display in plain text mode](/finfocus/screenshots/budget-plain-mode.png)
+![Budget display in plain text mode](./screenshots/budget-plain-mode.png)
 
 **Figure 1**: Clean output without boxes or colors.
 
