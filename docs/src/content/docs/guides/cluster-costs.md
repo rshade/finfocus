@@ -103,7 +103,8 @@ window carries actual spend and adds no such note.
 - `pulumi-stack` — `<stack>/<project>` parsed from the pod annotation
   `finfocus.dev/pulumi-urn`. A missing or malformed URN groups under `<none>`
   and the pod is still counted. JSON and NDJSON groups list those URNs in
-  `pulumi_urns`
+  `pulumi_urns`. Run-rate mode only: over a `--from`/`--to` window every
+  workload groups under `<none>` (see [Historical window](#historical-window))
 
 `__idle__` (unclaimed node capacity) and `__cluster__` (shared infrastructure
 such as the control plane) always stay separate groups. Groups sort by total
@@ -261,6 +262,15 @@ not a letter, digit, or underscore with `_`. A historical `--group-by` uses
 that recorded key: `app.kubernetes.io/name` is
 `label:app_kubernetes_io_name`, and `--group-by label:app.kubernetes.io/name`
 puts every pod under `<none>`. The `--selector` flag accepts either form.
+
+The Prometheus source does not read pod annotations, so
+`--group-by pulumi-stack` has no `finfocus.dev/pulumi-urn` to parse over a
+window: every workload groups under `<none>` and JSON and NDJSON groups have
+no `pulumi_urns`. Adding the annotation to the kube-state-metrics
+`--metric-annotations-allowlist` does not change this, because the source
+does not query `kube_pod_annotations`. To group by Pulumi stack, run without
+`--from` and `--to` (with `--usage-source kubernetes` when several sources are
+installed), so the kubernetes source reads the annotation from the live pods.
 
 ## Limitations
 
