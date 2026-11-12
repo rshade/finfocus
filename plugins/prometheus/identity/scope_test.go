@@ -111,7 +111,110 @@ func TestPriceablesLiveFallback(t *testing.T) {
 	assert.Equal(t, "aws:///us-east-1a/i-live", priced[0].GetTags()["provider_id"])
 	assert.Equal(t, "node", priced[0].GetTags()["kind"])
 	assert.Empty(t, warningsWithPrefix(warnings, IncompletePrefix))
-	assert.Equal(t, []string{controlPlaneNotEKS}, warningsWithoutIncomplete(warnings))
+	assert.Equal(t, []string{
+		"node n1: provider, instance type, region taken from the live node, not from metrics recorded " +
+			"for the window; the window may predate the node's current labels",
+		controlPlaneNotEKS,
+	}, warningsWithoutIncomplete(warnings))
+}
+
+func TestPriceablesLiveFieldsWarning(t *testing.T) {
+	t.Parallel()
+
+	liveLabels := map[string]string{
+		"node.kubernetes.io/instance-type": "m5.large",
+		"topology.kubernetes.io/region":    "us-east-1",
+	}
+	const suffix = " taken from the live node, not from metrics recorded for the window; " +
+		"the window may predate the node's current labels"
+	tests := []struct {
+		name       string
+		recorded   map[string]NodeLabels
+		liveLabels map[string]string
+		want       string
+	}{
+		{
+			name:       "no recorded series",
+			liveLabels: liveLabels,
+			want:       "node n1: provider, instance type, region" + suffix,
+		},
+		{
+			name: "recorded labels lack instance type",
+			recorded: map[string]NodeLabels{"n1": {
+				Name: "n1", ProviderID: "aws:///us-east-1a/i-live",
+				Labels: map[string]string{"topology.kubernetes.io/region": "us-east-1"},
+			}},
+			liveLabels: liveLabels,
+			want:       "node n1: instance type" + suffix,
+		},
+		{
+			name: "recorded region differs from live",
+			recorded: map[string]NodeLabels{"n1": {
+				Name: "n1", ProviderID: "aws:///eu-west-1a/i-old",
+				Labels: map[string]string{"topology.kubernetes.io/region": "eu-west-1"},
+			}},
+			liveLabels: liveLabels,
+			want:       "node n1: instance type, region" + suffix,
+		},
+		{
+			name: "recorded provider label matches live provider id",
+			recorded: map[string]NodeLabels{"n1": {
+				Name: "n1",
+				Labels: map[string]string{
+					"finfocus.dev/provider":            "aws",
+					"node.kubernetes.io/instance-type": "m5.large",
+				},
+			}},
+			liveLabels: liveLabels,
+			want:       "node n1: region" + suffix,
+		},
+		{
+			name: "live capacity type differs",
+			recorded: map[string]NodeLabels{"n1": {
+				Name: "n1", ProviderID: "aws:///us-east-1a/i-live",
+				Labels: map[string]string{"topology.kubernetes.io/region": "us-east-1"},
+			}},
+			liveLabels: map[string]string{
+				"node.kubernetes.io/instance-type": "m5.large",
+				"topology.kubernetes.io/region":    "us-east-1",
+				"karpenter.sh/capacity-type":       "spot",
+			},
+			want: "node n1: instance type, capacity type" + suffix,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			live := fake.NewSimpleClientset(liveNode("n1", "aws:///us-east-1a/i-live", tt.liveLabels))
+			priced, warnings := Priceables(context.Background(), []string{"n1"}, tt.recorded, live, "prod", "", nil)
+			require.Len(t, priced, 1)
+			assert.Equal(t, "m5.large", priced[0].GetSku())
+			assert.Empty(t, warningsWithPrefix(warnings, IncompletePrefix))
+			assert.Equal(t, []string{tt.want, controlPlaneNotEKS}, warnings)
+		})
+	}
+}
+
+func TestPriceablesNoLiveWarningWhenRecordedComplete(t *testing.T) {
+	t.Parallel()
+
+	live := fake.NewSimpleClientset(liveNode("n1", "aws:///us-east-1a/i-live", map[string]string{
+		"node.kubernetes.io/instance-type": "m5.xlarge",
+		"topology.kubernetes.io/region":    "us-east-1",
+	}))
+	recorded := map[string]NodeLabels{
+		"n1": {
+			Name: "n1", ProviderID: "aws:///us-east-1a/i-old",
+			Labels: map[string]string{
+				"node.kubernetes.io/instance-type": "m5.large",
+				"topology.kubernetes.io/region":    "us-east-1",
+			},
+		},
+	}
+	priced, warnings := Priceables(context.Background(), []string{"n1"}, recorded, live, "prod", "", nil)
+	require.Len(t, priced, 1)
+	assert.Equal(t, "m5.large", priced[0].GetSku())
+	assert.Equal(t, []string{controlPlaneNotEKS}, warnings)
 }
 
 func TestPriceablesNeitherSource(t *testing.T) {
@@ -197,7 +300,10 @@ func TestPriceablesControlPlaneOnlyOnLivePath(t *testing.T) {
 		assert.Equal(t, "prod", cp.GetId())
 		assert.Equal(t, "cluster", cp.GetSku())
 		assert.Equal(t, "cluster", cp.GetTags()["kind"])
-		assert.Empty(t, warningsWithoutIncomplete(warnings))
+		assert.Equal(t, []string{
+			"node n1: provider, instance type, region taken from the live node, not from metrics recorded " +
+				"for the window; the window may predate the node's current labels",
+		}, warnings)
 	})
 
 	t.Run("live non-eks host", func(t *testing.T) {
