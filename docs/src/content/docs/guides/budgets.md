@@ -250,6 +250,7 @@ cost:
   budgets:
     global:
       amount: 500.00
+      currency: USD
       alerts:
         - threshold: 100
           type: forecasted

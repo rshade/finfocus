@@ -29,7 +29,7 @@ output:
 logging:
   level: info
 
-plugin_dir: ~/.finfocus/plugins
+plugin_dir: /opt/finfocus/plugins
 ```
 
 `plugin_dir` is a top-level key. Do not nest it under `plugins`: that object
