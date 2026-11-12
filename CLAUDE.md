@@ -1254,6 +1254,8 @@ Specs 613-623 hold the details. Invariants:
 - `SpecVersion` must be `v`-prefixed, or `GetPluginInfo` returns `Internal`.
 - `plugin.manifest.json` is the flat `registry.Manifest`, not the pluginsdk
   manifest; `plugin validate` needs name and version to match the install dir.
+  The version check ignores one leading `v` on each side
+  (`sameManifestVersion`), so `0.1.2` passes in a `v0.1.2/` directory.
 - Skill install runs `npx skills@1.7.0 add` in an empty temp dir, never the
   plugin dir (its `.npmrc` and `node_modules` could run code), and writes
   through an `os.Root`. Every failure is a warning. Tests never run npx.

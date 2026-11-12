@@ -152,5 +152,6 @@ More in `references/testing.md` and `references/core-contract.md`.
   follow that name.
 - `make install` must write `plugin.manifest.json` as flat JSON whose
   `name` and `version` match the install directory, or `finfocus plugin
-  validate` fails. Scaffolds from v0.4.0 and earlier copy `manifest.yaml`
+  validate` fails. One leading `v` is ignored, so `0.1.2` matches a
+  `v0.1.2` directory. Scaffolds from v0.4.0 and earlier copy `manifest.yaml`
   there instead; replace that line with the current scaffold's `printf`.

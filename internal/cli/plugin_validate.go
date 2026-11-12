@@ -48,7 +48,8 @@ func NewPluginValidateCmd() *cobra.Command {
 // ValidatePlugin validates a plugin's binary and its optional manifest.
 // It ensures the binary exists at plugin.Path, is not a directory, and has the executable bit set.
 // If a manifest file named "plugin.manifest.json" exists in the same directory, it is loaded
-// and its Name and Version fields are compared to plugin.Name and plugin.Version.
+// and its Name and Version fields are compared to plugin.Name and plugin.Version. The version
+// comparison ignores one leading "v" on either side (see sameManifestVersion).
 // The function returns nil when all checks pass; otherwise it returns an error describing the
 // first failing check (missing binary, stat error, path is a directory, not executable,
 // invalid manifest, or manifest name/version mismatch).
@@ -91,7 +92,7 @@ func ValidatePlugin(_ context.Context, plugin registry.PluginInfo) error {
 				manifest.Name,
 			)
 		}
-		if manifest.Version != plugin.Version {
+		if !sameManifestVersion(manifest.Version, plugin.Version) {
 			return fmt.Errorf(
 				"manifest version mismatch: expected %s, got %s",
 				plugin.Version,
@@ -232,6 +233,14 @@ func runValidation(ctx context.Context, cmd *cobra.Command, plugins []registry.P
 // JSON output passes plugin.Version through unchanged.
 func displayVersion(v string) string {
 	return "v" + strings.TrimLeft(v, "v")
+}
+
+// sameManifestVersion reports whether a manifest version names the same release as the
+// install directory. Registry installs use "v"-prefixed directories while manifests and
+// manual installs often use the bare form, so one leading "v" is ignored on each side,
+// matching registry.CompareVersions. Non-semver names compare the same way.
+func sameManifestVersion(manifestVersion, dirVersion string) bool {
+	return strings.TrimPrefix(manifestVersion, "v") == strings.TrimPrefix(dirVersion, "v")
 }
 
 // validateSinglePlugin validates the given plugin and reports progress to the provided command output.
