@@ -137,21 +137,38 @@ func TestBoundUsageSource(t *testing.T) {
 	})
 }
 
-func TestBoundCall_TransportDeadlineBeforeContextTimer(t *testing.T) {
+// lateTimerContext has a deadline but never sets Err, like a context whose
+// timer has not fired yet when the transport already reported the deadline.
+type lateTimerContext struct {
+	context.Context
+	deadline time.Time
+}
+
+func (c lateTimerContext) Deadline() (time.Time, bool) { return c.deadline, true }
+func (lateTimerContext) Err() error                    { return nil }
+
+func TestDeadlinePassed(t *testing.T) {
 	t.Parallel()
-	const timeout = 20 * time.Millisecond
-	transport := status.Error(codes.DeadlineExceeded, "stream terminated by RST_STREAM")
 
-	_, err := boundCall(context.Background(), timeout,
-		func(context.Context) (struct{}, error) {
-			time.Sleep(timeout)
-			return struct{}{}, transport
-		},
-		func(err error) *PluginCallTimeoutError { return &PluginCallTimeoutError{Err: err} },
-	)
+	expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
 
-	_, ok := errorsAsTimeout(err)
-	assert.True(t, ok, "err: %v", err)
+	tests := []struct {
+		name string
+		ctx  context.Context
+		want bool
+	}{
+		{"context timer fired", expired, true},
+		{"deadline passed, timer not yet fired", lateTimerContext{context.Background(), time.Now().Add(-time.Second)}, true},
+		{"deadline ahead", lateTimerContext{context.Background(), time.Now().Add(time.Hour)}, false},
+		{"no deadline", context.Background(), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, deadlinePassed(tt.ctx))
+		})
+	}
 }
 
 // slowAllocator answers after delay, or fails when its context ends first.

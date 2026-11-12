@@ -126,20 +126,24 @@ func boundCall[T any](
 ) (T, error) {
 	callCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	start := time.Now()
 	resp, err := call(callCtx)
-	if err != nil && ctx.Err() == nil && deadlinePassed(callCtx, start, timeout) {
+	if err != nil && ctx.Err() == nil && deadlinePassed(callCtx) {
 		var zero T
 		return zero, timeoutErr(err)
 	}
 	return resp, err
 }
 
-// deadlinePassed reports whether a call ran out its own deadline. gRPC can
-// return DeadlineExceeded from its own timer before the context's timer has
-// set callCtx.Err(), so the elapsed time counts too; timers never fire early.
-func deadlinePassed(callCtx context.Context, start time.Time, timeout time.Duration) bool {
-	return errors.Is(callCtx.Err(), context.DeadlineExceeded) || time.Since(start) >= timeout
+// deadlinePassed reports whether a call ran out its own deadline. gRPC
+// enforces the deadline with its own timer and can return DeadlineExceeded
+// before the context's timer has set Err(), so the clock is checked against
+// the deadline too.
+func deadlinePassed(ctx context.Context) bool {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return true
+	}
+	deadline, ok := ctx.Deadline()
+	return ok && !time.Now().Before(deadline)
 }
 
 type boundUsageSource struct {
