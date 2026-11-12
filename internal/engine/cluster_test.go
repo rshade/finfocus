@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
@@ -850,4 +852,129 @@ func TestFormatWindow(t *testing.T) {
 			assert.Equal(t, tt.want, FormatWindow(tt.from, tt.to))
 		})
 	}
+}
+
+func TestRunClusterAllocation_UsageRequestRejected(t *testing.T) {
+	t.Parallel()
+
+	contextErr := status.Error(codes.InvalidArgument, `kubeconfig context "nope" not found`)
+	tests := []struct {
+		name     string
+		usage    func() UsageSource
+		rejected bool
+		want     string
+	}{
+		{
+			name:     "invalid argument is the caller's request",
+			usage:    func() UsageSource { return &fakeUsage{err: contextErr} },
+			rejected: true,
+			want:     `usage source rejected the request: kubeconfig context "nope" not found`,
+		},
+		{
+			name: "every source in a set rejecting is the caller's request",
+			usage: func() UsageSource {
+				return NewUsageSourceSet([]NamedUsageSource{
+					{Name: "kubernetes", Source: &fakeUsage{err: contextErr}},
+					{Name: "prometheus", Source: &modeOnlyUsage{historical: true}},
+				})
+			},
+			rejected: true,
+			want: `no usage source accepted the run-rate request: ` +
+				`kubernetes: kubeconfig context "nope" not found; prometheus: cannot serve this mode`,
+		},
+		{
+			name: "unavailable stays a plugin failure",
+			usage: func() UsageSource {
+				return &fakeUsage{err: status.Error(codes.Unavailable, "cluster unreachable")}
+			},
+			want: "get usage stats: rpc error: code = Unavailable desc = cluster unreachable",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := RunClusterAllocation(context.Background(), tt.usage(), conservingAlloc(),
+				fakePricer{}, ClusterRequest{Scope: "nope"})
+			require.Error(t, err)
+			assert.Equal(t, tt.want, err.Error())
+			rejected, isRejected := errors.AsType[*UsageRequestError](err)
+			assert.Equal(t, tt.rejected, isRejected)
+			if isRejected {
+				assert.Equal(t, codes.InvalidArgument, status.Code(rejected.Err))
+			}
+		})
+	}
+}
+
+func TestUsageRequestError_NamesTheSource(t *testing.T) {
+	t.Parallel()
+	err := &UsageRequestError{
+		Source: "kubernetes",
+		Err:    status.Error(codes.InvalidArgument, "kubernetes usage source is run-rate only"),
+	}
+	assert.Equal(t,
+		"usage source kubernetes rejected the request: kubernetes usage source is run-rate only", err.Error())
+}
+
+func TestRunClusterAllocation_AllocateInvalidArgumentStaysInternal(t *testing.T) {
+	t.Parallel()
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{Mode: pbc.StatsMode_STATS_MODE_RUN_RATE,
+		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")}}}
+	pricer := fakePricer{results: []CostResult{
+		{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 100, Currency: "USD"}}}
+	alloc := &fakeAlloc{fn: func(*pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
+		return nil, status.Error(codes.InvalidArgument, "duplicate priced entry")
+	}}
+
+	_, err := RunClusterAllocation(context.Background(), usage, alloc, pricer, ClusterRequest{})
+	require.Error(t, err)
+	assert.Equal(t, "allocate: rpc error: code = InvalidArgument desc = duplicate priced entry", err.Error())
+	_, isPolicy := errors.AsType[*PolicyRejectedError](err)
+	assert.False(t, isPolicy, "a request carrying usage can be rejected for plugin data, not only for the policy")
+}
+
+func TestShowAllocationPolicy_RejectedPolicy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		err      error
+		rejected bool
+		want     string
+	}{
+		{
+			name:     "invalid argument rejects the policy",
+			err:      status.Error(codes.InvalidArgument, `allocation policy: unknown field "bogus"`),
+			rejected: true,
+			want:     `allocator rejected the allocation policy: allocation policy: unknown field "bogus"`,
+		},
+		{
+			name: "other codes stay plugin failures",
+			err:  status.Error(codes.Internal, "allocator crashed"),
+			want: "allocate: rpc error: code = Internal desc = allocator crashed",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			alloc := &fakeAlloc{fn: func(*pbc.AllocateRequest) (*pbc.AllocateResponse, error) { return nil, tt.err }}
+			_, _, err := ShowAllocationPolicy(context.Background(), alloc, []byte(`{"bogus":1}`))
+			require.Error(t, err)
+			assert.Equal(t, tt.want, err.Error())
+			_, isRejected := errors.AsType[*PolicyRejectedError](err)
+			assert.Equal(t, tt.rejected, isRejected)
+		})
+	}
+}
+
+func TestPolicyRejectedError_NamesAllocatorAndFile(t *testing.T) {
+	t.Parallel()
+	err := &PolicyRejectedError{
+		Allocator: "kubernetes",
+		Source:    "/p/allocation.hujson",
+		Err:       status.Error(codes.InvalidArgument, `idle: unsupported value "sometimes"`),
+	}
+	assert.Equal(t,
+		`allocator kubernetes rejected the allocation policy /p/allocation.hujson: idle: unsupported value "sometimes"`,
+		err.Error())
 }

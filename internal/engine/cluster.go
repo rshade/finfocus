@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -141,6 +143,9 @@ func RunClusterAllocation(
 	}
 	stats, err := usage.GetStats(ctx, usageStatsRequest(req, window))
 	if err != nil {
+		if status.Code(err) == codes.InvalidArgument {
+			return nil, &UsageRequestError{Err: err}
+		}
 		return nil, fmt.Errorf("get usage stats: %w", err)
 	}
 	if modeErr := requireStatsMode(window, stats.GetMode()); modeErr != nil {
@@ -292,13 +297,70 @@ func statsModeLabel(mode pbc.StatsMode) string {
 	}
 }
 
-// ShowAllocationPolicy asks the allocator for its effective policy without usage.
+// UsageRequestError reports a GetStats request that the usage source rejected
+// with gRPC InvalidArgument. UsageSourceService answers INVALID_ARGUMENT for a
+// window or mode it cannot serve, and the request carries only the caller's
+// scope, selector, and window, so the caller can fix it.
+type UsageRequestError struct {
+	// Source names the usage source that rejected the request, when known.
+	Source string
+	// Err is the gRPC error, or the UsageSourceSet error listing every
+	// source's rejection.
+	Err error
+}
+
+func (e *UsageRequestError) Error() string {
+	if rejected, ok := errors.AsType[*usageRejectedError](e.Err); ok {
+		return rejected.Error()
+	}
+	reason := status.Convert(e.Err).Message()
+	if e.Source == "" {
+		return "usage source rejected the request: " + reason
+	}
+	return fmt.Sprintf("usage source %s rejected the request: %s", e.Source, reason)
+}
+
+func (e *UsageRequestError) Unwrap() error { return e.Err }
+
+// PolicyRejectedError reports an allocation policy that the allocator
+// rejected with gRPC InvalidArgument on a request that carried no usage and
+// no priced resources, so the policy is the only input it can reject.
+type PolicyRejectedError struct {
+	// Allocator names the allocator plugin, when known.
+	Allocator string
+	// Source is the policy file, when known.
+	Source string
+	// Err is the gRPC error.
+	Err error
+}
+
+func (e *PolicyRejectedError) Error() string {
+	subject := "allocator"
+	if e.Allocator != "" {
+		subject += " " + e.Allocator
+	}
+	policy := "the allocation policy"
+	if e.Source != "" {
+		policy += " " + e.Source
+	}
+	return fmt.Sprintf("%s rejected %s: %s", subject, policy, status.Convert(e.Err).Message())
+}
+
+func (e *PolicyRejectedError) Unwrap() error { return e.Err }
+
+// ShowAllocationPolicy asks the allocator for its effective policy without
+// usage. Because the request holds only the policy, an InvalidArgument answer
+// is a *PolicyRejectedError, which also makes this the check for a policy
+// before any usage is gathered or priced.
 func ShowAllocationPolicy(
 	ctx context.Context, alloc Allocator, policyJSON []byte,
 ) (json.RawMessage, string, error) {
 	req := &pbc.AllocateRequest{PolicyJson: policyJSON}
 	resp, err := alloc.Allocate(ctx, req)
 	if err != nil {
+		if status.Code(err) == codes.InvalidArgument {
+			return nil, "", &PolicyRejectedError{Err: err}
+		}
 		return nil, "", fmt.Errorf("allocate: %w", err)
 	}
 	if err = pluginsdk.ValidateAllocateResponse(req, resp); err != nil {

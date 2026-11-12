@@ -41,6 +41,7 @@ func (e *AmbiguousUsageSourceError) Error() string {
 
 // usageRejectedError reports a request that every usage source rejected. It
 // unwraps to each rejection, so the gRPC status of the first stays readable.
+// Each reason shows only its status message: every one is InvalidArgument.
 type usageRejectedError struct {
 	mode    string
 	names   []string
@@ -50,7 +51,7 @@ type usageRejectedError struct {
 func (e *usageRejectedError) Error() string {
 	parts := make([]string, len(e.names))
 	for i, name := range e.names {
-		parts[i] = name + ": " + e.reasons[i].Error()
+		parts[i] = name + ": " + status.Convert(e.reasons[i]).Message()
 	}
 	return fmt.Sprintf("no usage source accepted the %s request: %s", e.mode, strings.Join(parts, "; "))
 }

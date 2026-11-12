@@ -123,8 +123,9 @@ func TestUsageSourceSet_EveryRejectionIsReported(t *testing.T) {
 	require.ErrorIs(t, err, contextErr)
 	assert.Contains(t, err.Error(), "no usage source accepted the run-rate request")
 	assert.Contains(t, err.Error(),
-		`kubernetes: rpc error: code = InvalidArgument desc = kubeconfig context "nope" not found`)
-	assert.Contains(t, err.Error(), "prometheus: rpc error: code = InvalidArgument desc = cannot serve this mode")
+		`kubernetes: kubeconfig context "nope" not found`)
+	assert.Contains(t, err.Error(), "prometheus: cannot serve this mode")
+	assert.NotContains(t, err.Error(), "rpc error")
 }
 
 func TestUsageSourceSet_StopsWhenTheCallerCancels(t *testing.T) {

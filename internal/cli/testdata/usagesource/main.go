@@ -1,14 +1,17 @@
-// Command usagesource is the usage-stats plugin installed by
-// TestCostCluster_UsageSourceSelection. Its name is the plugin directory it
-// is copied into. GetStats appends the requested mode to <marker dir>/<name>
-// so the test can see which plugins were asked. FINFOCUS_TEST_RUN_RATE_ONLY
-// and FINFOCUS_TEST_HISTORICAL_ONLY name the plugin that rejects the other
-// mode with InvalidArgument, and FINFOCUS_TEST_ALLOCATOR names the plugin
-// that also advertises allocation.
+// Command usagesource is the usage-stats plugin installed by the cost cluster
+// tests. Its name is the plugin directory it is copied into. GetStats appends
+// the requested mode, and Allocate appends "allocate", to <marker dir>/<name>
+// so a test can see which plugins were asked, in order.
+// FINFOCUS_TEST_RUN_RATE_ONLY and FINFOCUS_TEST_HISTORICAL_ONLY name the
+// plugin that rejects the other mode with InvalidArgument, and any scope is
+// rejected as an unknown context. FINFOCUS_TEST_GETSTATS_UNAVAILABLE names
+// the plugin whose GetStats fails with Unavailable. FINFOCUS_TEST_ALLOCATOR
+// names the plugin that also advertises allocation.
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 
@@ -21,10 +24,12 @@ import (
 )
 
 const (
-	markerDirEnv      = "FINFOCUS_TEST_GETSTATS_MARKER_DIR"
-	runRateOnlyEnv    = "FINFOCUS_TEST_RUN_RATE_ONLY"
-	historicalOnlyEnv = "FINFOCUS_TEST_HISTORICAL_ONLY"
-	allocatorEnv      = "FINFOCUS_TEST_ALLOCATOR"
+	markerDirEnv        = "FINFOCUS_TEST_GETSTATS_MARKER_DIR"
+	runRateOnlyEnv      = "FINFOCUS_TEST_RUN_RATE_ONLY"
+	historicalOnlyEnv   = "FINFOCUS_TEST_HISTORICAL_ONLY"
+	allocatorEnv        = "FINFOCUS_TEST_ALLOCATOR"
+	allocateInternalEnv = "FINFOCUS_TEST_ALLOCATE_INTERNAL"
+	unavailableEnv      = "FINFOCUS_TEST_GETSTATS_UNAVAILABLE"
 )
 
 func main() {
@@ -68,6 +73,12 @@ func (s *source) GetStats(_ context.Context, req *pbc.GetStatsRequest) (*pbc.Get
 	if err := s.mark(label); err != nil {
 		return nil, status.Errorf(codes.Internal, "GetStats marker: %v", err)
 	}
+	if os.Getenv(unavailableEnv) == s.name {
+		return nil, status.Error(codes.Unavailable, "cluster unreachable")
+	}
+	if req.GetScope() != "" {
+		return nil, status.Errorf(codes.InvalidArgument, "context %q not found", req.GetScope())
+	}
 	if window && os.Getenv(runRateOnlyEnv) == s.name {
 		return nil, status.Error(codes.InvalidArgument, s.name+" usage source is run-rate only")
 	}
@@ -75,6 +86,38 @@ func (s *source) GetStats(_ context.Context, req *pbc.GetStatsRequest) (*pbc.Get
 		return nil, status.Error(codes.InvalidArgument, s.name+" usage source is historical only")
 	}
 	return &pbc.GetStatsResponse{Mode: mode}, nil
+}
+
+// Allocate validates the policy the way the allocation contract requires
+// (INVALID_ARGUMENT for an unknown field or value) and echoes it as the
+// effective policy. It is served only by the plugin FINFOCUS_TEST_ALLOCATOR
+// names. FINFOCUS_TEST_ALLOCATE_INTERNAL makes it fail with Internal.
+func (s *source) Allocate(_ context.Context, req *pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
+	if err := s.mark("allocate"); err != nil {
+		return nil, status.Errorf(codes.Internal, "Allocate marker: %v", err)
+	}
+	if os.Getenv(allocateInternalEnv) == s.name {
+		return nil, status.Error(codes.Internal, "allocator crashed")
+	}
+	policy := req.GetPolicyJson()
+	if len(policy) == 0 {
+		policy = []byte(`{"idle":"share"}`)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(policy, &fields); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "allocation policy: %v", err)
+	}
+	for key, value := range fields {
+		switch key {
+		case "idle":
+			if value != "share" && value != "separate" {
+				return nil, status.Errorf(codes.InvalidArgument, "idle: unsupported value %q", value)
+			}
+		default:
+			return nil, status.Errorf(codes.InvalidArgument, "allocation policy: unknown field %q", key)
+		}
+	}
+	return &pbc.AllocateResponse{EffectivePolicyJson: policy, PolicyDigest: "test"}, nil
 }
 
 func (s *source) mark(label string) error {

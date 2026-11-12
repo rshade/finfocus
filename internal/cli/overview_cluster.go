@@ -99,7 +99,7 @@ func expandClustersLive(
 		return rows, nil
 	}
 
-	usage, usageErr := selectUsageSource(clients, "")
+	usage, _, usageErr := selectUsageSource(clients, "")
 	allocClient, allocErr := selectCapablePlugin(clients, pluginhost.CapabilityAllocation, "")
 	if usageErr != nil || allocErr != nil {
 		// Not installed (or ambiguous): projected expansion (if any) stands.

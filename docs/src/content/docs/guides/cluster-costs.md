@@ -77,10 +77,15 @@ with both names:
 several usage sources can serve run-rate usage (kubernetes, other); choose one with --usage-source
 ```
 
-When every source rejects the request, the error lists each rejection, for
-example a kubeconfig context that does not exist next to Prometheus
-declining a run with no window. `--usage-source <name>` always uses that
-plugin alone, with no other source asked.
+When every source rejects the request, the run exits 2 and the error lists
+each rejection, for example a kubeconfig context that does not exist next to
+Prometheus declining a run with no window. `--usage-source <name>` always
+uses that plugin alone, with no other source asked, and its rejection exits 2
+too:
+
+```text
+usage source kubernetes rejected the request: kubernetes usage source is run-rate only; use a metrics-backed usage source for history
+```
 
 ## Spend by capacity type
 
@@ -164,8 +169,10 @@ The allocator's policy is resolved, first found wins (files never merge):
 
 Files are HuJSON (comments and trailing commas allowed), standardized before
 being passed to the allocator. A discovered file that fails to parse is a
-fatal error — FinFocus never silently falls back to defaults. See
-`plugins/kubernetes/README.md` for the policy fields.
+fatal error — FinFocus never silently falls back to defaults. The allocator
+checks a policy file before any cluster data is collected or priced, so an
+unknown field or value exits 2 at once and the message names the allocator
+and the file. See `plugins/kubernetes/README.md` for the policy fields.
 
 `idle` and `system_workloads` default to `separate`. Set either to `share`
 to fold unused node capacity, or kube-system and DaemonSet cost, into the
@@ -248,8 +255,12 @@ cluster. The variables, the decline reasons, and the request rules are in the
 `--from` and `--to` price actual spend over that window. Both accept
 `2006-01-02` and RFC3339. `--to` defaults to now when only `--from` is set.
 An invalid window, `--group-by`, `--selector`, or `--output`, and a policy
-file that cannot be read or parsed, exit 2 before any plugin starts. Plugin,
-allocation, and conservation failures exit 1.
+file that cannot be read or parsed, exit 2 before any plugin starts. Input a
+plugin rejects also exits 2: a `--usage-source` or `--allocator` that names
+no installed plugin or is missing where several could serve, a request the usage source rejects as invalid (a
+`--context` it cannot find, or a window it cannot serve), and a policy file
+the allocator rejects. Other plugin, allocation, and conservation failures
+exit 1.
 With the kubernetes and prometheus plugins both installed, a window goes to
 Prometheus without `--usage-source` (see
 [Several usage sources](#several-usage-sources)):
