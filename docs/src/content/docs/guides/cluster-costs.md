@@ -194,13 +194,20 @@ and a digest that changes when they change.
 cost is `max(cpu_request, cpu_usage)` over the node's allocatable CPU, and
 memory works the same way. Which of the two inputs exists depends on the
 usage source. The kubernetes source reports requests and no usage, so a
-run-rate report charges requests. With the default `system_workloads: "separate"`,
-a pod with no effective CPU or memory request (Kubernetes copies a limit into
-a missing request) is charged `$0`, and unclaimed node cost stays in `__idle__`.
-`idle: "share"` alone does not change that, because idle is shared in proportion
-to existing workload cost. With `system_workloads: "share"`, zero-request
-application pods can still receive an equal share of system cost when all
-non-system recipients have zero weight.
+run-rate report charges requests. A pod with zero effective CPU and memory
+requests (including pod overhead; Kubernetes copies a limit into a missing
+request) claims no share of its
+node. With the default policy it is charged `$0`, and the node cost it would
+have claimed stays in `__idle__`. `idle: "share"` alone does not change that,
+because idle is shared in proportion to the cost a workload already holds.
+`system_workloads: "share"` can. It moves kube-system and DaemonSet cost onto
+the other workloads on the node in proportion to the CPU or memory cost they
+hold, and splits a dimension evenly among them when none of them has cost in
+it. A non-system pod with no request is then charged an equal part of the
+system cost in each dimension where no other non-system workload on its node
+has cost. With `idle: "share"` as well, that part includes the idle the system
+workloads absorbed first. Beside a workload that has cost in a dimension, it
+still gets nothing in that dimension.
 The Prometheus source reports usage and no requests; see
 [Historical window](#historical-window).
 

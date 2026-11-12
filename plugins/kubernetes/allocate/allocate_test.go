@@ -960,3 +960,53 @@ func TestAllocate_ShareSystemWorkloads(t *testing.T) {
 		assert.InDelta(t, 0, rowFor(t, resp, "__idle__", "node", "n1").GetTotalCost(), 1e-9)
 	})
 }
+
+// TestAllocate_ZeroRequestPods pins when a pod with no request is charged, as
+// the README and the cluster-costs guide describe. coredns holds a quarter of
+// the node and the rest is idle.
+func TestAllocate_ZeroRequestPods(t *testing.T) {
+	t.Parallel()
+
+	const cost = 70.08
+	system := podRows("kube-system", "coredns", "n1", 0.5, 2)
+
+	t.Run("only zero-request app pods", func(t *testing.T) {
+		t.Parallel()
+		usage := concat(nodeRows("n1", 2, 8), system,
+			podRows("app", "a", "n1", 0, 0), podRows("app", "b", "n1", 0, 0))
+		tests := []struct {
+			policy     string
+			each, idle float64
+		}{
+			{`{}`, 0, cost * 0.75},
+			{`{"idle":"share"}`, 0, 0},
+			{`{"system_workloads":"share"}`, cost * 0.125, cost * 0.75},
+			{`{"idle":"share","system_workloads":"share"}`, cost / 2, 0},
+		}
+		for _, tc := range tests {
+			t.Run(tc.policy, func(t *testing.T) {
+				t.Parallel()
+				resp := allocateWithPolicy(t, tc.policy, usage, pricedNode("n1", cost, nil))
+				assert.InDelta(t, tc.each, rowFor(t, resp, "workload", "pod", "a").GetTotalCost(), 1e-9)
+				assert.InDelta(t, tc.each, rowFor(t, resp, "workload", "pod", "b").GetTotalCost(), 1e-9)
+				assert.InDelta(t, tc.idle, rowFor(t, resp, "__idle__", "node", "n1").GetTotalCost(), 1e-9)
+			})
+		}
+	})
+
+	t.Run("beside an app pod with requests", func(t *testing.T) {
+		t.Parallel()
+		usage := concat(nodeRows("n1", 2, 8), system,
+			podRows("app", "api", "n1", 0.5, 2), podRows("app", "z", "n1", 0, 0))
+		for _, policy := range []string{
+			`{}`, `{"idle":"share"}`, `{"system_workloads":"share"}`,
+			`{"idle":"share","system_workloads":"share"}`,
+		} {
+			t.Run(policy, func(t *testing.T) {
+				t.Parallel()
+				resp := allocateWithPolicy(t, policy, usage, pricedNode("n1", cost, nil))
+				assert.InDelta(t, 0, rowFor(t, resp, "workload", "pod", "z").GetTotalCost(), 1e-9)
+			})
+		}
+	})
+}

@@ -358,7 +358,12 @@ is `kube-system` or its controller kind is `DaemonSet`. That cost is moved
 onto the other workloads on the same node, in proportion to their existing
 CPU cost and memory cost, and the system rows are dropped. If the other
 workloads have no cost in a dimension, that dimension is split evenly across
-them. A node with no non-system workload keeps its system rows. When both
+them. That even split is the one way a non-system pod with no request and no
+usage is charged: it gets an equal part of the system cost in each dimension
+where no other non-system workload on its node has cost (with `idle: "share"`
+too, that part includes the idle the system workloads absorbed first). Beside
+a workload that has cost in that dimension, it still gets nothing. A node
+with no non-system workload keeps its system rows. When both
 fields are `"share"`, idle is folded into every workload first (including
 system workloads), and system rows are folded after that. Sharing never
 crosses nodes. `finfocus cost cluster --show-policy` prints the effective
@@ -447,8 +452,11 @@ URN into the annotation. Name-based matching is not used.
   `cpu_request`/`mem_request` (no metrics-server integration yet), so
   allocation from this source is effectively requests-based today. A pod
   that sets no CPU or memory request (Kubernetes copies a limit into a
-  missing request) is charged `$0`, and its part of the node stays on the idle row. The
-  prometheus usage source is the reverse: it reports `cpu_usage`/`mem_usage`
+  missing request) claims no share of its node. With the default policy it is
+  charged `$0`, and its part of the node stays on the idle row;
+  `idle: "share"` does not change that. `system_workloads: "share"` can
+  charge it part of the system cost (see [Allocation Policy](#allocation-policy)).
+  The prometheus usage source is the reverse: it reports `cpu_usage`/`mem_usage`
   over a window and no requests, so the same rule charges consumption in a
   historical report.
 - **Spot nodes priced on-demand**: spot/preemptible nodes are priced at the
