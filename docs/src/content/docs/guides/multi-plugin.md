@@ -209,7 +209,11 @@ with the reviewer.
 
 Because routing is per-resource and per-capability, the same pattern extends
 to other plugins: install another plugin, such as [OpenCost or Kubecost](../plugins/opencost.md), and Core routes
-to it without changing how these three behave.
+to it without changing how these three behave. When two plugins can price the
+same resource, the first one asked wins: plugins are asked in name order unless
+routing gives one a higher priority. See
+[When another plugin prices the same workload](./cluster-costs.md#when-another-plugin-prices-the-same-workload)
+for `kubernetes` and `opencost`.
 
 ## See Also
 
