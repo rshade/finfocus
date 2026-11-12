@@ -266,6 +266,8 @@ func assertDiagnoseCacheKeys(t *testing.T, docs string) {
 	from := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
 	assert.Contains(t, docs, cache.BuildActualKey("aws", []string{"ec2", "s3"}, from, to, nil))
+	assert.Contains(t, docs, cache.BuildActualKey("aws", []string{"ec2"},
+		from.Add(13*time.Hour), from.Add(14*time.Hour), nil))
 	assert.Contains(t, docs, cache.BuildRecommendationsKey([]string{"b", "a"}, "abc"))
 }
 

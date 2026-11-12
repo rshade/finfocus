@@ -52,8 +52,17 @@ func BuildProjectedKey(provider, resourceType, region, sku string) string {
 	}, "/")
 }
 
+// actualKeyFormat versions the actual-cost key. Keys written before the window
+// bounds carried the time of day used a date for every bound, so such a key can
+// name a sub-day window that a whole-day request now formats identically. The
+// version keeps any of those entries from being read. Bump it whenever what an
+// actual key identifies changes.
+const actualKeyFormat = "actual-v2"
+
 // BuildActualKey constructs a key for whole-query actual cost caching.
-// Format: actual/{provider}/{types}/{from}/{to}/{filter-hash}
+// Format: actual/{provider}/{types}/{from}/{to}/{filter-hash}/actual-v2
+// Each bound is written in UTC by actualKeyBound, so the time of day is part of
+// the key and equal instants in different zones share an entry.
 // Empty segments use "_" as a placeholder to ensure fixed-position keys
 // and avoid ambiguity (e.g., provider="aws" vs resourceTypes=["aws"]).
 // The resulting key is safe for use as a top-level bucketed cache key.
@@ -77,10 +86,25 @@ func BuildActualKey(provider string, resourceTypes []string, from, to time.Time,
 		BucketActual,
 		placeholder(provider),
 		typesSegment,
-		from.Format("2006-01-02"),
-		to.Format("2006-01-02"),
+		actualKeyBound(from),
+		actualKeyBound(to),
 		filterSegment,
+		actualKeyFormat,
 	}, "/")
+}
+
+// actualKeyBound formats one actual-cost window bound for a cache key. A bound
+// at UTC midnight is written as a date ("2006-01-02"), which can only mean that
+// instant. Any other bound is written as UTC RFC3339 with fractional seconds,
+// because the plugin prices the exact window and two windows on one date must
+// not share an entry.
+func actualKeyBound(t time.Time) string {
+	const day = 24 * time.Hour
+	utc := t.UTC()
+	if utc.Equal(utc.Truncate(day)) {
+		return utc.Format(time.DateOnly)
+	}
+	return utc.Format(time.RFC3339Nano)
 }
 
 // RecommendationInput carries the identity and plugin-visible properties of one

@@ -34,10 +34,11 @@ Example keys produced by the builders (empty segments are `_`):
 
 - `projected/aws/aws:ec2/instance:Instance/us-east-1/t3.micro`
 - `projected/_/_/_/_`
-- `actual/aws/ec2+s3/2026-10-01/2026-10-03/_`
+- `actual/aws/ec2+s3/2026-10-01/2026-10-03/_/actual-v2`
+- `actual/aws/ec2/2026-10-01T13:00:00Z/2026-10-01T14:00:00Z/_/actual-v2`
 - `recommendations/multi/a+b/abc`
 
-Projected keys are `projected/{provider}/{type}/{region}/{sku}`. Actual keys are `actual/{provider}/{types}/{from}/{to}/{filter-hash}` with types sorted and joined by `+`, dates `2006-01-02`, and `_` when the filter map is empty. Recommendation keys are `recommendations/multi/{sorted-types}/{inputs-hash}`.
+Projected keys are `projected/{provider}/{type}/{region}/{sku}`. Actual keys are `actual/{provider}/{types}/{from}/{to}/{filter-hash}/actual-v2` with types sorted and joined by `+`, and `_` when the filter map is empty. Each bound is UTC: a date (`2006-01-02`) at UTC midnight, otherwise RFC3339 with the time of day. Entries written before `actual-v2` are never read and expire by TTL. Recommendation keys are `recommendations/multi/{sorted-types}/{inputs-hash}`.
 
 | Symptom | What it means | What to do |
 | --- | --- | --- |

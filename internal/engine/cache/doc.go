@@ -23,7 +23,7 @@
 // Keys use human-readable slash-separated paths for easy debugging and prefix scanning:
 //
 //   - projected/{provider}/{type}/{region}/{sku}
-//   - actual/{provider}/{types}/{from}/{to}/{filter-hash}
+//   - actual/{provider}/{types}/{from}/{to}/{filter-hash}/actual-v2
 //   - recommendations/multi/{sorted-types}/{inputs-hash}
 //   - scores/{scorer}/{plugin-version}/{model}/{content-hash}
 //   - scores/{scorer}/{plugin-version}/_model
@@ -34,6 +34,13 @@
 // mix but different resources, or a newly dismissed recommendation, never share an entry.
 // Entries written under the older recommendations/multi/{sorted-types} format are not
 // matched by the current format and expire by TTL.
+//
+// The actual {from} and {to} bounds are UTC. A bound at UTC midnight is a date
+// (2006-01-02); any other bound is RFC3339 with fractional seconds, so two windows
+// on the same date never share an entry. Keys written before that change used a
+// date for every bound, so one of them can name a sub-day window that a whole-day
+// request now formats the same way. The trailing actual-v2 segment keeps those
+// entries from being read; they expire by TTL.
 //
 // # Concurrency
 //
