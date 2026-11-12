@@ -416,16 +416,10 @@ func (r *DefaultRouter) matchesFeature(client *pluginhost.Client, cfg config.Plu
 	return false
 }
 
+// matchesCapabilities reports whether client advertises the capability the
+// feature needs (pluginhost.Client.AdvertisesCapability). A feature with no
+// capability, or a name that is not a feature, matches every plugin.
 func (r *DefaultRouter) matchesCapabilities(client *pluginhost.Client, feature string) bool {
-	if client == nil || client.Metadata == nil {
-		return true
-	}
-
-	capabilities := client.Metadata.Capabilities
-	if len(capabilities) == 0 {
-		return true
-	}
-
 	requestedFeature, ok := ParseFeature(feature)
 	if !ok {
 		if resolved, found := FeatureFromMethod(feature); found {
@@ -434,48 +428,11 @@ func (r *DefaultRouter) matchesCapabilities(client *pluginhost.Client, feature s
 			return true
 		}
 	}
-
-	requiredCapability := capabilityNameForFeature(requestedFeature)
-	if requiredCapability == "" {
+	capability, ok := capabilityEnumFromFeature(requestedFeature)
+	if !ok {
 		return true
 	}
-
-	capabilitySet := normalizedCapabilitySet(capabilities)
-	_, ok = capabilitySet[requiredCapability]
-	return ok
-}
-
-func capabilityNameForFeature(feature Feature) string {
-	capability, ok := capabilityEnumFromFeature(feature)
-	if !ok {
-		return ""
-	}
-	converted := pluginhost.ConvertCapabilities([]pbc.PluginCapability{capability})
-	if len(converted) == 0 {
-		return ""
-	}
-	return converted[0]
-}
-
-func normalizedCapabilitySet(capabilities []string) map[string]struct{} {
-	set := make(map[string]struct{}, len(capabilities))
-	for _, capability := range capabilities {
-		if capability == "" {
-			continue
-		}
-		set[capability] = struct{}{}
-		if feature, ok := ParseFeature(capability); ok {
-			if normalized := capabilityNameForFeature(feature); normalized != "" {
-				set[normalized] = struct{}{}
-			}
-		}
-		if enumValue, ok := capabilityEnumFromString(capability); ok {
-			for _, normalized := range pluginhost.ConvertCapabilities([]pbc.PluginCapability{enumValue}) {
-				set[normalized] = struct{}{}
-			}
-		}
-	}
-	return set
+	return client.AdvertisesCapability(capability)
 }
 
 func capabilityEnumFromFeature(feature Feature) (pbc.PluginCapability, bool) {
@@ -493,27 +450,6 @@ func capabilityEnumFromFeature(feature Feature) (pbc.PluginCapability, bool) {
 	case FeatureBudgets:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS, true
 	case FeatureBatchCost:
-		return pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, true
-	default:
-		return pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED, false
-	}
-}
-
-func capabilityEnumFromString(capability string) (pbc.PluginCapability, bool) {
-	switch capability {
-	case "ProjectedCosts", "projected_costs":
-		return pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS, true
-	case "ActualCosts", "actual_costs":
-		return pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS, true
-	case "Recommendations", "recommendations":
-		return pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS, true
-	case "Carbon", "carbon":
-		return pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON, true
-	case "DryRun", "dry_run":
-		return pbc.PluginCapability_PLUGIN_CAPABILITY_DRY_RUN, true
-	case "Budgets", "budgets":
-		return pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS, true
-	case "BatchCost", "batch_cost":
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, true
 	default:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED, false

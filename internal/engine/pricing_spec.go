@@ -42,14 +42,33 @@ func (e *Engine) WithPricingSpecFallback(enabled bool) *Engine {
 	return e
 }
 
-// specMatches returns the plugins whose GetPricingSpec the fallback may ask. A
-// chain that stopped at a plugin with fallback disabled asks none: the router
-// said not to move on after that plugin's failure.
-func specMatches(matches []PluginMatch, chainStopped bool) []PluginMatch {
-	if chainStopped {
+// pricingSpecFeature is the feature a GetPricingSpec call checks. It routes as
+// projected cost does, because a pricing spec prices the same resource.
+const pricingSpecFeature = "PricingSpec"
+
+// pricingSpecMatches returns the plugins that may answer GetPricingSpec for
+// resource, in the projected route's priority order (router or fallback). A
+// plugin is kept when it advertises pricing_spec and Supports accepts it, so a
+// plugin that prices projected cost without listing pricing_spec is not asked,
+// and one that lists only pricing_spec is.
+func (e *Engine) pricingSpecMatches(ctx context.Context, resource ResourceDescriptor) []PluginMatch {
+	matches, _ := e.selectPluginMatches(ctx, resource, "ProjectedCosts", pricingSpecFeature)
+	return matches
+}
+
+// fallbackSpecMatches returns the plugins the projected fallback may ask for
+// GetPricingSpec. A disabled fallback asks none, and so does a chain that
+// stopped at a plugin with fallback disabled: the router said not to move on
+// after that plugin's failure.
+func (e *Engine) fallbackSpecMatches(
+	ctx context.Context,
+	resource ResourceDescriptor,
+	chainStopped bool,
+) []PluginMatch {
+	if !e.pricingSpecFallback || chainStopped {
 		return nil
 	}
-	return matches
+	return e.pricingSpecMatches(ctx, resource)
 }
 
 // pricingSpecDeadline is the longest one GetPricingSpec call may take.

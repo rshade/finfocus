@@ -132,7 +132,7 @@ func TestProjectedBatchSkippedWhenProfileSet(t *testing.T) {
 	eng := New([]*pluginhost.Client{{
 		Name:     "aws",
 		API:      plugin,
-		Metadata: &proto.PluginMetadata{Capabilities: []string{"batch_cost"}},
+		Metadata: &proto.PluginMetadata{Capabilities: []string{"projected_costs", "batch_cost"}},
 	}}, nil).WithUsageProfile(pbc.UsageProfile_USAGE_PROFILE_PROD)
 
 	_, err := eng.GetProjectedCost(context.Background(), []ResourceDescriptor{profileResource()})

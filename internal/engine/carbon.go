@@ -13,30 +13,10 @@ import (
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
-const carbonFeature = "Carbon"
-
-// isCarbonOnly distinguishes an impact source from a monetary pricing source.
-// Unknown capabilities keep the legacy monetary routing behavior.
-func isCarbonOnly(client *pluginhost.Client) bool {
-	return client.HasCapability("carbon") &&
-		!client.HasCapability("projected_costs") && !client.HasCapability("actual_costs") &&
-		!client.HasCapability("pricing_spec") && !client.HasCapability("batch_cost")
-}
-
-func allowsCarbonFeature(client *pluginhost.Client, feature string) bool {
-	if client == nil {
-		return false
-	}
-	if feature == carbonFeature {
-		return client.HasCapability("carbon")
-	}
-	switch feature {
-	case "ProjectedCosts", "ActualCosts", "BatchCost", "PricingSpec":
-		return !isCarbonOnly(client)
-	default:
-		return true
-	}
-}
+const (
+	carbonFeature    = "Carbon"
+	capabilityCarbon = "carbon"
+)
 
 // enrichProjectedCarbon runs after monetary cache reads/writes, so a carbon
 // source's process-local assumptions never enter the monetary cache. It mutates
@@ -126,7 +106,7 @@ func addCarbonNote(result *CostResult, note string) {
 
 func (e *Engine) hasCarbonSource() bool {
 	for _, client := range e.clients {
-		if client != nil && client.HasCapability("carbon") {
+		if client != nil && client.HasCapability(capabilityCarbon) {
 			return true
 		}
 	}

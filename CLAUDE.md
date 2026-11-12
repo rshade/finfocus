@@ -845,6 +845,19 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   an unmapped type `custom`. An empty `SupportedProviders` list or `*` still
   receives the fallback. Do not add a provider-name table; comparison uses
   `resourcetype.NormalizeProvider`.
+- A plugin that lists capabilities is offered a routed feature (projected,
+  actual, batch, recommendations, carbon) only when it lists the capability
+  `supportsCapability` sends for it (`advertisesFeature`, applied in
+  `filterUnsupportedPlugins` for router and fallback matches alike). The one
+  rule is `pluginhost.Client.AdvertisesCapability` (fail-open on an empty list,
+  legacy `ProjectedCosts`-style names normalized), which the router's
+  `matchesCapabilities` also calls; each layer keeps its own feature mapping
+  (the router routes BatchCost on `batch_cost`, the engine checks the query's
+  capability). A plugin that lists none stays offered, except for carbon. So
+  usage-only (prometheus) and scorer-only plugins never get a pricing
+  `Supports` and never appear in a decline note. EstimateCost, pricing-spec
+  discovery, and recommendation history still try every client; they add
+  nothing to cost notes.
 - Provider means the billing cloud. `resourcetype.NormalizeProvider` holds the
   only alias table (`aws-native`→`aws`, `azure-native`/`azurerm`→`azure`,
   `google-native`/`google`→`gcp`); never split a type token for a provider
@@ -974,7 +987,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   CLI's default page is only 10 updates.
 - `--explain`, `--pricing-spec-fallback`, and estimate-TUI discovery call
   `GetPricingSpec`; disabled runs never call it, and each call has a 5s
-  deadline. A `$0` rate is a price; a plugin must answer `zero_cost` or an
+  deadline. `--explain` and the projected fallback ask `pricingSpecMatches`:
+  the projected route (router or fallback, same order) checked as
+  `PricingSpec`, so only plugins listing `pricing_spec` are asked and a
+  spec-only plugin is not lost to the `projected_costs` gate. Never reuse the
+  projected matches for it; a stopped chain still asks none. A `$0` rate is a price; a plugin must answer `zero_cost` or an
   error for "no price". Tiers are graduated, and tiers that do not cover the
   whole quantity fall through to YAML.
 - `cost forecast` (`specs/626-cost-forecast/`) does not change `cost projected`
@@ -1092,7 +1109,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   changes (`/recs-v2` retired entries holding only page one). Risk never reorders.
 - Scoring (`internal/scoring`, off by default) pseudonymizes identifiers by
   default, only warns on failure, and never dismisses or hides anything.
-  Scorer-only plugins are dropped from cost features before `Supports`.
+  Scorer-only plugins list no cost capability, so routing drops them before
+  `Supports` (see Router).
 
 - Blast radius (`specs/1736-dependency-blast-radius/`): the dependency graph
   lives on `stackload.Snapshot` (`Graph()`, rebuilt by `WithPlan`), and

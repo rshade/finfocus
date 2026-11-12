@@ -80,7 +80,7 @@ func explainDescriptor(plan diffPricingPlan, index int) (ResourceDescriptor, boo
 }
 
 func (e *Engine) pricingExplanation(ctx context.Context, resource ResourceDescriptor) *PricingSpecView {
-	matches, _ := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
+	matches := e.pricingSpecMatches(ctx, resource)
 	log := logging.FromContext(ctx)
 	for _, match := range matches {
 		if match.Client == nil || match.Client.API == nil {
