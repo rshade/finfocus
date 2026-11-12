@@ -224,9 +224,9 @@ finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by "tag:T
       "currency": "USD",
       "totalCost": 89.45,
       "dailyCosts": [2.88, 2.92, 2.85, ...],
-      "costPeriod": "2025-01-01 to 2025-01-31",
+      "costPeriod": "31 days",
       "startDate": "2025-01-01T00:00:00Z",
-      "endDate": "2025-01-31T23:59:59Z"
+      "endDate": "2025-02-01T00:00:00Z"
     }
   ]
 }

@@ -328,49 +328,46 @@ func TestGetProjectedCost_PropagatesContextError(t *testing.T) {
 func TestFormatPeriod(t *testing.T) {
 	t.Parallel()
 
+	base := time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)
+	day := 24 * time.Hour
+
 	tests := []struct {
 		name     string
-		from     time.Time
-		to       time.Time
+		length   time.Duration
 		expected string
 	}{
+		{name: "zero length", length: 0, expected: "0 minutes"},
+		{name: "negative length", length: -time.Hour, expected: "0 minutes"},
+		{name: "under a minute", length: 30 * time.Second, expected: "under 1 minute"},
+		{name: "1 minute", length: time.Minute, expected: "1 minute"},
+		{name: "45 minutes", length: 45 * time.Minute, expected: "45 minutes"},
+		{name: "1 hour", length: time.Hour, expected: "1 hour"},
+		{name: "1 hour 1 minute", length: time.Hour + time.Minute, expected: "1 hour 1 minute"},
+		{name: "2 hours 30 minutes", length: 2*time.Hour + 30*time.Minute, expected: "2 hours 30 minutes"},
+		{name: "6 hours", length: 6 * time.Hour, expected: "6 hours"},
+		{name: "18 hours", length: 18 * time.Hour, expected: "18 hours"},
+		{name: "seconds below the last unit are dropped", length: 6*time.Hour + 59*time.Second, expected: "6 hours"},
+		{name: "1 day", length: day, expected: "1 day"},
+		{name: "1 day 1 hour", length: day + time.Hour, expected: "1 day 1 hour"},
+		{name: "1 day 12 hours", length: day + 12*time.Hour, expected: "1 day 12 hours"},
 		{
-			name:     "1 day",
-			from:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-			to:       time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
-			expected: "1 day",
+			name:     "minutes past a day are dropped",
+			length:   10*day + 14*time.Hour + 23*time.Minute,
+			expected: "10 days 14 hours",
 		},
-		{
-			name:     "3 days",
-			from:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-			to:       time.Date(2025, 1, 4, 0, 0, 0, 0, time.UTC),
-			expected: "3 days",
-		},
-		{
-			name:     "1 week",
-			from:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-			to:       time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC),
-			expected: "1 weeks",
-		},
-		{
-			name:     "2 weeks",
-			from:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-			to:       time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC),
-			expected: "2 weeks",
-		},
-		{
-			name:     "1 month",
-			from:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-			to:       time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
-			expected: "1 months",
-		},
+		{name: "3 days", length: 3 * day, expected: "3 days"},
+		{name: "7 days", length: 7 * day, expected: "7 days"},
+		{name: "10 days", length: 10 * day, expected: "10 days"},
+		{name: "14 days", length: 14 * day, expected: "14 days"},
+		{name: "30 days", length: 30 * day, expected: "30 days"},
+		{name: "31 days", length: 31 * day, expected: "31 days"},
+		{name: "365 days", length: 365 * day, expected: "365 days"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := engine.FormatPeriod(tt.from, tt.to)
-			assert.Equal(t, tt.expected, result)
+			assert.Equal(t, tt.expected, engine.FormatPeriod(base, base.Add(tt.length)))
 		})
 	}
 }
@@ -787,7 +784,7 @@ func TestGetActualCostWithOptions(t *testing.T) {
 					// Individual results should have "none" adapter
 					assert.Equal(t, "none", result.Adapter)
 				}
-				assert.Equal(t, "1 weeks", result.CostPeriod)
+				assert.Equal(t, "7 days", result.CostPeriod)
 			}
 		})
 	}

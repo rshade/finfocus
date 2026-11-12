@@ -194,7 +194,7 @@ Resources from Pulumi plans are matched to cost data using:
 {
   "dailyCosts": [12.45, 13.67, 11.23, ...],
   "totalCost": 156.78,
-  "costPeriod": "2025-01-01 to 2025-01-31"
+  "costPeriod": "31 days"
 }
 ```
 

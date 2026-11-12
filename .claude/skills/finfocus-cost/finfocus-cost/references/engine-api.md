@@ -37,7 +37,7 @@ type CostResult struct {
     Notes        string             // Details or "ERROR:"/"VALIDATION:" prefix
     Breakdown    map[string]float64 // Cost breakdown by component
     DailyCosts   []float64          // Daily cost trend
-    CostPeriod   string             // "1 day", "2 weeks", "1 month"
+    CostPeriod   string             // "6 hours", "1 day 12 hours", "31 days"
     StartDate    time.Time
     EndDate      time.Time
 }
