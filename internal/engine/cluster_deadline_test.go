@@ -137,6 +137,45 @@ func TestBoundUsageSource(t *testing.T) {
 	})
 }
 
+// lateTimerContext has a deadline but never sets Err, like a context whose
+// timer has not fired yet when the transport already reported the deadline.
+type lateTimerContext struct {
+	context.Context
+
+	deadline time.Time
+}
+
+func (c lateTimerContext) Deadline() (time.Time, bool) { return c.deadline, true }
+func (lateTimerContext) Err() error                    { return nil }
+
+func TestDeadlinePassed(t *testing.T) {
+	t.Parallel()
+
+	expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	t.Cleanup(cancel)
+	past := lateTimerContext{context.Background(), time.Now().Add(-time.Second)}
+	ahead := lateTimerContext{context.Background(), time.Now().Add(time.Hour)}
+
+	tests := []struct {
+		name   string
+		parent context.Context
+		ctx    context.Context
+		want   bool
+	}{
+		{"context timer fired", context.Background(), expired, true},
+		{"deadline passed, timer not yet fired", context.Background(), past, true},
+		{"deadline ahead", context.Background(), ahead, false},
+		{"no deadline", context.Background(), context.Background(), false},
+		{"caller deadline elapsed first", past, past, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, deadlinePassed(tt.parent, tt.ctx))
+		})
+	}
+}
+
 // slowAllocator answers after delay, or fails when its context ends first.
 type slowAllocator struct{ delay time.Duration }
 

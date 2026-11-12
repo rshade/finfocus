@@ -127,11 +127,30 @@ func boundCall[T any](
 	callCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	resp, err := call(callCtx)
-	if err != nil && ctx.Err() == nil && errors.Is(callCtx.Err(), context.DeadlineExceeded) {
+	if err != nil && ctx.Err() == nil && deadlinePassed(ctx, callCtx) {
 		var zero T
 		return zero, timeoutErr(err)
 	}
 	return resp, err
+}
+
+// deadlinePassed reports whether a call ran out its own deadline. gRPC
+// enforces the deadline with its own timer and can return DeadlineExceeded
+// before the context's timer has set Err(), so the clock is checked against
+// the deadline too. A deadline inherited from an earlier caller deadline is
+// the caller's, not the call's.
+func deadlinePassed(parent, callCtx context.Context) bool {
+	if errors.Is(callCtx.Err(), context.DeadlineExceeded) {
+		return true
+	}
+	deadline, ok := callCtx.Deadline()
+	if !ok {
+		return false
+	}
+	if parentDeadline, hasParent := parent.Deadline(); hasParent && !parentDeadline.After(deadline) {
+		return false
+	}
+	return !time.Now().Before(deadline)
 }
 
 type boundUsageSource struct {
