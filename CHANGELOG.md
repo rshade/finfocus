@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.8](https://github.com/rshade/finfocus/compare/v0.5.7...v0.5.8) (2026-11-13)
+
+
+### Fixed
+
+* **cli:** bound cost cluster plugin calls with per-call deadlines ([#2147](https://github.com/rshade/finfocus/issues/2147)) ([e1ac4ee](https://github.com/rshade/finfocus/commit/e1ac4ee3f51ad1f0a24e5b670c867666b6b22a04))
+* **cli:** exit 2 for cost cluster input the user can fix ([#2129](https://github.com/rshade/finfocus/issues/2129)) ([af2dc3d](https://github.com/rshade/finfocus/commit/af2dc3d0d055dbd199ae3c9937a907fd076afb20))
+* **cli:** explain why a cluster report is incomplete ([#2131](https://github.com/rshade/finfocus/issues/2131)) ([d4e233b](https://github.com/rshade/finfocus/commit/d4e233bef581b423115c76a686147f42a6073de0))
+* **cli:** ignore a leading v when plugin validate compares versions ([#2145](https://github.com/rshade/finfocus/issues/2145)) ([c9c78f2](https://github.com/rshade/finfocus/commit/c9c78f2613bdea17ab52c82bc4d4cedb8a2d7b65))
+* **cli:** name the allocation policy file when it does not parse ([#2134](https://github.com/rshade/finfocus/issues/2134)) ([5b76376](https://github.com/rshade/finfocus/commit/5b7637648fe2eef605dc3f330902a1ca54afaa35))
+* **cli:** name the opencost plugin in help examples ([#2136](https://github.com/rshade/finfocus/issues/2136)) ([7cd549a](https://github.com/rshade/finfocus/commit/7cd549a5d7d5128731a3b8096d463b44ace50629))
+* **cli:** pick the usage source that serves the requested mode ([#2114](https://github.com/rshade/finfocus/issues/2114)) ([5e51b53](https://github.com/rshade/finfocus/commit/5e51b533aad0a8a1969a7032a5df3b141e1e095d))
+* **cli:** record the last-known snapshot when recommendations are dismissed ([#2108](https://github.com/rshade/finfocus/issues/2108)) ([c66e88c](https://github.com/rshade/finfocus/commit/c66e88ca17a8d648d224d51ef6bc491e19436bb2))
+* **engine:** ask plugins only for features they advertise ([#2146](https://github.com/rshade/finfocus/issues/2146)) ([67e8f77](https://github.com/rshade/finfocus/commit/67e8f77a2ed91f3ef9ec09129f1789daa9101071))
+* **engine:** count a transport deadline as the plugin call timing out ([#2154](https://github.com/rshade/finfocus/issues/2154)) ([4ea40ca](https://github.com/rshade/finfocus/commit/4ea40ca3683dcc73fea90964b08ea699015e7fdb))
+* **engine:** keep spec-only plugins reachable and bound Supports probes ([#2155](https://github.com/rshade/finfocus/issues/2155)) ([6545413](https://github.com/rshade/finfocus/commit/65454136e30981f7e0a2cdb5a7365570bfd14f57))
+* **engine:** keep the time of day in actual-cost cache keys ([#2110](https://github.com/rshade/finfocus/issues/2110)) ([6684455](https://github.com/rshade/finfocus/commit/6684455dfda07df3e30dfab1676abbdaf63f50d8))
+* **engine:** label actual-cost periods by their real length ([#2123](https://github.com/rshade/finfocus/issues/2123)) ([ed7e0e5](https://github.com/rshade/finfocus/commit/ed7e0e58e6710620415c594dbccc261ab0a48ac5))
+* **engine:** print cluster window lengths in readable units ([#2133](https://github.com/rshade/finfocus/issues/2133)) ([8ad8495](https://github.com/rshade/finfocus/commit/8ad8495cb38a0a10859cbba86ff8f67089faa448))
+* **engine:** scope cluster idle to the selected pods ([#2126](https://github.com/rshade/finfocus/issues/2126)) ([fccc7c9](https://github.com/rshade/finfocus/commit/fccc7c91468ff3567c068b174c9b0f82294c85a0))
+* **pluginhost:** report a plugin that exits before it binds ([742f4c3](https://github.com/rshade/finfocus/commit/742f4c33736efddc94631793ca54e55ae83148de))
+* **pluginhost:** report a plugin that exits before it binds ([#2112](https://github.com/rshade/finfocus/issues/2112)) ([742f4c3](https://github.com/rshade/finfocus/commit/742f4c33736efddc94631793ca54e55ae83148de))
+* **pluginhost:** retry a launch only for a real port collision ([#2127](https://github.com/rshade/finfocus/issues/2127)) ([e212403](https://github.com/rshade/finfocus/commit/e212403eff9a88d42aa5652507cc864646f0bfb7))
+* **pluginhost:** stop launch retries once the caller's context ends ([#2125](https://github.com/rshade/finfocus/issues/2125)) ([3fdd987](https://github.com/rshade/finfocus/commit/3fdd98706d4f29c4fb06296169fb555fc3b4a863))
+* **prometheus:** warn when node pricing labels come from the live node ([#2124](https://github.com/rshade/finfocus/issues/2124)) ([df1b149](https://github.com/rshade/finfocus/commit/df1b1499bb51dae5eff8fb4fe8b5b68f048d3113))
+
+
+### Dependencies
+
+* bump Go to 1.27.4 for GO-2026-6859 ([#2121](https://github.com/rshade/finfocus/issues/2121)) ([9ae0db0](https://github.com/rshade/finfocus/commit/9ae0db0d9abf3436547f3b7a698b02d97cf7cadd))
+* update go dependencies ([#2106](https://github.com/rshade/finfocus/issues/2106)) ([1776066](https://github.com/rshade/finfocus/commit/177606692bedbc81296b7cd4e8b7760a263c6081))
+* update go dependencies ([#2117](https://github.com/rshade/finfocus/issues/2117)) ([1d711e4](https://github.com/rshade/finfocus/commit/1d711e45611b0bd7fe2acc38128947cdb9e1b04c))
+
+
+### Documentation
+
+* **cluster:** explain how the charge rule applies to historical windows ([1c05ba6](https://github.com/rshade/finfocus/commit/1c05ba62ab4b7e0fb4919586b2bbe6879f6f83ee))
+* **cluster:** explain how the charge rule applies to historical windows ([#2109](https://github.com/rshade/finfocus/issues/2109)) ([1c05ba6](https://github.com/rshade/finfocus/commit/1c05ba62ab4b7e0fb4919586b2bbe6879f6f83ee))
+* **cluster:** explain which plugin prices a workload when several can ([#2120](https://github.com/rshade/finfocus/issues/2120)) ([e43a9ba](https://github.com/rshade/finfocus/commit/e43a9ba61d9c4316845cfe24af74a9743f8ac3d3))
+* **cluster:** note that pulumi-stack grouping needs run-rate mode ([2a56fa1](https://github.com/rshade/finfocus/commit/2a56fa17194b0a0810a79f795f9adfcb770cff7b))
+* **cluster:** note that pulumi-stack grouping needs run-rate mode ([#2113](https://github.com/rshade/finfocus/issues/2113)) ([2a56fa1](https://github.com/rshade/finfocus/commit/2a56fa17194b0a0810a79f795f9adfcb770cff7b))
+* **cluster:** say when system_workloads share charges a pod with no request ([#2144](https://github.com/rshade/finfocus/issues/2144)) ([46b59ae](https://github.com/rshade/finfocus/commit/46b59ae8e8137c47ad212d0844f1748cbad39098))
+* point docs links at finfocus.dev ([#2152](https://github.com/rshade/finfocus/issues/2152)) ([3d3a4cf](https://github.com/rshade/finfocus/commit/3d3a4cfad84c2fa9b1878bd577226f0c91a34be8))
+* replace CLI flags and commands that do not exist ([#2135](https://github.com/rshade/finfocus/issues/2135)) ([8e78909](https://github.com/rshade/finfocus/commit/8e7890990ddeaaf6d258ffbea54989441403fa62))
+* replace placeholder screenshots with real captures ([#2149](https://github.com/rshade/finfocus/issues/2149)) ([4f35716](https://github.com/rshade/finfocus/commit/4f35716e337b6695593636259c368fc82038ee37))
+* replace the nonexistent kubecost plugin with opencost ([#2132](https://github.com/rshade/finfocus/issues/2132)) ([c3a39bd](https://github.com/rshade/finfocus/commit/c3a39bd40aa68654ad896da9140551945c96a835))
+* **roadmap:** sync with GitHub after v0.5.7 and promote [#2057](https://github.com/rshade/finfocus/issues/2057) ([#2105](https://github.com/rshade/finfocus/issues/2105)) ([e860322](https://github.com/rshade/finfocus/commit/e860322af91453e5e0f3c21faa68ab85c5af131e))
+* **troubleshooting:** drop the PLUGIN_TIMEOUT setting nothing reads ([#2128](https://github.com/rshade/finfocus/issues/2128)) ([90c3ad4](https://github.com/rshade/finfocus/commit/90c3ad46d29d90d7b332f79f20609dbd77d9b44f))
+
 ## [0.5.7](https://github.com/rshade/finfocus/compare/v0.5.6...v0.5.7) (2026-11-10)
 
 

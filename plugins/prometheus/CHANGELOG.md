@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.7](https://github.com/rshade/finfocus/compare/prometheus-v0.1.6...prometheus-v0.1.7) (2026-11-13)
+
+
+### Fixed
+
+* **prometheus:** warn when node pricing labels come from the live node ([#2124](https://github.com/rshade/finfocus/issues/2124)) ([df1b149](https://github.com/rshade/finfocus/commit/df1b1499bb51dae5eff8fb4fe8b5b68f048d3113))
+
+
+### Dependencies
+
+* bump Go to 1.27.4 for GO-2026-6859 ([#2121](https://github.com/rshade/finfocus/issues/2121)) ([9ae0db0](https://github.com/rshade/finfocus/commit/9ae0db0d9abf3436547f3b7a698b02d97cf7cadd))
+
 ## [0.1.6](https://github.com/rshade/finfocus/compare/prometheus-v0.1.5...prometheus-v0.1.6) (2026-11-10)
 
 
