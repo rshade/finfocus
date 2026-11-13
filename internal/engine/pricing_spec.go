@@ -55,8 +55,21 @@ const pricingSpecFeature = "PricingSpec"
 // and one that lists only pricing_spec is, also beside a projected-capable
 // plugin on a configured router.
 func (e *Engine) pricingSpecMatches(ctx context.Context, resource ResourceDescriptor) []PluginMatch {
+	if e.router != nil && e.projectedRouteHasPlugins(ctx, resource) &&
+		len(e.router.SelectPlugins(ctx, resource, pricingSpecFeature)) == 0 {
+		return nil
+	}
 	matches, _ := e.selectPluginMatches(ctx, resource, pricingSpecFeature, pricingSpecFeature)
 	return matches
+}
+
+// projectedRouteHasPlugins reports whether the configured router routes the
+// projected feature to any plugin for resource. When it does and none of them
+// lists pricing_spec, the pricing-spec lookup stays empty: the empty-route
+// fallback to every provider-compatible client would otherwise hand the
+// resource to a plugin the routing configuration excluded from projected costs.
+func (e *Engine) projectedRouteHasPlugins(ctx context.Context, resource ResourceDescriptor) bool {
+	return len(e.router.SelectPlugins(ctx, resource, "ProjectedCosts")) > 0
 }
 
 // fallbackSpecMatches returns the plugins the projected fallback may ask for

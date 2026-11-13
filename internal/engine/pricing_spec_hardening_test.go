@@ -14,6 +14,7 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 func hourlyPricingSpec() *pbc.PricingSpec {
@@ -196,4 +197,40 @@ func TestSupportsProbeIsBounded(t *testing.T) {
 	assert.Less(t, time.Since(start), 5*time.Second)
 	require.Len(t, results, 1)
 	assert.Equal(t, adapterPluginSpec, results[0].Adapter, "a stalled probe fails open")
+}
+
+func TestPricingSpecEmptyRouteKeepsRoutingExclusions(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	projectedOnly := &pricingSpecPlugin{}
+	specOnly := &pricingSpecPlugin{spec: hourlyPricingSpec()}
+	projectedClient := &pluginhost.Client{
+		Name:     "projected-only",
+		API:      projectedOnly,
+		Metadata: &proto.PluginMetadata{Capabilities: []string{"projected_costs"}},
+	}
+	specClient := &pluginhost.Client{
+		Name:     "spec-only",
+		API:      specOnly,
+		Metadata: &proto.PluginMetadata{Capabilities: []string{"pricing_spec"}},
+	}
+	router := &mockRouter{
+		selectPluginsFunc: func(_ context.Context, _ ResourceDescriptor, feature string) []PluginMatch {
+			if feature == "ProjectedCosts" {
+				return []PluginMatch{{Client: projectedClient, Priority: 10, Fallback: true}}
+			}
+			return nil
+		},
+	}
+	eng := New([]*pluginhost.Client{projectedClient, specClient}, nil).
+		WithRouter(router).
+		WithPricingSpecFallback(true)
+
+	results, err := eng.GetProjectedCost(ctx, []ResourceDescriptor{pricingResource()})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	assert.Equal(t, 0, specOnly.specCalls, "a plugin the router excluded must not receive GetPricingSpec")
+	assert.NotEqual(t, adapterPluginSpec, results[0].Adapter)
 }

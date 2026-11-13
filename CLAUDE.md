@@ -997,7 +997,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   list) by the `ProjectedCosts` rules and the `pricing_spec` capability, so a
   spec-only plugin survives a configured router that also matches a
   projected-capable one. Never reuse the projected matches for it; a stopped
-  chain still asks none. Every `Supports` probe has its own deadline
+  chain still asks none. When a configured router routes the projected feature
+  to plugins and none lists `pricing_spec`, the lookup stays empty rather than
+  taking the all-clients fallback, which would reach a plugin the routing
+  excluded. Every `Supports` probe has its own deadline
   (`supportsDeadline`, 5s); a stalled probe fails open and is not cached. A `$0` rate is a price; a plugin must answer `zero_cost` or an
   error for "no price". Tiers are graduated, and tiers that do not cover the
   whole quantity fall through to YAML.
