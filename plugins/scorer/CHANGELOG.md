@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/rshade/finfocus/compare/scorer-v0.1.3...scorer-v0.1.4) (2026-11-13)
+
+
+### Dependencies
+
+* bump Go to 1.27.4 for GO-2026-6859 ([#2121](https://github.com/rshade/finfocus/issues/2121)) ([9ae0db0](https://github.com/rshade/finfocus/commit/9ae0db0d9abf3436547f3b7a698b02d97cf7cadd))
+
 ## [0.1.3](https://github.com/rshade/finfocus/compare/scorer-v0.1.2...scorer-v0.1.3) (2026-11-10)
 
 
