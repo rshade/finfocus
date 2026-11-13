@@ -34,6 +34,13 @@ const (
 	FeatureBatchCost Feature = "BatchCost"
 )
 
+// PricingSpecRoute is the feature name the engine routes a GetPricingSpec
+// lookup with. It is not a Feature a routing rule can list: it follows the
+// rules written for ProjectedCosts (patterns, priority, fallback) and asks only
+// for plugins that advertise pricing_spec, so a plugin that lists pricing_spec
+// without projected_costs stays reachable.
+const PricingSpecRoute = "PricingSpec"
+
 // ValidFeatures returns all supported Feature values (ProjectedCosts, ActualCosts,
 // Recommendations, Carbon, DryRun, Budgets, BatchCost).
 func ValidFeatures() []Feature {

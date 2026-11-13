@@ -849,8 +849,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   actual, batch, recommendations, carbon) only when it lists the capability
   `supportsCapability` sends for it (`advertisesFeature`, applied in
   `filterUnsupportedPlugins` for router and fallback matches alike). The one
-  rule is `pluginhost.Client.AdvertisesCapability` (fail-open on an empty list,
-  legacy `ProjectedCosts`-style names normalized), which the router's
+  rule is `pluginhost.Client.AdvertisesCapability` (fail-open only for a plugin
+  that listed no capability at all: `PluginMetadata.CapabilitiesDeclared` marks a
+  list made only of values core drops, such as COST_PARSE, which advertises
+  nothing; legacy `ProjectedCosts`-style names normalized), which the router's
   `matchesCapabilities` also calls; each layer keeps its own feature mapping
   (the router routes BatchCost on `batch_cost`, the engine checks the query's
   capability). A plugin that lists none stays offered, except for carbon. So
@@ -990,8 +992,16 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   deadline. `--explain` and the projected fallback ask `pricingSpecMatches`:
   the projected route (router or fallback, same order) checked as
   `PricingSpec`, so only plugins listing `pricing_spec` are asked and a
-  spec-only plugin is not lost to the `projected_costs` gate. Never reuse the
-  projected matches for it; a stopped chain still asks none. A `$0` rate is a price; a plugin must answer `zero_cost` or an
+  spec-only plugin is not lost to the `projected_costs` gate. The router routes
+  the `PricingSpec` feature (`router.PricingSpecRoute`, not a Feature a rule can
+  list) by the `ProjectedCosts` rules and the `pricing_spec` capability, so a
+  spec-only plugin survives a configured router that also matches a
+  projected-capable one. Never reuse the projected matches for it; a stopped
+  chain still asks none. When a configured router routes the projected feature
+  to plugins and none lists `pricing_spec`, the lookup stays empty rather than
+  taking the all-clients fallback, which would reach a plugin the routing
+  excluded. Every `Supports` probe has its own deadline
+  (`supportsDeadline`, 5s); a stalled probe fails open and is not cached. A `$0` rate is a price; a plugin must answer `zero_cost` or an
   error for "no price". Tiers are graduated, and tiers that do not cover the
   whole quantity fall through to YAML.
 - `cost forecast` (`specs/626-cost-forecast/`) does not change `cost projected`

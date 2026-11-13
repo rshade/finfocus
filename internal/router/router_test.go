@@ -551,3 +551,72 @@ func TestSelectPlugins_InternalPulumiTypeWithPatternOverride(t *testing.T) {
 	assert.Equal(t, "pulumi-costs", matches[0].Client.Name)
 	assert.Equal(t, MatchReasonPattern, matches[0].MatchReason)
 }
+
+func TestSelectPlugins_PricingSpecRoute(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	resource := engine.ResourceDescriptor{Type: "aws:ec2/instance:Instance"}
+	withCaps := func(name string, caps ...string) *pluginhost.Client {
+		client := mockClient(name, []string{"aws"})
+		client.Metadata.Capabilities = caps
+		return client
+	}
+	projected := withCaps("projected", "projected_costs")
+	specOnly := withCaps("spec-only", "pricing_spec")
+	clients := []*pluginhost.Client{projected, specOnly}
+
+	names := func(matches []PluginMatch) []string {
+		out := make([]string, 0, len(matches))
+		for _, match := range matches {
+			out = append(out, match.Client.Name)
+		}
+		return out
+	}
+
+	tests := []struct {
+		name        string
+		cfg         *config.RoutingConfig
+		wantSpec    []string
+		wantProject []string
+	}{
+		{
+			name:        "automatic routing keeps the spec-only plugin beside a projected one",
+			cfg:         nil,
+			wantSpec:    []string{"spec-only"},
+			wantProject: []string{"projected"},
+		},
+		{
+			name: "rules written for ProjectedCosts also route the spec lookup",
+			cfg: &config.RoutingConfig{Plugins: []config.PluginRouting{
+				{Name: "projected", Features: []string{"ProjectedCosts"}, Priority: 20},
+				{Name: "spec-only", Features: []string{"ProjectedCosts"}, Priority: 10},
+			}},
+			wantSpec:    []string{"spec-only"},
+			wantProject: []string{"projected"},
+		},
+		{
+			name: "a plugin routed only for another feature is not asked",
+			cfg: &config.RoutingConfig{Plugins: []config.PluginRouting{
+				{Name: "projected", Features: []string{"ProjectedCosts"}, Priority: 20},
+				{Name: "spec-only", Features: []string{"ActualCosts"}, Priority: 10},
+			}},
+			wantSpec:    []string{},
+			wantProject: []string{"projected"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			opts := []Option{WithClients(clients)}
+			if tt.cfg != nil {
+				opts = append(opts, WithConfig(tt.cfg))
+			}
+			router, err := NewRouter(opts...)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantSpec, names(router.SelectPlugins(ctx, resource, PricingSpecRoute)))
+			assert.Equal(t, tt.wantProject, names(router.SelectPlugins(ctx, resource, "ProjectedCosts")))
+		})
+	}
+}

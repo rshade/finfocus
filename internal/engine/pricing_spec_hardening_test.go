@@ -8,10 +8,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 func hourlyPricingSpec() *pbc.PricingSpec {
@@ -167,4 +170,67 @@ func TestPricingSpecFallbackHonoursRouterNoFallback(t *testing.T) {
 			assert.Equal(t, adapterPluginSpec, result.Adapter)
 		})
 	}
+}
+
+// stalledSupportsPlugin never answers Supports until its context ends.
+type stalledSupportsPlugin struct{ pricingSpecPlugin }
+
+func (p *stalledSupportsPlugin) Supports(
+	ctx context.Context, _ *pbc.SupportsRequest, _ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	<-ctx.Done()
+	return nil, status.FromContextError(ctx.Err()).Err()
+}
+
+func TestSupportsProbeIsBounded(t *testing.T) {
+	t.Parallel()
+
+	plugin := &stalledSupportsPlugin{pricingSpecPlugin{spec: hourlyPricingSpec()}}
+	eng := New([]*pluginhost.Client{{Name: "aws-plugin", API: plugin}}, pricingYAMLLoader()).
+		WithPricingSpecFallback(true)
+	eng.supportsTimeout = 50 * time.Millisecond
+
+	start := time.Now()
+	results, err := eng.GetProjectedCost(context.Background(), []ResourceDescriptor{pricingResource()})
+	require.NoError(t, err)
+
+	assert.Less(t, time.Since(start), 5*time.Second)
+	require.Len(t, results, 1)
+	assert.Equal(t, adapterPluginSpec, results[0].Adapter, "a stalled probe fails open")
+}
+
+func TestPricingSpecEmptyRouteKeepsRoutingExclusions(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	projectedOnly := &pricingSpecPlugin{}
+	specOnly := &pricingSpecPlugin{spec: hourlyPricingSpec()}
+	projectedClient := &pluginhost.Client{
+		Name:     "projected-only",
+		API:      projectedOnly,
+		Metadata: &proto.PluginMetadata{Capabilities: []string{"projected_costs"}},
+	}
+	specClient := &pluginhost.Client{
+		Name:     "spec-only",
+		API:      specOnly,
+		Metadata: &proto.PluginMetadata{Capabilities: []string{"pricing_spec"}},
+	}
+	router := &mockRouter{
+		selectPluginsFunc: func(_ context.Context, _ ResourceDescriptor, feature string) []PluginMatch {
+			if feature == "ProjectedCosts" {
+				return []PluginMatch{{Client: projectedClient, Priority: 10, Fallback: true}}
+			}
+			return nil
+		},
+	}
+	eng := New([]*pluginhost.Client{projectedClient, specClient}, nil).
+		WithRouter(router).
+		WithPricingSpecFallback(true)
+
+	results, err := eng.GetProjectedCost(ctx, []ResourceDescriptor{pricingResource()})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	assert.Equal(t, 0, specOnly.specCalls, "a plugin the router excluded must not receive GetPricingSpec")
+	assert.NotEqual(t, adapterPluginSpec, results[0].Adapter)
 }

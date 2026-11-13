@@ -410,7 +410,11 @@ func (r *DefaultRouter) matchesFeature(client *pluginhost.Client, cfg config.Plu
 		return r.matchesCapabilities(client, resolvedFeature)
 	}
 
-	if slices.Contains(cfg.Features, resolvedFeature) {
+	policyFeature := resolvedFeature
+	if resolvedFeature == PricingSpecRoute {
+		policyFeature = string(FeatureProjectedCosts)
+	}
+	if slices.Contains(cfg.Features, policyFeature) {
 		return r.matchesCapabilities(client, resolvedFeature)
 	}
 	return false
@@ -420,6 +424,9 @@ func (r *DefaultRouter) matchesFeature(client *pluginhost.Client, cfg config.Plu
 // feature needs (pluginhost.Client.AdvertisesCapability). A feature with no
 // capability, or a name that is not a feature, matches every plugin.
 func (r *DefaultRouter) matchesCapabilities(client *pluginhost.Client, feature string) bool {
+	if feature == PricingSpecRoute {
+		return client.AdvertisesCapability(pbc.PluginCapability_PLUGIN_CAPABILITY_PRICING_SPEC)
+	}
 	requestedFeature, ok := ParseFeature(feature)
 	if !ok {
 		if resolved, found := FeatureFromMethod(feature); found {

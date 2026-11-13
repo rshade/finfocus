@@ -110,7 +110,11 @@ plugins on the projected route that list `pricing_spec`, in the same priority
 order, so a plugin that lists only `pricing_spec` can still price a resource
 through the fallback. A usage source such as the `prometheus` plugin, which lists only usage stats, is
 never asked to price a resource, so its decline does not appear in a cost note.
-A plugin that lists no capabilities is still asked, except for carbon.
+A plugin that lists no capabilities is still asked, except for carbon. A plugin
+that lists only capabilities core does not act on, such as `cost_parse`, is not
+asked to price. Batch pricing needs `batch_cost` listed: a plugin with no
+capability list gets per-resource calls and never a batch. An actual-cost batch
+also needs `actual_costs`, and a projected batch needs `projected_costs`.
 
 **Metadata-Aware Binary Selection**: When a plugin is installed with
 `--metadata="region=us-west-2"`, the registry writes a `plugin.metadata.json`

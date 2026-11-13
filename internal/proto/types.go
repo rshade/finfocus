@@ -35,6 +35,10 @@ type PluginMetadata struct {
 	SupportedProviders []string          `json:"supportedProviders,omitempty" yaml:"supportedProviders,omitempty"`
 	Metadata           map[string]string `json:"metadata,omitempty"           yaml:"metadata,omitempty"`
 	Capabilities       []string          `json:"capabilities,omitempty"       yaml:"capabilities,omitempty"`
+	// CapabilitiesDeclared is true when the plugin listed any capability,
+	// including ones core drops from Capabilities. An empty Capabilities with
+	// this set is a declaration, not a plugin that predates capabilities.
+	CapabilitiesDeclared bool `json:"-" yaml:"-"`
 }
 
 // FieldMapping describes how a Pulumi resource property maps to pricing inputs.
