@@ -352,7 +352,10 @@ test('the lone tab marks its state in text and accessible name, like a stack tab
   const tab = loneTab(t);
   const source = t.lastSource();
   const state = () => markOf(tab);
-  assert.deepEqual(state(), ['loading', 'progress', 'dev, loading'], 'a stack is loading from the start');
+  assert.deepEqual(state(), ['', undefined, null], 'no marker before the stream says anything');
+
+  t.emit(source, 'snapshot', { passphraseRequired: false, ready: false, failed: false });
+  assert.deepEqual(state(), ['loading', 'progress', 'dev, loading']);
 
   t.emit(source, 'passphrase_required', { stack: 'dev' });
   assert.deepEqual(state(), ['locked', 'warn', 'dev, locked']);
@@ -399,12 +402,12 @@ test('the lone tab rewrites its accessible name only when its state changes', as
   t.emit(source, 'snapshot', { passphraseRequired: false, ready: false, failed: false });
   t.emit(source, 'snapshot', { passphraseRequired: false, ready: false, failed: false });
   await t.hashchange('#/cost');
-  assert.deepEqual(writes, [], 'loading again is not a change');
+  assert.deepEqual(writes, ['dev, loading'], 'loading again is not a change');
 
   t.emit(source, 'snapshot', { passphraseRequired: false, ready: true, failed: false });
   t.emit(source, 'ready', {});
   t.emit(source, 'snapshot', { passphraseRequired: false, ready: true, failed: false });
-  assert.deepEqual(writes, [null], 'loading to ready is one change');
+  assert.deepEqual(writes, ['dev, loading', null], 'loading to ready is one change');
 });
 
 test('a failed single stack seen from another view points to Overview', async () => {
@@ -847,4 +850,13 @@ test('a tab key with Alt, Ctrl, or Meta is left to the browser', async () => {
     }
   }
   assert.equal(t.loc.hash, '#/s/a/cost');
+});
+
+test('reloading a ready single stack never marks or announces loading', async () => {
+  const t = await setup({ stackName: 'dev' });
+  const tab = loneTab(t);
+  const writes = countLabelWrites(tab);
+  t.emit(t.lastSource(), 'snapshot', { passphraseRequired: false, ready: true, failed: false });
+  assert.deepEqual(markOf(tab), ['', undefined, null]);
+  assert.deepEqual(writes, [], 'the accessible name never changed');
 });
