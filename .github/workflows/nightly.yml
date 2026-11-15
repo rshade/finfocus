@@ -110,6 +110,7 @@ jobs:
         env:
           AWS_REGION: us-east-1
           AWS_E2E_REGION: us-east-1
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE || 'e2e-test-passphrase' }}
           E2E_TIMEOUT_MINS: '60'
           FINFOCUS_LOG_LEVEL: debug
@@ -162,6 +163,7 @@ jobs:
         env:
           AWS_REGION: us-east-1
           E2E_REGION: us-east-1
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE || 'e2e-test-passphrase' }}
           E2E_TIMEOUT_MINS: '60'
           FINFOCUS_LOG_LEVEL: debug
@@ -215,6 +217,7 @@ jobs:
         env:
           AWS_REGION: us-east-1
           E2E_REGION: us-east-1
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE || 'e2e-test-passphrase' }}
           FINFOCUS_LOG_LEVEL: debug
           FINFOCUS_LOG_FORMAT: text
