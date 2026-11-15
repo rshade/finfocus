@@ -65,8 +65,9 @@ looking at. Select a tab with the mouse, or focus the tab bar and use `Left`,
 Recommendations, and every other view, and nothing is added up across stacks.
 
 A stack loads when you first open its tab, so a list of five stacks does not
-start five sets of plugins at once. Returning to a tab shows what it already
-loaded.
+start five sets of plugins at once. Its tab says `loading` until the stack is
+priced, even after you move to another tab, and the word clears when it is
+done. Returning to a tab shows what it already loaded.
 
 If a stack cannot load, its tab says `failed` and its view shows the same
 message a single stack would. The other tabs keep working. Restart the

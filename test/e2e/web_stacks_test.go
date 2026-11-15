@@ -206,3 +206,97 @@ func TestWebUISingleStackTab(t *testing.T) {
 	defer requestsMu.Unlock()
 	assert.Empty(t, stackRequests, "one stack makes no stack list request, activation, or /s/ request")
 }
+
+// webTabMarker reads a stack tab's marker: its text, its kind, the glyph CSS
+// draws before it, and the tab's accessible name.
+func webTabMarker(t *testing.T, page playwright.Page, selector string) map[string]any {
+	t.Helper()
+	raw, err := page.Evaluate(`selector => {
+		const tab = document.querySelector(selector);
+		const marker = tab.querySelector('.stack-tab-state');
+		return {
+			text: marker.textContent,
+			kind: marker.dataset.kind ?? '',
+			glyph: getComputedStyle(marker, '::before').content,
+			label: tab.getAttribute('aria-label') ?? '',
+		};
+	}`, selector)
+	require.NoError(t, err)
+	marker, ok := raw.(map[string]any)
+	require.True(t, ok)
+	return marker
+}
+
+// openEnrichmentGate releases every resource the fixture plugin holds back.
+func openEnrichmentGate(t *testing.T, gate string) {
+	t.Helper()
+	for _, name := range []string{"first", "rest"} {
+		require.NoError(t, os.WriteFile(filepath.Join(gate, name), nil, 0o600))
+	}
+}
+
+func webTabLabelIs(selector, label string) string {
+	return `(document.querySelector('` + selector + `')?.getAttribute('aria-label') ?? '') === '` + label + `'`
+}
+
+// TestWebUIStackTabLoadingMarker (#2098): a stack that is still pricing says
+// "loading" on its tab, in text and accessible name and without the warning
+// glyph, single or multi, and the marker clears once the stack is ready. The
+// enrichment gate holds every stack in loading until the test opens it.
+//
+//nolint:paralleltest // Builds and executes local fixture binaries; shares a browser driver.
+func TestWebUIStackTabLoadingMarker(t *testing.T) {
+	f := newWebFixture(t)
+	browser := webBrowser(t)
+	plan := filepath.Join(f.root, "testdata/overview/plan-no-changes.json")
+	loading := func(name string) map[string]any {
+		return map[string]any{"text": "loading", "kind": "progress", "glyph": "none", "label": name + ", loading"}
+	}
+	none := map[string]any{"text": "", "kind": "", "glyph": "none", "label": ""}
+	const dev, prod, lone = `[role="tab"][data-stack="dev"]`, `[role="tab"][data-stack="prod"]`, `#stack-tab-single`
+
+	for _, scheme := range []*playwright.ColorScheme{playwright.ColorSchemeLight, playwright.ColorSchemeDark} {
+		states := t.TempDir()
+		copyWebState(t, filepath.Join(f.root, "test/e2e/fixtures/web/estimate-picker-state.json"), states, "dev")
+		copyWebState(t, filepath.Join(f.root, "testdata/overview/state-no-changes.json"), states, "prod")
+
+		gate := t.TempDir()
+		s := f.start(t, plan, false, "WEB_STATE_ONLY=true", "WEB_STACKS=dev,prod",
+			"WEB_STATE_DIR="+states, "WEB_ENRICHMENT_GATE="+gate)
+		page := webPage(t, browser, s, scheme)
+		webWait(t, page, webOnStack("dev")+` && `+webTableHas("existing")+` && `+webTabLabelIs(dev, "dev, loading"))
+		assert.Equal(t, loading("dev"), webTabMarker(t, page, dev))
+		assert.Equal(t, none, webTabMarker(t, page, prod), "a stack not opened yet has no marker")
+
+		webTab(t, page, `[role="tab"][aria-selected="true"]`)
+		require.NoError(t, page.Keyboard().Press("ArrowRight"))
+		webWait(t, page, webOnStack("prod")+` && `+webTableHas("web-1")+
+			` && `+webTabLabelIs(prod, "prod, loading")+` && `+webTabLabelIs(dev, "dev, loading"))
+		assert.Equal(t, loading("dev"), webTabMarker(t, page, dev), "a stack loading in the background")
+		assert.Equal(t, loading("prod"), webTabMarker(t, page, prod))
+		issues, err := page.Evaluate(webContrastScript)
+		require.NoError(t, err)
+		assert.Empty(t, issues, "selected and unselected loading tab contrast (%s)", *scheme)
+		webScreenshot(t, page, "stacks-loading-"+string(*scheme), false)
+
+		openEnrichmentGate(t, gate)
+		webWait(t, page, `() => `+webTabLabelIs(prod, "")+` && `+webTabLabelIs(dev, ""))
+		assert.Equal(t, none, webTabMarker(t, page, prod), "a ready stack has no marker")
+		assert.Equal(t, none, webTabMarker(t, page, dev), "a stack that finished in the background has no marker")
+
+		gate = t.TempDir()
+		s = f.start(t, plan, false, "WEB_STATE_ONLY=true", "WEB_STACKS=dev",
+			"WEB_STATE_DIR="+states, "WEB_ENRICHMENT_GATE="+gate)
+		page = webPage(t, browser, s, scheme)
+		webWait(t, page, `() => location.hash === '#/overview' && `+webTableHas("existing")+
+			` && `+webTabLabelIs(lone, "dev, loading"))
+		assert.Equal(t, loading("dev"), webTabMarker(t, page, lone), "the lone tab uses the same marker")
+		issues, err = page.Evaluate(webContrastScript)
+		require.NoError(t, err)
+		assert.Empty(t, issues, "lone loading tab contrast (%s)", *scheme)
+
+		openEnrichmentGate(t, gate)
+		webWait(t, page, `() => `+webTabLabelIs(lone, ""))
+		assert.Equal(t, none, webTabMarker(t, page, lone))
+	}
+}

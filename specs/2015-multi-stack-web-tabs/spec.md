@@ -141,8 +141,8 @@ bar and no new header element.
    `#/<view>` and no stack list is requested or offered.
 2. **Given** one stack from a Pulumi project (`--stack dev`, `--stack dev,dev`,
    or the workspace's selected stack), **When** the page loads, **Then** one
-   selected tab and the header name that stack, with the same `failed` and
-   `locked` markers as a stack tab. A plan file, a state file, or Terraform shows
+   selected tab and the header name that stack, with the same `loading`,
+   `failed`, and `locked` markers as a stack tab (#2098). A plan file, a state file, or Terraform shows
    no tab bar.
 3. **Given** `--stack=a,b` with `--pulumi-json`, `--pulumi-state`, or a
    Terraform project, **When** the command starts, **Then** it exits 2 with a
@@ -214,7 +214,9 @@ bar and no new header element.
   one name, or the workspace's selected stack) MUST be named in the shell
   (`<meta name="finfocus-stack">`) and shown as one selected tab plus the header
   label. Its markers MUST follow its own session from the overview stream in the
-  `stackState` order (locked, ready, failed), in text and accessible name. Plan
+  `stackState` order (locked, ready, failed), in text and accessible name, and
+  use the same markers as a stack tab (#2098): `loading` with no warning glyph,
+  `locked` and `failed` with one, and none for `idle` or `ready`. Plan
   files, state files, and Terraform MUST render no tab bar. On any view but
   Overview, a single stack that is `locked` or `failed` MUST show `#stack-notice`
   linking to `#/overview`, with or without a tab, as a stack tab does.
@@ -239,8 +241,10 @@ bar and no new header element.
   navigation, built from the existing header slots. Each stack's views fill the
   same heading, controls row, status line, summary strip, and captioned table
   as today.
-- **Additions**: Header stack label; per-tab load state markers (failed and
-  locked, each as text plus an accessible label, not color alone).
+- **Additions**: Header stack label; per-tab load state markers, each as text
+  plus an accessible label, not color alone. `failed` and `locked` carry a
+  warning glyph; `loading` (#2098) is a quieter progress marker with no glyph,
+  and a stack loading behind another tab is polled until it clears.
 - **Render evidence**: Playwright render of two stacks from a populated
   project, recorded in the PR.
 - **Follow-up issue scope**: One UX-only `web-ui` issue is filed on

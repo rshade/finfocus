@@ -39,7 +39,12 @@ async function setup({ stacks } = {}) {
     setAttribute(key, value) {
       this.attrs[key] = value;
     },
-    removeAttribute() {},
+    getAttribute(key) {
+      return this.attrs[key] ?? null;
+    },
+    removeAttribute(key) {
+      delete this.attrs[key];
+    },
     focus() {},
   });
   const view = element();

@@ -472,7 +472,13 @@ const ctx = {
 const stackTabs = document.getElementById('stack-tabs');
 const stackLabel = document.getElementById('stack-label');
 const stackNotice = document.getElementById('stack-notice');
-const STACK_STATE_MARKERS = { failed: 'failed', locked: 'locked' };
+// A warn marker carries the ⚠ prefix; a progress marker does not. Idle and
+// ready have no marker: once loading clears, the stack is done.
+const STACK_STATE_MARKERS = {
+  loading: { text: 'loading', kind: 'progress' },
+  locked: { text: 'locked', kind: 'warn' },
+  failed: { text: 'failed', kind: 'warn' },
+};
 // Only the Overview view prompts for a passphrase and shows a load failure, so
 // another view of a locked or failed stack points there instead of waiting.
 const STACK_NOTICES = {
@@ -483,6 +489,10 @@ const TAB_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 const tabNodes = new Map();
 let currentView = DEFAULT_ROUTE;
 let stackListVersion = 0;
+// Only the selected stack's stream triggers a stack list refresh, so a stack
+// still loading in the background is polled until its loading marker can clear.
+export const STACK_POLL_MS = 2000;
+let stackPollTimer = null;
 
 // readStackList takes the stack names from the shell page. The server writes
 // them into a meta tag, like the base prefix, only on the root page of a
@@ -542,12 +552,19 @@ function buildStackChrome() {
   }
 }
 
-// markTab shows a tab's state. A failed or locked tab says so in text and in
-// its accessible name, never by color alone.
+// markTab shows a tab's state in text and in its accessible name, never by
+// color alone. It writes only what changed, so a stack list refresh that
+// repeats a state does not make a screen reader announce the tab again.
 function markTab({ link, marker }, name, state) {
-  const text = STACK_STATE_MARKERS[state] ?? '';
-  marker.textContent = text;
-  if (text) link.setAttribute('aria-label', `${name}, ${text}`);
+  const { text = '', kind = '' } = STACK_STATE_MARKERS[state] ?? {};
+  if (marker.textContent !== text) marker.textContent = text;
+  if ((marker.dataset.kind ?? '') !== kind) {
+    if (kind) marker.dataset.kind = kind;
+    else delete marker.dataset.kind;
+  }
+  const label = text ? `${name}, ${text}` : null;
+  if (link.getAttribute('aria-label') === label) return;
+  if (label) link.setAttribute('aria-label', label);
   else link.removeAttribute('aria-label');
 }
 
@@ -689,6 +706,23 @@ async function refreshStackList() {
   } catch (err) {
     console.error('stack list refresh failed', err);
   }
+  if (version === stackListVersion) pollLoadingStacks();
+}
+
+// pollLoadingStacks schedules one more refresh while a stack other than the
+// selected one is loading, including after a failed refresh, so one dropped
+// request cannot leave a finished stack marked loading. At most one poll is
+// pending at a time.
+function pollLoadingStacks() {
+  if (stackPollTimer !== null) return;
+  const background = stackState.entries.some(
+    (entry) => entry.name !== stackState.active && entry.state === 'loading',
+  );
+  if (!background) return;
+  stackPollTimer = setTimeout(() => {
+    stackPollTimer = null;
+    refreshStackList();
+  }, STACK_POLL_MS);
 }
 
 function onTabKey(event) {
