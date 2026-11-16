@@ -47,13 +47,8 @@ func main() {
 		os.Exit(1)
 	}
 	pids := fmt.Sprintf("%d %d\n", os.Getpid(), child.Process.Pid)
-	tmp := os.Getenv("ORPHAN_PID_FILE") + ".tmp"
-	if err := os.WriteFile(tmp, []byte(pids), 0o600); err != nil {
-		os.Exit(1)
-	}
-	if err := os.Rename(tmp, os.Getenv("ORPHAN_PID_FILE")); err != nil {
-		os.Exit(1)
-	}
+	// Record the launch before anything that can fail, so concurrent launches
+	// are all counted, and give each process its own temporary file.
 	if launches := os.Getenv("ORPHAN_LAUNCH_LOG"); launches != "" {
 		file, err := os.OpenFile(launches, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
@@ -63,6 +58,13 @@ func main() {
 		if closeErr := file.Close(); writeErr != nil || closeErr != nil {
 			os.Exit(1)
 		}
+	}
+	tmp := fmt.Sprintf("%s.%d.tmp", os.Getenv("ORPHAN_PID_FILE"), os.Getpid())
+	if err := os.WriteFile(tmp, []byte(pids), 0o600); err != nil {
+		os.Exit(1)
+	}
+	if err := os.Rename(tmp, os.Getenv("ORPHAN_PID_FILE")); err != nil {
+		os.Exit(1)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

@@ -46,6 +46,8 @@ type processLauncher struct {
 
 	mu        sync.Mutex
 	processes []*fakeProcess
+	// entered holds the context of every Start, recorded before the gate.
+	entered []context.Context
 }
 
 func (l *processLauncher) Start(
@@ -53,6 +55,7 @@ func (l *processLauncher) Start(
 ) (*grpc.ClientConn, func() error, error) {
 	l.mu.Lock()
 	gate, info := l.gate, l.info
+	l.entered = append(l.entered, ctx)
 	l.mu.Unlock()
 	if gate != nil {
 		<-gate
@@ -111,6 +114,19 @@ func (l *processLauncher) open() {
 	default:
 		close(l.gate)
 	}
+}
+
+// enteredContext returns the context the i-th Start received, once it has.
+func (l *processLauncher) enteredContext(t *testing.T, i int) context.Context {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		return len(l.entered) > i
+	}, 5*time.Second, time.Millisecond, "Start was never entered")
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.entered[i]
 }
 
 func (l *processLauncher) starts() int {
@@ -497,6 +513,49 @@ func TestPool_ConcurrentFirstLaunchesWithDifferentOffersShare(t *testing.T) {
 	answers(t, clients[1])
 }
 
+// A config value can reach the plugin only after it advertises its settings:
+// here the generic variable is inherited, so the launch pairs hide
+// plugins.recorder.mock_response. A save while the first launch is in flight
+// must not let the next request join a process configured from the old value.
+// Not parallel: it sets the process environment.
+func TestPool_ConfigChangeDuringFirstLaunchIsNotShared(t *testing.T) {
+	isolatePoolConfig(t)
+	t.Setenv("FINFOCUS_PLUGIN_RECORDER_MOCK_RESPONSE", "inherited")
+	configPath := filepath.Join(os.Getenv("FINFOCUS_HOME"), "config.hujson")
+	writeMockResponse := func(value string) {
+		body := `{"plugins": {"recorder": {"mock_response": "` + value + `"}}}`
+		require.NoError(t, os.WriteFile(configPath, []byte(body), 0o600))
+	}
+	writeMockResponse("before-save")
+	launcher := &processLauncher{
+		info: poolPluginInfo(&pbc.PluginSetting{Key: "mock_response", Env: "FINFOCUS_RECORDER_MOCK_RESPONSE"}),
+		gate: make(chan struct{}),
+	}
+	pool := newTestPool(t, launcher)
+
+	clients := make([]*pluginhost.Client, 2)
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	wg.Go(func() { clients[0], errs[0] = pool.Acquire(poolContext(), launcher, "/p") })
+	waitForHolds(t, pool, 1)
+	writeMockResponse("after-save")
+	wg.Go(func() { clients[1], errs[1] = pool.Acquire(poolContext(), launcher, "/p") })
+	require.Eventually(t, func() bool { return pluginhost.PoolLearnWaitersForTest(pool) == 1 },
+		5*time.Second, time.Millisecond, "the request after the save must not join the earlier launch")
+	launcher.open()
+	wg.Wait()
+	require.NoError(t, errs[0])
+	require.NoError(t, errs[1])
+
+	var envs []string
+	for i := range launcher.starts() {
+		envs = append(envs, strings.Join(launcher.process(t, i).env, ","))
+	}
+	assert.Contains(t, envs, "FINFOCUS_RECORDER_MOCK_RESPONSE=before-save")
+	assert.Contains(t, envs, "FINFOCUS_RECORDER_MOCK_RESPONSE=after-save")
+	assert.NotEqual(t, clients[0].DeliveredDigest, clients[1].DeliveredDigest)
+}
+
 // When a binary advertises other settings than the pool learned, a request
 // that predicted its environment must not take a process that received
 // another stack's value. It retries without a prediction.
@@ -596,8 +655,14 @@ func TestPool_RequesterCancelledDuringLaunchLeavesNoProcess(t *testing.T) {
 		done <- err
 	}()
 	waitForHolds(t, pool, 1)
+	launchCtx := launcher.enteredContext(t, 0)
 	cancel()
 	require.ErrorIs(t, <-done, context.Canceled)
+	require.Error(
+		t,
+		launchCtx.Err(),
+		"an abandoned launch is cancelled while still starting, so a plugin that never answers cannot outlive its requesters",
+	)
 
 	launcher.open()
 	require.Eventually(t, func() bool {

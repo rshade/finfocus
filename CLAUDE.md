@@ -537,8 +537,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   ESC environments) and `test` (one) share. A request whose prediction differs
   from what the process received retries on the offer key, and requests during
   a binary's first launch wait for it (`poolLearnWait`).
-  `applyAdvertisedSettings` reuses the offer (`launchInputs.escOffer`); never
-  re-read ESC there. The launch context is `WithoutCancel(requester)` cancelled by the
+  One `settingSources` read (parent environment, the plugin's config values,
+  ESC offer) per request feeds the launch, the prediction, the restart in
+  `applyAdvertisedSettings`, and the offer key; never re-read files or ESC
+  there. A launch whose requesters all leave is cancelled (`entry.stop`). The launch context is `WithoutCancel(requester)` cancelled by the
   pool, never the requester's context. Holders get a `Client` copy with cloned
   `Metadata` (the registry merge writes it); `Close` releases one hold.
 - Dashboard settings apply on the next `NewClient`. The first reload must not

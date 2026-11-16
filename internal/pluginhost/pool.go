@@ -218,7 +218,7 @@ func (p *Pool) keyFor(ctx context.Context, bin binaryID, in launchInputs, predic
 	if !known {
 		return offer, in
 	}
-	in.delivered = resolveInjectedFrom(ctx, in.installName, settings, in.escOffer)
+	in.delivered = in.sources.resolve(ctx, in.installName, settings)
 	return poolKey{binary: bin, kind: finalKey, env: deliveryKey(in.delivered)}, in
 }
 
@@ -388,8 +388,12 @@ func (p *Pool) release(entry *poolEntry) error {
 	entry.holds--
 	ready := isReady(entry)
 	if entry.holds == 0 && !ready {
+		// Nobody wants this launch anymore. Cancelling its context kills the
+		// process, as a cancelled requester did before the pool, so a plugin
+		// that binds but never answers Name cannot outlive its requesters.
 		p.unmapLocked(entry)
 		p.stopLearningLocked(entry)
+		entry.stop()
 	}
 	last := entry.holds == 0 && ready && entry.err == nil && !entry.closed
 	if last {
@@ -546,9 +550,10 @@ func deliveryKey(delivered Delivered) string {
 // environmentKey hashes everything that can decide a process's final
 // environment and its delivered digest before the binary's advertised
 // settings are known: the launch pairs, the names that replace an inherited
-// value, and the whole ESC offer (value, reference, and revision), including
-// names allowed only after the plugin advertises them. Values are hashed,
-// never kept or logged.
+// value, the parent environment and the plugin's config values (a descriptor
+// can pick up a config value the launch pairs did not show), and the whole ESC
+// offer (value, reference, and revision), including names allowed only after
+// the plugin advertises them. Values are hashed, never kept or logged.
 func environmentKey(in launchInputs) string {
 	sum := sha256.New()
 	write := func(parts ...string) {
@@ -565,9 +570,23 @@ func environmentKey(in launchInputs) string {
 	for _, name := range slices.Sorted(maps.Keys(in.delivered.Overrides)) {
 		write(name)
 	}
+	write("parent")
+	for _, entry := range slices.Sorted(slices.Values(in.sources.parent)) {
+		write(entry)
+	}
+	for _, tier := range []struct {
+		name   string
+		values map[string]string
+	}{{"project", in.sources.project}, {"global", in.sources.global}} {
+		write(tier.name)
+		for _, key := range slices.Sorted(maps.Keys(tier.values)) {
+			write(key, tier.values[key])
+		}
+	}
+	offer := in.sources.escOffer
 	write("esc")
-	for _, name := range slices.Sorted(maps.Keys(in.escOffer.Values)) {
-		write(name, in.escOffer.Values[name], in.escOffer.Origins[name].String(), in.escOffer.Fingerprints[name])
+	for _, name := range slices.Sorted(maps.Keys(offer.Values)) {
+		write(name, offer.Values[name], offer.Origins[name].String(), offer.Fingerprints[name])
 	}
 	return hex.EncodeToString(sum.Sum(nil))
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/config"
-	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
 )
@@ -58,13 +57,14 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 }
 
 // launchInputs is what a launch resolves from its context before the process
-// starts. escOffer is every value the context's ESC source offers the plugin,
-// including names the plugin is allowed only after it advertises them.
+// starts. sources is the one read of settings inputs that every resolution of
+// this launch uses, including ESC values the plugin is allowed only after it
+// advertises them.
 type launchInputs struct {
 	installName string
 	named       bool
 	delivered   Delivered
-	escOffer    esc.Delivery
+	sources     settingSources
 }
 
 func resolveLaunchInputs(ctx context.Context) launchInputs {
@@ -72,12 +72,12 @@ func resolveLaunchInputs(ctx context.Context) launchInputs {
 	if !named {
 		return launchInputs{}
 	}
-	offer := escOffer(ctx, installName)
+	sources := readSettingSources(ctx, installName)
 	return launchInputs{
 		installName: installName,
 		named:       true,
-		delivered:   resolveInjectedFrom(ctx, installName, nil, offer),
-		escOffer:    offer,
+		delivered:   sources.resolve(ctx, installName, nil),
+		sources:     sources,
 	}
 }
 
@@ -133,8 +133,8 @@ func launchClient(
 
 // applyAdvertisedSettings restarts the process once when GetPluginInfo names
 // variables the first launch did not receive. A second difference is kept. It
-// reuses the ESC offer read before the launch, so the environment it delivers
-// is the one a pool keyed the process by.
+// reuses the settings sources read before the launch, so the environment it
+// delivers is the one a pool keyed the process by.
 func applyAdvertisedSettings(
 	ctx context.Context,
 	launcher Launcher,
@@ -146,7 +146,7 @@ func applyAdvertisedSettings(
 	if started.info == nil {
 		return started, delivered, nil
 	}
-	next := resolveInjectedFrom(ctx, installName, started.info.GetSettings(), in.escOffer)
+	next := in.sources.resolve(ctx, installName, started.info.GetSettings())
 	if sameDelivery(delivered, next) {
 		return started, next, nil
 	}
@@ -169,7 +169,7 @@ func applyAdvertisedSettings(
 		return pluginConnection{}, Delivered{}, err
 	}
 	if restarted.info != nil {
-		next = resolveInjectedFrom(ctx, installName, restarted.info.GetSettings(), in.escOffer)
+		next = in.sources.resolve(ctx, installName, restarted.info.GetSettings())
 	}
 	return restarted, next, nil
 }

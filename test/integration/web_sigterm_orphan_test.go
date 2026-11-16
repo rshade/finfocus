@@ -47,8 +47,10 @@ type orphanFixture struct {
 	binary  string
 	project string
 	pidFile string
-	served  string
-	env     []string
+	// launchLog lists every launch's plugin and child pid, one pair per line.
+	launchLog string
+	served    string
+	env       []string
 }
 
 func newOrphanFixture(t *testing.T) orphanFixture {
@@ -97,14 +99,38 @@ func newOrphanFixture(t *testing.T) orphanFixture {
 		"FINFOCUS_CACHE_ENABLED=false",
 		"FINFOCUS_SKIP_MIGRATION_CHECK=1",
 		"ORPHAN_PID_FILE="+pidFile,
+		"ORPHAN_LAUNCH_LOG="+filepath.Join(work, "launches"),
 		"ORPHAN_SERVED_FILE="+served,
 	)
-	return orphanFixture{binary: binary, project: project, pidFile: pidFile, served: served, env: env}
+	return orphanFixture{
+		binary: binary, project: project, pidFile: pidFile, launchLog: filepath.Join(work, "launches"),
+		served: served, env: env,
+	}
+}
+
+// recordedPIDs returns every plugin and child pid the fixture recorded: each
+// launch in the launch log and the last pair in the pid file. Cleanup kills
+// them all, so a failed assertion with several launches leaks no child.
+func (f orphanFixture) recordedPIDs() []int {
+	var pids []int
+	for _, path := range []string{f.launchLog, f.pidFile} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		for _, field := range strings.Fields(string(data)) {
+			if pid, convErr := strconv.Atoi(field); convErr == nil && pid > 1 {
+				pids = append(pids, pid)
+			}
+		}
+	}
+	return pids
 }
 
 type orphanWeb struct {
 	cmd    *exec.Cmd
 	done   chan error
+	exited chan struct{}
 	stderr func() string
 }
 
@@ -130,20 +156,25 @@ func (f orphanFixture) launch(t *testing.T, args ...string) (*orphanWeb, string,
 	stdout, err := cmd.StdoutPipe()
 	require.NoError(t, err)
 	require.NoError(t, cmd.Start())
-	web := &orphanWeb{cmd: cmd, done: make(chan error, 1), stderr: func() string {
+	web := &orphanWeb{cmd: cmd, done: make(chan error, 1), exited: make(chan struct{}), stderr: func() string {
 		data, _ := os.ReadFile(stderrFile.Name())
 		return string(data)
 	}}
-	go func() { web.done <- cmd.Wait() }()
+	go func() {
+		web.done <- cmd.Wait()
+		close(web.exited)
+	}()
 	t.Cleanup(func() {
-		if data, readErr := os.ReadFile(f.pidFile); readErr == nil {
-			var pluginPID, childPID int
-			if _, scanErr := fmt.Sscan(string(data), &pluginPID, &childPID); scanErr == nil {
-				_ = syscall.Kill(pluginPID, syscall.SIGKILL)
-				_ = syscall.Kill(childPID, syscall.SIGKILL)
+		_ = cmd.Process.Kill()
+		select {
+		case <-web.exited:
+		case <-time.After(orphanWait):
+		}
+		for _, pid := range f.recordedPIDs() {
+			if processAlive(t, pid) {
+				_ = syscall.Kill(pid, syscall.SIGKILL)
 			}
 		}
-		_ = cmd.Process.Kill()
 	})
 
 	urls := make(chan string, 1)
@@ -288,15 +319,13 @@ func TestWebSIGTERM_StacksSharePluginProcess(t *testing.T) {
 	}
 
 	f := newOrphanFixture(t)
-	launchLog := filepath.Join(filepath.Dir(f.pidFile), "launches")
-	f.env = append(f.env, "ORPHAN_LAUNCH_LOG="+launchLog)
 	web, states := f.startStacks(t)
 
 	require.Eventually(t, func() bool {
 		got := states()
 		return got["dev"] == "ready" && got["prod"] == "ready"
 	}, orphanWait, 100*time.Millisecond, "both stacks must load; stderr:\n%s", web.stderr())
-	data, err := os.ReadFile(launchLog)
+	data, err := os.ReadFile(f.launchLog)
 	require.NoError(t, err)
 	launches := strings.Fields(string(data))
 	require.Len(t, launches, 2, "one launch (plugin and child pid) for both stacks; stderr:\n%s", web.stderr())
