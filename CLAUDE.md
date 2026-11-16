@@ -191,8 +191,9 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   while the pipeline still runs), so a retry that is still loading reads
   `loading`. Tab markers (`STACK_STATE_MARKERS`, #2098): `loading` is a
   `progress` marker with no ⚠, `locked` and `failed` are `warn`, and `idle` and
-  `ready` have none. `markTab` writes text and `aria-label` only when they
-  change. Only the selected stack's stream refreshes `/api/stacks`, so a stack
+  `ready` have none. The lone tab has no state, and no marker, until the
+  stream's first event, so reloading a ready stack never announces `loading`.
+  `markTab` writes text and `aria-label` only when they change. Only the selected stack's stream refreshes `/api/stacks`, so a stack
   still `loading` behind another tab is polled (`STACK_POLL_MS`) until it
   clears. One overview stream is open, and a
   switch runs unmount, `stream.reset()`, activate, start, mount. The root

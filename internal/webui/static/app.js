@@ -591,8 +591,10 @@ function updateStackChrome() {
 // A single-stack page has no stack list to read states from, so it follows
 // its own session from the stream. name comes from the shell when the server
 // named the Pulumi stack, which also shows the stack as a lone tab; otherwise
-// (a plan file, a state file, Terraform) only the notice uses it.
-const singleStack = { name: '', state: 'loading', tab: null };
+// (a plan file, a state file, Terraform) only the notice uses it. The state
+// stays unknown, with no marker, until the stream's first event, so reloading
+// a stack that is already ready never shows or announces loading.
+const singleStack = { name: '', state: '', tab: null };
 const SINGLE_TAB_ID = 'stack-tab-single';
 // A display name: Pulumi stack names, optionally org/project-qualified. It is
 // never used in an address or a request.
