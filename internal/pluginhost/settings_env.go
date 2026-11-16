@@ -352,17 +352,24 @@ func copyDelivered(delivered Delivered) Delivered {
 	return delivered
 }
 
-func resolveInjected(
+func resolveInjectedFrom(
 	ctx context.Context,
 	plugin string,
 	settings []*pbc.PluginSetting,
+	fromESC esc.Delivery,
 ) Delivered {
 	project, global := pluginFileMaps(ctx, plugin)
-	var fromESC esc.Delivery
-	if src, ok := esc.SourceFromContext(ctx); ok {
-		fromESC = src.Delivery(ctx, plugin)
-	}
 	return ResolveDeliveredEnv(ctx, plugin, os.Environ(), project, global, settingDescs(settings), fromESC)
+}
+
+// escOffer returns every value the context's ESC source holds for plugin,
+// before the allow list filters it.
+func escOffer(ctx context.Context, plugin string) esc.Delivery {
+	src, ok := esc.SourceFromContext(ctx)
+	if !ok {
+		return esc.Delivery{}
+	}
+	return src.Delivery(ctx, plugin)
 }
 
 func pluginFileMaps(ctx context.Context, plugin string) (map[string]string, map[string]string) {

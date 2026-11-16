@@ -336,6 +336,8 @@ func (r *Registry) openPlugins(ctx context.Context, plugins []PluginInfo) []*plu
 }
 
 // openPlugin connects to a single plugin, returning nil if it fails to start.
+// Under a context that carries a pluginhost.Pool, the process is shared with
+// every other open that resolves the same binary and environment.
 func (r *Registry) openPlugin(ctx context.Context, plugin PluginInfo) *pluginhost.Client {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -346,7 +348,11 @@ func (r *Registry) openPlugin(ctx context.Context, plugin PluginInfo) *pluginhos
 		Str("plugin_path", plugin.Path).
 		Msg("attempting to connect to plugin")
 
-	client, err := pluginhost.NewClient(pluginhost.WithInstallName(ctx, plugin.Name), r.launcher, plugin.Path)
+	open := pluginhost.NewClient
+	if pool, ok := pluginhost.PoolFromContext(ctx); ok {
+		open = pool.Acquire
+	}
+	client, err := open(pluginhost.WithInstallName(ctx, plugin.Name), r.launcher, plugin.Path)
 	if err != nil {
 		log.Warn().
 			Ctx(ctx).

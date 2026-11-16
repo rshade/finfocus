@@ -1,5 +1,6 @@
 // Fixture plugin that behaves like a router: it spawns a long-lived child in its
 // own process group membership and records both PIDs for the orphan test.
+// With ORPHAN_LAUNCH_LOG set it also appends them there, one line per launch.
 package main
 
 import (
@@ -52,6 +53,16 @@ func main() {
 	}
 	if err := os.Rename(tmp, os.Getenv("ORPHAN_PID_FILE")); err != nil {
 		os.Exit(1)
+	}
+	if launches := os.Getenv("ORPHAN_LAUNCH_LOG"); launches != "" {
+		file, err := os.OpenFile(launches, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+		if err != nil {
+			os.Exit(1)
+		}
+		_, writeErr := file.WriteString(pids)
+		if closeErr := file.Close(); writeErr != nil || closeErr != nil {
+			os.Exit(1)
+		}
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

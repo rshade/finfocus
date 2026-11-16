@@ -16,6 +16,7 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/esc"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
 )
@@ -52,11 +53,37 @@ type Launcher interface {
 // plugin's advertised descriptors are injected before the process starts. The process
 // is started once more when GetPluginInfo names variables the first launch did not have.
 func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client, error) {
+	return launchClient(ctx, launcher, binPath, resolveLaunchInputs(ctx))
+}
+
+// launchInputs is what a launch resolves from its context before the process
+// starts. escOffer is every value the context's ESC source offers the plugin,
+// including names the plugin is allowed only after it advertises them.
+type launchInputs struct {
+	installName string
+	named       bool
+	delivered   Delivered
+	escOffer    esc.Delivery
+}
+
+func resolveLaunchInputs(ctx context.Context) launchInputs {
 	installName, named := InstallNameFromContext(ctx)
-	var delivered Delivered
+	if !named {
+		return launchInputs{}
+	}
+	offer := escOffer(ctx, installName)
+	return launchInputs{
+		installName: installName,
+		named:       true,
+		delivered:   resolveInjectedFrom(ctx, installName, nil, offer),
+		escOffer:    offer,
+	}
+}
+
+func launchClient(ctx context.Context, launcher Launcher, binPath string, in launchInputs) (*Client, error) {
+	delivered := in.delivered
 	launchCtx := ctx
-	if named {
-		delivered = resolveInjected(ctx, installName, nil)
+	if in.named {
 		launchCtx = WithDeliveredEnv(ctx, delivered)
 	}
 
@@ -64,8 +91,8 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 	if err != nil {
 		return nil, err
 	}
-	if named {
-		started, delivered, err = applyAdvertisedSettings(ctx, launcher, binPath, installName, started, delivered)
+	if in.named {
+		started, delivered, err = applyAdvertisedSettings(ctx, launcher, binPath, in, started)
 		if err != nil {
 			return nil, err
 		}
@@ -93,18 +120,21 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 }
 
 // applyAdvertisedSettings restarts the process once when GetPluginInfo names
-// variables the first launch did not receive. A second difference is kept.
+// variables the first launch did not receive. A second difference is kept. It
+// reuses the ESC offer read before the launch, so the environment it delivers
+// is the one a pool keyed the process by.
 func applyAdvertisedSettings(
 	ctx context.Context,
 	launcher Launcher,
-	binPath, installName string,
+	binPath string,
+	in launchInputs,
 	started pluginConnection,
-	delivered Delivered,
 ) (pluginConnection, Delivered, error) {
+	delivered, installName := in.delivered, in.installName
 	if started.info == nil {
 		return started, delivered, nil
 	}
-	next := resolveInjected(ctx, installName, started.info.GetSettings())
+	next := resolveInjectedFrom(ctx, installName, started.info.GetSettings(), in.escOffer)
 	if sameDelivery(delivered, next) {
 		return started, next, nil
 	}
@@ -127,7 +157,7 @@ func applyAdvertisedSettings(
 		return pluginConnection{}, Delivered{}, err
 	}
 	if restarted.info != nil {
-		next = resolveInjected(ctx, installName, restarted.info.GetSettings())
+		next = resolveInjectedFrom(ctx, installName, restarted.info.GetSettings(), in.escOffer)
 	}
 	return restarted, next, nil
 }

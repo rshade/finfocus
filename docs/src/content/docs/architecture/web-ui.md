@@ -111,6 +111,23 @@ one name, or none, builds exactly one.
   install or removal reloads only the plugin set of the stack whose session made
   the request. Plugin sets stay per stack because ESC-derived environment differs
   per stack.
+- **Plugin processes shared by environment.** A `--stack` list of two or more
+  names opens every stack's plugins through one `pluginhost.Pool`, created by
+  `newWebStacks` and carried on each stack's context, so the pipeline open, a
+  reload, and the scorer all reach it. Stacks share a plugin's process when the
+  binary path, the environment it is launched with, and everything the stack's
+  ESC environments offer that plugin are the same. The ESC offer is part of the
+  key because a value for a setting the plugin advertises is allowed only after
+  `GetPluginInfo`, so two stacks with different credentials launch with the same
+  environment and differ only after the restart. Each stack holds its own
+  `Client` copy; closing it releases one hold, and the last release stops the
+  process. The pool, not a stack, owns each process's launch context, so
+  stopping or cancelling one stack cannot kill a process another holds. A
+  running process is checked with a `Name` call before it is handed out, and
+  one that does not answer is replaced. Stopping the stacks closes the pool,
+  which stops anything still running. Plugin probes run under an HTTP request
+  context and launch their own process, and a single stack uses no pool
+  (`specs/2016-shared-plugin-pool/`).
 
 `validateStackList` calls `pulumi.ListStacks` and `pulumi.ValidateStacks` to
 report a misspelled stack name, with the available names, before any server
