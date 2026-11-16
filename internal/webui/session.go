@@ -16,6 +16,7 @@ import (
 	"github.com/rshade/finfocus/internal/forecast"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/stackload"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
@@ -651,11 +652,14 @@ func (s *Session) runPreview() {
 	rows, err := s.opts.Preview(s.ctx)
 	close(done)
 	<-tickerDone
-	// The browser gets only "Preview failed"; the reason stays in the
-	// terminal log.
+	// The browser gets only "Preview failed". The warn line also reaches the
+	// web Logs view, so Pulumi's output goes only to debug.
 	if err != nil && s.ctx.Err() == nil {
-		logging.FromContext(s.ctx).Warn().Ctx(s.ctx).Err(err).Str("component", "webui").
+		logger := logging.FromContext(s.ctx)
+		logger.Warn().Ctx(s.ctx).Err(stackload.Redacted(err)).Str("component", "webui").
 			Str("operation", "preview").Msg("pulumi preview failed")
+		logger.Debug().Ctx(s.ctx).Err(err).Str("component", "webui").
+			Str("operation", "preview").Msg("pulumi preview failure detail")
 	}
 	s.mu.Lock()
 	s.previewRunning = false

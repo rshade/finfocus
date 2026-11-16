@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/rshade/finfocus/internal/pulumi"
 )
 
 // Error describes an input failure with safe categories and local file diagnostics.
@@ -43,6 +45,20 @@ func (e *Error) Unwrap() error {
 // Is preserves safe context and missing-file identities without exposing causes.
 func (e *Error) Is(target error) bool {
 	return e.cancellation != nil && target == e.cancellation || e.missing && target == os.ErrNotExist
+}
+
+// Redacted returns err unless it carries Pulumi CLI output. Then it returns an
+// error naming only the failed operation and its safe reason, like a state
+// failure. Use it for log lines below debug: with web logs on, the dashboard
+// Logs view shows them to every admitted user (#2093).
+func Redacted(err error) error {
+	if loadErr, ok := errors.AsType[*Error](err); ok && loadErr.cause != nil {
+		return &Error{Operation: loadErr.Operation, Reason: loadErr.Reason, cancellation: loadErr.cancellation}
+	}
+	if errors.Is(err, pulumi.ErrPreviewFailed) {
+		return pulumi.ErrPreviewFailed
+	}
+	return err
 }
 
 func classifiedError(operation string, err error) *Error {

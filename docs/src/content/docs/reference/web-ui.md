@@ -282,6 +282,12 @@ Credential-like field names and Pulumi secret values in fields are replaced
 with `[redacted]` before an entry leaves the server, and fields whose names
 start with `__` are removed. The free-text `message` is shown as written.
 
+A failed `pulumi preview` is logged at warn with only a short reason, such as
+`loading Pulumi plan: read_failed`. Pulumi's own error output is logged at
+debug, so the Logs view shows it only when the dashboard runs at debug level
+(`--debug` or `FINFOCUS_LOG_LEVEL=debug`). Anyone who can open the dashboard,
+including users admitted through `--trusted-proxy`, can then read it.
+
 #### Log sources
 
 A plugin's lines are tagged with its `plugin_name` field when the line has one.

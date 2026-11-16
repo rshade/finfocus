@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"testing"
+
+	"github.com/rshade/finfocus/internal/pulumi"
 )
 
 func TestClassifyRedacts(t *testing.T) {
@@ -45,4 +47,49 @@ func TestClassifyPreservesContextSentinelsWithoutBackendCauses(t *testing.T) {
 	require.NotErrorIs(t, err, context.Canceled)
 	require.NotErrorIs(t, err, context.DeadlineExceeded)
 	require.NotErrorIs(t, err, backend)
+}
+
+func TestRedactedDropsPulumiOutput(t *testing.T) {
+	t.Parallel()
+	const sentinel = "SENTINEL-TOKEN"
+	planErr := &Error{
+		Operation: OperationPlan,
+		Reason:    ReasonReadFailed,
+		cause:     pulumi.PreviewError("error: " + sentinel),
+	}
+	canceledPlan := &Error{
+		Operation:    OperationPlan,
+		Reason:       ReasonReadFailed,
+		cancellation: context.Canceled,
+		cause:        fmt.Errorf("pulumi preview canceled %s: %w", sentinel, context.Canceled),
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"stackload plan error", planErr, "loading Pulumi plan: read_failed"},
+		{"wrapped plan error", fmt.Errorf("web preview: %w", planErr), "loading Pulumi plan: read_failed"},
+		{"bare preview error", fmt.Errorf("x: %w", pulumi.PreviewError(sentinel)), "pulumi preview failed"},
+		{"canceled plan", canceledPlan, "loading Pulumi plan: read_failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Contains(t, tc.err.Error(), sentinel)
+			redacted := Redacted(tc.err)
+			assert.Equal(t, tc.want, redacted.Error())
+			assert.NotContains(t, redacted.Error(), sentinel)
+		})
+	}
+	require.ErrorIs(t, Redacted(canceledPlan), context.Canceled)
+	require.ErrorIs(t, Redacted(fmt.Errorf("x: %w", pulumi.PreviewError(sentinel))), pulumi.ErrPreviewFailed)
+}
+
+func TestRedactedKeepsErrorsWithoutPulumiOutput(t *testing.T) {
+	t.Parallel()
+	stateErr := classifiedError(OperationState, errors.New("dial tcp backend: connection refused"))
+	ours := errors.New("preview rows could not be priced")
+	assert.Same(t, stateErr, Redacted(stateErr))
+	assert.Equal(t, ours, Redacted(ours))
+	assert.NoError(t, Redacted(nil))
 }
