@@ -4,7 +4,7 @@ go 1.27.4
 
 require (
 	github.com/prometheus/client_golang v1.25.0
-	github.com/prometheus/common v0.73.1
+	github.com/prometheus/common v0.74.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/finfocus-spec v0.7.12
 	github.com/stretchr/testify v1.12.1
