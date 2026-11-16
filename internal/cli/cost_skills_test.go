@@ -279,7 +279,8 @@ func TestCostSkillsArchives(t *testing.T) {
 	for name, wantFiles := range map[string][]string{
 		"cost-check": {
 			"SKILL.md", "references/cli-contract.md", "references/failure-modes.md",
-			"references/report-template.md", "references/thresholds.md",
+			"references/report-template.md", "references/thresholds.md", "references/hook.md",
+			"hooks/cost-check-hook.sh",
 		},
 		"cost-drift": {
 			"SKILL.md", "references/cli-contract.md", "references/drift-explanations.md",

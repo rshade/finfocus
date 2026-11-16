@@ -138,3 +138,13 @@ COST_CHECK_RESULT: PASS | FLAGGED | ERROR (<kind>)
 
 Show the total, the flag counts, the top flagged items, the delta, and the
 unpriced list. Then ask whether to adjust thresholds or look at an item.
+
+## Run it automatically
+
+`hooks/cost-check-hook.sh` runs the same check without being asked: at the
+end of a Claude Code turn, before a commit, or before a push. It exits at once
+when no infrastructure file changed, uses the thresholds above, and prints at
+most five lines. It never runs `pulumi up`. Setup, triggers, and what each
+one shows the agent are in [references/hook.md](references/hook.md). The
+`hook:` keys of `.cost-check.yml` are in
+[references/thresholds.md](references/thresholds.md).
