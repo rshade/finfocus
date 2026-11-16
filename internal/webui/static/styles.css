@@ -199,8 +199,16 @@ body {
   display: none;
 }
 
-.stack-tab-state:not(:empty)::before {
+.stack-tab-state[data-kind="warn"]::before {
   content: "\26A0\FE0E ";
+}
+
+/* Progress is quieter than a warning but keeps the tab's own color, so it
+   has the tab name's contrast on selected and unselected tabs alike. */
+.stack-tab-state[data-kind="progress"] {
+  font-weight: 400;
+  font-style: italic;
+  text-transform: none;
 }
 
 .stack-notice {

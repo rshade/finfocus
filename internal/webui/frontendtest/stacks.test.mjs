@@ -165,6 +165,7 @@ async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse,
 
   const state = { stacks, stacksResponse };
   const fetches = [];
+  const timers = [];
   const respond = (body, status = 200) =>
     Promise.resolve({ ok: status < 400, status, text: async () => (body === null ? '' : JSON.stringify(body)) });
   const location = { hash };
@@ -183,7 +184,7 @@ async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse,
     EventSource,
     MessageEvent,
     AbortController,
-    setTimeout: () => 1,
+    setTimeout: (fn, delay) => timers.push({ fn, delay }),
     clearTimeout() {},
     fetch: (url, init = {}) => {
       const method = init.method ?? 'GET';
@@ -235,6 +236,7 @@ async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse,
     ns: app.namespace,
     EventSource,
     fetches,
+    timers,
     log,
     mounts,
     nodes: { view, tablist, label, announcer, status, navLinks, notice },
@@ -258,6 +260,7 @@ async function setup({ stacks = [], hash = '#/overview', prefix, stacksResponse,
 
 const entries = (...names) => names.map((name) => ({ name, state: 'idle' }));
 const markerOf = (tab) => tab.children.find((child) => typeof child === 'object' && child.className === 'stack-tab-state');
+const markOf = (tab) => [markerOf(tab).textContent, markerOf(tab).dataset.kind, tab.getAttribute('aria-label')];
 
 // ---- one stack behaves exactly as today (US6, FR-013) ----------------------
 
@@ -344,30 +347,64 @@ test('the lone tab follows the view in its address', async () => {
   assert.equal(t.loc.hash, '#/estimate');
 });
 
-test('the lone tab marks locked and failed in text and accessible name, like a stack tab', async () => {
+test('the lone tab marks its state in text and accessible name, like a stack tab', async () => {
   const t = await setup({ stackName: 'dev' });
   const tab = loneTab(t);
   const source = t.lastSource();
-  const state = () => [markerOf(tab).textContent, tab.getAttribute('aria-label')];
-  assert.deepEqual(state(), ['', null], 'loading has no marker');
+  const state = () => markOf(tab);
+  assert.deepEqual(state(), ['loading', 'progress', 'dev, loading'], 'a stack is loading from the start');
 
   t.emit(source, 'passphrase_required', { stack: 'dev' });
-  assert.deepEqual(state(), ['locked', 'dev, locked']);
+  assert.deepEqual(state(), ['locked', 'warn', 'dev, locked']);
 
   t.emit(source, 'snapshot', { passphraseRequired: false, ready: false, failed: false });
-  assert.deepEqual(state(), ['', null], 'an accepted passphrase goes back to loading');
+  assert.deepEqual(state(), ['loading', 'progress', 'dev, loading'], 'an accepted passphrase goes back to loading');
 
   t.emit(source, 'snapshot', { passphraseRequired: false, ready: false, failed: true });
-  assert.deepEqual(state(), ['failed', 'dev, failed']);
+  assert.deepEqual(state(), ['failed', 'warn', 'dev, failed']);
 
   t.emit(source, 'snapshot', { passphraseRequired: true, ready: false, failed: true });
-  assert.deepEqual(state(), ['locked', 'dev, locked'], 'a pending prompt is tested first');
+  assert.deepEqual(state(), ['locked', 'warn', 'dev, locked'], 'a pending prompt is tested first');
 
   t.emit(source, 'snapshot', { passphraseRequired: false, ready: true, failed: true });
-  assert.deepEqual(state(), ['', null], 'a failed preview leaves a loaded stack ready');
+  assert.deepEqual(state(), ['', undefined, null], 'a failed preview leaves a loaded stack ready');
 
   t.emit(source, 'ready', {});
-  assert.deepEqual(state(), ['', null]);
+  assert.deepEqual(state(), ['', undefined, null]);
+});
+
+// countLabelWrites records every aria-label write on a tab, so a test can tell
+// a repeated state from a real change.
+function countLabelWrites(tab) {
+  const writes = [];
+  const set = tab.setAttribute.bind(tab);
+  const remove = tab.removeAttribute.bind(tab);
+  tab.setAttribute = (key, value) => {
+    if (key === 'aria-label') writes.push(value);
+    set(key, value);
+  };
+  tab.removeAttribute = (key) => {
+    if (key === 'aria-label') writes.push(null);
+    remove(key);
+  };
+  return writes;
+}
+
+test('the lone tab rewrites its accessible name only when its state changes', async () => {
+  const t = await setup({ stackName: 'dev' });
+  const tab = loneTab(t);
+  const source = t.lastSource();
+  const writes = countLabelWrites(tab);
+
+  t.emit(source, 'snapshot', { passphraseRequired: false, ready: false, failed: false });
+  t.emit(source, 'snapshot', { passphraseRequired: false, ready: false, failed: false });
+  await t.hashchange('#/cost');
+  assert.deepEqual(writes, [], 'loading again is not a change');
+
+  t.emit(source, 'snapshot', { passphraseRequired: false, ready: true, failed: false });
+  t.emit(source, 'ready', {});
+  t.emit(source, 'snapshot', { passphraseRequired: false, ready: true, failed: false });
+  assert.deepEqual(writes, [null], 'loading to ready is one change');
 });
 
 test('a failed single stack seen from another view points to Overview', async () => {
@@ -562,6 +599,72 @@ test('after a stream error the tab states refresh and the failed tab is marked',
   assert.equal(markerOf(b).textContent, '');
   assert.equal(b.getAttribute('aria-label'), null);
   assert.deepEqual(t.names(), ['a', 'b'], 'a failed stack keeps its tab');
+});
+
+test('stack tabs mark each state like the lone tab, and a repeated state rewrites nothing', async () => {
+  const t = await setup({ stacks: entries('a', 'b', 'c', 'd', 'e') });
+  const tabs = t.nodes.tablist.tabs;
+  const marks = () => tabs.map(markOf);
+  t.state.stacks = [
+    { name: 'a', state: 'loading' },
+    { name: 'b', state: 'idle' },
+    { name: 'c', state: 'ready' },
+    { name: 'd', state: 'locked' },
+    { name: 'e', state: 'failed' },
+  ];
+  t.emit(t.lastSource(), 'snapshot', {});
+  await settle();
+  assert.deepEqual(marks(), [
+    ['loading', 'progress', 'a, loading'],
+    ['', undefined, null],
+    ['', undefined, null],
+    ['locked', 'warn', 'd, locked'],
+    ['failed', 'warn', 'e, failed'],
+  ]);
+
+  const writes = tabs.map(countLabelWrites);
+  t.emit(t.lastSource(), 'snapshot', {});
+  await settle();
+  assert.deepEqual(writes, [[], [], [], [], []], 'a refresh with the same states rewrites no accessible name');
+
+  t.state.stacks = t.state.stacks.map((entry) => (entry.name === 'a' ? { name: 'a', state: 'ready' } : entry));
+  t.emit(t.lastSource(), 'ready', {});
+  await settle();
+  assert.deepEqual(marks()[0], ['', undefined, null], 'a loaded stack drops its marker');
+  assert.deepEqual(writes, [[null], [], [], [], []], 'only the stack that changed is rewritten');
+});
+
+test('a stack loading in the background is polled until its loading marker clears', async () => {
+  const t = await setup({ stacks: entries('a', 'b') });
+  const polls = () => t.timers.filter((timer) => timer.delay === t.ns.STACK_POLL_MS);
+  const lists = () => t.fetches.filter((f) => f.url === '/api/stacks').length;
+  t.state.stacks = [{ name: 'a', state: 'ready' }, { name: 'b', state: 'idle' }];
+  t.emit(t.lastSource(), 'ready', {});
+  await settle();
+  assert.equal(polls().length, 0, 'nothing loading in the background, nothing polled');
+
+  t.state.stacks = [{ name: 'a', state: 'loading' }, { name: 'b', state: 'loading' }];
+  await t.hashchange('#/s/b/overview');
+  t.emit(t.lastSource(), 'snapshot', {});
+  await settle();
+  assert.equal(polls().length, 1, 'one poll is pending however many refreshes ran');
+  const [a] = t.nodes.tablist.tabs;
+  assert.equal(a.getAttribute('aria-label'), 'a, loading');
+
+  t.state.stacksResponse = () => Promise.reject(new Error('dropped'));
+  polls()[0].fn();
+  await settle();
+  assert.equal(polls().length, 2, 'a failed refresh keeps polling');
+  assert.equal(a.getAttribute('aria-label'), 'a, loading');
+
+  t.state.stacksResponse = undefined;
+  t.state.stacks = [{ name: 'a', state: 'ready' }, { name: 'b', state: 'loading' }];
+  const before = lists();
+  polls()[1].fn();
+  await settle();
+  assert.equal(lists(), before + 1);
+  assert.equal(a.getAttribute('aria-label'), null, 'a stack that finished in the background drops its marker');
+  assert.equal(polls().length, 2, 'only the selected stack is loading, and its stream refreshes the list');
 });
 
 const noticeText = (t) => t.nodes.notice.children.map((child) => (typeof child === 'string' ? child : child.textContent)).join('');

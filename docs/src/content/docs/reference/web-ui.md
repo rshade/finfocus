@@ -318,16 +318,19 @@ first stack.
 
 A stack starts loading the first time its tab is selected, so only the stacks
 you open run plugins. Leaving a tab ends its live updates, and returning to it
-shows what it already loaded. A tab shows its state in text:
+shows what it already loaded. A tab shows its state in text and in its
+accessible name; `failed` and `locked` also carry a warning sign:
 
 | Marker | Meaning |
 | --- | --- |
-| none | Not opened yet, loading, or ready |
+| none | Not opened yet, or ready. A stack you opened is done once its `loading` marker clears. |
+| `loading` | The stack is loading or still pricing its resources. It has no warning sign. |
 | `failed` | The stack could not load. Its view shows the same safe message a single-stack run shows. Other tabs are unaffected. A failed stack stays failed until you restart the dashboard. |
 | `locked` | The stack is waiting for its passphrase. The prompt appears in that tab and unlocks only that stack. |
 
 With one stack from a Pulumi project, the header names it and the tab bar
-shows it as a single selected tab with the same `failed` and `locked` markers.
+shows it as a single selected tab with the same `loading`, `failed`, and
+`locked` markers.
 Nothing else changes: the address stays `#/<view>`, and there is nothing to
 switch to. A plan file, a state file, or Terraform shows no tab bar. On any view
 but Overview, a stack that is waiting for its passphrase or failed to load says
