@@ -524,6 +524,25 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `webStack` (`newWebStack`) owns the passphrase channel, so a prompt and its
   answer stay inside one stack. `LoadStackContext("")` reads the workspace
   stack, which is why the empty case must not rebuild a source.
+- Shared plugin processes (`specs/2016-shared-plugin-pool/`): `newWebStacks`
+  puts one `pluginhost.Pool` on every stack's context, and
+  `registry.openPlugin` calls `pool.Acquire` instead of `NewClient` when the
+  context carries one. Only a `--stack` list of two or more uses it. Before a
+  binary has answered `GetPluginInfo`, the key is the launch environment plus
+  the stack's whole ESC offer (`esc.Delivery` holds every variable of every
+  imported environment, not only the plugin's): keying on the launch
+  environment alone would give one stack's ESC value for an advertised setting
+  to another. After that, a request resolves its exact final environment from
+  the learned settings and keys on it; that is what lets initial-30 `dev` (six
+  ESC environments) and `test` (one) share. A request whose prediction differs
+  from what the process received retries on the offer key, and requests during
+  a binary's first launch wait for it (`poolLearnWait`).
+  One `settingSources` read (parent environment, the plugin's config values,
+  ESC offer) per request feeds the launch, the prediction, the restart in
+  `applyAdvertisedSettings`, and the offer key; never re-read files or ESC
+  there. A launch whose requesters all leave is cancelled (`entry.stop`). The launch context is `WithoutCancel(requester)` cancelled by the
+  pool, never the requester's context. Holders get a `Client` copy with cloned
+  `Metadata` (the registry merge writes it); `Close` releases one hold.
 - Dashboard settings apply on the next `NewClient`. The first reload must not
   close the overview pipeline's original clients. Later reloads close only
   the set the previous reload opened. `closeReloaded` runs before

@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/webui"
 )
@@ -142,17 +144,8 @@ func runWebStacks(
 	}
 	stores := openSharedStores(ctx, cmd, params.cfg)
 	defer stores.Close(ctx)
-	stacks := make([]*webStack, 0, len(names))
-	defer func() {
-		for _, stack := range stacks {
-			stack.stop()
-		}
-	}()
-	for _, name := range names {
-		stackParams := params
-		stackParams.stack = name
-		stacks = append(stacks, newWebStack(ctx, cmd, stackParams, dateRange, audit, stores))
-	}
+	stacks, stopStacks := newWebStacks(ctx, cmd, names, params, dateRange, audit, stores)
+	defer stopStacks()
 
 	root := webui.NewSession(ctx, webui.SessionOptions{})
 	defer root.Close()
@@ -171,11 +164,44 @@ func runWebStacks(
 	}
 
 	return serveDashboard(ctx, flags, srv, audit, func() int {
-		for _, stack := range stacks {
-			stack.stop()
-		}
+		stopStacks()
 		return startedRowsEnriched(stacks)
 	})
+}
+
+// newWebStacks builds one runtime per stack name. Every stack opens plugins
+// through one pluginhost.Pool carried on its context, so the pipeline open, a
+// reload, and the scorer of stacks whose plugin environment matches share one
+// process per plugin (specs/2016-shared-plugin-pool/). stop stops every stack,
+// which releases its holds, and then closes the pool, which stops anything
+// still running. It is safe to call more than once.
+func newWebStacks(
+	ctx context.Context,
+	cmd *cobra.Command,
+	names []string,
+	params overviewParams,
+	dateRange engine.DateRange,
+	audit *auditContext,
+	stores *sharedStores,
+) ([]*webStack, func()) {
+	pool := pluginhost.NewPool(ctx)
+	stackCtx := pluginhost.WithPool(ctx, pool)
+	stacks := make([]*webStack, 0, len(names))
+	for _, name := range names {
+		stackParams := params
+		stackParams.stack = name
+		stacks = append(stacks, newWebStack(stackCtx, cmd, stackParams, dateRange, audit, stores))
+	}
+	var once sync.Once
+	stop := func() {
+		once.Do(func() {
+			for _, stack := range stacks {
+				stack.stop()
+			}
+			pool.Close()
+		})
+	}
+	return stacks, stop
 }
 
 // startedRowsEnriched totals the rows priced by the stacks that were started. A

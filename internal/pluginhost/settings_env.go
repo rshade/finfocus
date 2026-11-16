@@ -352,17 +352,37 @@ func copyDelivered(delivered Delivered) Delivered {
 	return delivered
 }
 
-func resolveInjected(
-	ctx context.Context,
-	plugin string,
-	settings []*pbc.PluginSetting,
-) Delivered {
+// settingSources is one read of everything settings resolution uses besides
+// the plugin's descriptors: the parent environment, the plugin's project and
+// global config values, and every value ESC offers the plugin. A launch
+// resolves its first environment, its restart, and a pool key from the same
+// read, so a settings save during startup cannot pair a process with a key
+// for other settings.
+type settingSources struct {
+	parent   []string
+	project  map[string]string
+	global   map[string]string
+	escOffer esc.Delivery
+}
+
+func readSettingSources(ctx context.Context, plugin string) settingSources {
 	project, global := pluginFileMaps(ctx, plugin)
-	var fromESC esc.Delivery
-	if src, ok := esc.SourceFromContext(ctx); ok {
-		fromESC = src.Delivery(ctx, plugin)
+	return settingSources{parent: os.Environ(), project: project, global: global, escOffer: escOffer(ctx, plugin)}
+}
+
+// resolve returns the environment a plugin with these advertised settings receives.
+func (s settingSources) resolve(ctx context.Context, plugin string, settings []*pbc.PluginSetting) Delivered {
+	return ResolveDeliveredEnv(ctx, plugin, s.parent, s.project, s.global, settingDescs(settings), s.escOffer)
+}
+
+// escOffer returns every value the context's ESC source holds for plugin,
+// before the allow list filters it.
+func escOffer(ctx context.Context, plugin string) esc.Delivery {
+	src, ok := esc.SourceFromContext(ctx)
+	if !ok {
+		return esc.Delivery{}
 	}
-	return ResolveDeliveredEnv(ctx, plugin, os.Environ(), project, global, settingDescs(settings), fromESC)
+	return src.Delivery(ctx, plugin)
 }
 
 func pluginFileMaps(ctx context.Context, plugin string) (map[string]string, map[string]string) {
