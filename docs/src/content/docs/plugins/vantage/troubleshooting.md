@@ -689,7 +689,7 @@ finfocus-vantage pull --config config.yaml --dry-run
 
 2. **Vantage Resources**
    - [Vantage API Documentation](https://docs.vantage.sh/api)
-   - [Vantage Support](https://support.vantage.sh/)
+   - [Vantage Support](mailto:support@vantage.sh)
    - [Vantage Status Page](https://status.vantage.sh/)
 
 3. **FinFocus Resources**
@@ -708,7 +708,6 @@ finfocus-vantage pull --config config.yaml --dry-run
 
 - **Vantage Support**: For Vantage API issues
   - Email: <support@vantage.sh>
-  - Portal: <https://support.vantage.sh/>
 
 - **FinFocus Support**: For plugin integration issues
   - GitHub Issues: <https://github.com/rshade/finfocus/issues>

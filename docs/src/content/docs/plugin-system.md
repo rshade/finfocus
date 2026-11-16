@@ -248,46 +248,27 @@ finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --adapter opencos
 
 See [OpenCost Plugin](plugins/opencost.md) for every setting.
 
-### AWS Pricing Plugin
+### AWS Plugins
 
-**Repository**: [finfocus-plugin-aws](https://github.com/rshade/finfocus-plugin-aws) (planned)
+- **aws-public** ([repository](https://github.com/rshade/finfocus-plugin-aws-public),
+  [guide](plugins/aws-public.md)): AWS public pricing data.
+- **aws-ce** ([repository](https://github.com/rshade/finfocus-plugin-aws-ce),
+  [guide](plugins/aws-ce.md)): AWS Cost Explorer actual costs, account and
+  service forecasts, AWS Budgets, and recommendations.
 
-**Capabilities:**
+### Azure Plugin
 
-- AWS Cost Explorer integration
-- EC2, RDS, S3 pricing data
-- Reserved instance optimization
-- Multi-account cost aggregation
+- **azure-public** ([repository](https://github.com/rshade/finfocus-plugin-azure-public),
+  [guide](plugins/azure-public.md)): Azure public retail pricing data.
 
-**Configuration:**
+### Google Cloud
 
-```bash
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_REGION="us-west-2"
-```
+No plugin is dedicated to Google Cloud yet. The [flexera](plugins/flexera.md)
+and [vantage](plugins/vantage.md) plugins report Google Cloud actual costs
+from those platforms.
 
-### Azure Cost Management Plugin
-
-**Repository**: [finfocus-plugin-azure](https://github.com/rshade/finfocus-plugin-azure) (planned)
-
-**Capabilities:**
-
-- Azure Cost Management API integration
-- Resource group cost breakdown
-- Azure subscription analysis
-- Reserved instance tracking
-
-### GCP Cloud Billing Plugin
-
-**Repository**: [finfocus-plugin-gcp](https://github.com/rshade/finfocus-plugin-gcp) (planned)
-
-**Capabilities:**
-
-- Google Cloud Billing API integration
-- Project and folder cost attribution
-- Committed use discount tracking
-- BigQuery cost analysis
+The [plugin directory](https://finfocus.dev/plugins/) lists every plugin in the
+registry and what each one covers.
 
 ## Plugin Development
 

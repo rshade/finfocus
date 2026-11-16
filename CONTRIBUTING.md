@@ -539,17 +539,18 @@ These workflows are triggered by a maintainer comment on a pull request:
 
 ## Project Architecture
 
-FinFocus operates as a three-repository ecosystem:
+FinFocus spans these repositories:
 
 | Repository                  | Purpose                                     |
 | --------------------------- | ------------------------------------------- |
 | [finfocus][core]     | CLI tool, plugin host, orchestration engine |
 | [finfocus-spec][spec]     | Protocol buffer definitions, SDK generation |
-| [finfocus-plugin][plugin] | Plugin implementations (Kubecost, Vantage)  |
+| Plugin implementations | Separate repositories such as [finfocus-plugin-aws-public][aws-public], and modules under `plugins/` in [finfocus][core]; see the [plugin registry][registry] for repository locations |
 
 [core]: https://github.com/rshade/finfocus
 [spec]: https://github.com/rshade/finfocus-spec
-[plugin]: https://github.com/rshade/finfocus-plugin
+[aws-public]: https://github.com/rshade/finfocus-plugin-aws-public
+[registry]: https://github.com/rshade/finfocus/blob/main/internal/registry/registry.json
 
 Cross-repository changes require coordination. See the
 [constitution](.specify/memory/constitution.md) for the cross-repo change

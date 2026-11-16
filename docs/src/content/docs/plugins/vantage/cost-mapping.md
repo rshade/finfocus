@@ -620,7 +620,7 @@ params:
 
 - [FinOps FOCUS Specification v1.2](https://focus.finops.org/)
 - [Vantage API Documentation](https://docs.vantage.sh/api)
-- [Vantage Data Model](https://docs.vantage.sh/data-model)
+- [Vantage Data Dictionary](https://docs.vantage.sh/data_dictionary)
 - [Setup Guide](setup.md) - Installation and configuration
 - [Authentication Guide](authentication.md) - API key management
 - [Features Guide](features.md) - Supported capabilities
