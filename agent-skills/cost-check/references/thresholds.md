@@ -43,6 +43,21 @@ skipped and the report says so. An earlier `COST_CHECK.md` never replaces the
 plan baseline. When the baseline could not be priced, both increase checks are
 unavailable (see `partial` in [failure-modes.md](failure-modes.md)).
 
+## `hook:` keys
+
+Used only by `hooks/cost-check-hook.sh` ([hook.md](hook.md)).
+
+```yaml
+hook:
+  block: false
+  terraform_plan: plan.json
+```
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `hook.block` | `false` | When `true`, a flag blocks: a git hook exits `1`, and a Claude Code `Stop` hook asks the agent to continue and address the cost. When `false`, the hook only reports. A tooling problem never blocks. |
+| `hook.terraform_plan` | none | Path of a saved `tofu show -json` plan for a Terraform project. The hook never runs `terraform plan`, so without this key it skips Terraform projects. |
+
 ## CI exit codes
 
 The skill runs inside an agent, so its own exit status belongs to the agent

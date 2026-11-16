@@ -19,7 +19,7 @@ never published. [finfocus-budget](finfocus-budget/) covers budgets.
 | [finfocus-routing](finfocus-routing/) | Configure plugin routing with priority, patterns, fallback | S |
 | [finfocus-budget](finfocus-budget/) | Configure budget thresholds, health, and CI exit codes | M |
 | [finfocus-diagnose](finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost | M |
-| [cost-check](cost-check/) | Estimate monthly cost from a plan or state, flag thresholds, write COST_CHECK.md | M |
+| [cost-check](cost-check/) | Estimate monthly cost from a plan or state, flag thresholds, write COST_CHECK.md; `hooks/` runs it automatically from Claude Code or git | M |
 | [cost-drift](cost-drift/) | Compare actual and projected spend, flag drift, write COST_DRIFT.md | M |
 | [finfocus-plugin-upgrade](finfocus-plugin-upgrade/) | Upgrade a plugin project to a newer finfocus-spec version | M |
 | [finfocus-plugin-dev](finfocus-plugin-dev/) | Implement and test a plugin scaffolded by `plugin init` | M |
