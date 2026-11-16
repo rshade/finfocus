@@ -178,7 +178,7 @@ func TestCostCheckHook_UnderThresholdSummary(t *testing.T) {
 	require.Equal(t, 0, got.code, got.out)
 	assert.Equal(t, "pulumi\nfinfocus\n", got.calls)
 	out := lines(got.out)
-	assert.LessOrEqual(t, len(out), 5)
+	require.Len(t, out, 3, got.out)
 	assert.Equal(
 		t,
 		"FinFocus cost check: +7.59 USD/mo, plan total 107.59 USD/mo (1 create, 0 update, 0 delete)",
@@ -198,7 +198,7 @@ func TestCostCheckHook_OverThresholdReportsWithoutBlocking(t *testing.T) {
 
 	assert.Equal(t, 0, got.code, got.out)
 	out := lines(got.out)
-	assert.LessOrEqual(t, len(out), 5)
+	require.Len(t, out, 4, got.out)
 	assert.Equal(t, "Status: over threshold: increase +120.00 > 50; increase 120% > 20%"+
 		" (1 unpriced, so totals are a lower bound)", out[1])
 	assert.Equal(t, "  +87.15 create db (aws:rds/instance:Instance)", out[2], "largest change first")
@@ -507,8 +507,10 @@ func TestCostCheckHook_OtherCurrencySkipsThresholds(t *testing.T) {
 	got := repo.run(t, "manual", "", hookCostOver)
 
 	assert.Equal(t, 0, got.code, got.out)
+	out := lines(got.out)
+	require.Len(t, out, 4, got.out)
 	assert.Equal(t, "Status: OK (thresholds not applied: costs are in USD, .cost-check.yml uses EUR)"+
-		" (1 unpriced, so totals are a lower bound)", lines(got.out)[1])
+		" (1 unpriced, so totals are a lower bound)", out[1])
 }
 
 //nolint:paralleltest // Writes fake tools and executes them (text file busy).

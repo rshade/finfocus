@@ -219,7 +219,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'cleanup; trap - EXIT; exit 130' INT
 trap 'cleanup; trap - EXIT; exit 143' TERM
-work="$(mktemp -d 2>/dev/null)" || skip "cannot create a temporary directory"
+work="$(mktemp -d 2>/dev/null || mktemp -d -t finfocus-cost-hook 2>/dev/null)" || skip "cannot create a temporary directory"
 
 [ "$have_jq" = true ] || skip "jq is not installed"
 command -v finfocus >/dev/null 2>&1 || skip "finfocus is not installed or not on PATH"
