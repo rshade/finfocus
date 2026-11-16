@@ -989,10 +989,15 @@ func loadTUIOverviewPreview(
 	if pw != nil && p.cfg.retryPassphrase && p.cfg.passphrases != nil && rejectedPassphrase(err) {
 		return nil, err
 	}
-	// The reason goes only to the log; the phase and error events carry no Pulumi stderr.
-	logging.FromContext(ctx).Warn().Ctx(ctx).Err(err).
+	// The phase and error events carry no Pulumi stderr. The warn line reaches
+	// the web Logs view, so Pulumi's output goes only to debug.
+	logger := logging.FromContext(ctx)
+	logger.Warn().Ctx(ctx).Err(stackload.Redacted(err)).
 		Str("component", "cli").Str("operation", "overview_preview").Str("stack", base.StackName).
 		Msg("pulumi preview failed; showing current state")
+	logger.Debug().Ctx(ctx).Err(err).
+		Str("component", "cli").Str("operation", "overview_preview").Str("stack", base.StackName).
+		Msg("pulumi preview failure detail")
 	p.emitPhase(OverviewPhaseRunPreview, overviewPhasePreviewFailedName)
 	return base, nil
 }

@@ -144,7 +144,9 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   `packages/zerolog-viewer/test/fixtures/`, and `TestVendoredViewerFixturesMatch`
   fails when they differ from `internal/weblog/testdata` (#2018). The boundary
   test also fails when a path in `test/` leaves the package.
-  Redaction covers fields only; `message` is shown as written. `buildEntry`
+  Redaction covers fields only; `message` is shown as written. A failed
+  preview's log lines below debug carry no Pulumi CLI output: both call sites
+  log `stackload.Redacted(err)` at warn and the raw error at debug (#2093). `buildEntry`
   reads JSON, then `zerolog.ConsoleWriter` text (the default log file format),
   then raw. A line that starts with `{` and does not parse is withheld, never
   shown raw, since a cut event hides its credential fields from redaction.

@@ -380,6 +380,12 @@ confirm only that plugin's warn-and-above lines print, with badges, and that
 - Logs may contain resource names and paths. They are shown only on localhost
   behind the dashboard's existing access protection; remote or multi-user
   exposure is out of scope.
+- Spec 2011 later admitted other users through `--trusted-proxy`, so log
+  lines below debug keep Pulumi CLI output out of their fields (#2093). A
+  failed preview's warn line names only the operation and a safe reason
+  (`stackload.Redacted`); Pulumi's error text is logged at debug, which the
+  Logs view also shows when the dashboard runs at debug level. This is a rule
+  at the log call, not a second redaction list in the viewer.
 - The viewer's npm name and scope are placeholders; publishing is a later
   decision.
 
