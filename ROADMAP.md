@@ -6,21 +6,23 @@ guardrails in `CONTEXT.md`.
 
 ## Table of Contents
 
-- [Immediate Focus (Post v0.5.7)](#immediate-focus-post-v057)
+- [Immediate Focus (Post v0.5.8)](#immediate-focus-post-v058)
 - [Near-Term Vision (Forecasting & Profiles)](#near-term-vision-forecasting--profiles)
 - [Future Vision (Later)](#future-vision-later---notifications-integrations--backlog)
 - [Completed Milestones](#completed-milestones)
 - [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
 - [Boundary Safeguards](#boundary-safeguards)
 
-## Immediate Focus (Post v0.5.7)
+## Immediate Focus (Post v0.5.8)
 
-*v0.5.7 released 2026-11-11. Everything below targets the next release.*
+*v0.5.8 released 2026-11-15. Everything below targets the next release.*
 
-- [ ] Record the last-known snapshot when recommendations are dismissed or
-      snoozed ([#2057](https://github.com/rshade/finfocus/issues/2057)) [M]
-  - *Promoted by /roadmap sync on 2026-11-11 — a correctness bug in shipped
-    recommendation lifecycle, ahead of the small web follow-ups.*
+- [ ] Let plugin conformance probe with the plugin's own provider, so a
+      Kubernetes-only plugin can pass
+      ([#2166](https://github.com/rshade/finfocus/issues/2166)) [M]
+  - *Promoted by /roadmap sync on 2026-11-16 — a bug in shipped v0.5.8
+    tooling that fails the opencost plugin on 5 of 10 checks, with the
+    cause already identified.*
 
 ## Near-Term Vision (Forecasting & Profiles)
 
@@ -30,12 +32,17 @@ guardrails in `CONTEXT.md`.
         preview ([#1971](https://github.com/rshade/finfocus/issues/1971)) [S]
         *Follow-up to #1903, which closed 2026-11-02; check whether it still
         reproduces*
-  - [ ] Show a text marker on stack tabs while a stack is loading
-        ([#2098](https://github.com/rshade/finfocus/issues/2098)) [S]
-  - [ ] Stop the web Logs view showing raw Pulumi stderr from a failed preview
-        ([#2093](https://github.com/rshade/finfocus/issues/2093)) [S]
   - [ ] Run the web Logs e2e test that was compiled but never run
         ([#2021](https://github.com/rshade/finfocus/issues/2021)) [S]
+- [ ] **Shift-Left Quick Wins** *(filed from the 2026-11-16 brainstorm, ideas
+      3 and 7 in Future Vision)*
+  - [ ] Run the cost check automatically when infrastructure code changes
+        ([#2175](https://github.com/rshade/finfocus/issues/2175)) [M]
+        *A hook for the existing `cost-check` skill: Claude Code `Stop`, git
+        `pre-push` or `pre-commit`*
+  - [ ] Compare the cost of two stacks of one project
+        ([#2174](https://github.com/rshade/finfocus/issues/2174)) [L]
+        *Builds on the multi-stack dashboard and shared plugins (#2086)*
 - [ ] **Estimate What-If Usability** *(#1731 shipped 2026-10-18)*
   - [ ] Show cost-affecting properties by default in What-If
         ([#1732](https://github.com/rshade/finfocus/issues/1732)) [M]
@@ -129,11 +136,10 @@ guardrails in `CONTEXT.md`.
   - *Transferred:* the OpenCost plugin returning pre-allocated rows (was
     #1531) now lives in
     [finfocus-plugin-opencost issue 48](https://github.com/rshade/finfocus-plugin-opencost/issues/48)
-- [ ] **Plugin Host Pooling** *(cross-repo)*
+- [ ] **Plugin Host Pooling** *(cross-repo; same-environment sharing across
+      web stacks shipped in #2086)*
   - [ ] Pool opted-in plugins and pass per-request credentials
         ([#1539](https://github.com/rshade/finfocus/issues/1539)) [L]
-  - [ ] Share plugin processes across web stacks whose plugin environment
-        matches ([#2086](https://github.com/rshade/finfocus/issues/2086)) [L]
 - [ ] **Encrypted Support Bundles**
   - [ ] `finfocus support` command for encrypted support bundles
         ([#1981](https://github.com/rshade/finfocus/issues/1981)) [L]
@@ -249,10 +255,106 @@ guardrails in `CONTEXT.md`.
       Depends on the TypeSafe data-terms research (PM backlog item 16).
     - *Open question:* do buyers respond to auditable AI, or only engineers?
 
+- [ ] **Shift-Left & Coverage Ideas** *(brainstorm 2026-11-16; ideas only,
+      no issues or specs yet. Checked against v0.5.8, the CHANGELOG, the
+      plugin catalog and finfocus-spec; each names what already exists)*
+  - *Context:* coverage of the State of FinOps 2026 report puts
+    pre-deployment architecture costing as the most requested tool feature
+    and AI spend as the top priority. FOCUS 1.3 (ratified 2025-12) adds
+    contract commitments. Figures are from vendor write-ups, not the report.
+  - [ ] **1. Read FOCUS exports, not just write them** [L] — A `focus` plugin
+        that reads FOCUS 1.2-1.4 exports from a bucket or path and serves
+        actual cost, so any vendor that exports FOCUS (Vantage does, 1.3)
+        works without its own plugin.
+    - *Exists:* the SDK emits FOCUS 1.3/1.4 records (`focus_builder.go`) and
+      tests FOCUS conformance. Nothing ingests an export file.
+    - *Placement:* a new plugin; core unchanged.
+    - *Open question:* one generic plugin, or a FOCUS fallback inside the
+      Vantage and Flexera plugins?
+  - [ ] **2. Estimates that know what you already paid for** [L] — Show list
+        and effective price ("$33/mo list, $19/mo under your savings plan")
+        from the FOCUS 1.3 contract commitments the spec already defines.
+    - *Exists:* the spec's supplemental contract-commitments service and
+      `PLUGIN_CAPABILITY_CONTRACT_COMMITMENTS`; core drops that capability.
+    - *Placement:* core consumes the existing spec service generically;
+      commitment data comes from billing plugins (aws-ce, Vantage, Flexera).
+    - *Open question:* does an effective rate help developers, or hide the
+      real cost and the commitment's expiry risk?
+  - **3. Cost checks that run themselves**: filed as #2175, now in
+    Near-Term Vision.
+  - [ ] **4. Avoided cost as a CI output** [M] — Price the PR's first commit
+        and its merge commit and report `cost-avoided`, credited to the
+        author, so teams can measure shift-left without a store in core.
+    - *Exists:* `cost projected` as a diff, and finfocus-action's PR comment
+      and `cost-diff` output.
+    - *Placement:* `finfocus-action`; a long-term ledger would need a new
+      store and a constitution amendment (Persistence Model).
+    - *Open question:* is "first commit vs merged" credible, or must the
+      reduction trace to review?
+  - [ ] **5. AI spend through usage sources** [L] — Allocate LLM token and GPU
+        inference spend to stacks and services by tag, reusing the
+        `UsageSource` and `Allocator` pattern from Kubernetes allocation.
+    - *Exists:* the pattern (kubernetes, prometheus, opencost). Nothing for
+      LLM gateways or inference in the catalog or the PM portfolio.
+    - *Placement:* a gateway plugin (LiteLLM, OpenRouter, or Bedrock metrics);
+      core stays generic.
+    - *Open question:* is "which stack caused this token spend" a question
+      users have, or does AI spend belong to applications?
+  - [ ] **6. A certified plugin list** [M] — Publish which plugins pass
+        `plugin certify`, with a badge and a reusable CI step vendors run in
+        their own repos.
+    - *Exists:* `plugin certify` and its Markdown report. Blocked on #2166,
+      since conformance probes with an AWS resource only.
+    - *Placement:* catalog, docs site, and a GitHub Action step.
+    - *Open question:* does "certified" matter to a vendor before users ask
+      for its plugin?
+  - **7. Compare two stacks**: filed as #2174, now in Near-Term Vision.
+  - [ ] **8. Sweep a what-if** [M] — `estimate --sweep instanceType=...` or
+        `region=...` runs several what-ifs in one call and ranks them, with
+        carbon beside cost.
+    - *Exists:* `estimate --modify` (one value per call) and the carbon
+      plugin.
+    - *Placement:* core orchestration; pricing stays in plugins.
+    - *Open question:* is region movable for users, or is instance family the
+      real sweep?
+  - [ ] **9. Publish the unreleased plugins** [L] — Four plugins exist only
+        as local, unversioned folders (no git history, no GitHub repo):
+        `civo-public` (25 Go files, 11 tests; prices the civo cluster in the
+        initial-30 stack), `cloudzero` (10 files), `gcp-public` (6 files),
+        and `azure-costmgmt` (a `spec.md` only). None is in
+        `internal/registry/registry.json`.
+    - *Placement:* each plugin's own repo, then a registry entry once it has
+      a release with assets. Public repos are an owner decision (PM process).
+    - *Open question:* is civo-public, already priced in a real stack, the
+      one to publish first, and do the other three belong to the
+      Terraform-of-FinOps thesis or were they experiments?
+
 ## Completed Milestones
 
 ### 2026-Q4
 
+- [x] #2086 `webui`: share plugin processes across stacks with one environment.
+      Closed 2026-11-16. [L]
+- [x] #2098 `webui`: text marker on stack tabs while a stack loads.
+      Closed 2026-11-16. [S]
+- [x] #2093 `weblog`: keep Pulumi preview stderr out of web logs.
+      Closed 2026-11-16. [S]
+- [x] #2167 `engine`: cost actual note no longer ends before it starts.
+      Closed 2026-11-16. [S]
+- [x] #2057 `recommendations`: record the last-known snapshot on dismiss.
+      Closed 2026-11-11. [M]
+- [x] #2087 `webui`: show a rejected passphrase after preview fallback.
+      Closed 2026-11-10. [M]
+- [x] #2088 `webui`: show the stack tab bar for a single stack.
+      Closed 2026-11-10. [M]
+- [x] #2090 `webui`: accept an empty passphrase and reopen the prompt.
+      Closed 2026-11-10. [S]
+- [x] #2072 `engine`: send the requested capability in Supports calls.
+      Closed 2026-11-09. [S]
+- [x] #2060 `cli`: show plugin failures in recommendations output.
+      Closed 2026-11-09. [S]
+- [x] #2054 `webui`: polish spot recommendation badges across views.
+      Closed 2026-11-09. [M]
 - [x] #367 `spot`: Spot Market Advisor epic; #1841 left as standalone.
       Closed 2026-11-11. [L]
 - [x] #1918 `ci`: run a real policy pack preview on Windows.
