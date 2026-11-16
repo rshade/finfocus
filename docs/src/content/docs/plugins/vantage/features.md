@@ -383,7 +383,7 @@ Future breaking changes will be announced with:
 ## Additional Resources
 
 - [Vantage API Documentation](https://docs.vantage.sh/api)
-- [Vantage Feature Matrix](https://docs.vantage.sh/features)
+- [Vantage Cost Reports](https://docs.vantage.sh/cost_reports)
 - [FinOps FOCUS Specification](https://focus.finops.org/)
 - [Setup Guide](setup.md) - Installation and configuration
 - [Authentication Guide](authentication.md) - API key management
