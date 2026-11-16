@@ -145,13 +145,19 @@ jobs:
         working-directory: site
         run: pnpm install --frozen-lockfile
 
-      - name: Build the site from this PR's docs
+      - name: Fetch this PR's docs into the site
         working-directory: site
         env:
           FINFOCUS_DIR: ${{ github.workspace }}/finfocus
-        run: |
-          pnpm fetch-content
-          pnpm build
+        run: pnpm fetch-content
+
+      # The release pages read GitHub Releases; unauthenticated calls share a
+      # per-IP rate limit and fail the build with a 403.
+      - name: Build the site
+        working-directory: site
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: pnpm build
 
       - name: Check links in the built site
         uses: lycheeverse/lychee-action@v2
