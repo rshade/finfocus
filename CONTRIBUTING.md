@@ -545,7 +545,7 @@ FinFocus spans these repositories:
 | --------------------------- | ------------------------------------------- |
 | [finfocus][core]     | CLI tool, plugin host, orchestration engine |
 | [finfocus-spec][spec]     | Protocol buffer definitions, SDK generation |
-| `finfocus-plugin-<name>` | One repository per plugin, such as [finfocus-plugin-aws-public][aws-public]; the [plugin registry][registry] lists them all |
+| Plugin implementations | Separate repositories such as [finfocus-plugin-aws-public][aws-public], and modules under `plugins/` in [finfocus][core]; see the [plugin registry][registry] for repository locations |
 
 [core]: https://github.com/rshade/finfocus
 [spec]: https://github.com/rshade/finfocus-spec
