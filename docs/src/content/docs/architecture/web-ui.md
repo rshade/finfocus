@@ -115,11 +115,14 @@ one name, or none, builds exactly one.
   names opens every stack's plugins through one `pluginhost.Pool`, created by
   `newWebStacks` and carried on each stack's context, so the pipeline open, a
   reload, and the scorer all reach it. Stacks share a plugin's process when the
-  binary path, the environment it is launched with, and everything the stack's
-  ESC environments offer that plugin are the same. The ESC offer is part of the
-  key because a value for a setting the plugin advertises is allowed only after
-  `GetPluginInfo`, so two stacks with different credentials launch with the same
-  environment and differ only after the restart. Each stack holds its own
+  binary and the exact environment the process receives match. The pool learns
+  each binary's advertised settings from its first launch, so a later request
+  can resolve that environment before launching; ESC values the plugin never
+  receives do not prevent sharing. Until the settings are known the key also
+  covers everything the stack's ESC environments offer, because a value for an
+  advertised setting is allowed only after `GetPluginInfo`, and a request with
+  another offer waits for that first launch rather than starting its own.
+  Each stack holds its own
   `Client` copy; closing it releases one hold, and the last release stops the
   process. The pool, not a stack, owns each process's launch context, so
   stopping or cancelling one stack cannot kill a process another holds. A

@@ -51,8 +51,11 @@ type processLauncher struct {
 func (l *processLauncher) Start(
 	ctx context.Context, _ string, _ ...string,
 ) (*grpc.ClientConn, func() error, error) {
-	if l.gate != nil {
-		<-l.gate
+	l.mu.Lock()
+	gate, info := l.gate, l.info
+	l.mu.Unlock()
+	if gate != nil {
+		<-gate
 	}
 	l.mu.Lock()
 	fail := l.fail
@@ -70,7 +73,7 @@ func (l *processLauncher) Start(
 		}
 		return handler(ctx, req)
 	}))
-	pbc.RegisterCostSourceServiceServer(server, &mockCostSourceServer{name: poolPlugin, pluginInfo: l.info})
+	pbc.RegisterCostSourceServiceServer(server, &mockCostSourceServer{name: poolPlugin, pluginInfo: info})
 	go func() { _ = server.Serve(listener) }()
 	conn, err := grpc.NewClient("passthrough:///bufnet",
 		grpc.WithContextDialer(func(dialCtx context.Context, _ string) (net.Conn, error) {
@@ -93,6 +96,21 @@ func (l *processLauncher) Start(
 		server.Stop()
 		return conn.Close()
 	}, nil
+}
+
+// open lets every Start through. It is safe to call more than once, so a
+// test can also register it as cleanup and fail without hanging pool.Close.
+func (l *processLauncher) open() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.gate == nil {
+		return
+	}
+	select {
+	case <-l.gate:
+	default:
+		close(l.gate)
+	}
 }
 
 func (l *processLauncher) starts() int {
@@ -137,10 +155,15 @@ func waitForHolds(t *testing.T, pool *pluginhost.Pool, holds int) {
 		5*time.Second, time.Millisecond, "requesters never joined the launch")
 }
 
-func newTestPool(t *testing.T) *pluginhost.Pool {
+// newTestPool returns a pool closed at cleanup. Gates of the given launchers
+// open first, so a failing test cannot leave Close waiting on a launch.
+func newTestPool(t *testing.T, launchers ...*processLauncher) *pluginhost.Pool {
 	t.Helper()
 	pool := pluginhost.NewPool(context.Background())
 	t.Cleanup(pool.Close)
+	for _, launcher := range launchers {
+		t.Cleanup(launcher.open)
+	}
 	return pool
 }
 
@@ -178,6 +201,27 @@ func stackESC(t *testing.T, api *esctest.Server, env string, variables ...string
 	return esc.NewSource(opts)
 }
 
+// stackESCList returns a stack's ESC source over envs with no per-plugin
+// variables, as a stack's own environment list.
+func stackESCList(t *testing.T, api *esctest.Server, envs ...string) *esc.Source {
+	t.Helper()
+	list := append([]string{}, envs...)
+	return esc.NewSource(esc.Options{
+		Global: &list,
+		Getenv: func(key string) string {
+			switch key {
+			case "PULUMI_ACCESS_TOKEN":
+				return "tok"
+			case "PULUMI_BACKEND_URL":
+				return api.URL
+			default:
+				return ""
+			}
+		},
+		Budget: time.Second,
+	})
+}
+
 func twoStackESC(t *testing.T) *esctest.Server {
 	t.Helper()
 	api := esctest.New("tok", map[string]*esctest.Environment{
@@ -190,6 +234,9 @@ func twoStackESC(t *testing.T) *esctest.Server {
 		"acme/billing/c": {ETag: "c1", Variables: map[string]esctest.Variable{
 			"FINFOCUS_RECORDER_MOCK_RESPONSE": {Value: "from-a"},
 		}},
+		"acme/billing/unrelated": {ETag: "u1", Variables: map[string]esctest.Variable{
+			"CIVO_TOKEN": {Value: "civo-secret"},
+		}},
 	})
 	t.Cleanup(api.Close)
 	return api
@@ -199,7 +246,7 @@ func twoStackESC(t *testing.T) *esctest.Server {
 func TestPool_SameEnvironmentLaunchesOnce(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo()}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 
 	first, err := pool.Acquire(poolContext(), launcher, "/plugins/recorder")
 	require.NoError(t, err)
@@ -218,7 +265,7 @@ func TestPool_SameEnvironmentLaunchesOnce(t *testing.T) {
 func TestPool_DifferentBinaryLaunchesSeparately(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo()}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 
 	_, err := pool.Acquire(poolContext(), launcher, "/plugins/recorder/v1/recorder")
 	require.NoError(t, err)
@@ -232,7 +279,7 @@ func TestPool_DifferentBinaryLaunchesSeparately(t *testing.T) {
 func TestPool_ConcurrentAcquiresLaunchOnce(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo(), gate: make(chan struct{})}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 
 	const holders = 8
 	clients := make([]*pluginhost.Client, holders)
@@ -244,7 +291,7 @@ func TestPool_ConcurrentAcquiresLaunchOnce(t *testing.T) {
 		})
 	}
 	waitForHolds(t, pool, holders)
-	close(launcher.gate)
+	launcher.open()
 	wg.Wait()
 	assert.Equal(t, int32(1), launcher.names.Load(), "every holder joined the launch; none probed a running process")
 
@@ -262,7 +309,7 @@ func TestPool_SharedDigestMatchesUnsharedClient(t *testing.T) {
 		Key: "mock_response", Env: "FINFOCUS_RECORDER_MOCK_RESPONSE", DefaultValue: "from-default",
 	})
 	launcher := &processLauncher{info: info}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 
 	shared, err := pool.Acquire(poolContext(), launcher, "/plugins/recorder")
 	require.NoError(t, err)
@@ -279,7 +326,7 @@ func TestPool_DifferentLaunchEnvironmentIsNotShared(t *testing.T) {
 	isolatePoolConfig(t)
 	api := twoStackESC(t)
 	launcher := &processLauncher{info: poolPluginInfo()}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 	stackA := esc.WithSource(poolContext(), stackESC(t, api, "acme/billing/a", "FINFOCUS_RECORDER_MOCK_RESPONSE"))
 
 	_, err := pool.Acquire(stackA, launcher, "/plugins/recorder")
@@ -304,7 +351,7 @@ func TestPool_DifferentESCOfferForAdvertisedSettingIsNotShared(t *testing.T) {
 	launcher := &processLauncher{info: poolPluginInfo(&pbc.PluginSetting{
 		Key: "mock_response", Env: "FINFOCUS_RECORDER_MOCK_RESPONSE",
 	})}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 	stackA := esc.WithSource(poolContext(), stackESC(t, api, "acme/billing/a"))
 	stackB := esc.WithSource(poolContext(), stackESC(t, api, "acme/billing/b"))
 
@@ -313,11 +360,11 @@ func TestPool_DifferentESCOfferForAdvertisedSettingIsNotShared(t *testing.T) {
 	_, err = pool.Acquire(stackB, launcher, "/plugins/recorder")
 	require.NoError(t, err)
 
-	require.Equal(t, 4, launcher.starts(), "each stack launches, then restarts for its advertised value")
+	require.Equal(t, 3, launcher.starts(),
+		"a launches and restarts for its advertised value; b, with the settings known, launches once")
 	assert.Empty(t, launcher.process(t, 0).env)
 	assert.Equal(t, []string{"FINFOCUS_RECORDER_MOCK_RESPONSE=from-a"}, launcher.process(t, 1).env)
-	assert.Empty(t, launcher.process(t, 2).env)
-	assert.Equal(t, []string{"FINFOCUS_RECORDER_MOCK_RESPONSE=from-b"}, launcher.process(t, 3).env)
+	assert.Equal(t, []string{"FINFOCUS_RECORDER_MOCK_RESPONSE=from-b"}, launcher.process(t, 2).env)
 }
 
 //nolint:paralleltest // isolatePoolConfig sets FINFOCUS_HOME and FINFOCUS_PROJECT_DIR
@@ -327,7 +374,7 @@ func TestPool_SameESCOfferIsShared(t *testing.T) {
 	launcher := &processLauncher{info: poolPluginInfo(&pbc.PluginSetting{
 		Key: "mock_response", Env: "FINFOCUS_RECORDER_MOCK_RESPONSE",
 	})}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 
 	_, err := pool.Acquire(esc.WithSource(poolContext(), stackESC(t, api, "acme/billing/a")), launcher, "/p")
 	require.NoError(t, err)
@@ -348,14 +395,14 @@ func TestPool_SameValueFromDifferentESCEnvironmentIsNotShared(t *testing.T) {
 	launcher := &processLauncher{info: poolPluginInfo(&pbc.PluginSetting{
 		Key: "mock_response", Env: "FINFOCUS_RECORDER_MOCK_RESPONSE",
 	})}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 
 	fromA, err := pool.Acquire(esc.WithSource(poolContext(), stackESC(t, api, "acme/billing/a")), launcher, "/p")
 	require.NoError(t, err)
 	fromC, err := pool.Acquire(esc.WithSource(poolContext(), stackESC(t, api, "acme/billing/c")), launcher, "/p")
 	require.NoError(t, err)
 
-	assert.Equal(t, 4, launcher.starts())
+	assert.Equal(t, 3, launcher.starts())
 	assert.NotEqual(t, fromA.DeliveredDigest, fromC.DeliveredDigest)
 }
 
@@ -363,7 +410,7 @@ func TestPool_SameValueFromDifferentESCEnvironmentIsNotShared(t *testing.T) {
 func TestPool_ReinstalledBinaryAtSamePathLaunchesAgain(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo()}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 	binPath := filepath.Join(t.TempDir(), "finfocus-plugin-recorder")
 	require.NoError(t, os.WriteFile(binPath, []byte("v1"), 0o600))
 
@@ -380,7 +427,7 @@ func TestPool_ReinstalledBinaryAtSamePathLaunchesAgain(t *testing.T) {
 func TestPool_CancelledRequesterLaunchesNothing(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo()}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 	ctx, cancel := context.WithCancel(poolContext())
 	cancel()
 
@@ -389,11 +436,115 @@ func TestPool_CancelledRequesterLaunchesNothing(t *testing.T) {
 	assert.Zero(t, launcher.starts())
 }
 
+// The shape of a real project: dev imports several ESC environments and test
+// imports one, but the extra values are never delivered to this plugin. Once
+// the binary's settings are known, both stacks resolve the same environment
+// and share the process.
+//
+//nolint:paralleltest // isolatePoolConfig sets FINFOCUS_HOME and FINFOCUS_PROJECT_DIR
+func TestPool_ESCValuesThePluginNeverReceivesDoNotPreventSharing(t *testing.T) {
+	isolatePoolConfig(t)
+	api := twoStackESC(t)
+	launcher := &processLauncher{info: poolPluginInfo()}
+	pool := newTestPool(t, launcher)
+	dev := stackESCList(t, api, "acme/billing/unrelated")
+	test := stackESCList(t, api)
+
+	devClient, err := pool.Acquire(esc.WithSource(poolContext(), dev), launcher, "/p")
+	require.NoError(t, err)
+	testClient, err := pool.Acquire(esc.WithSource(poolContext(), test), launcher, "/p")
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, launcher.starts())
+	assert.Empty(t, launcher.process(t, 0).env, "the unrelated value never reaches the plugin")
+	assert.Equal(t, devClient.DeliveredDigest, testClient.DeliveredDigest)
+}
+
+// Two stacks activated together both ask for a binary before its first launch
+// has reported its settings, as in the initial-30 run that found this. The
+// second waits for that launch instead of starting a process whose
+// environment turns out the same.
+//
+//nolint:paralleltest // isolatePoolConfig sets FINFOCUS_HOME and FINFOCUS_PROJECT_DIR
+func TestPool_ConcurrentFirstLaunchesWithDifferentOffersShare(t *testing.T) {
+	isolatePoolConfig(t)
+	api := twoStackESC(t)
+	launcher := &processLauncher{
+		info: poolPluginInfo(&pbc.PluginSetting{
+			Key: "mock_response", Env: "FINFOCUS_RECORDER_MOCK_RESPONSE", DefaultValue: "from-default",
+		}),
+		gate: make(chan struct{}),
+	}
+	pool := newTestPool(t, launcher)
+	dev := esc.WithSource(poolContext(), stackESCList(t, api, "acme/billing/unrelated"))
+	test := esc.WithSource(poolContext(), stackESCList(t, api))
+
+	clients := make([]*pluginhost.Client, 2)
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	wg.Go(func() { clients[0], errs[0] = pool.Acquire(dev, launcher, "/p") })
+	waitForHolds(t, pool, 1)
+	wg.Go(func() { clients[1], errs[1] = pool.Acquire(test, launcher, "/p") })
+	require.Eventually(t, func() bool { return pluginhost.PoolLearnWaitersForTest(pool) == 1 },
+		5*time.Second, time.Millisecond, "the second stack must wait for the first launch")
+	launcher.open()
+	wg.Wait()
+
+	require.NoError(t, errs[0])
+	require.NoError(t, errs[1])
+	assert.Equal(t, 2, launcher.starts(), "one launch and its advertised-settings restart, shared by both stacks")
+	assert.Equal(t, clients[0].DeliveredDigest, clients[1].DeliveredDigest)
+	answers(t, clients[1])
+}
+
+// When a binary advertises other settings than the pool learned, a request
+// that predicted its environment must not take a process that received
+// another stack's value. It retries without a prediction.
+//
+//nolint:paralleltest // isolatePoolConfig sets FINFOCUS_HOME and FINFOCUS_PROJECT_DIR
+func TestPool_WrongPredictionIsNotHandedOut(t *testing.T) {
+	isolatePoolConfig(t)
+	api := twoStackESC(t)
+	launcher := &processLauncher{info: poolPluginInfo()}
+	pool := newTestPool(t, launcher)
+
+	first, err := pool.Acquire(poolContext(), launcher, "/p")
+	require.NoError(t, err)
+	require.NoError(t, first.Close())
+
+	launcher.mu.Lock()
+	launcher.info = poolPluginInfo(&pbc.PluginSetting{Key: "mock_response", Env: "FINFOCUS_RECORDER_MOCK_RESPONSE"})
+	launcher.gate = make(chan struct{})
+	launcher.mu.Unlock()
+	stackA := esc.WithSource(poolContext(), stackESC(t, api, "acme/billing/a"))
+	stackB := esc.WithSource(poolContext(), stackESC(t, api, "acme/billing/b"))
+	clients := make([]*pluginhost.Client, 2)
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	for i, ctx := range []context.Context{stackA, stackB} {
+		wg.Go(func() { clients[i], errs[i] = pool.Acquire(ctx, launcher, "/p") })
+	}
+	waitForHolds(t, pool, 2)
+	launcher.open()
+	wg.Wait()
+	require.NoError(t, errs[0])
+	require.NoError(t, errs[1])
+
+	wantA, err := pluginhost.NewClient(stackA, &processLauncher{info: launcher.info}, "/p")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = wantA.Close() })
+	wantB, err := pluginhost.NewClient(stackB, &processLauncher{info: launcher.info}, "/p")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = wantB.Close() })
+	assert.Equal(t, wantA.DeliveredDigest, clients[0].DeliveredDigest, "stack a holds a process with its own value")
+	assert.Equal(t, wantB.DeliveredDigest, clients[1].DeliveredDigest, "stack b holds a process with its own value")
+}
+
 //nolint:paralleltest // isolatePoolConfig sets FINFOCUS_HOME and FINFOCUS_PROJECT_DIR
 func TestPool_CancellingRequesterDoesNotStopSharedProcess(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo()}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 	stackCtx, cancelStack := context.WithCancel(poolContext())
 
 	first, err := pool.Acquire(stackCtx, launcher, "/plugins/recorder")
@@ -412,7 +563,7 @@ func TestPool_CancellingRequesterDoesNotStopSharedProcess(t *testing.T) {
 func TestPool_LastReleaseClosesOnce(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo()}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 
 	first, err := pool.Acquire(poolContext(), launcher, "/plugins/recorder")
 	require.NoError(t, err)
@@ -436,7 +587,7 @@ func TestPool_LastReleaseClosesOnce(t *testing.T) {
 func TestPool_RequesterCancelledDuringLaunchLeavesNoProcess(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo(), gate: make(chan struct{})}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 	ctx, cancel := context.WithCancel(poolContext())
 
 	done := make(chan error, 1)
@@ -448,7 +599,7 @@ func TestPool_RequesterCancelledDuringLaunchLeavesNoProcess(t *testing.T) {
 	cancel()
 	require.ErrorIs(t, <-done, context.Canceled)
 
-	close(launcher.gate)
+	launcher.open()
 	require.Eventually(t, func() bool {
 		return launcher.starts() == 1 && launcher.closes(0) == 1
 	}, 5*time.Second, 10*time.Millisecond)
@@ -461,7 +612,7 @@ func TestPool_RequesterCancelledDuringLaunchLeavesNoProcess(t *testing.T) {
 func TestPool_AbandonedLaunchDoesNotBlockNextRequest(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo(), gate: make(chan struct{})}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 	ctx, cancel := context.WithCancel(poolContext())
 
 	abandoned := make(chan error, 1)
@@ -483,7 +634,7 @@ func TestPool_AbandonedLaunchDoesNotBlockNextRequest(t *testing.T) {
 		next <- result{client, err}
 	}()
 	waitForHolds(t, pool, 1)
-	close(launcher.gate)
+	launcher.open()
 	got := <-next
 	require.NoError(t, got.err)
 	answers(t, got.client)
@@ -499,7 +650,7 @@ func TestPool_FailedLaunchReachesWaitersAndIsRetried(t *testing.T) {
 	isolatePoolConfig(t)
 	launchErr := errors.New("bind timeout")
 	launcher := &processLauncher{info: poolPluginInfo(), gate: make(chan struct{}), fail: launchErr}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 
 	errs := make(chan error, 2)
 	for range 2 {
@@ -509,7 +660,7 @@ func TestPool_FailedLaunchReachesWaitersAndIsRetried(t *testing.T) {
 		}()
 	}
 	waitForHolds(t, pool, 2)
-	close(launcher.gate)
+	launcher.open()
 	require.ErrorIs(t, <-errs, launchErr)
 	require.ErrorIs(t, <-errs, launchErr)
 
@@ -523,7 +674,7 @@ func TestPool_FailedLaunchReachesWaitersAndIsRetried(t *testing.T) {
 func TestPool_DeadProcessIsReplaced(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo()}
-	pool := newTestPool(t)
+	pool := newTestPool(t, launcher)
 
 	held, err := pool.Acquire(poolContext(), launcher, "/plugins/recorder")
 	require.NoError(t, err)
@@ -577,7 +728,7 @@ func TestPool_CloseStopsLaunchInProgress(t *testing.T) {
 	}()
 	require.Eventually(t, func() bool { return pluginhost.PoolClosedForTest(pool) },
 		5*time.Second, time.Millisecond)
-	close(launcher.gate)
+	launcher.open()
 	<-closed
 
 	require.Error(t, <-done)

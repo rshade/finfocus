@@ -123,8 +123,15 @@ no pool is in use and plugins launch as before.
   launch is not killed. If no other stack wants the process when it finishes,
   it is stopped. A launch every requester gave up on is no longer offered, so
   a launch that never answers cannot block later requests.
-- **A plugin restarts itself once to apply advertised settings**: stacks that
-  resolve the same environment before the launch share the restarted process.
+- **A plugin restarts itself once to apply advertised settings**: the first
+  launch of a binary teaches the pool its advertised settings. Later requests
+  resolve the exact environment they would receive and launch with it
+  directly, so they need no restart.
+- **Two stacks ask for a binary before its first launch finishes**: a request
+  with a different ESC offer waits (up to 30 seconds) for that launch to
+  report the settings, then shares the process if its environment matches.
+  This is the order in which a person opens tabs quickly, and the initial-30
+  check found it.
 - **Plugin probes** (settings read, validate) are request-scoped and launch
   their own short-lived process, as today.
 - **Settings changes and other stacks**: a settings save reloads only the
@@ -167,17 +174,19 @@ no pool is in use and plugins launch as before.
 - **FR-012**: Each stack MUST receive its own plugin client record, so
   per-stack metadata changes (registry metadata merge) cannot race between
   stacks.
+- **FR-013**: Stacks whose ESC environments differ only in values a plugin
+  never receives (neither advertised by the plugin nor listed for it in
+  `esc.plugins.<name>.variables`) MUST share that plugin's process, including
+  when both stacks request it before its first launch has finished.
 
 ### Key Entities
 
 - **Plugin pool**: One per multi-stack dashboard process. Holds the shared
   plugin processes and their hold counts, and owns their lifetime.
-- **Pool key**: The plugin binary path and file identity, a hash of the exact environment the
-  plugin process receives at launch (added variables and the names that
-  replace an inherited value), and a hash of every value the stack's ESC
-  environments offer that plugin (each value with its environment and
-  revision), including values the plugin is only allowed after it advertises
-  its settings.
+- **Pool key**: The plugin binary (path and file identity) plus either the
+  exact environment its process would receive, once the binary's advertised
+  settings are known (final key), or, before that, the launch environment and
+  every value the stack's ESC environments offer the plugin (offer key).
 - **Hold**: A stack's (or reload's, or scorer's) reference to a shared
   process. Closing the stack's client releases the hold once.
 
@@ -207,6 +216,10 @@ no pool is in use and plugins launch as before.
   stack's plugin calls.
 - **SC-005**: Single-stack and CLI runs show 0 changes in plugin launches and
   projected cache keys.
+- **SC-006**: On `initial-30` with `--stack dev,test` activated together
+  (`dev` imports six ESC environments, `test` one), each plugin runs once in
+  repeated runs, and both stacks show the same rows and projected costs as
+  before.
 
 ## Assumptions
 
@@ -219,9 +232,12 @@ no pool is in use and plugins launch as before.
   the launch environment, the stack's ESC offer, and the binary's advertised
   settings. Before the first launch an ESC value for an advertised setting is
   not yet allowed, so two stacks with different ESC credentials resolve the
-  same launch environment. The key therefore also covers the stack's whole
-  ESC offer for the plugin; keying on the launch environment alone would hand
-  one stack's credential to another.
+  same launch environment. Until a binary's settings are known, the key
+  therefore covers the stack's whole ESC offer; keying on the launch
+  environment alone would hand one stack's credential to another.
+- A binary's advertised settings do not change between launches of the same
+  file. The pool does not rely on it: a request whose predicted environment
+  differs from what the process received retries with the offer key.
 - Idle processes of a stack whose tab was left keep running until the stack
   stops or the dashboard exits (stopping idle stacks is out of scope).
 

@@ -1,8 +1,8 @@
 # Quickstart: Verify Shared Plugin Processes
 
 1. Build: `make build`.
-2. From a Pulumi project with at least two stacks (for example
-   `../finfocus-demo` with `dev` and `test`), start the dashboard:
+2. From a Pulumi project with at least two stacks (for example initial-30
+   with `dev` and `test`), start the dashboard:
 
    ```bash
    PULUMI_CONFIG_PASSPHRASE='' <repo>/bin/finfocus --web --no-browser \

@@ -527,13 +527,18 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - Shared plugin processes (`specs/2016-shared-plugin-pool/`): `newWebStacks`
   puts one `pluginhost.Pool` on every stack's context, and
   `registry.openPlugin` calls `pool.Acquire` instead of `NewClient` when the
-  context carries one. Only a `--stack` list of two or more uses it. The key is
-  the binary path and file stamp, the launch environment, and the stack's whole
-  ESC offer (`esc.Delivery` before the allow list, with reference and
-  revision): keying on the launch environment alone would give one stack's ESC
-  value for an advertised setting to another, since advertised names are
-  allowed only after the restart. `applyAdvertisedSettings` reuses that same
-  offer (`launchInputs.escOffer`); never re-read ESC there. The launch context is `WithoutCancel(requester)` cancelled by the
+  context carries one. Only a `--stack` list of two or more uses it. Before a
+  binary has answered `GetPluginInfo`, the key is the launch environment plus
+  the stack's whole ESC offer (`esc.Delivery` holds every variable of every
+  imported environment, not only the plugin's): keying on the launch
+  environment alone would give one stack's ESC value for an advertised setting
+  to another. After that, a request resolves its exact final environment from
+  the learned settings and keys on it; that is what lets initial-30 `dev` (six
+  ESC environments) and `test` (one) share. A request whose prediction differs
+  from what the process received retries on the offer key, and requests during
+  a binary's first launch wait for it (`poolLearnWait`).
+  `applyAdvertisedSettings` reuses the offer (`launchInputs.escOffer`); never
+  re-read ESC there. The launch context is `WithoutCancel(requester)` cancelled by the
   pool, never the requester's context. Holders get a `Client` copy with cloned
   `Metadata` (the registry merge writes it); `Close` releases one hold.
 - Dashboard settings apply on the next `NewClient`. The first reload must not

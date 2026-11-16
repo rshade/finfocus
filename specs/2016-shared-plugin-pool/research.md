@@ -20,7 +20,7 @@
   request context, which does not carry the pool, so they keep launching a
   short-lived process of their own, as the spec requires.
 
-## Decision 2: Key on the launch environment plus the stack's ESC offer
+## Decision 2: Offer key until the settings are known, then the final environment
 
 - **Decision**: key = binary path + the binary file's size and modification
   time + SHA-256 over the launch `Delivered.Pairs`, override names, and every
@@ -46,10 +46,25 @@
   that receive the same value from different environments keep separate
   processes and digests (FR-011). The file identity keeps a same-version
   reinstall from reusing the old binary's process.
-- **Alternatives**: Remember each binary's advertised settings and key on the
-  final environment - rejected: the first concurrent launches of a binary
-  would still need the conservative key, so it adds a second code path for a
-  small gain.
+- **Revised after the initial-30 check**: `esc.Delivery` holds every
+  variable of every environment the stack imports, not only the plugin's. In
+  initial-30, `dev` imports six environments and `test` one, so the offer key
+  alone never matched and no plugin was shared, although every plugin
+  received an identical environment (`esc_env=[]` in the debug log). The pool
+  now learns each binary's advertised settings from its first launch that
+  answers `GetPluginInfo`. A later request resolves its exact environment
+  (`resolveInjectedFrom` with those settings) and uses a final key: that
+  environment's pairs, override names, and `Digest`. Every launched process is
+  also registered under the final key of what it actually received.
+  - A request launched under a predicted final key that the process did not
+    end with (the binary advertised other settings) does not take the
+    process; it retries with the offer key, which needs no prediction.
+  - Requests that arrive while a binary's first launch is still learning its
+    settings wait for it (bounded by `poolLearnWait`, 30 seconds), so stacks
+    activated together share too. A launch every requester abandoned releases
+    its waiters at once.
+  - A plugin whose `GetPluginInfo` fails teaches nothing, so its requests stay
+    on the offer key.
 
 ## Decision 3: Pool-owned launch context
 

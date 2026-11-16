@@ -53,7 +53,8 @@ type Launcher interface {
 // plugin's advertised descriptors are injected before the process starts. The process
 // is started once more when GetPluginInfo names variables the first launch did not have.
 func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client, error) {
-	return launchClient(ctx, launcher, binPath, resolveLaunchInputs(ctx))
+	client, _, err := launchClient(ctx, launcher, binPath, resolveLaunchInputs(ctx))
+	return client, err
 }
 
 // launchInputs is what a launch resolves from its context before the process
@@ -80,7 +81,17 @@ func resolveLaunchInputs(ctx context.Context) launchInputs {
 	}
 }
 
-func launchClient(ctx context.Context, launcher Launcher, binPath string, in launchInputs) (*Client, error) {
+// launchOutcome is what a successful launch ended with: the environment the
+// final process received and the GetPluginInfo answer it gave (nil when the
+// call failed or is not implemented).
+type launchOutcome struct {
+	delivered Delivered
+	info      *pbc.GetPluginInfoResponse
+}
+
+func launchClient(
+	ctx context.Context, launcher Launcher, binPath string, in launchInputs,
+) (*Client, launchOutcome, error) {
 	delivered := in.delivered
 	launchCtx := ctx
 	if in.named {
@@ -89,14 +100,15 @@ func launchClient(ctx context.Context, launcher Launcher, binPath string, in lau
 
 	started, err := connectPlugin(launchCtx, launcher, binPath)
 	if err != nil {
-		return nil, err
+		return nil, launchOutcome{}, err
 	}
 	if in.named {
 		started, delivered, err = applyAdvertisedSettings(ctx, launcher, binPath, in, started)
 		if err != nil {
-			return nil, err
+			return nil, launchOutcome{}, err
 		}
 	}
+	outcome := launchOutcome{delivered: delivered, info: started.info}
 
 	client := &Client{
 		Name:            started.name,
@@ -106,17 +118,17 @@ func launchClient(ctx context.Context, launcher Launcher, binPath string, in lau
 		DeliveredDigest: delivered.Digest,
 	}
 	if started.info == nil {
-		return client, nil
+		return client, outcome, nil
 	}
 
 	client.Metadata = pluginMetadata(started.info)
 	if compatErr := checkVersionCompatibility(ctx, client.Name, started.info.GetSpecVersion()); compatErr != nil {
 		if closeErr := client.Close(); closeErr != nil {
-			return nil, fmt.Errorf("%w (close error: %w)", compatErr, closeErr)
+			return nil, launchOutcome{}, fmt.Errorf("%w (close error: %w)", compatErr, closeErr)
 		}
-		return nil, compatErr
+		return nil, launchOutcome{}, compatErr
 	}
-	return client, nil
+	return client, outcome, nil
 }
 
 // applyAdvertisedSettings restarts the process once when GetPluginInfo names

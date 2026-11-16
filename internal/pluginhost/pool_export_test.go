@@ -18,3 +18,11 @@ func PoolClosedForTest(p *Pool) bool {
 	defer p.mu.Unlock()
 	return p.closed
 }
+
+// PoolLearnWaitersForTest counts requests waiting for a binary's first launch
+// to report its settings.
+func PoolLearnWaitersForTest(p *Pool) int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.learnWaiters
+}

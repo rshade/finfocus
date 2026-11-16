@@ -60,10 +60,14 @@
   `docs/src/content/docs/architecture/web-ui.md` and `CLAUDE.md`
 - [x] T013 Run `make validate`, `make test`, `make test-race`, `make lint`,
   `make docs-lint`, `make test-e2e-web`
-- [ ] T014 Manual check with `--stack dev,test` on `../finfocus-demo`
-  (quickstart.md), counting plugin processes with `ps`. Not run: the demo
-  project has only a `dev` stack. `TestWebSIGTERM_StacksSharePluginProcess`
-  runs the same check against the real binary with the router-like fixture.
+- [x] T014 Manual check with `--stack dev,test` on initial-30 (quickstart.md;
+  `../finfocus-demo` has only a `dev` stack), counting plugin processes with
+  `ps` against an `origin/main` build and comparing both stacks' snapshots
+- [x] T016 [US2] Learn each binary's advertised settings and key later
+  requests on the final environment; wait for a binary's first launch instead
+  of launching beside it. Tests: ESC values the plugin never receives, a wrong
+  prediction, and concurrent first launches with different offers
+  (`internal/pluginhost/pool_test.go`)
 - [x] T015 Mark spec `Status: Implemented`
 
 ## Web Parity
