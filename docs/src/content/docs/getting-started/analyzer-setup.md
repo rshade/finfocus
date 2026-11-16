@@ -51,13 +51,13 @@ Once configured, cost estimates will appear as **advisory diagnostics** in your 
 Policies:
     finfocus@v0.3.0 (local: ~/.finfocus/analyzer)
         - [advisory] [severity: low]  cost-estimate  (aws:ec2/instance:Instance: my-instance)
-          Estimated Monthly Cost: $7.50 USD (source: finfocus-plugin-aws)
+          Estimated Monthly Cost: $7.50 USD (source: aws-public)
         - [advisory] [severity: low]  stack-cost-summary  (pulumi:pulumi:Stack: my-stack)
           Total Estimated Monthly Cost: $7.50 USD (1 resources analyzed)
 ```
 
 A resource the plugin prices as spot adds its spot label after the cost line,
-for example `Estimated Monthly Cost: $21.90 USD (source: finfocus-plugin-aws) |
+for example `Estimated Monthly Cost: $21.90 USD (source: aws-public) |
 SPOT · risk 0.12 · -62% vs on-demand`.
 
 ## Troubleshooting
