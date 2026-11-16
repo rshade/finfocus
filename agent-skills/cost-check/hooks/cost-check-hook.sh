@@ -8,7 +8,9 @@
 # Usage: cost-check-hook.sh <claude-stop|pre-commit|pre-push|manual>
 #
 # claude-stop  Claude Code Stop hook. Reads the hook JSON on stdin and answers
-#              with hook JSON on stdout.
+#              with hook JSON on stdout. For a Pulumi project it runs
+#              pulumi preview, which executes the program, only when
+#              FINFOCUS_COST_HOOK_RUN_PREVIEW=1 (set outside the repository).
 # pre-commit   git pre-commit hook. Checks staged files.
 # pre-push     git pre-push hook. Checks the commits being pushed.
 # manual       Checks uncommitted changes and prints the summary.
@@ -178,6 +180,16 @@ if [ "$trigger" = "claude-stop" ]; then
 	done 2>/dev/null; [ -n "$tf_plan" ] && cat "$tf_plan"; } | cksum)"
 	last_file="$git_dir/finfocus-cost-hook.last"
 	if [ -f "$last_file" ] && [ "$(cat "$last_file")" = "$fingerprint" ]; then
+		exit 0
+	fi
+	# pulumi preview executes the Pulumi program, which the agent just edited.
+	# A Stop hook runs outside the agent's approval prompts, so it runs that
+	# code only when the user opted in from their own settings, outside the
+	# repository. A Terraform plan is only read, and a git hook runs because
+	# the user committed or pushed.
+	if [ "$kind" = pulumi ] && [ "${FINFOCUS_COST_HOOK_RUN_PREVIEW:-}" != 1 ]; then
+		printf '%s' "$fingerprint" >"$last_file"
+		say "FinFocus cost check: infrastructure code changed, but pricing it runs pulumi preview, which executes the program the agent edited. Run the hook with 'manual' yourself, or set FINFOCUS_COST_HOOK_RUN_PREVIEW=1 in your own Claude Code settings to let this hook run it."
 		exit 0
 	fi
 fi

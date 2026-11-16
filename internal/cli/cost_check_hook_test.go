@@ -218,19 +218,47 @@ func TestCostCheckHook_BlockingConfigFailsGitHook(t *testing.T) {
 	assert.Contains(t, got.out, "plan total 220.00 > 200")
 }
 
+// runPreview is the user's opt-in, from their own settings, to let the Stop
+// hook run pulumi preview on code the agent edited.
+const runPreview = "FINFOCUS_COST_HOOK_RUN_PREVIEW=1"
+
+// Without the opt-in, the Stop hook must not execute the program the agent
+// edited: pulumi preview runs it outside the agent's approval prompts.
+//
+//nolint:paralleltest // Writes fake tools and executes them (text file busy).
+func TestCostCheckHook_ClaudeStopNeverRunsAgentCodeWithoutOptIn(t *testing.T) {
+	repo := newHookRepo(t)
+	repo.write(t, "index.ts", "export const size = 17;\n")
+
+	got := repo.run(t, "claude-stop", `{"stop_hook_active":false}`, hookCostOver)
+
+	assert.Equal(t, 0, got.code)
+	assert.Empty(t, got.calls, "neither pulumi preview nor finfocus may run")
+	var answer map[string]string
+	require.NoError(t, json.Unmarshal([]byte(got.out), &answer), got.out)
+	assert.Contains(t, answer["systemMessage"], "FINFOCUS_COST_HOOK_RUN_PREVIEW=1")
+	assert.NotContains(t, answer, "decision")
+
+	again := repo.run(t, "claude-stop", `{"stop_hook_active":false}`, hookCostOver)
+	assert.Empty(t, again.out, "the notice is shown once per change")
+
+	manual := repo.run(t, "manual", "", hookCostUnder)
+	assert.Equal(t, "pulumi\nfinfocus\n", manual.calls, "a run the user starts still prices the change")
+}
+
 //nolint:paralleltest // Writes fake tools and executes them (text file busy).
 func TestCostCheckHook_ClaudeStopReportsOnceToTheUser(t *testing.T) {
 	repo := newHookRepo(t)
 	repo.write(t, "index.ts", "export const size = 5;\n")
 
-	first := repo.run(t, "claude-stop", `{"stop_hook_active":false}`, hookCostOver)
+	first := repo.run(t, "claude-stop", `{"stop_hook_active":false}`, hookCostOver, runPreview)
 	require.Equal(t, 0, first.code, first.out)
 	var answer map[string]string
 	require.NoError(t, json.Unmarshal([]byte(first.out), &answer), first.out)
 	assert.Contains(t, answer["systemMessage"], "Status: over threshold")
 	assert.NotContains(t, answer, "decision", "blocking is off by default")
 
-	again := repo.run(t, "claude-stop", `{"stop_hook_active":false}`, hookCostOver)
+	again := repo.run(t, "claude-stop", `{"stop_hook_active":false}`, hookCostOver, runPreview)
 	assert.Equal(t, 0, again.code)
 	assert.Empty(t, again.out, "an unchanged change is not checked twice")
 	assert.Empty(t, again.calls)
@@ -242,7 +270,7 @@ func TestCostCheckHook_ClaudeStopBlocksOnlyOnce(t *testing.T) {
 	repo.write(t, ".cost-check.yml", "hook:\n  block: true\n")
 	repo.write(t, "index.ts", "export const size = 6;\n")
 
-	got := repo.run(t, "claude-stop", `{"stop_hook_active": false}`, hookCostOver)
+	got := repo.run(t, "claude-stop", `{"stop_hook_active": false}`, hookCostOver, runPreview)
 	require.Equal(t, 0, got.code, got.out)
 	var answer map[string]string
 	require.NoError(t, json.Unmarshal([]byte(got.out), &answer), got.out)
@@ -250,7 +278,7 @@ func TestCostCheckHook_ClaudeStopBlocksOnlyOnce(t *testing.T) {
 	assert.Contains(t, answer["reason"], "increase +120.00 > 50")
 
 	repo.write(t, "index.ts", "export const size = 7;\n")
-	looping := repo.run(t, "claude-stop", `{"stop_hook_active": true}`, hookCostOver)
+	looping := repo.run(t, "claude-stop", `{"stop_hook_active": true}`, hookCostOver, runPreview)
 	require.NoError(t, json.Unmarshal([]byte(looping.out), &answer), looping.out)
 	assert.NotContains(t, looping.out, `"decision"`, "a turn already continued by the hook is never blocked again")
 	assert.Contains(t, answer["systemMessage"], "over threshold")

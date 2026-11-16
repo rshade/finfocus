@@ -59,8 +59,25 @@ Add a `Stop` hook to `.claude/settings.json`:
 }
 ```
 
-When the agent finishes a turn that changed infrastructure code, you see the
-summary. A change the hook already checked is not checked again.
+`pulumi preview` executes the Pulumi program, and at the end of an agent turn
+that program is code the agent just edited. A `Stop` hook runs outside the
+agent's approval prompts, so by default the hook does not run the preview. It
+tells you, once per change, that infrastructure code changed, and you run the
+check yourself with `manual`. To let the hook price the change on its own,
+opt in from your user settings, `~/.claude/settings.json`, which is outside
+the repository the agent edits:
+
+```json
+{
+  "env": {
+    "FINFOCUS_COST_HOOK_RUN_PREVIEW": "1"
+  }
+}
+```
+
+With the opt-in, when the agent finishes a turn that changed infrastructure
+code, you see the summary. A change the hook already checked is not checked
+again. Terraform needs no opt-in: its saved plan is read, not executed.
 
 A Claude Code `Stop` hook cannot add text to the agent's context without
 continuing its turn. So by default only you see the summary. Set
@@ -100,6 +117,7 @@ hook:
 | --- | --- |
 | `FINFOCUS_COST_HOOK_STACK` | Stack to preview. Unset uses the selected stack. |
 | `FINFOCUS_COST_HOOK_PROJECT_DIR` | Project directory when it is not the repository root. |
+| `FINFOCUS_COST_HOOK_RUN_PREVIEW` | `1` lets the Claude Code hook run `pulumi preview` on code the agent edited. Set it in your user settings. |
 
 ## Output
 

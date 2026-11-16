@@ -83,6 +83,27 @@ installed):
 }
 ```
 
+### Running the program
+
+`pulumi preview` executes the Pulumi program. At the end of an agent turn
+that program is code the agent just edited, and a `Stop` hook runs outside
+the agent's approval prompts. So `claude-stop` does not run `pulumi preview`
+unless you opt in. Without the opt-in it tells you, once per change, that
+infrastructure code changed. To opt in, set the variable in your user
+settings, `~/.claude/settings.json`, which is outside the repository the
+agent edits:
+
+```json
+{
+  "env": {
+    "FINFOCUS_COST_HOOK_RUN_PREVIEW": "1"
+  }
+}
+```
+
+The git triggers run `pulumi preview` because you committed or pushed.
+Terraform input is a saved plan file that is only read, never executed.
+
 git, in `.git/hooks/pre-push` (and the same with `pre-commit`), made
 executable:
 
@@ -97,3 +118,4 @@ exec sh /path/to/cost-check/hooks/cost-check-hook.sh pre-push
 | --- | --- |
 | `FINFOCUS_COST_HOOK_STACK` | Stack to preview. Unset uses the selected stack. |
 | `FINFOCUS_COST_HOOK_PROJECT_DIR` | Project directory when it is not the repository root. `.cost-check.yml` is read from it. |
+| `FINFOCUS_COST_HOOK_RUN_PREVIEW` | `1` lets `claude-stop` run `pulumi preview` on code the agent edited. Set it in your user settings, not in the repository. |
