@@ -270,7 +270,6 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 - [Business Value](guides/business-value.md)
 - [Roadmap](architecture/roadmap.md)
-- [Comparison](guides/comparison.md)
 
 ---
 
