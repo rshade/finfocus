@@ -97,8 +97,7 @@ docs/
 │   ├── user-guide.md                # For end users: "How do I use this?"
 │   ├── developer-guide.md           # For engineers: "How do I extend this?"
 │   ├── architect-guide.md           # For architects: "How is this designed?"
-│   ├── business-value.md            # For CEO/product: "What problem does this solve?"
-│   └── comparison.md                # Comparison with existing solutions
+│   └── business-value.md            # For CEO/product: "What problem does this solve?"
 │
 ├── getting-started/                 # Quick onboarding
 │   ├── README.md                    # Getting started index
@@ -309,7 +308,6 @@ docs/
 **Key Pages:**
 
 - guides/business-value.md (primary)
-- guides/comparison.md (competitive analysis)
 - architecture/roadmap.md (future direction)
 - getting-started/quickstart.md (time-to-value demo)
 
@@ -429,7 +427,6 @@ architecture/roadmap.md (future planning)
 ```text
 guides/business-value.md (value proposition)
   ├─→ getting-started/quickstart.md (see it in action)
-  ├─→ guides/comparison.md (competitive analysis)
   └─→ architecture/roadmap.md (future direction)
 ```
 
@@ -785,7 +782,6 @@ help LLMs understand the documentation structure and content quickly.
 
 ### For Business/Product
 - Business Value: docs/guides/business-value.md
-- Comparison: docs/guides/comparison.md
 - Roadmap: docs/architecture/roadmap.md
 
 ## Complete Documentation Map

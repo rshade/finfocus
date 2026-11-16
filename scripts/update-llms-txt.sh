@@ -75,7 +75,6 @@ All links are deployed documentation URLs and resolve directly.
 
 ### For Business/Product
 - Business Value: $BASE_URL/guides/business-value/
-- Comparison: $BASE_URL/guides/comparison/
 - Roadmap: $BASE_URL/architecture/roadmap/
 
 ---

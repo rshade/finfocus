@@ -30,7 +30,6 @@ All links are deployed documentation URLs and resolve directly.
 
 ### For Business/Product
 - Business Value: https://finfocus.dev/docs/guides/business-value/
-- Comparison: https://finfocus.dev/docs/guides/comparison/
 - Roadmap: https://finfocus.dev/docs/architecture/roadmap/
 
 ---
@@ -84,7 +83,6 @@ All links are deployed documentation URLs and resolve directly.
 - [Cache Configuration Guide](https://finfocus.dev/docs/guides/cache/)
 - [CI/CD Cost Tracking](https://finfocus.dev/docs/guides/ci-cd-cost-tracking/)
 - [Kubernetes Cluster Cost Allocation](https://finfocus.dev/docs/guides/cluster-costs/)
-- [Competitive Comparison](https://finfocus.dev/docs/guides/comparison/)
 - [Cost Calculations](https://finfocus.dev/docs/guides/cost-calculation/)
 - [Developer Guide](https://finfocus.dev/docs/guides/developer-guide/)
 - [Pulumi ESC credentials](https://finfocus.dev/docs/guides/esc-credentials/)
