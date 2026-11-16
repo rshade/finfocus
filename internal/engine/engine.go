@@ -2292,10 +2292,13 @@ func deriveActualCostWindow(
 		hourly = totalCost / totalHours
 	}
 
+	// Format both bounds in one zone so the note cannot show an end date before
+	// its start date: date-only bounds arrive as UTC midnight while the default
+	// end is now in the local zone.
 	notes := fmt.Sprintf(
 		"Actual cost from %s to %s",
-		from.Format("2006-01-02"),
-		to.Format("2006-01-02"),
+		from.UTC().Format("2006-01-02"),
+		to.UTC().Format("2006-01-02"),
 	)
 	return monthly, hourly, dailyCosts, notes
 }
