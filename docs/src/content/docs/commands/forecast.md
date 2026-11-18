@@ -127,36 +127,8 @@ then one `point` line per month, then `warning` lines.
 
 ## Options
 
-| Flag | Description | Default |
-| --- | --- | --- |
-| `--pulumi-json` | Pulumi preview JSON. Omitted, the command detects the project | auto |
-| `--terraform-state` | Terraform state file. Mutually exclusive with other input flags | |
-| `--terraform-plan` | Saved `tofu show -json` output; runs no binary | |
-| `--pulumi-state` | Pulumi stack export JSON; mutually exclusive with other input flags | |
-| `--include-workspace` | Scope Terraform history to its workspace for this run; ignored for Pulumi | false |
-| `--stack` | Stack for auto-detect and for reading cost history | current |
-| `--months` | Months ahead (1–36) | 12 |
-| `--growth-type` | `none`, `linear`, or `exponential` for every resource | plugin |
-| `--growth-rate` | Decimal growth per month | |
-| `--model` | `growth` or `arima` | growth |
-| `--spend-history` | Spend CSV for `--model arima` | |
-| `--confidence` | Bound level for `--model arima`, between 0 and 1 | 0.95 |
-| `--exclude` | Spend range to ignore, `FROM:TO`; repeatable; arima only | |
-| `--step` | `DATE=AMOUNT` added monthly from DATE's month; repeatable | |
-| `--growth-cap` | Factor of the current month that no month exceeds | |
-| `--split-providers` | Provider lines on the chart | false |
-| `--no-budget` | Hide the global budget line | false |
-| `--no-history` | Do not read cost history | false |
-| `--output` | `plain`, `json`, or `ndjson` | plain |
-| `--plain` | Force the ASCII chart | false |
-| `--no-color` | Disable chart colors | false |
-| `--height` | Chart height in rows | 15 |
-| `--width` | Chart width in columns. 0 uses the terminal | 0 |
-| `--filter` | Resource filter, repeatable | |
-| `--adapter` | One adapter plugin | all |
-| `--spec-dir` | Pricing spec directory | config |
-| `--jobs`, `-j` | Parallel workers. 0 is automatic | 0 |
-| `--profile` | Workload hint passed to projected pricing: `dev`, `prod`, `burst`, or `default`. Inherited from `cost` | no preference |
+The flags, their defaults, and examples are in the generated reference for
+[`finfocus cost forecast`](../reference/cli/finfocus_cost_forecast.md).
 
 With no input file, forecast uses the same project detection as `cost projected`.
 A Terraform directory is planned with `terraform` or `tofu`. Use
