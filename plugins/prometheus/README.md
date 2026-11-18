@@ -4,6 +4,18 @@ Reports historical Kubernetes CPU and memory usage for `finfocus cost cluster`.
 This plugin is a usage source only. It does not allocate cost and it does not
 price resources. The kubernetes plugin still allocates.
 
+## Install
+
+```bash
+finfocus plugin install prometheus
+export FINFOCUS_PROMETHEUS_URL=http://127.0.0.1:9090
+```
+
+Releases are tagged `prometheus-vX.Y.Z`. Install the kubernetes plugin too: it
+allocates the cost and serves the run rate. See the
+[Prometheus plugin page](../../docs/src/content/docs/plugins/prometheus.md)
+for configuration and the required metrics.
+
 ## Address
 
 `FINFOCUS_PROMETHEUS_URL` is the Prometheus base URL. When that variable is
@@ -63,12 +75,6 @@ have no `pulumi_urns`, even when kube-state-metrics exports the
 Group by Pulumi stack in run-rate mode (no `--from` or `--to`, and
 `--usage-source kubernetes` when several sources are installed), where the
 kubernetes source reads the annotation from the live pods.
-
-## Install
-
-`finfocus plugin install prometheus` waits on tag `prometheus-v0.1.0` and on
-a registry entry added after that tag exists. Until then, install the binary
-by copying it under `FINFOCUS_HOME`, the same way the kind test does.
 
 ## Logs
 
