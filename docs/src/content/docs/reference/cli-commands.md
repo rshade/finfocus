@@ -999,7 +999,13 @@ it when it cannot find the key. See
 [Config Merge Behavior](config-reference.md#config-merge-behavior).
 
 For sensitive values such as API keys, use environment variables instead of
-storing them in config files.
+storing them in config files. Plugin processes inherit the environment FinFocus
+runs in, and each plugin's docs page lists the variables it reads.
+
+A `plugins.<name>.<key>` value reaches the plugin through the variable the
+plugin advertises for that key. A key the plugin does not advertise is passed
+as `FINFOCUS_PLUGIN_<NAME>_<KEY>`, in uppercase with hyphens as underscores:
+for example, `plugins.aws-ce.<key>` becomes `FINFOCUS_PLUGIN_AWS_CE_<KEY>`.
 
 ### Usage (config set)
 
@@ -1014,7 +1020,7 @@ finfocus config set <key> <value>
 finfocus config set output.default_format json
 
 # Set plugin configuration
-finfocus config set plugins.aws.region us-west-2
+finfocus config set plugins.aws-ce.carbon_enabled true
 
 # The dashboard Plugins page edits the same plugins.<name>.<key> settings
 # and installs catalog plugins. See the Web UI guide.
@@ -1023,7 +1029,7 @@ finfocus config set plugins.aws.region us-west-2
 finfocus config set logging.level debug
 
 # For sensitive values, prefer environment variables
-export FINFOCUS_PLUGIN_AWS_SECRET_KEY="mysecret"
+export FINFOCUS_VANTAGE_TOKEN="read-only-service-token"
 ```
 
 ## config get
@@ -1043,7 +1049,7 @@ finfocus config get <key>
 finfocus config get output.default_format
 
 # Get a plugin section
-finfocus config get plugins.aws
+finfocus config get plugins.aws-ce
 
 # Get all plugins
 finfocus config get plugins
