@@ -7,6 +7,7 @@ price resources. The kubernetes plugin still allocates.
 ## Install
 
 ```bash
+finfocus plugin install kubernetes
 finfocus plugin install prometheus
 export FINFOCUS_PROMETHEUS_URL=http://127.0.0.1:9090
 ```
