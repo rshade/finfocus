@@ -55,6 +55,18 @@ finfocus [flags]
 
   # Set configuration values
   finfocus config set output.default_format json
+
+  # Open the browser dashboard for the current Pulumi or Terraform project
+  finfocus --web
+
+  # Serve on a pinned port without opening a browser (for example over SSH)
+  finfocus --web --port 8484 --no-browser
+
+  # Use pre-exported files instead of running Pulumi CLI commands
+  finfocus --web --pulumi-state state.json --pulumi-json plan.json
+
+  # Open two stacks as tabs in one dashboard
+  finfocus --web --stack dev,prod
 ```
 
 ## Options
@@ -68,7 +80,7 @@ finfocus [flags]
       --dry-run[=true|false]                emit the envelope without side effects
       --filter strings                      resource filters (only valid with --web)
       --format string                       output format: json or human
-      --from string                         start date (YYYY-MM-DD or RFC3339) (only valid with --web or --import-cloud-history)
+      --from string                         start date (YYYY-MM-DD or RFC3339; with --web, defaults to the first day of the current month) (only valid with --web or --import-cloud-history)
   -h, --help[=true|false]                   help for finfocus
       --idempotency-key string              opaque key used to prevent duplicate-create retries
       --import-cloud-history[=true|false]   import Pulumi Cloud historical resource identities without calculating costs
@@ -76,7 +88,7 @@ finfocus [flags]
       --no-browser[=true|false]             do not open a browser; print the web UI URL only (only valid with --web)
       --port int                            pin the web UI port (0 = kernel-assigned; only valid with --web)
       --project-dir string                  explicit Pulumi project directory for config resolution
-      --pulumi-json string                  path to Pulumi preview JSON (only valid with --web)
+      --pulumi-json string                  path to Pulumi preview JSON; state is still read from the detected project unless --pulumi-state is set (only valid with --web)
       --pulumi-state string                 path to Pulumi state JSON (only valid with --web)
       --skip-version-check[=true|false]     skip plugin spec version compatibility check
       --stack stringArray                   Pulumi stack name for auto-detection; with --web, comma-separated or repeated names open one tab per stack (only valid with --web or --import-cloud-history)

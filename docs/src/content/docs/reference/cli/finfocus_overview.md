@@ -62,16 +62,16 @@ finfocus overview [flags]
 ```text
   -a, --adapter string                   restrict to a specific adapter plugin
       --budget-scope string              Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)
-      --color[=true|false]               Force colored output when stdout is not a terminal
+      --color[=true|false]               style the plain table when stdout is not a terminal; same switch as --force-color
       --exit-code int                    Exit code to use when budget thresholds are exceeded (0-255) (default 1)
       --exit-on-threshold[=true|false]   Exit with non-zero code when budget thresholds are exceeded (non-TTY only)
   -f, --filter strings                   resource filters
-      --force-color[=true|false]         force styled output in non-TTY environments
-      --from string                      start date (YYYY-MM-DD or RFC3339)
+      --force-color[=true|false]         style the plain table when stdout is not a terminal; same switch as --color
+      --from string                      start date (YYYY-MM-DD or RFC3339, defaults to the first day of the current month)
   -h, --help[=true|false]                help for overview
-      --high-contrast[=true|false]       Use brighter high-contrast colors
+      --high-contrast[=true|false]       accepted for consistency with the other output commands; overview has no budget box to recolor, so it has no effect
       --include-workspace[=true|false]   Include the Terraform workspace in history identity (ignored for Pulumi)
-      --no-color[=true|false]            disable all ANSI styling
+      --no-color[=true|false]            disable all ANSI styling; wins over --color and --force-color
       --no-pagination[=true|false]       disable pagination (plain mode only)
       --notify[=true|false]              Send budget alert notifications for exceeded thresholds (default from FINFOCUS_NOTIFY)
       --output string                    output format (table, json, ndjson) (default "table")
@@ -80,7 +80,7 @@ finfocus overview [flags]
       --pulumi-json string               path to Pulumi preview JSON
       --pulumi-state string              path to Pulumi state JSON
   -s, --stack string                     Pulumi stack name for auto-detection (ignored with --pulumi-state/--pulumi-json)
-      --state-only[=true|false]          skip pulumi preview (faster, but won't detect pending changes)
+      --state-only[=true|false]          skip pulumi preview (faster, but won't detect pending changes); mutually exclusive with --pulumi-json
       --terraform-plan string            path to tofu show -json output (runs no binary)
       --terraform-state string           path to Terraform state JSON (does not run a plan)
       --to string                        end date (YYYY-MM-DD or RFC3339, defaults to now)
