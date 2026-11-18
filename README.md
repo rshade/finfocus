@@ -759,6 +759,7 @@ finfocus plugin validate
 | `aws-ce` | Available | AWS Cost Explorer actual costs, forecasts, budgets, and recommendations |
 | `azure-public` | In Development | Azure public pricing data |
 | `opencost` | Available | Kubernetes allocation cost from OpenCost or Kubecost |
+| `cloudzero` | Available | Actual cost per resource from the CloudZero billing costs API |
 | `carbon` | Build from source | Offline EC2 operational carbon estimates alongside monetary pricing. See the [carbon plugin guide](docs/src/content/docs/plugins/carbon.md). |
 | `scorer` | Source install; first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`; hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
 
@@ -899,6 +900,7 @@ it, so the FinFocus side of the change is tracked as well.
 | `opencost` | [rshade/finfocus-plugin-opencost](https://github.com/rshade/finfocus-plugin-opencost/issues) |
 | `flexera` | [rshade/finfocus-plugin-flexera](https://github.com/rshade/finfocus-plugin-flexera/issues) |
 | `vantage` | [rshade/finfocus-plugin-vantage](https://github.com/rshade/finfocus-plugin-vantage/issues) |
+| `cloudzero` | [rshade/finfocus-plugin-cloudzero](https://github.com/rshade/finfocus-plugin-cloudzero/issues) |
 
 If you are not sure which repository a problem belongs to, open it here.
 
