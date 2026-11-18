@@ -135,8 +135,9 @@ Run `make help` for a complete list. All available targets:
 | `make docs-serve`    | Serve documentation locally (localhost:4000)      |
 | `make docs-validate` | Validate documentation structure and completeness |
 
-`make docs-vale` uses the Vale version pinned in `mise.toml` (`make tools`),
-runs `vale sync`, and lints `docs/src/content/docs/` with `docs/.vale.ini`.
+`make docs-vale` uses the Vale version pinned in `mise.toml` (`make tools`).
+After `vale sync`, it checks that every `ai-tells` rule is a suggestion, then
+lints `docs/src/content/docs/` with `docs/.vale.ini`.
 The existing pages have a backlog of findings, and a full run exits nonzero
 until it is cleared. Pass the pages you changed to check only them:
 
@@ -151,6 +152,10 @@ added line fails the check. Warnings never fail it, and neither do the
 language model wrote. Add exact product terms to
 `docs/.vale/styles/config/vocabularies/FinFocus/accept.txt`. Each entry also
 sets the casing Vale expects for that term.
+
+Write CLI commands, binary names, and plugin ids in backticks in prose, such
+as `finfocus` or the `kubernetes` plugin. Vale skips code, so the vocabulary
+casing for FinFocus and Kubernetes does not flag them.
 
 ### Verifying Your Setup
 

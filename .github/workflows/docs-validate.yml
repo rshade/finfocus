@@ -14,6 +14,7 @@ on:
       - 'CONTRIBUTING.md'
       - '.github/workflows/docs-validate.yml'
       - 'scripts/check-vale-ai-tells.sh'
+      - 'mise.toml'
 
 permissions:
   contents: read

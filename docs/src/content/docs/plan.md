@@ -708,16 +708,18 @@ Purpose: Prose quality, tone, and style consistency
 StylesPath = .vale/styles
 MinAlertLevel = suggestion
 Vocab = FinFocus
-Packages = Google, Microsoft, \
+Packages = Google, \
   https://github.com/tbhb/vale-ai-tells/releases/download/v1.37.0/ai-tells.zip
 
 [*.{md,mdx}]
-BasedOnStyles = Vale, Google, Microsoft, ai-tells
+BasedOnStyles = Vale, Google, ai-tells
+
+# Headings here are Title Case and mixed across pages; 1467 hits.
+Google.Headings = NO
+# ...each rule turned off or lowered carries its reason
+
 ai-tells.AbsoluteAssertions = suggestion
 # ...one suggestion line for each ai-tells rule
-
-[**/architecture/*.md]
-BasedOnStyles = Vale, Microsoft, ai-tells
 ```
 
 - `vale sync` downloads the packages into `docs/.vale/styles/`. They are
@@ -727,9 +729,13 @@ BasedOnStyles = Vale, Microsoft, ai-tells
   Each of its rules defaults to error level, so `docs/.vale.ini` lowers each
   one to `suggestion`. `scripts/check-vale-ai-tells.sh` fails when a synced
   rule is missing from that list.
-- Rules that report correct text in these docs, such as Go durations and
-  quoted list values, are lowered to `warning`. A rule goes back to `error`
-  only when it has no false positives on the current docs.
+- Google is the only base style. Microsoft was dropped because most of its
+  hits repeated a Google rule and the rest reported correct text here.
+- A Google rule that is wrong for these docs, such as `Google.WordList`
+  (which wants "command-line tool" for "CLI") or `Google.Units` (which flags Go
+  durations), is turned off. A rule with both real and false hits is lowered
+  to `warning`. Each carries its reason as a comment. A rule goes back to
+  `error` only when it has no false positives on the current docs.
 - `make docs-vale` runs the pinned Vale from `mise.toml`. The
   `docs-validate.yml` `vale` job runs `vale-cli/vale-action` with reviewdog on
   pull requests, with `filter_mode: added` and `fail_on_error: true`. It
@@ -747,6 +753,7 @@ docs-lint:
 .PHONY: docs-vale
 docs-vale:
     vale --config docs/.vale.ini sync
+    bash scripts/check-vale-ai-tells.sh
     vale --config docs/.vale.ini docs/src/content/docs/
 
 .PHONY: docs-format
