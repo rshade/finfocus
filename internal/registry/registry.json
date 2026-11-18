@@ -97,6 +97,22 @@
         "asset_prefix": "finfocus-plugin-kubernetes"
       }
     },
+    "prometheus": {
+      "name": "prometheus",
+      "description": "Historical Kubernetes cluster usage from Prometheus, in core-hours and GiB-hours",
+      "repository": "rshade/finfocus",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus/tree/main/plugins/prometheus",
+      "supported_providers": ["kubernetes"],
+      "capabilities": ["usage_stats"],
+      "security_level": "official",
+      "min_spec_version": "0.7.0",
+      "tag_prefix": "prometheus-",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-prometheus"
+      }
+    },
     "vantage": {
       "name": "vantage",
       "description": "Imported actual cloud cost from Vantage Cost Reports",
