@@ -113,6 +113,22 @@
         "version_prefix": false
       }
     },
+    "cloudzero": {
+      "name": "cloudzero",
+      "description": "CloudZero actual cloud cost per resource from the billing costs API",
+      "repository": "rshade/finfocus-plugin-cloudzero",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus-plugin-cloudzero",
+      "supported_providers": ["aws", "azure", "gcp"],
+      "capabilities": ["cost_retrieval"],
+      "security_level": "official",
+      "min_spec_version": "0.7.12",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-cloudzero",
+        "version_prefix": false
+      }
+    },
     "jev": {
       "name": "jev",
       "description": "Deprecated. Use scorer, which rates recommendations with the Jev or Clef backend",

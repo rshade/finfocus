@@ -80,6 +80,22 @@ Reads billed cost from Flexera One Bill Analysis, so it needs
 account. `finfocus setup` does not install it; run
 `finfocus plugin install flexera`.
 
+### cloudzero
+
+| Field | Value |
+|-------|-------|
+| Repository | `rshade/finfocus-plugin-cloudzero` |
+| Providers | `aws`, `azure`, `gcp` |
+| Capabilities | `cost_retrieval` |
+| Security | official |
+| Asset prefix | `finfocus-plugin-cloudzero` |
+
+Reads actual cost per resource from the CloudZero billing costs API, so it
+needs `CLOUDZERO_API_KEY` and `CLOUDZERO_RESOURCE_DIMENSION` (usually
+`Resource`). It has no projected cost. CloudZero allows 60 cost requests in a
+rolling 24 hours. `finfocus setup` does not install it; run
+`finfocus plugin install cloudzero`.
+
 ### opencost
 
 | Field | Value |

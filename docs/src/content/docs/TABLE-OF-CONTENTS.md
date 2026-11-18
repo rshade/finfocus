@@ -57,6 +57,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [OpenCost Setup](plugins/opencost.md)                      | Kubernetes allocation plugin | End Users   |
 | [Vantage Setup](plugins/vantage.md)                        | Vantage actual cost plugin | End Users     |
 | [Flexera Setup](plugins/flexera.md)                        | Flexera One cost plugin   | End Users      |
+| [CloudZero Setup](plugins/cloudzero.md)                    | CloudZero actual cost plugin | End Users   |
 
 ### 📚 Comprehensive Guides (by Audience)
 
@@ -147,6 +148,12 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | Page                                           | Purpose                        |
 | ---------------------------------------------- | ------------------------------ |
 | [Flexera Plugin](plugins/flexera.md)           | Setup and configuration        |
+
+#### CloudZero (AVAILABLE)
+
+| Page                                           | Purpose                        |
+| ---------------------------------------------- | ------------------------------ |
+| [CloudZero Plugin](plugins/cloudzero.md)       | Setup and configuration        |
 
 #### Future Plugins
 

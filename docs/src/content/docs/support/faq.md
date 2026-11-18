@@ -106,6 +106,7 @@ A: The main plugins today:
 | `azure-public` | ✓ | ✓ | Azure Retail Prices API, no credentials |
 | `vantage` | — | ✓ | Imported billing from a Vantage Cost Report; needs a Vantage account |
 | `flexera` | ✓ | ✓ | Flexera One Bill Analysis for AWS, Azure, and GCP; needs a Flexera org and billing center |
+| `cloudzero` | — | ✓ | CloudZero billing costs per resource; needs a CloudZero API key and a resource dimension |
 | `opencost` | ✓ | ✓ | Kubernetes allocation from an OpenCost or Kubecost endpoint (set the `kubecost` profile for Kubecost) |
 
 ### Q: Do I need a plugin?
