@@ -129,8 +129,8 @@ if err != nil {
 
 The budget engine is designed for high performance:
 
-- **Health Calculation**: < 100ms for 1000 budgets
-- **Filtering**: < 500ms for 1000 budgets
+- **Health Calculation**: < 100 ms for 1000 budgets
+- **Filtering**: < 500 ms for 1000 budgets
 - **Stateless**: No database required; all calculations happen in-memory
 
 ## Troubleshooting

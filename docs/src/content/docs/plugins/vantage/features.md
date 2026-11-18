@@ -369,14 +369,14 @@ Future breaking changes will be announced with:
 
 ### Vantage Plugin vs. Other Plugins
 
-| Feature              | Vantage       | Kubecost          | AWS Cost Explorer |
-| :------------------- | :------------ | :---------------- | :---------------- |
-| **Multi-Cloud**      | ✅ Full       | ❌ K8s only       | ❌ AWS only       |
-| **FOCUS Compliance** | ✅ Yes        | ⚠️ Partial        | ❌ No             |
-| **Tag Filtering**    | ✅ Advanced   | ✅ Basic          | ✅ Basic          |
-| **Forecasting**      | ✅ Snapshot   | ❌ No             | ✅ ML-based       |
-| **Real-Time**        | ❌ 12-48h lag | ✅ Near real-time | ❌ 24h lag        |
-| **Optimization**     | ❌ No         | ✅ Yes            | ✅ Yes            |
+| Feature              | Vantage        | Kubecost          | AWS Cost Explorer |
+| :------------------- | :------------- | :---------------- | :---------------- |
+| **Multi-Cloud**      | ✅ Full        | ❌ K8s only       | ❌ AWS only       |
+| **FOCUS Compliance** | ✅ Yes         | ⚠️ Partial        | ❌ No             |
+| **Tag Filtering**    | ✅ Advanced    | ✅ Basic          | ✅ Basic          |
+| **Forecasting**      | ✅ Snapshot    | ❌ No             | ✅ ML-based       |
+| **Real-Time**        | ❌ 12-48 h lag | ✅ Near real-time | ❌ 24 h lag       |
+| **Optimization**     | ❌ No          | ✅ Yes            | ✅ Yes            |
 
 ---
 

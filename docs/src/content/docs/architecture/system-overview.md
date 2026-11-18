@@ -287,7 +287,7 @@ With optional grouping by:
 **Handling:**
 
 - Retry up to 3 times with exponential backoff
-- Wait intervals: 100ms, 200ms, 400ms
+- Wait 100 ms before the first retry, doubling to 400 ms before the third
 - Continue with next plugin or fallback to specs
 
 ### Permanent Errors

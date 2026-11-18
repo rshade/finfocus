@@ -32,6 +32,6 @@ or unreadable.
 ### ENG-002: Plugin Timeout
 
 **Message**: "Plugin request timed out"
-**Cause**: The plugin took too long to respond (default 10s).
+**Cause**: The plugin took too long to respond (default 10 seconds).
 **Fix**: Check network connectivity or increase timeout via environment
 variable.

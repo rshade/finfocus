@@ -155,7 +155,7 @@ Each region fixture includes:
 
 - **2x EC2 Instances** (t3.micro, t3.small) - Compute
   - Different instance types to test pricing variations
-- **2x EBS Volumes** (gp3 100GB, io2 50GB) - Storage
+- **2x EBS Volumes** (gp3 100 GB, io2 50 GB) - Storage
   - Different volume types and IOPS configurations
 - **2x Network Resources** (NAT Gateway, VPC Endpoint) - Network
   - Regional network pricing differences

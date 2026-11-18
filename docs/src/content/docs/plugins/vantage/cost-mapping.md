@@ -368,7 +368,7 @@ Vantage cost data has inherent latency:
 
 | Cloud Provider | Typical Lag    | Notes                                       |
 | -------------- | -------------- | ------------------------------------------- |
-| **AWS**        | 12-24 hours    | Can take up to 48h for final reconciliation |
+| **AWS**        | 12-24 hours    | Can take up to 48 hours for final reconciliation |
 | **GCP**        | 24-48 hours    | BigQuery billing export lag                 |
 | **Azure**      | 24-48 hours    | Usage API lag                               |
 | **Kubernetes** | Near real-time | Via Kubecost integration                    |

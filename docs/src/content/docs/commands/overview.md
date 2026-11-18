@@ -75,7 +75,7 @@ with progressive data loading.
 finfocus overview --state-only
 ```
 
-Skips `pulumi preview` entirely, reducing overview time from ~18s to ~3s. Shows
+Skips `pulumi preview` entirely, reducing overview time from ~18 s to ~3 s. Shows
 cost data from the current stack state without detecting pending infrastructure
 changes. In the TUI, the `p` key is still available to run preview on demand.
 

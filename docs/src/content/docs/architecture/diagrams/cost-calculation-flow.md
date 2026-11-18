@@ -240,7 +240,7 @@ For each grouping dimension (provider, type, date):
 **Handling:**
 
 - Retry up to 3 times with exponential backoff
-- Wait intervals: 100ms, 200ms, 400ms
+- Wait 100 ms before the first retry, doubling to 400 ms before the third
 
 ### Permanent Errors
 
