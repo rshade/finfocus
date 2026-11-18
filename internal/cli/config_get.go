@@ -17,7 +17,7 @@ func NewConfigGetCmd() *cobra.Command {
 		Short: "Get a configuration value",
 		Long: `Gets a configuration value using dot notation from the project config (when a project is detected) over ~/.finfocus/config.hujson.
 
-Note: Sensitive values should be stored as environment variables (e.g., FINFOCUS_PLUGIN_AWS_SECRET_KEY)
+Note: Sensitive values should be stored as environment variables (e.g., FINFOCUS_VANTAGE_TOKEN)
 and will not appear in configuration files.`,
 		Example: `  # Get output format
   finfocus config get output.default_format
@@ -26,8 +26,8 @@ and will not appear in configuration files.`,
   finfocus config get output.precision
 
   # Get plugin configuration
-  finfocus config get plugins.aws.region
-  finfocus config get plugins.aws
+  finfocus config get plugins.aws-ce.carbon_enabled
+  finfocus config get plugins.aws-ce
 
   # Get all plugins
   finfocus config get plugins

@@ -19,9 +19,15 @@ func NewConfigSetCmd() *cobra.Command {
 		Short: "Set a configuration value",
 		Long: `Sets a configuration value using dot notation. The configuration will be saved to ~/.finfocus/config.hujson.
 
-For sensitive values like API keys or credentials, use environment variables instead:
-  export FINFOCUS_PLUGIN_AWS_SECRET_KEY="mysecret"
-  export FINFOCUS_PLUGIN_AZURE_CLIENT_SECRET="secret"`,
+For sensitive values like API keys or credentials, use environment variables instead.
+Plugin processes inherit the environment FinFocus runs in, and each plugin's docs page
+lists the variables it reads, for example:
+  export FINFOCUS_VANTAGE_TOKEN="read-only-service-token"
+
+A plugins.<name>.<key> value reaches the plugin through the variable the plugin
+advertises for that key. A key the plugin does not advertise is passed as
+FINFOCUS_PLUGIN_<NAME>_<KEY>, in uppercase with hyphens as underscores: for
+example, plugins.aws-ce.<key> becomes FINFOCUS_PLUGIN_AWS_CE_<KEY>.`,
 		Example: `  # Set output format
   finfocus config set output.default_format json
 
@@ -29,14 +35,13 @@ For sensitive values like API keys or credentials, use environment variables ins
   finfocus config set output.precision 4
 
   # Set plugin configuration
-  finfocus config set plugins.aws.region us-west-2
-  finfocus config set plugins.aws.profile production
+  finfocus config set plugins.aws-ce.carbon_enabled true
 
   # Set logging level
   finfocus config set logging.level debug
 
   # For sensitive values, use environment variables instead
-  export FINFOCUS_PLUGIN_AWS_SECRET_KEY="mysecret"`,
+  export FINFOCUS_VANTAGE_TOKEN="read-only-service-token"`,
 		Args: cobra.ExactArgs(2), //nolint:mnd // Exactly 2 args: key and value
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
