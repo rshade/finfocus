@@ -337,18 +337,20 @@ global config. See [Budget Notifications](docs/src/content/docs/guides/budgets.m
 
 ### Environment Variables for Secrets
 
-For sensitive values like API keys and credentials, use environment variables:
+For sensitive values like API keys and credentials, use environment variables.
+Plugin processes inherit the environment FinFocus runs in.
+
+The public pricing plugins (`aws-public`, `azure-public`) need no credentials.
+`aws-ce` uses the AWS SDK default credential chain and needs a region:
 
 ```bash
-# AWS credentials (for aws-public and aws-ce plugins)
-export FINFOCUS_PLUGIN_AWS_ACCESS_KEY_ID="your-access-key"
-export FINFOCUS_PLUGIN_AWS_SECRET_ACCESS_KEY="your-secret-key"
-
-# Azure credentials (for azure-public plugin)
-export FINFOCUS_PLUGIN_AZURE_SUBSCRIPTION_ID="your-subscription-id"
+# AWS credentials (for the aws-ce plugin)
+export AWS_PROFILE="your-profile"
+export AWS_REGION="us-east-1"
 ```
 
-The naming convention is: `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase.
+Other plugin settings use the naming convention
+`FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase.
 
 ### Cost Allocation Tags
 
