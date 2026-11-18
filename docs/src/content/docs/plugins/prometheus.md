@@ -69,7 +69,8 @@ Prometheus must scrape cAdvisor and kube-state-metrics over the whole window.
 The node series give each node's provider, instance type, and region, which
 pricing needs. When they lack a value, the plugin reads the node as it is now
 through your kubeconfig and adds a warning that names the node and the fields
-it took from the live node.
+it took from the live node. A node that neither the recorded series nor the
+live node identify is omitted.
 
 ## Usage Data
 
@@ -90,8 +91,8 @@ The report footer reads `historical (2026-09-28 to 2026-10-05, 7 days)`.
 - **Retention**: When Prometheus holds no data for the start of the window,
   the report is marked incomplete with a warning naming the time stored data
   starts. The missing part is not counted as zero usage.
-- **Gaps**: A pod with gaps in its samples is reported as incomplete, one
-  warning per pod and metric.
+- **Gaps**: A pod whose samples miss more than one 60-second step marks the
+  report incomplete, with one warning per pod and metric.
 - **Pod labels**: kube-state-metrics exports only the labels named in its
   `--metric-labels-allowlist` flag, and replaces characters other than
   letters, digits, and underscores with `_`. Group by the recorded key, for
