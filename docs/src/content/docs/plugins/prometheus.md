@@ -70,7 +70,7 @@ The node series give each node's provider, instance type, and region, which
 pricing needs. When they lack a value, the plugin reads the node as it is now
 through your kubeconfig and adds a warning that names the node and the fields
 it took from the live node. A node that neither the recorded series nor the
-live node identify is omitted.
+live node identifies is omitted.
 
 ## Usage Data
 
