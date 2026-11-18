@@ -165,7 +165,7 @@ Override configuration with environment variables:
 No environment variable sets the budget amount or currency. Set
 `cost.budgets.global.amount` and `currency` in the configuration file.
 
-See [Configuration Reference](../reference/config-reference.md#budgets) for complete details.
+See [Configuration Reference](../reference/config-reference.md#cost--budgets) for complete details.
 
 ---
 
@@ -745,7 +745,7 @@ Ensure you have the correct schema directive and your indentation is correct:
 
 **Configuration Reference:**
 
-- [Budget Configuration](../reference/config-reference.md#budgets) - Complete option reference
+- [Budget Configuration](../reference/config-reference.md#cost--budgets) - Complete option reference
 
 **Examples:**
 
