@@ -243,6 +243,17 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
+      # git status, not git diff --exit-code: a new command adds an untracked page.
+      - name: Check generated CLI reference
+        run: |
+          make docs-cli
+          if [ -n "$(git status --porcelain -- docs/src/content/docs/reference/cli)" ]; then
+            echo "The CLI reference is out of date. Run 'make docs-cli' and commit the result."
+            git status --short -- docs/src/content/docs/reference/cli
+            git diff -- docs/src/content/docs/reference/cli
+            exit 1
+          fi
+
       - name: Verify go.mod sync between root and nested modules
         run: |
           ROOT_GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')

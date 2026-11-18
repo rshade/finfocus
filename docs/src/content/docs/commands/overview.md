@@ -35,29 +35,8 @@ the command auto-detects your Pulumi project and stack from the current director
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--pulumi-state` | Path to Pulumi state JSON (skips auto-detection) | Auto-detected |
-| `--pulumi-json` | Path to Pulumi preview JSON (skips auto-detection) | Auto-detected |
-| `--stack`, `-s` | Pulumi stack name for auto-detection (ignored with `--pulumi-state`/`--pulumi-json`) | Current stack |
-| `--from` | Start date (YYYY-MM-DD or RFC3339) | 1st of current month |
-| `--to` | End date (YYYY-MM-DD or RFC3339) | Now |
-| `--adapter`, `-a` | Restrict to a specific adapter plugin | All plugins |
-| `--output` | Output format: table, json, ndjson | table |
-| `--filter`, `-f` | Resource filters (repeatable) | - |
-| `--plain` | Force non-interactive plain text output | false |
-| `--color`, `--force-color` | Style the plain table when stdout is not a terminal. Does not open the TUI. The two names are the same switch | false |
-| `--no-color` | Disable ANSI styling. Wins over `--color` and `--force-color` | false |
-| `--high-contrast` | Accepted for consistency with the other output commands. `overview` has no budget box to recolor, so it changes nothing | false |
-| `--yes`, `-y` | Skip confirmation prompts | false |
-| `--cache-ttl` | Root flag. Seconds to keep plugin cost results. An explicit value wins, then `FINFOCUS_CACHE_TTL`, then config. `0` disables the cache | config |
-| `--no-pagination` | Disable pagination (plain mode only) | false |
-| `--exit-on-threshold` | Exit non-zero when a budget threshold is exceeded | false |
-| `--exit-code` | Exit code for a threshold breach (0-255) | 1 |
-| `--notify` | Send [budget notifications](../guides/budgets.md#budget-notifications) for exceeded thresholds. Unset uses `FINFOCUS_NOTIFY` | false |
-| `--state-only` | Skip pulumi preview (faster, no pending change detection). Mutually exclusive with `--pulumi-json` | false |
-| `--profile` | Workload hint for projected cost and recommendations: `dev`, `prod`, `burst`, or `default`. Overrides `FINFOCUS_PROFILE` and `cost.profile` | no preference |
-| `--budget-scope` | Filter budget scopes: global, provider, tag, type | All |
+The flags, their defaults, and examples are in the generated reference for
+[`finfocus overview`](../reference/cli/finfocus_overview.md).
 
 ## Auto-Detection
 

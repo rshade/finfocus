@@ -23,16 +23,8 @@ finfocus logs [options]
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--file` | Log file to read | The configured `logging.file` (`~/.finfocus/logs/finfocus.log`) |
-| `--tail` | Number of most recent matching entries to show; `0` shows all | `200` |
-| `--source` | Only entries from this source, `core` or a plugin name. Repeatable | All sources |
-| `--level` | Minimum level: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `panic` | All levels |
-| `--grep` | Only entries whose message or field values contain this text, ignoring case | No text filter |
-| `--output` | Output format: `table`, `json`, or `ndjson` | `table` |
-| `--no-color`, `--plain` | Print the table without colors | Color on a terminal |
-| `--color` | Force colors when stdout is not a terminal | Off |
+The flags, their defaults, and examples are in the generated reference for
+[`finfocus logs`](../reference/cli/finfocus_logs.md).
 
 Filters combine: an entry must match a listed source, be at or above the
 level, and contain the text. `--tail` applies after the filters, so
