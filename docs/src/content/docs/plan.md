@@ -705,14 +705,36 @@ Purpose: Prose quality, tone, and style consistency
 **Config File:** `docs/.vale.ini`
 
 ```ini
-[*]
-BasedOnStyles = Google, Microsoft
-IgnoredClasses = pre,code
-IgnoredScopes = code
+StylesPath = .vale/styles
+MinAlertLevel = suggestion
+Vocab = FinFocus
+Packages = Google, Microsoft, \
+  https://github.com/tbhb/vale-ai-tells/releases/download/v1.37.0/ai-tells.zip
+
+[*.{md,mdx}]
+BasedOnStyles = Vale, Google, Microsoft, ai-tells
+ai-tells.AbsoluteAssertions = suggestion
+# ...one suggestion line for each ai-tells rule
 
 [**/architecture/*.md]
-BasedOnStyles = Microsoft
+BasedOnStyles = Vale, Microsoft, ai-tells
 ```
+
+- `vale sync` downloads the packages into `docs/.vale/styles/`. They are
+  git-ignored. Only `config/vocabularies/FinFocus/accept.txt` is tracked. It
+  lists exact product terms, and each entry also sets the casing Vale expects.
+- `ai-tells` flags prose patterns common in text that a language model wrote.
+  Each of its rules defaults to error level, so `docs/.vale.ini` lowers each
+  one to `suggestion`. `scripts/check-vale-ai-tells.sh` fails when a synced
+  rule is missing from that list.
+- Rules that report correct text in these docs, such as Go durations and
+  quoted list values, are lowered to `warning`. A rule goes back to `error`
+  only when it has no false positives on the current docs.
+- `make docs-vale` runs the pinned Vale from `mise.toml`. The
+  `docs-validate.yml` `vale` job runs `vale-cli/vale-action` with reviewdog on
+  pull requests, with `filter_mode: added` and `fail_on_error: true`. It
+  reports added lines only. An error-level finding fails the job. A
+  warning or suggestion does not.
 
 ### Makefile Targets for Docs
 
@@ -721,7 +743,11 @@ BasedOnStyles = Microsoft
 docs-lint:
     markdownlint docs/**/*.md
     markdown-link-check docs/**/*.md
-    vale docs/**/*.md
+
+.PHONY: docs-vale
+docs-vale:
+    vale --config docs/.vale.ini sync
+    vale --config docs/.vale.ini docs/src/content/docs/
 
 .PHONY: docs-format
 docs-format:

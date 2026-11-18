@@ -1,0 +1,16 @@
+aws-ce
+aws-public
+azure-public
+Cloudability
+CloudZero
+FinFocus
+FinOps
+Flexera
+GreenOps
+Jev
+Kubecost
+Kubernetes
+OpenCost
+Prometheus
+Pulumi
+reviewdog
