@@ -28,15 +28,8 @@ finfocus cost anomalies --from 2026-10-01 --to 2026-10-15 --output ndjson
 
 ## Options
 
-| Flag | Description | Default |
-| --- | --- | --- |
-| `--stack` | Pulumi stack for auto-detection (inherited from `cost`) | Current stack |
-| `--pulumi-state` | Path to Pulumi state JSON | Auto-detected |
-| `--pulumi-json` | Path to Pulumi preview JSON; also runs with the plan | None |
-| `--from`, `--to` | Window start and end, `2006-01-02` or RFC3339. They also bound the days the daily series is read from | Start of the month to now |
-| `--adapter`, `-a` | Restrict to one adapter plugin | All |
-| `--filter`, `-f` | `key=value`, repeatable. Keys: `type`, `status`, `provider` | None |
-| `--output` | `table`, `json`, or `ndjson` | `table` |
+The flags, their defaults, and examples are in the generated reference for
+[`finfocus cost anomalies`](../reference/cli/finfocus_cost_anomalies.md).
 
 The command takes no positional arguments. Without `--pulumi-json` it reads the
 deployed state and does not run `pulumi preview`, because drift compares actual

@@ -385,6 +385,10 @@ inspect: build ## Launch the MCP Inspector for interactive testing
 	@echo "Open the URL shown below in your browser to interact with the MCP server"
 	npx @modelcontextprotocol/inspector $$(realpath bin/$(BINARY)) --mcp
 
+.PHONY: docs-cli
+docs-cli: ## Regenerate the CLI reference (docs/src/content/docs/reference/cli) from the command tree
+	go run ./tools/gendocs
+
 .PHONY: docs-lint
 docs-lint:
 	@echo "Linting documentation..."
@@ -508,6 +512,7 @@ help:
 	@echo "  inspect          - Launch MCP Inspector for interactive testing"
 	@echo ""
 	@echo "Documentation targets:"
+	@echo "  docs-cli         - Regenerate the CLI reference from the command tree"
 	@echo "  docs-lint        - Lint documentation markdown"
 	@echo "  docs-vale        - Lint documentation prose with Vale (VALE_FILES=<paths>)"
 	@echo "  docs-sync        - Sync root docs (README.md, CONTRIBUTING.md) to docs site"
