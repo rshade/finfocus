@@ -29,6 +29,13 @@ must sum to the priced total.
   finfocus plugin install kubernetes
   ```
 
+- For a historical window (`--from` and `--to`), the
+  [prometheus plugin](../plugins/prometheus.md) as the usage source:
+
+  ```bash
+  finfocus plugin install prometheus
+  ```
+
 - A pricing plugin for the nodes' provider and region, for example
   aws-public pinned to the nodes' region:
 
@@ -377,8 +384,8 @@ Prometheus must be scraping cAdvisor and kube-state-metrics, including the
 node-label metrics `kube_node_labels` and `kube_node_info`. Outside a
 cluster, set `FINFOCUS_PROMETHEUS_URL`. Inside a cluster, an unset URL uses
 the Prometheus Operator service. The
-[plugin README](https://github.com/rshade/finfocus/blob/main/plugins/prometheus/README.md)
-lists the address, the bearer token, and the install gate.
+[Prometheus plugin page](../plugins/prometheus.md) lists the address, the
+bearer token, and the metrics the plugin reads.
 
 A node's provider, instance type, and region come from those recorded
 series. When they lack a value the node needs, the source reads the node as
