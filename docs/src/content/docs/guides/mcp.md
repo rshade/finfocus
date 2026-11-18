@@ -221,6 +221,18 @@ row, so the drift row remains: that hole is documented rather than covered by a
 second threshold. Missing days are gaps, never zeros, and currencies are never
 pooled into one median.
 
+## Documentation from Context7
+
+The finfocus MCP server runs commands. It does not serve the FinFocus
+documentation. The finfocus repository has a `context7.json` file at its root
+that sets how [Context7](https://context7.com) indexes these docs.
+The Context7 library ID is `/rshade/finfocus`. An assistant that has the
+Context7 MCP server configured can fetch current FinFocus docs by that ID
+instead of answering from its training data.
+
+The file covers the pages on this site, except the testing guides and the
+navigation and contributor pages.
+
 ## Troubleshooting
 
 **To stop the server**, close its stdin or send `SIGINT` or `SIGTERM`. A
