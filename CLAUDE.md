@@ -63,6 +63,7 @@ make lint              # golangci-lint, markdownlint, actionlint
 make validate          # go mod tidy -diff, go vet
 make docs-cli          # Regenerate the CLI reference (docs/.../reference/cli/)
 make docs-lint
+make docs-vale         # Vale prose lint; VALE_FILES=<paths> (full tree has a backlog)
 make docs-serve        # Astro site at http://localhost:4321/finfocus/
 make check-plugin-boundaries
 make test-kubernetes   # Also test-scorer, test-prometheus (nested plugin modules)
@@ -90,6 +91,12 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
   `reference/cli-commands.md` (`TestOverviewLinksEveryPage`).
 - `pkill golangci-lint || true` clears a parallel-runner conflict. Lint can run
   longer than five minutes.
+- `docs/.vale.ini` lists every ai-tells rule at `suggestion`, because the
+  package ships them at error and Vale cannot lower a whole style. After
+  bumping the ai-tells URL, list every new rule and remove every dropped one,
+  or `scripts/check-vale-ai-tells.sh` fails. Each rule turned off or lowered
+  there carries its reason inline; keep that when changing one.
+  `docs/.vale/styles/` is git-ignored except the vocabulary.
 - After a rebase, run `go vet ./...` before trusting `make test`. A widened
   interface (for example `engine.ResourcePricer`) breaks test doubles that
   another merged PR added, with no git conflict.

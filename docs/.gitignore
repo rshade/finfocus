@@ -18,3 +18,9 @@ pnpm-debug.log*
 
 # macOS-specific files
 .DS_Store
+
+# Vale packages downloaded by `vale sync`; only the vocabulary is tracked
+.vale/styles/*
+!.vale/styles/config/
+.vale/styles/config/*
+!.vale/styles/config/vocabularies/

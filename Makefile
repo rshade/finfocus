@@ -13,6 +13,8 @@ MARKDOWNLINT?=markdownlint
 MARKDOWNLINT_CLI2?=markdownlint-cli2
 MARKDOWNLINT_FILES?=AGENTS.md
 ACTIONLINT?=$(HOME)/go/bin/actionlint
+VALE?=$(shell mise which vale 2>/dev/null)
+VALE_FILES?=docs/src/content/docs/
 
 LDFLAGS=-ldflags "-X 'github.com/rshade/finfocus/pkg/version.version=$(VERSION)' \
                   -X 'github.com/rshade/finfocus/pkg/version.gitCommit=$(COMMIT)' \
@@ -396,6 +398,15 @@ docs-lint:
 	markdownlint-cli2 --config docs/.markdownlint-cli2.jsonc 'docs/**/*.md' '#docs/dist/**' '#docs/.astro/**' '#docs/node_modules/**'
 	@echo "Documentation linting complete."
 
+# Lints all of VALE_FILES, including the existing backlog, so it exits nonzero
+# on the full tree. CI reports only the lines a pull request adds.
+.PHONY: docs-vale
+docs-vale:
+	@test -n "$(VALE)" || (echo "vale not found. Install with: mise install"; exit 1)
+	$(VALE) --config docs/.vale.ini sync
+	@bash scripts/check-vale-ai-tells.sh
+	$(VALE) --config docs/.vale.ini $(VALE_FILES)
+
 .PHONY: docs-sync
 docs-sync:
 	@echo "Syncing root documentation..."
@@ -503,6 +514,7 @@ help:
 	@echo "Documentation targets:"
 	@echo "  docs-cli         - Regenerate the CLI reference from the command tree"
 	@echo "  docs-lint        - Lint documentation markdown"
+	@echo "  docs-vale        - Lint documentation prose with Vale (VALE_FILES=<paths>)"
 	@echo "  docs-sync        - Sync root docs (README.md, CONTRIBUTING.md) to docs site"
 	@echo "  docs-build       - Build documentation site"
 	@echo "  docs-serve       - Serve documentation locally (http://localhost:4000)"

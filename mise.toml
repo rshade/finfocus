@@ -36,6 +36,10 @@ node = "26"
 # `make lint-actions` runs actionlint on the GitHub workflows.
 actionlint = "1.7.12"
 
+# `make docs-vale` lints docs prose. The vale job in
+# .github/workflows/docs-validate.yml reads this version.
+vale = "3.27.0"
+
 # Lints the shell snippets embedded in CI workflows and scripts/.
 shellcheck = "0.11.0"
 
