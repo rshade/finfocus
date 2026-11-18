@@ -68,7 +68,7 @@ wget -qO- https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `FINFOCUS_VERSION` | Install a specific version | Latest release |
+| `FINFOCUS_VERSION` | Install a specific version | Newest release |
 | `FINFOCUS_INSTALL_DIR` | Custom install directory | `/usr/local/bin` or `~/bin` |
 | `FINFOCUS_NO_VERIFY` | Skip checksum verification | Unset (verify enabled) |
 

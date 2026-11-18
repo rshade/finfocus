@@ -508,7 +508,7 @@ or plugins return "not supported" because properties are missing.
 **Solution**: Ensure you are using a compatible version of `finfocus` that
 handles the JSON structure of your Pulumi CLI version.
 
-- Update `finfocus` to the latest version.
+- Update `finfocus` to the newest release.
 - Check `pulumi version` and ensure compatibility.
 
 ### Region Not Resolved

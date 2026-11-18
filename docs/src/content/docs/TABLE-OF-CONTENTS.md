@@ -166,7 +166,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 | Page                                                            | Status                   |
 | --------------------------------------------------------------- | ------------------------ |
-| [Cloudability Coming Soon](plugins/cloudability/coming-soon.md) | FUTURE (customer demand) |
+| [Cloudability (planned)](plugins/cloudability/coming-soon.md)   | FUTURE (customer demand) |
 
 ### 📖 Reference Documentation
 

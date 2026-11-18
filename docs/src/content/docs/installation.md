@@ -35,7 +35,7 @@ Complete installation instructions for FinFocus Core across different platforms 
 
 ### 1. Download Pre-built Binaries (Recommended)
 
-Download the latest release for your platform:
+Download the newest release for your platform:
 
 #### Linux (x86_64)
 

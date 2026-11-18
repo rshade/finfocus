@@ -3,7 +3,7 @@ title: Vantage Plugin Setup Guide
 description: Step-by-step installation and configuration guide for the FinFocus Vantage plugin
 ---
 
-> **Note:** The Vantage plugin is currently **in development** and not yet available for installation.
+> **Note:** The Vantage plugin is **in development** and not yet available for installation.
 > This documentation is provided for reference and will be updated when the plugin is released.
 
 This guide walks you through installing and configuring the Vantage plugin for
@@ -50,7 +50,7 @@ Before installing the Vantage plugin, ensure you have:
 
 ### Option 1: Install Pre-Built Binary (Recommended)
 
-Download the latest release for your platform:
+Download the newest release for your platform:
 
 ```bash
 # Linux (amd64)

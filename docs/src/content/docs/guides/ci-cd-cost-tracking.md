@@ -49,7 +49,7 @@ is invisible to the collect step.
 Hosted runners delete the home directory when the job ends. Upload or
 cache the `history/` directory if the next deploy should continue the same
 timeline. A job that starts from an empty directory still records the
-latest checkpoint, and it has no older snapshots to chart.
+checkpoint for that run, and it has no older snapshots to chart.
 
 ## GitHub Actions
 

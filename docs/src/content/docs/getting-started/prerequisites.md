@@ -14,7 +14,7 @@ description: System requirements and dependencies for FinFocus
 
 ### Recommended
 
-- OS: Latest Linux distribution or macOS 12+
+- OS: A supported Linux distribution or macOS 12+
 - Memory: 1 GB RAM
 - Disk: 500 MB free space
 

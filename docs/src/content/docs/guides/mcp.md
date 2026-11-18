@@ -211,7 +211,7 @@ tools map to built-in tools as follows:
 
 `finfocus-cost-anomalies` returns the same rows as the command. A `method`
 value is either `drift` (the overview's monthly run-rate comparison) or
-`robust-median` (the resource's latest complete UTC day against the median of
+`robust-median` (the resource's most recent complete UTC day against the median of
 its own earlier days). The statistical method needs at least 14 earlier daily
 points in one currency, excludes the observation day from the median, and
 emits a row when the absolute robust z-score, `0.6745 * (observed - median) /

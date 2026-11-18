@@ -1258,7 +1258,7 @@ finfocus plugin install github.com/<owner>/<repo>[@<version>] [options]
 | `--clean`              | Remove all other versions after successful install           | false      |
 | `--metadata`           | Key=value metadata pairs (e.g., `region=us-west-2`)          | (none)     |
 | `--no-save`            | Don't add plugin to config file                              | false      |
-| `--fallback-to-latest` | Install the latest stable release when the requested one has no assets | false |
+| `--fallback-to-latest` | Install the newest stable release when the requested one has no assets | false |
 | `--no-fallback`        | Fail when the requested version has no assets                | false      |
 | `--skip-checksum`      | Skip SHA256 checksum verification                            | false      |
 | `--plugin-dir`         | Custom plugin directory                                      | configured |
@@ -1296,7 +1296,7 @@ asks you to confirm the plugin, version, repository, and security level
 first. URL installs stay on this command.
 
 A release can be published a few minutes before its archives are uploaded.
-When you do not request a version and the latest release has no assets yet,
+When you do not request a version and the newest release has no assets yet,
 the installer prints a warning naming both versions and installs the newest
 earlier stable release that has assets. When you request that version
 explicitly, the installer does not swap versions on its own. The error says
@@ -1318,7 +1318,7 @@ finfocus plugin update <plugin-name> [options]
 
 | Flag              | Description                                 | Default    |
 | ----------------- | ------------------------------------------- | ---------- |
-| `--version`       | Specify target version (defaults to latest) | latest     |
+| `--version`       | Specify target version                      | newest     |
 | `--skip-checksum` | Skip SHA256 checksum verification           | false      |
 | `--plugin-dir`    | Custom plugin directory                     | configured |
 | `--help`          | Show help                                   |            |
@@ -1493,11 +1493,11 @@ finfocus plugin inspect <plugin-name> <resource-type> [options]
 
 ### Options (plugin inspect)
 
-| Flag        | Description                       | Default |
-| ----------- | --------------------------------- | ------- |
-| `--version` | Specify plugin version to inspect | latest  |
-| `--json`    | Output in JSON format             | false   |
-| `--help`    | Show help                         |         |
+| Flag        | Description                       | Default           |
+| ----------- | --------------------------------- | ----------------- |
+| `--version` | Specify plugin version to inspect | highest installed |
+| `--json`    | Output in JSON format             | false             |
+| `--help`    | Show help                         |                   |
 
 ### Examples (plugin inspect)
 

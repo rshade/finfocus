@@ -2,7 +2,7 @@
 title: Docker Deployment
 ---
 
-> **Note:** No Dockerfile currently exists in the repository. This guide describes
+> **Note:** The repository has no Dockerfile. This guide describes
 > the planned Docker configuration. Container support is on the roadmap.
 
 This guide describes the Docker configuration for building and running
@@ -78,7 +78,7 @@ docker run --rm \
 
 ## Image Details
 
-- **Base Image**: Alpine Linux (latest)
+- **Base Image**: Alpine Linux (`alpine:latest`)
 - **Go Version**: 1.27.4 (golang:1.27.4-alpine)
 - **User**: Non-root user `finfocus` (UID: 1001, GID: 1001)
 - **Working Directory**: `/home/finfocus`
@@ -155,5 +155,5 @@ sudo chown -R 1001:1001 ~/.finfocus
 
 ### Plugin Installation
 
-Currently, plugins must be manually installed in the `~/.finfocus/plugins`
-directory. Future versions will include automated plugin downloading capabilities.
+The image has no plugins. Install them with `finfocus plugin install`,
+or copy them into the `~/.finfocus/plugins` directory.

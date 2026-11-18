@@ -117,7 +117,7 @@ Dismissed recommendations are hidden by default. The browser cannot dismiss,
 snooze, or undismiss a recommendation. Results are paged at 250 rows.
 
 The session can return the same lifecycle events as
-`finfocus cost recommendations history` for a recommendation in the latest
+`finfocus cost recommendations history` for a recommendation in the most recent
 list. The detail panel shows it under **Lifecycle**: time, action, actor,
 reason (with the note), and expiry, in the same order as the command. A
 plugin that could not answer adds a warning above the table. A
@@ -213,7 +213,7 @@ running session keeps its startup configuration.
 
 | Control | Effect |
 | --- | --- |
-| Catalog row | Shows the name, description, providers, capabilities, security level, installed versions, and the latest catalog version. An older install is marked update-available. |
+| Catalog row | Shows the name, description, providers, capabilities, security level, installed versions, and the newest catalog version. An older install is marked update-available. |
 | Outside the catalog | An installed plugin that is not a catalog entry. Validate, settings, and remove stay available. Install and update are not offered. |
 | **Install** / **Update** / **Remove** | Opens a confirmation that names the plugin, version, repository, and security level. The download or delete starts after confirmation. |
 | Progress | Shows the current phase and, while downloading, bytes received and the total when the host reports one. |
@@ -254,7 +254,7 @@ the initial load are already there when you open the view.
 | **Regex** | Reads the filter as a regular expression. An invalid expression is reported next to the box and the previous result stays. |
 | **Pause** / **Resume** | Stops following the newest line. The status line counts lines that arrive while paused. |
 | **Clear** | Empties the view. The server buffer is not cleared. |
-| **Download NDJSON** | Saves the rows currently shown, after filters, as `logs-<timestamp>.ndjson`. The browser builds the file; there is no download endpoint. |
+| **Download NDJSON** | Saves the rows shown, after filters, as `logs-<timestamp>.ndjson`. The browser builds the file; there is no download endpoint. |
 
 The status line reads `Showing N of M lines`. While paused it adds
 `K new lines while paused`, with the singular when the count is one. When the
@@ -376,7 +376,7 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST` without `Origin` | 403 | `forbidden` | `origin header required` |
 | `POST` whose `Content-Type` is not `application/json` | 415 | `unsupported_media_type` | `Content-Type must be application/json` |
 | `GET /api/overview/resource?urn=<urn>` | 200 | - | Row details plus `blastRadius`: `available`, `dependents` (each with `depth`, `via`, `status`, `monthlyCost`, `priced`, `component`), `count`, `monthlyTotal` (omitted when `mixedCurrency`), `currency` and `leftOut` (`deleting`, `unpriced`, `unresolved`). Check `available` first. |
-| `GET /api/overview/anomalies` | 200 | - | The same list as `finfocus cost anomalies --output json`, read from the session's overview rows and the session stack's stored daily actuals with no new pricing run: `considered` and `anomalies` (`resource`, `type`, `period`, `baseline`, `observed`, `deviation`, `percentDrift`, `severity`, `method`, `currency`, and `baselineWindow` on `method: robust-median` rows). An `anomalies` item's `method` is `drift` (run-rate divergence) or `robust-median` (the latest complete day against the median of the resource's own 14-or-more earlier days). An empty `anomalies` array with a nonzero `considered` means nothing qualified. Until enrichment finishes the answer is 503 `not_ready`. Each item also carries a `display` object (`baseline`, `observed`, `deviation`, `drift`, `period`) and the body a `summary` count line; the page shows those strings. |
+| `GET /api/overview/anomalies` | 200 | - | The same list as `finfocus cost anomalies --output json`, read from the session's overview rows and the session stack's stored daily actuals with no new pricing run: `considered` and `anomalies` (`resource`, `type`, `period`, `baseline`, `observed`, `deviation`, `percentDrift`, `severity`, `method`, `currency`, and `baselineWindow` on `method: robust-median` rows). An `anomalies` item's `method` is `drift` (run-rate divergence) or `robust-median` (the most recent complete day against the median of the resource's own 14-or-more earlier days). An empty `anomalies` array with a nonzero `considered` means nothing qualified. Until enrichment finishes the answer is 503 `not_ready`. Each item also carries a `display` object (`baseline`, `observed`, `deviation`, `drift`, `period`) and the body a `summary` count line; the page shows those strings. |
 | `GET /api/stacks` | 200 | - | The registered stacks in order, `{"stacks":[{"name","state"}]}`. `state` is `idle`, `loading`, `locked`, `ready`, or `failed`. An empty list with no stacks registered. Root only: it does not exist under `/s/<stack>/`. |
 | `POST /api/stacks/{name}/activate` | 202 | - | Starts that stack the first time and answers `{"name","state"}`. Repeating it changes nothing. Root only. |
 | `POST /api/stacks/{name}/activate` for a name that is not registered | 404 | `not_found` | `unknown stack` |
@@ -400,9 +400,9 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | Install or update whose confirmation does not match a fresh plan | 409 | `conflict` | The named version, repository, or security level changed. |
 | A second install, update, or remove of the same plugin | 409 | `busy` | That plugin is already being modified. |
 | Catalog host failure | 502 | `upstream` | A rate limit says to set `GITHUB_TOKEN`. Other host failures stay generic. |
-| `GET /api/recommendations/history?id=<id>` | 200 | - | Lifecycle events for a recommendation in the latest list, oldest first, plus `warnings` when a plugin could not answer. |
+| `GET /api/recommendations/history?id=<id>` | 200 | - | Lifecycle events for a recommendation in the most recent list, oldest first, plus `warnings` when a plugin could not answer. |
 | `GET /api/recommendations/history` with no id | 400 | `invalid_query` | `recommendation id required` |
-| `GET /api/recommendations/history` for an id that is not in the latest list | 404 | `not_found` | `recommendation not found` |
+| `GET /api/recommendations/history` for an id that is not in the most recent list | 404 | `not_found` | `recommendation not found` |
 | Recommendation history lookup failed | 502 | `history_unavailable` | `recommendation history unavailable` |
 | `POST /api/forecast/query` | 200 | - | The `cost forecast --output json` document for the session stack, plus `display` strings. The body takes `months`, `growthType`, `growthRate` (text), `noHistory`, `model`, `spendHistory` (the CSV text, not a path), `confidence`, `growthCap`, `steps`, and `exclude` (each in the flag's syntax); omitted fields use the CLI defaults. |
 | `POST /api/forecast/query` with invalid months, growth, model, spend CSV, or driver | 400 | `invalid_forecast` | The message `cost forecast` prints for the same flags. |
