@@ -21,7 +21,7 @@ func NewConfigSetCmd() *cobra.Command {
 
 For sensitive values like API keys or credentials, use environment variables instead.
 Plugin processes inherit the environment FinFocus runs in, and each plugin's docs page
-lists the variables it reads, for example:
+lists the variables it reads. For example, the vantage plugin reads its token from:
   export FINFOCUS_VANTAGE_TOKEN="read-only-service-token"
 
 A plugins.<name>.<key> value reaches the plugin through the variable the plugin

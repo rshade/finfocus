@@ -173,25 +173,29 @@ accepts catalog names only.
 #### Environment Variables
 
 Most plugins use environment variables for configuration. Plugin processes
-inherit the environment FinFocus runs in.
+inherit the environment FinFocus runs in. For example, the opencost plugin
+reads a Kubecost endpoint from:
+
+```bash
+export OPENCOST_PROFILE="kubecost"
+export KUBECOST_BASE_URL="https://kubecost.example.com"
+export KUBECOST_API_TOKEN="your-api-token"
+```
 
 The public pricing plugins (`aws-public`, `azure-public`) need no credentials.
 `aws-ce` uses the AWS SDK default credential chain and needs a region:
 
 ```bash
-# opencost plugin reading a Kubecost endpoint
-export OPENCOST_PROFILE="kubecost"
-export KUBECOST_BASE_URL="https://kubecost.example.com"
-export KUBECOST_API_TOKEN="your-api-token"
-
 # AWS credentials (for the aws-ce plugin)
 export AWS_PROFILE="your-profile"
 export AWS_REGION="us-east-1"
 ```
 
 A plugin can advertise the settings it reads, each with its own environment
-variable, and its docs page lists them: for example `FINFOCUS_AWS_CE_*` for
-[aws-ce](plugins/aws-ce.md). FinFocus takes each advertised value from that
+variable, and its docs pages list them. For example,
+[aws-ce](plugins/aws-ce.md) reads `carbon_enabled` from
+`FINFOCUS_AWS_CARBON_ENABLED`; see
+[Historical AWS Carbon Reporting](plugins/historical-carbon.md). FinFocus takes each advertised value from that
 variable, or else from the plugin's section of the project or global config
 file. As a fallback, a config key the plugin does not advertise is passed to it
 as `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase, with hyphens as

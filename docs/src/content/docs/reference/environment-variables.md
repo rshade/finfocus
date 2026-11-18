@@ -23,7 +23,7 @@ its own variables, listed on its docs page. The public pricing plugins
 | Variable | Description |
 | --- | --- |
 | `AWS_PROFILE`, `AWS_REGION` | AWS credentials and region for [aws-ce](../plugins/aws-ce.md), through the AWS SDK default credential chain. Other standard AWS SDK variables also work. |
-| `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` | Fallback for a `plugins.<name>.<key>` config key the plugin does not advertise, in uppercase with hyphens as underscores. An advertised key uses the variable the plugin names for it, such as `FINFOCUS_AWS_CE_*` for aws-ce. |
+| `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` | Fallback for a `plugins.<name>.<key>` config key the plugin does not advertise, in uppercase with hyphens as underscores. An advertised key uses the variable the plugin names for it: aws-ce reads `carbon_enabled` from `FINFOCUS_AWS_CARBON_ENABLED` (see [Historical AWS Carbon Reporting](../plugins/historical-carbon.md)). |
 
 ## Pulumi
 
