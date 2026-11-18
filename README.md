@@ -349,8 +349,13 @@ export AWS_PROFILE="your-profile"
 export AWS_REGION="us-east-1"
 ```
 
-Other plugin settings use the naming convention
-`FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase.
+A plugin can advertise the settings it reads, each with its own environment
+variable, and its docs page lists them: for example `FINFOCUS_AWS_CE_*` for
+[aws-ce](docs/src/content/docs/plugins/aws-ce.md). FinFocus takes each advertised
+value from that variable, or else from the plugin's section of the project or
+global config file. As a fallback, a config key the plugin does not advertise
+is passed to it as `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase,
+with hyphens as underscores.
 
 ### Cost Allocation Tags
 
