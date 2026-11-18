@@ -58,6 +58,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Vantage Setup](plugins/vantage.md)                        | Vantage actual cost plugin | End Users     |
 | [Flexera Setup](plugins/flexera.md)                        | Flexera One cost plugin   | End Users      |
 | [CloudZero Setup](plugins/cloudzero.md)                    | CloudZero actual cost plugin | End Users   |
+| [Prometheus Setup](plugins/prometheus.md)                  | Historical Kubernetes usage plugin | End Users |
 
 ### 📚 Comprehensive Guides (by Audience)
 
@@ -154,6 +155,12 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | Page                                           | Purpose                        |
 | ---------------------------------------------- | ------------------------------ |
 | [CloudZero Plugin](plugins/cloudzero.md)       | Setup and configuration        |
+
+#### Prometheus (AVAILABLE)
+
+| Page                                           | Purpose                        |
+| ---------------------------------------------- | ------------------------------ |
+| [Prometheus Plugin](plugins/prometheus.md)     | Setup, required metrics, and limits |
 
 #### Future Plugins
 

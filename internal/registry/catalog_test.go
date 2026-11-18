@@ -107,3 +107,16 @@ func TestCarbonCatalogMetadata(t *testing.T) {
 	assert.Equal(t, "finfocus-plugin-carbon", entry.AssetHints.AssetPrefix)
 	require.NoError(t, ValidateRegistryEntry(*entry))
 }
+
+func TestPrometheusCatalogMetadata(t *testing.T) {
+	t.Parallel()
+	entry, err := GetPlugin("prometheus")
+	require.NoError(t, err)
+	assert.Equal(t, "rshade/finfocus", entry.Repository)
+	assert.Equal(t, "prometheus-", entry.TagPrefix)
+	assert.Equal(t, []string{"usage_stats"}, entry.Capabilities)
+	assert.Equal(t, []string{"kubernetes"}, entry.SupportedProviders)
+	require.NotNil(t, entry.AssetHints)
+	assert.Equal(t, "finfocus-plugin-prometheus", entry.AssetHints.AssetPrefix)
+	require.NoError(t, ValidateRegistryEntry(*entry))
+}

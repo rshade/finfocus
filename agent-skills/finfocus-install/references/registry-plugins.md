@@ -96,6 +96,21 @@ needs `CLOUDZERO_API_KEY` and `CLOUDZERO_RESOURCE_DIMENSION` (usually
 rolling 24 hours. `finfocus setup` does not install it; run
 `finfocus plugin install cloudzero`.
 
+### prometheus
+
+| Field | Value |
+|-------|-------|
+| Repository | `rshade/finfocus` (monorepo, release tags `prometheus-vX.Y.Z`) |
+| Providers | `kubernetes` |
+| Capabilities | `usage_stats` |
+| Security | official |
+| Asset prefix | `finfocus-plugin-prometheus` |
+
+Historical usage source for `finfocus cost cluster --from/--to`. It does not
+price or allocate, so install it with the kubernetes plugin, which allocates.
+It needs `FINFOCUS_PROMETHEUS_URL` outside a cluster. `finfocus setup` does
+not install it; run `finfocus plugin install prometheus`.
+
 ### opencost
 
 | Field | Value |
