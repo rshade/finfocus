@@ -224,14 +224,14 @@ pooled into one median.
 ## Documentation from Context7
 
 The finfocus MCP server runs commands. It does not serve the FinFocus
-documentation. That documentation is listed on [Context7](https://context7.com)
-under the library ID `/rshade/finfocus`. An assistant that has the Context7 MCP
-server configured can fetch current FinFocus docs from there instead of
-answering from its training data.
+documentation. The finfocus repository has a `context7.json` file at its root
+that sets how [Context7](https://context7.com) indexes these docs.
+The Context7 library ID is `/rshade/finfocus`. An assistant that has the
+Context7 MCP server configured can fetch current FinFocus docs by that ID
+instead of answering from its training data.
 
-Context7 indexes the pages on this site, except the testing guides and a few
-navigation and site-maintenance pages. The `context7.json` file at the root
-of the finfocus repository sets which pages it reads.
+The file covers the pages on this site, except the testing guides and the
+navigation and contributor pages.
 
 ## Troubleshooting
 
