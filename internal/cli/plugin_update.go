@@ -38,8 +38,8 @@ func NewPluginUpdateCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "update <plugin>",
-		Short: "Update an installed plugin to the latest version",
-		Long: `Update an installed plugin to the latest version or a specific version.
+		Short: "Update an installed plugin to the newest release",
+		Long: `Update an installed plugin to the newest release or a specific version.
 
 The plugin must already be installed. Use 'plugin install' to install new plugins.`,
 		Example: `  # Update to latest version

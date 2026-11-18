@@ -50,7 +50,7 @@ Plugin management commands
 - [finfocus plugin remove](./finfocus_plugin_remove.md) -
   Remove an installed plugin
 - [finfocus plugin update](./finfocus_plugin_update.md) -
-  Update an installed plugin to the latest version
+  Update an installed plugin to the newest release
 - [finfocus plugin upgrade](./finfocus_plugin_upgrade.md) -
   Upgrade a plugin project to a newer finfocus-spec version
 - [finfocus plugin validate](./finfocus_plugin_validate.md) -
