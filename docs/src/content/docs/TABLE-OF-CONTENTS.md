@@ -291,7 +291,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 Use Ctrl+F to search within pages:
 
-- **"How do I..."** - See [User Guide](guides/user-guide.md)
+- **"How do you"** - See [FAQ](support/faq.md)
 - **"Setup"** - See [Installation Guide](getting-started/installation.md)
 - **"Plugin"** - See [Plugin Documentation](plugin-system.md#available-plugins)
 - **"Error"** - See [Troubleshooting](support/troubleshooting.md)
