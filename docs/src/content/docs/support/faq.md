@@ -28,7 +28,7 @@ A: FinFocus works with Pulumi 3.0+. We recommend the newest Pulumi release.
 
 ### Q: Can I use FinFocus with my cloud provider?
 
-A: For projected costs, yes — works with all Pulumi-supported clouds via the
+A: For projected costs, yes. It works with all Pulumi-supported clouds via the
 `aws-public` plugin or local pricing specs.
 For actual costs, a plugin with billing API access is required (e.g., Vantage,
 AWS Cost Explorer).
@@ -49,7 +49,7 @@ FinFocus auto-detects your project and stack, exports the current state, runs
 
 ### Q: Do I need to export the Pulumi state and plan manually?
 
-A: No — auto-detection handles this when you run `finfocus` from inside a Pulumi
+A: No. Auto-detection handles this when you run `finfocus` from inside a Pulumi
 project directory. Use `--pulumi-state` and `--pulumi-json` only when you want
 to provide pre-exported files (e.g., in CI/CD where you control the export step).
 
@@ -111,8 +111,8 @@ A: The main plugins today:
 
 ### Q: Do I need a plugin?
 
-A: For projected costs: No — local pricing specs work without plugins.
-For actual costs: Yes — a plugin with billing API access is required.
+A: For projected costs, no. Local pricing specs work without plugins.
+For actual costs, yes. A plugin with billing API access is required.
 
 ### Q: How do I install a plugin?
 
@@ -130,7 +130,7 @@ See [Plugin Documentation](../plugin-system.md#available-plugins) for per-plugin
 ### Q: What is the Pulumi Analyzer?
 
 A: The analyzer is a FinFocus mode that shows cost estimates directly inside
-`pulumi preview` output — no separate command needed. It runs as a Pulumi
+`pulumi preview` output, with no separate command needed. It runs as a Pulumi
 Policy Pack.
 
 ### Q: How do I set up the analyzer?
@@ -168,7 +168,7 @@ pulumi preview --policy-pack ~/.finfocus/analyzer
 
 ### Q: Does the analyzer block deployments?
 
-A: No. All cost diagnostics are `ADVISORY` severity — they appear as
+A: No. All cost diagnostics are `ADVISORY` severity. They appear as
 informational output and never prevent `pulumi up` from running.
 
 ## Troubleshooting
@@ -220,7 +220,7 @@ Local specs and the cache are entirely on your machine. No telemetry is sent.
 
 ### Q: Is my infrastructure data secure?
 
-A: Pulumi state JSON contains resource details — treat it as sensitive. FinFocus
+A: Pulumi state JSON contains resource details, so treat it as sensitive. FinFocus
 is a local CLI tool; all data stays on your machine unless explicitly sent to a
 plugin's external API.
 

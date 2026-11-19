@@ -13,7 +13,7 @@ billing periods, even when resources are replaced or destroyed mid-month.
 **Why this exists**: Cloud provider billing APIs report costs by resource ID
 (e.g., EC2 instance `i-abc123`). When Pulumi replaces a resource, the old cloud
 ID disappears from state and a new one takes its place. Without history, FinFocus
-can only query costs for the *current* resource — missing the old one entirely.
+can only query costs for the *current* resource and misses the old one entirely.
 
 **Target Audience**: End Users, DevOps Engineers, Platform Engineers
 
@@ -214,8 +214,8 @@ during every `pulumi up` operation in real-time.
 
 ## Cost Allocation Tags
 
-For the most complete cost coverage — especially for resources that are created
-and destroyed between FinFocus runs — configure cost allocation tags on your
+For the most complete cost coverage, especially for resources that are created
+and destroyed between FinFocus runs, configure cost allocation tags on your
 cloud resources.
 
 > **Key requirement**: Tags must be present on the resource **while it incurs
@@ -336,7 +336,7 @@ These tags are commonly used for cost attribution across cloud providers:
 |----------|----------------------|-------------------|
 | **Purpose** | Resource identity timeline | Cost query results |
 | **Lifecycle** | Persistent, accumulates | Ephemeral, rebuildable |
-| **Safe to delete?** | **No** — loses identity data | Yes — rebuilds on next query |
+| **Safe to delete?** | **No**, it loses identity data | Yes, it rebuilds on the next query |
 | **Retention** | Configurable (default: 90 days) | TTL-based (default: 1 hour) |
 | **Grows over time?** | Yes, bounded by retention | No, bounded by TTL + compaction |
 
@@ -425,5 +425,5 @@ The database is bounded by `retention_days`. If it's larger than expected:
 1. Verify tags are on your cloud resources: check the AWS/GCP/Azure console
 2. For AWS: confirm tags are activated as Cost Allocation Tags in Billing Console
 3. Check tag key format: GCP uses underscores (`pulumi_project`), not colons
-4. Tags must have been present **while costs were incurred** — retroactive
+4. Tags must have been present **while costs were incurred**. Retroactive
    tagging does not apply to historical billing data

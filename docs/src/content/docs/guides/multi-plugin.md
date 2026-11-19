@@ -1,6 +1,6 @@
 ---
 title: Running aws-public, Kubernetes, and Scorer Together
-description: End-to-end walkthrough of the three FinFocus plugins working together — aws-public pricing AWS resources, kubernetes splitting cluster costs, and scorer ranking the recommendations.
+description: End-to-end walkthrough of the three FinFocus plugins working together, with aws-public pricing AWS resources, kubernetes splitting cluster costs, and scorer ranking the recommendations.
 ---
 
 ## What Each Plugin Does
@@ -8,7 +8,7 @@ description: End-to-end walkthrough of the three FinFocus plugins working togeth
 FinFocus plugins each do one job, and Core routes work between them. This
 walkthrough runs a realistic day with all three plugins installed:
 
-- **aws-public** prices AWS resources from public list pricing — both in a
+- **aws-public** prices AWS resources from public list pricing, both in a
   Pulumi plan and the live nodes of an EKS cluster. No AWS credentials needed.
 - **kubernetes** reports what's running in the cluster and splits each priced
   node's cost across namespaces and workloads. It also prices Kubernetes
@@ -42,8 +42,8 @@ finfocus config set scoring.enabled true
 
 The kubernetes plugin also needs a reachable cluster via kubeconfig
 (`KUBECONFIG` or `~/.kube/config`) for Step 2. Set `scoring.plugin` before
-`scoring.enabled` — every config change is validated, and scoring cannot be
-enabled without a plugin.
+`scoring.enabled`, because FinFocus validates each config change and scoring
+cannot be enabled without a plugin.
 
 The first public scorer release and registry entry are pending; source install
 is available now. Once assets are published, `finfocus plugin install scorer`
@@ -63,7 +63,7 @@ for migration and backend settings.
 The stack already runs an `m4.large` API server and a 200 GB gp2 data volume.
 A pull request adds an RDS instance, an S3 bucket, and a `search-indexer`
 Deployment (3 replicas, each requesting 0.5 vCPU and 1 GiB). One command
-prices both providers — Core routes each resource to the plugin that claims
+prices both providers. Core routes each resource to the plugin that claims
 it:
 
 ```bash
@@ -152,7 +152,7 @@ row appears.
 
 ## Step 3: Score the Recommendations
 
-aws-public also produces recommendations — here, moving the gp2 volume to gp3
+aws-public also produces recommendations. Here they suggest moving the gp2 volume to gp3
 and the `m4.large` instance to `m5.large`. With scoring enabled, Core sends
 them to scorer, which returns risk, false-positive, worth-acting, and priority
 scores for each:

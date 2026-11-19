@@ -382,7 +382,7 @@ routing:
 > `pulumi-analyzer-policy-finfocus`. `finfocus analyzer install` writes both.
 >
 > Additionally, global plugins (those with `supported_providers: ["*"]`) cannot be
-> excluded via routing even in standard CLI mode — they are always included for all
+> excluded via routing even in standard CLI mode. They are always included for all
 > resources.
 >
 > To exclude specific plugins when running as a policy pack, use `FINFOCUS_HOME`

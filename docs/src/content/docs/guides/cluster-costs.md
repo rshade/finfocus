@@ -21,7 +21,7 @@ must sum to the priced total.
 
 - A reachable cluster via kubeconfig (`KUBECONFIG`, `~/.kube/config`, or
   in-cluster config). Read access requires list on nodes, pods, ReplicaSets,
-  and Jobs — see the minimal ClusterRole in
+  and Jobs. See the minimal ClusterRole in
   `plugins/kubernetes/deploy/clusterrole.yaml`.
 - The kubernetes plugin (usage source and allocator):
 
@@ -128,14 +128,14 @@ window carries actual spend and adds no such note.
 
 `--group-by` selects the aggregation dimension (default `namespace`):
 
-- `namespace` — one group per namespace
-- `controller` — `namespace/controller_kind/controller` (for example
+- `namespace`: one group per namespace
+- `controller`: `namespace/controller_kind/controller` (for example
   `payments/Deployment/api`)
-- `pod` — `namespace/pod`
-- `node` — node name; idle rows group under their node
-- `label:<key>` — the value of pod label `<key>`; pods without the label group
+- `pod`: `namespace/pod`
+- `node`: node name; idle rows group under their node
+- `label:<key>`: the value of pod label `<key>`; pods without the label group
   under `<none>` and are never dropped
-- `pulumi-stack` — `<stack>/<project>` parsed from the pod annotation
+- `pulumi-stack`: `<stack>/<project>` parsed from the pod annotation
   `finfocus.dev/pulumi-urn`. A missing or malformed URN groups under `<none>`
   and the pod is still counted. JSON and NDJSON groups list those URNs in
   `pulumi_urns`. Run-rate mode only: over a `--from`/`--to` window every
@@ -172,11 +172,11 @@ The allocator's policy is resolved, first found wins (files never merge):
 1. `--policy <file>`
 2. `$PROJECT/.finfocus/allocation.hujson` (project config dir)
 3. `~/.finfocus/allocation.hujson` (global config dir)
-4. none — the plugin's built-in defaults
+4. none: the plugin's built-in defaults
 
 Files are HuJSON (comments and trailing commas allowed), standardized before
 being passed to the allocator. A discovered file that fails to parse is a
-fatal error — FinFocus never silently falls back to defaults. A policy file
+fatal error. FinFocus never silently falls back to defaults. A policy file
 that cannot be read or is not valid HuJSON exits 2 before any plugin starts,
 and the message names the file and, for a syntax error, the line and column
 (error code `config_invalid`), for example:

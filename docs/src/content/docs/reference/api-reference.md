@@ -502,9 +502,8 @@ grpcurl -plaintext -d '{
 
 ### BatchCost
 
-Calculates cost for multiple resources in a single RPC call. This is an
-optional capability — plugins that do not implement it will return
-`UNIMPLEMENTED`, and the core falls back to per-resource cost calls.
+Calculates cost for multiple resources in a single RPC call. A plugin that does not
+implement this optional capability returns `UNIMPLEMENTED`, and the core falls back to per-resource cost calls.
 
 **Method:** `BatchCost(BatchCostRequest) BatchCostResponse`
 
@@ -834,7 +833,7 @@ message ResourceError {
 
 - `code` (int32) - Required. gRPC-compatible status code from
   `google.rpc.Code`. Common values: `INVALID_ARGUMENT` (3), `NOT_FOUND` (5),
-  `UNIMPLEMENTED` (12), `INTERNAL` (13). Must not be `OK` (0) — the presence
+  `UNIMPLEMENTED` (12), `INTERNAL` (13). Must not be `OK` (0), because the presence
   of `ResourceError` implies a non-OK status
 - `message` (string) - Required. Human-readable error description
 - `resource_type_unsupported` (bool) - Optional. True when the error is

@@ -34,11 +34,11 @@ Add it to a workflow with [finfocus-action](https://github.com/rshade/finfocus-a
 
 Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but have no visibility into what it will cost until the bill arrives. FinFocus closes that gap:
 
-- **Shift-left on costs** — See projected costs *before* you deploy, directly from `pulumi preview` output
-- **No code changes required** — Works with any existing Pulumi project via JSON export
-- **Budget guardrails** — Enforce spending limits in CI/CD pipelines with non-zero exit codes
-- **Plugin architecture** — Swap pricing sources without changing your workflow
-- **Single dashboard** — Interactive TUI combining actual spend, projected costs, drift analysis, and recommendations
+- **Shift-left on costs**—See projected costs *before* you deploy, directly from `pulumi preview` output
+- **No code changes required**—Works with any existing Pulumi project via JSON export
+- **Budget guardrails**—Enforce spending limits in CI/CD pipelines with non-zero exit codes
+- **Plugin architecture**—Swap pricing sources without changing your workflow
+- **Single dashboard**—Interactive TUI combining actual spend, projected costs, drift analysis, and recommendations
 
 ## Key Features
 
@@ -361,8 +361,8 @@ with hyphens as underscores.
 
 ### Cost Allocation Tags
 
-For accurate month-long cost tracking — especially when resources are replaced
-or destroyed mid-month — FinFocus can query cloud billing APIs by **resource
+For accurate month-long cost tracking, especially when resources are replaced
+or destroyed mid-month, FinFocus can query cloud billing APIs by **resource
 tags**. This requires your Pulumi-managed resources to carry consistent tags.
 
 > **Why this matters**: When a resource is replaced (e.g., EC2 instance swap),
@@ -375,7 +375,7 @@ tags**. This requires your Pulumi-managed resources to carry consistent tags.
 > You must explicitly configure resource tagging using one of the methods below.
 
 <details>
-<summary><strong>AWS — Provider Default Tags</strong></summary>
+<summary><strong>AWS with Provider Default Tags</strong></summary>
 
 **Option A: Stack configuration (static values)**
 
@@ -448,7 +448,7 @@ in the AWS Billing Console. Tags take ~24 hours to appear in Cost Explorer.
 </details>
 
 <details>
-<summary><strong>GCP — Provider Default Labels</strong></summary>
+<summary><strong>GCP with Provider Default Labels</strong></summary>
 
 > GCP labels must be lowercase with hyphens/underscores only (no colons).
 > Use `pulumi_project` instead of `pulumi:project`.
@@ -507,7 +507,7 @@ provider = gcp.Provider("tagged", default_labels={
 </details>
 
 <details>
-<summary><strong>Azure — Stack Transformations</strong></summary>
+<summary><strong>Azure with Stack Transformations</strong></summary>
 
 Azure Native does not have a provider-level `defaultTags` option. Use a
 stack transformation to inject tags into all taggable resources:
@@ -585,7 +585,7 @@ month-long cost queries even when resources are replaced or destroyed mid-month.
 **How it works**: Every time FinFocus runs, it snapshots the current state of your
 resources. Over time, this builds a timeline of all cloud IDs each logical resource
 has had. When you query actual costs for a full month, FinFocus queries billing APIs
-for *all* historical IDs — not just the current one.
+for *all* historical IDs instead of only the current one.
 
 > **Important**: Unlike the cache (`cache.db`), the history database is **not safe
 > to delete**. Deleting it loses the resource identity timeline, reducing cost

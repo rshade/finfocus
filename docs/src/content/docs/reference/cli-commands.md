@@ -187,7 +187,7 @@ not plan either: checkpoint collection is for a Pulumi project, and it exits 2.
 ### Terraform state
 
 `--terraform-state` parses a Terraform state v4 file (`terraform.tfstate`) and
-prices every managed resource as-is — the state represents current
+prices every managed resource as-is. The state represents current
 infrastructure, so there are no create/update/delete deltas. The cost diff
 reports every resource as unchanged, with the same price before and after.
 
