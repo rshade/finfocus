@@ -561,7 +561,7 @@ gcp-public  1.0.0    gcp          ProjectedCosts, ActualCosts      healthy
 
 ### All Plugins Failing
 
-**Symptoms**: All plugins fail, falling back to specs or "no cost data".
+**Symptoms**: All plugins fail, falling back to specs or `no cost data`.
 
 **Solutions**:
 

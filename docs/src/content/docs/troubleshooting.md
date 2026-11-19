@@ -454,7 +454,7 @@ Failed: plugin failed to bind to port within 20s: timeout waiting for plugin to 
 
 ### No Cost Data Available
 
-**Problem**: All resources show "$0.00" or "No pricing information available".
+**Problem**: All resources show `$0.00` or `No pricing information available`.
 
 ```text
 aws:ec2/instance:Instance    none    $0.00    USD    No pricing information available

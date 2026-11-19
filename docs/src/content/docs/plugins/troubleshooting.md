@@ -7,13 +7,13 @@ description: Troubleshooting guide for common plugin issues
 
 ### 1. Conformance Test Failures
 
-**Issue**: Tests fail with "protocol version mismatch".
+**Issue**: Tests fail with `protocol version mismatch`.
 **Fix**: Ensure your plugin implements the correct version of the gRPC
 protocol.
 
 ### 2. Timeouts
 
-**Issue**: Tests fail with "context deadline exceeded".
+**Issue**: Tests fail with `context deadline exceeded`.
 **Fix**: Your plugin is taking too long to respond. Optimize your code or
 check network latency if calling external APIs.
 

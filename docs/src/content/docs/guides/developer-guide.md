@@ -330,8 +330,8 @@ log.Info().
 
 | Field         | Purpose                             | Example                           |
 | ------------- | ----------------------------------- | --------------------------------- |
-| `component`   | Package identifier                  | "cli", "engine", "registry"       |
-| `operation`   | Current operation                   | "get_projected_cost", "load_plan" |
+| `component`   | Package identifier                  | `cli`, `engine`, `registry`       |
+| `operation`   | Current operation                   | `get_projected_cost`, `load_plan` |
 | `trace_id`    | Request correlation (auto-injected) | "01HQ7X2J3K4M5N6P7Q8R9S0T1U"      |
 | `duration_ms` | Operation timing                    | `Dur("duration_ms", elapsed)`     |
 

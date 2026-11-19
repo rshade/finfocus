@@ -1104,7 +1104,7 @@ logging:
 
 | Field          | Description                                                  |
 | -------------- | ------------------------------------------------------------ |
-| `command`      | CLI command executed (e.g., "cost projected", "cost actual") |
+| `command`      | CLI command executed (e.g., `cost projected`, `cost actual`) |
 | `trace_id`     | Unique request identifier for correlation                    |
 | `duration_ms`  | Command execution time in milliseconds                       |
 | `success`      | Whether the command completed successfully                   |

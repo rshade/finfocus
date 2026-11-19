@@ -6,7 +6,7 @@ description: Why the finfocus --web dashboard shares the CLI engine, how a sessi
 `finfocus --web` is a third presentation layer next to the CLI output and the
 terminal UI. This page explains the choices behind it: why the browser computes
 nothing, how one session serves several tabs, and why the local server needs
-more protection than "it only listens on localhost". For tasks, see
+more protection than "it only listens on localhost." For tasks, see
 [Use the browser dashboard](../guides/web-ui.md); for exact behavior, see the
 [Web UI reference](../reference/web-ui.md).
 
