@@ -196,7 +196,7 @@ Expand-Archive $Zip -DestinationPath "finfocus-$Version" -Force
 Move-Item "finfocus-$Version\finfocus.exe" "$env:USERPROFILE\bin\" -Force
 
 # Add to PATH (persistent)
-[Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";$env:USERPROFILE\bin", [System.EnvironmentVariableTarget]::User)
+[Environment]::SetEnvironmentVariable("PATH", [Environment]::GetEnvironmentVariable("PATH", "User") + ";$env:USERPROFILE\bin", "User")
 
 # Refresh current session
 $env:PATH += ";$env:USERPROFILE\bin"
