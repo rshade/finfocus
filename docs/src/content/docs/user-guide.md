@@ -96,7 +96,7 @@ finfocus cost projected --pulumi-json plan.json --pricing-spec-fallback
 ```
 
 `cost.pricing_spec_fallback` in the config file is the same switch. The CLI
-flag wins when it is present. A hit says `Calculated from plugin pricing spec`
+flag wins when it's present. A hit says `Calculated from plugin pricing spec`
 in Notes. Local YAML still runs when the plugin spec is missing.
 
 Show how a price was derived without changing it:
@@ -107,7 +107,7 @@ finfocus cost projected --pulumi-json plan.json --explain
 
 `--explain` calls `GetPricingSpec` after the cost is calculated. The table
 lists billing mode, unit, rate, source, assumptions, and tiers. A plugin
-that does not implement the RPC leaves the cost row as it was. JSON and
+that doesn't implement the RPC leaves the cost row as it was. JSON and
 NDJSON include `pricing_spec` only when the flag is set.
 
 ### Cost diff
@@ -433,7 +433,7 @@ $PULUMI_HOME/finfocus/
 └── logs/                 # Log files
 ```
 
-If `PULUMI_HOME` is not set, FinFocus falls back to `~/.finfocus/`.
+If `PULUMI_HOME` isn't set, FinFocus falls back to `~/.finfocus/`.
 
 ### Environment Variables
 

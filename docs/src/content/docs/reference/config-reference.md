@@ -109,9 +109,9 @@ output:
 - `plugin_dir`: Top-level key that overrides the computed plugin installation directory.
   Equivalent to setting the `FINFOCUS_PLUGIN_DIR` environment variable (env var takes precedence).
   Example: `plugin_dir: /opt/finfocus/plugins`
-- It is read from the global `config.hujson` only. A project `config.hujson`
-  ignores it. `config set` and `config get` do not accept it, so edit the file.
-- It is not part of the `plugins` object. `plugins.<name>` holds settings for
+- It's read from the global `config.hujson` only. A project `config.hujson`
+  ignores it. `config set` and `config get` don't accept it, so edit the file.
+- It isn't part of the `plugins` object. `plugins.<name>` holds settings for
   the plugin called `<name>`, so a `plugins.dir` key names a plugin `dir`. A
   path string there fails `config validate`, and a load can leave the settings
   that were read before the error in place.
@@ -119,7 +119,7 @@ output:
 ### ESC
 
 Pulumi ESC can supply plugin process environment variables. The section is
-top-level. It does not live under `plugins.<name>`, because that object is
+top-level. It doesn't live under `plugins.<name>`, because that object is
 injected into the plugin process.
 
 ```json
@@ -145,10 +145,10 @@ injected into the plugin process.
 A missing `environments` key means "no preference": finfocus uses the stack
 imports. An empty list (`[]`) turns ESC off for what that key covers. A
 per-plugin empty list disables ESC for that plugin only. An empty global list
-disables ESC for every plugin that does not set its own list.
+disables ESC for every plugin that doesn't set its own list.
 
 A project `esc` section replaces the global `esc` section as a whole, the
-same way every other top-level section merges. Keys under `esc` are not
+same way every other top-level section merges. Keys under `esc` aren't
 secrets. `config get` and the Config page show the references and the
 variable names.
 
@@ -165,8 +165,8 @@ Delete the key from the file, or remove it on the Config page, to return to
 `not set`.
 
 Every command except the `config` commands rejects a bad value with exit
-code 2 before a plugin starts. `config validate` reports it. Validation does
-not contact Pulumi Cloud.
+code 2 before a plugin starts. `config validate` reports it. Validation doesn't
+contact Pulumi Cloud.
 
 | Problem | Message |
 | --- | --- |
@@ -197,7 +197,7 @@ Configure the BoltDB-backed cost calculation cache.
 
 ### Scoring
 
-Configure the optional recommendation scoring step. It is off by default and adds no network activity of its own. The
+Configure the optional recommendation scoring step. It's off by default and adds no network activity of its own. The
 scorer is a plugin. See the [Recommendation Scoring Guide](../guides/recommendation-scoring.md) for behavior and data
 handling.
 
@@ -211,7 +211,7 @@ handling.
 - `scoring.timeout_seconds`: Timeout for each scorer call. Default: `30`.
 - `scoring.needs_review.risk`, `scoring.needs_review.false_positive`, `scoring.needs_review.insufficient_evidence`:
   Thresholds (0 to 1) for the needs-review marker. Defaults: `0.3`, `0.3`, `0.5`.
-- `scoring.needs_review.dead_band`: Band around each threshold that is still flagged. Default: `0.1`.
+- `scoring.needs_review.dead_band`: Band around each threshold that's still flagged. Default: `0.1`.
 
 ### Resource History
 
@@ -220,7 +220,7 @@ identity across replacements and deletions. The history store enables accurate
 full-month cost reporting by remembering all cloud IDs a resource has ever had.
 
 > **Important**: Unlike the cache, the history database contains persistent data
-> that cannot be regenerated. Deleting `history.db` causes accuracy degradation
+> that can't be regenerated. Deleting `history.db` causes accuracy degradation
 > for past billing periods.
 
 | Option | Type | Default | Env Var | Description |
@@ -237,8 +237,8 @@ The history directory resolves in this order: `FINFOCUS_HISTORY_DIR`, then
 `PULUMI_HOME` are unset, the directory is `~/.finfocus/history`.
 
 FinFocus ignores a project-level `cost.history.directory` and logs a warning
-when it is absolute, contains `..`, or resolves outside the project (for
-example through a symlink), or when a history database file in it is a symlink, because a cloned repository
+when it's absolute, contains `..`, or resolves outside the project (for
+example through a symlink), or when it holds a history database file that's a symlink, because a cloned repository
 controls that file. The global config value and `FINFOCUS_HISTORY_DIR` are
 trusted.
 
@@ -306,8 +306,8 @@ Configure budget limits, alerts, and cost calculation preferences.
 
 Boolean, default `false`. When true, Terraform history identity includes the
 workspace name from `terraform workspace show` (or `tofu`). When false,
-FinFocus does not ask for the workspace and uses the stack name `unscoped`.
-The setting does not change a Pulumi history key.
+FinFocus doesn't ask for the workspace and uses the stack name `unscoped`.
+The setting doesn't change a Pulumi history key.
 
 #### `cost.profile`
 
@@ -315,8 +315,8 @@ Default workload hint for projected cost and recommendations. Accepted values
 are `dev`, `development`, `prod`, `production`, `burst`, and `default`.
 An omitted field means no preference. An empty value is a configuration
 error. `default` is the same as no preference. `--profile` and `FINFOCUS_PROFILE` override this field for one
-run and do not rewrite the file. `cost actual` and `cost history collect`
-accept the flag so a bad value fails early, and they do not send the hint.
+run and don't rewrite the file. `cost actual` and `cost history collect`
+accept the flag so a bad value fails early, and they don't send the hint.
 
 #### Hierarchical Budget Configuration
 

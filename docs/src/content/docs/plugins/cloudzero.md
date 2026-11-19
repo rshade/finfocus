@@ -8,7 +8,7 @@ nav_order: 16
 ## Overview
 
 The `cloudzero` plugin reads actual cost per resource from the CloudZero
-billing costs API (`GET /v2/billing/costs`) and serves it to FinFocus. It is an
+billing costs API (`GET /v2/billing/costs`) and serves it to FinFocus. It's an
 actual-cost source only: projected cost, pricing specs, and estimates return
 `Unimplemented`. See also the [Vantage plugin](vantage.md) and the
 [Flexera plugin](flexera.md) for other billing-data sources.
@@ -42,7 +42,7 @@ finfocus plugin install cloudzero
 finfocus plugin install cloudzero@v0.1.1
 ```
 
-`finfocus setup` does not install this plugin by default.
+`finfocus setup` doesn't install this plugin by default.
 
 ## Configuration
 
@@ -67,18 +67,18 @@ a reason, and cost calls return `FailedPrecondition`.
 
 - **Rate Limit**: CloudZero allows 60 cost requests in a rolling 24 hours, and
   other callers on the same key count toward it. A 429 becomes
-  `ResourceExhausted` that names the wait CloudZero gives. The plugin does not
-  retry it: for 5 minutes after a 429, new queries fail at once without
+  `ResourceExhausted` that names the wait CloudZero gives. The plugin doesn't
+  retry it. For 5 minutes after a 429, new queries fail at once without
   spending the daily budget.
 - **Costs Outside the Stack**: CloudZero records root EBS volumes and the
   public IPv4 charge of an Elastic IP as their own resources (`volume` and
   `network-interface`). From v0.1.1, when an instance's attributes name its
   root volume (`rootBlockDevice.volumeId`, as Pulumi state does), the volume's
   cost is added to the instance as a separate root volume line. Data volumes
-  are not added, and the public IPv4 charge is not part of the EIP result.
+  aren't added, and the public IPv4 charge isn't part of the EIP result.
 - **Verification**: v0.1.0 was checked against a live CloudZero account for
-  AWS EC2 instances, NAT gateways, and Elastic IPs. Azure and GCP behaviour is
-  not verified.
+  AWS EC2 instances, NAT gateways, and Elastic IPs. Azure and GCP behaviour isn't
+  verified.
 
 See the
 [plugin README](https://github.com/rshade/finfocus-plugin-cloudzero#readme)

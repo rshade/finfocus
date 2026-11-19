@@ -17,7 +17,7 @@ or unreadable.
 ### ERR-002: Plugin Not Found
 
 **Message**: "Plugin [name] not found"
-**Cause**: The requested plugin is not installed in `~/.finfocus/plugins`.
+**Cause**: The requested plugin isn't installed in `~/.finfocus/plugins`.
 **Fix**: Run `finfocus plugin install [name]`.
 
 ## Engine Errors
@@ -25,7 +25,7 @@ or unreadable.
 ### ENG-001: Pricing Lookup Failed
 
 **Message**: "No pricing data found for resource"
-**Cause**: The resource type or SKU is not supported by the pricing provider.
+**Cause**: The resource type or SKU isn't supported by the pricing provider.
 **Fix**: Check if the resource is supported or add a local override in
 `~/.finfocus/specs/`.
 

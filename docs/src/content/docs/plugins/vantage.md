@@ -8,7 +8,7 @@ nav_order: 14
 ## Overview
 
 The `vantage` plugin reads imported actual cost from a Vantage Cost Report and
-serves it to FinFocus. It is an actual-cost source only: projected cost,
+serves it to FinFocus. It's an actual-cost source only: projected cost,
 pricing specs, and estimates return `Unimplemented`.
 
 It needs a Vantage service token and the token of the cost report to read.
@@ -37,7 +37,7 @@ finfocus plugin install vantage
 finfocus plugin install github.com/rshade/finfocus-plugin-vantage
 ```
 
-`finfocus setup` does not install this plugin by default.
+`finfocus setup` doesn't install this plugin by default.
 
 ## Configuration
 
@@ -75,7 +75,7 @@ Pair it with a pricing plugin such as [aws-public](aws-public.md) or
 
 - **Actual Cost Only**: No projected cost, pricing spec, or estimate.
 - **Billing Lag**: Vantage imports billing data days after usage, so an empty
-  result does not prove zero spend.
+  result doesn't prove zero spend.
 - **Dates**: Rows are matched on UTC calendar dates in the half-open interval
   `[start, end)`.
 - **Currency**: Mixed billing currencies fail with `FailedPrecondition`. There

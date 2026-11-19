@@ -125,7 +125,7 @@ On a machine without Chromium's system libraries, let Playwright install them:
 make test-e2e-web PLAYWRIGHT_INSTALL_ARGS='--with-deps chromium'
 ```
 
-The root Go module and `make build` do not need Playwright or Node.
+The root Go module and `make build` don't need Playwright or Node.
 
 ## Related Documentation
 
@@ -175,7 +175,7 @@ ps -eo pid,args | grep '[f]infocus-plugin'
 kill <pid>
 ```
 
-Do not use `pkill -f finfocus`: it matches every command line that contains
+Don't use `pkill -f finfocus`: it matches every command line that contains
 the name, including the shell you run it from.
 
 ### Windows Cross-Platform Notes
@@ -185,7 +185,7 @@ The E2E and unit test suite is designed to run on Linux, macOS, and Windows. Key
 - Plugin binaries use the `.exe` suffix on Windows (handled automatically by `exec.LookPath`).
 - Home directory detection uses `USERPROFILE` on Windows (`os.UserHomeDir` resolves correctly).
 - Golden file comparisons normalize CRLF line endings on Windows checkouts.
-- Permission-bit assertions (Unix `chmod` modes) are skipped on Windows where they are not applicable.
+- Permission-bit assertions (Unix `chmod` modes) are skipped on Windows where they aren't applicable.
 
 ### Integration Test Log Isolation
 
