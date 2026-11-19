@@ -30,9 +30,9 @@ does not cover. Task guides are under Commands, for example the
 The generated pages cover every command that `finfocus --help` lists. They
 include the commands and flags that ax-go adds when the CLI starts:
 `mcp-server`, `__schema`, Cobra's `completion`, and the persistent `--format`,
-`--dry-run`, `--yes`, `--strict`, and `--idempotency-key` flags. The [`finfocus`](./cli/finfocus.md) page lists
-those flags under "Options", and every other page under "Options inherited
-from parent commands". Hidden commands are left out.
+`--dry-run`, `--yes`, `--strict`, and `--idempotency-key` flags. The
+[`finfocus`](./cli/finfocus.md) page lists those flags under "Options", and
+every other page under "Options inherited from parent commands". Hidden commands are left out.
 
 ## Root Command Entry Points
 
@@ -577,8 +577,8 @@ Display effective plugin routing rules. Flags and examples:
 ## config routes test
 
 Simulate plugin selection for a resource type and view match reasons. The
-arguments are a Pulumi type token, such as `aws:ec2/instance:Instance`, and an optional
-region hint, such as `us-east-1`. Flags and examples:
+arguments are a Pulumi type token, such as `aws:ec2/instance:Instance`, and an
+optional region hint, such as `us-east-1`. Flags and examples:
 [`finfocus config routes test`](./cli/finfocus_config_routes_test.md).
 
 ## plugin init

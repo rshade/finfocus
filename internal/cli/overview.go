@@ -148,8 +148,7 @@ for existing state without running a plan.`,
 	cmd.MarkFlagsMutuallyExclusive("state-only", "pulumi-json")
 	addAccessibilityFlags(cmd)
 	cmd.Flags().Lookup("color").Usage = "style the plain table when stdout is not a terminal; same switch as --force-color"
-	cmd.Flags().Lookup("high-contrast").Usage = "accepted for consistency with the other output commands; " +
-		"overview has no budget box to recolor, so it has no effect"
+	cmd.Flags().Lookup("high-contrast").Usage = "no effect on overview; accepted for consistency with other commands"
 
 	// StackContext.GeneratedAt (embedded via OverviewMetadata) varies between
 	// otherwise-identical runs; tell __schema not to expect byte-identical output.

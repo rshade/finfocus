@@ -38,10 +38,13 @@ declare a second copy.
 
 ## Where the database lives
 
-Each stack has one file, `<stack>.history.db`. Slashes in the stack name
-become dashes. The default directory is `~/.finfocus/history/`.
+Each stack of each project has one file, `<project>@<stack>.history.db`.
+FinFocus takes the project from the `Pulumi.yaml` in the working directory,
+or from a fully qualified `--stack org/project/dev`. The directory is
+`FINFOCUS_HISTORY_DIR`, then `cost.history.directory`, then `history/`
+under the FinFocus home, which defaults to `~/.finfocus/`.
 
-`FINFOCUS_HOME` overrides that root. Plugins and config use the same
+`FINFOCUS_HOME` overrides that home. Plugins and config use the same
 directory, so a CI job that sets `FINFOCUS_HOME` must install plugins into
 that home. A plugin installed only under the runner's real `~/.finfocus`
 is invisible to the collect step.

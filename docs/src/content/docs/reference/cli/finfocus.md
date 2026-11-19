@@ -88,7 +88,7 @@ finfocus [flags]
       --no-browser[=true|false]             do not open a browser; print the web UI URL only (only valid with --web)
       --port int                            pin the web UI port (0 = kernel-assigned; only valid with --web)
       --project-dir string                  explicit Pulumi project directory for config resolution
-      --pulumi-json string                  path to Pulumi preview JSON; state is still read from the detected project unless --pulumi-state is set (only valid with --web)
+      --pulumi-json string                  path to Pulumi preview JSON; state is still read from the detected project, if available, unless --pulumi-state is set (only valid with --web)
       --pulumi-state string                 path to Pulumi state JSON (only valid with --web)
       --skip-version-check[=true|false]     skip plugin spec version compatibility check
       --stack stringArray                   Pulumi stack name for auto-detection; with --web, comma-separated or repeated names open one tab per stack (only valid with --web or --import-cloud-history)
