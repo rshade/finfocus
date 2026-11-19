@@ -95,7 +95,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Package without store overrides
-        run: pnpm exec vsce package --no-dependencies --out ../../dist/vscode-finfocus.vsix
+        run: |
+          mkdir -p ../../dist
+          pnpm exec vsce package --no-dependencies --out ../../dist/vscode-finfocus.vsix
 
       - name: Inspect packaged contents
         run: |

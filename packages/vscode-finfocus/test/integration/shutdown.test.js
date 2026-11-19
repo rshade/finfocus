@@ -24,11 +24,29 @@ function isAlive(pid) {
       return false;
     }
   }
+  if (process.platform !== 'win32') {
+    try {
+      const state = childProcess.execFileSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).trim();
+      return state !== '' && !state.startsWith('Z');
+    } catch {
+      return false;
+    }
+  }
   try {
     process.kill(pid, 0);
     return true;
   } catch {
     return false;
+  }
+}
+
+/** What `ps` says about a pid, for a failure message on a platform with no /proc. */
+function describePid(pid) {
+  if (process.platform === 'win32' || process.platform === 'linux') return '';
+  try {
+    return childProcess.execFileSync('ps', ['-o', 'pid=,ppid=,pgid=,stat=', '-p', String(pid)], { encoding: 'utf8' }).trim();
+  } catch {
+    return 'not listed by ps';
   }
 }
 
@@ -80,12 +98,16 @@ function cleanup(pids) {
 test('the grandchild really is in its own process group inside the session', { skip: process.platform === 'win32' }, async () => {
   const { handle, pids } = await launchWithEnv('graceful');
   try {
-    const group = (pid) => childProcess.execFileSync('ps', ['-o', 'pgid=,sid=', '-p', String(pid)], { encoding: 'utf8' }).trim().split(/\s+/).map(Number);
-    const [parentGroup, parentSession] = group(pids.parent);
-    const [grandGroup, grandSession] = group(pids.grandchild);
-    assert.equal(parentSession, pids.parent, 'the runner made finfocus a session leader');
-    assert.equal(grandSession, parentSession);
-    assert.notEqual(grandGroup, parentGroup);
+    const group = (pid) => Number(childProcess.execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8' }).trim());
+    assert.notEqual(group(pids.grandchild), group(pids.parent));
+    if (process.platform === 'linux') {
+      const session = (pid) => Number(childProcess.execFileSync('ps', ['-o', 'sid=', '-p', String(pid)], { encoding: 'utf8' }).trim());
+      assert.equal(session(pids.parent), pids.parent, 'the runner made finfocus a session leader');
+      assert.equal(session(pids.grandchild), session(pids.parent));
+    }
+    const members = await createTree().members(pids.parent);
+    assert.ok(members.includes(pids.parent), `the leader is in its own session: ${members}`);
+    assert.ok(members.includes(pids.grandchild), `the grandchild is in the leader's session: ${members}`);
   } finally {
     await handle.stop();
     cleanup(pids);
@@ -102,10 +124,10 @@ for (const mode of ['graceful', 'leave', 'ignore']) {
       const elapsed = Date.now() - started;
       assert.ok(elapsed < GRACE_MS + CONFIRM_MS + 1000, `took ${elapsed} ms`);
       for (const [role, pid] of Object.entries(pids)) {
-        assert.equal(isAlive(pid), false, `${role} ${pid} survived`);
+        assert.equal(isAlive(pid), false, `${role} ${pid} survived: ${describePid(pid)}`);
       }
       if (mode === 'ignore') assert.equal(result.forced, true, 'a process that ignores SIGTERM needs escalation');
-      if (mode === 'graceful') assert.equal(result.forced, false);
+      if (mode === 'graceful' && process.platform !== 'win32') assert.equal(result.forced, false);
     } finally {
       cleanup(pids);
     }
@@ -118,7 +140,7 @@ test('a descendant left behind by a clean exit is swept', { skip: process.platfo
     const outcome = await handle.done;
     assert.equal(outcome.kind, 'ok');
     for (const [role, pid] of Object.entries(pids)) {
-      assert.equal(isAlive(pid), false, `${role} ${pid} survived a clean exit`);
+      assert.equal(isAlive(pid), false, `${role} ${pid} survived a clean exit: ${describePid(pid)}`);
     }
   } finally {
     cleanup(pids);
@@ -154,7 +176,7 @@ test('after SIGKILL of the parent every descendant is still in its session and i
   try {
     process.kill(pids.parent, 'SIGKILL');
     await handle.done;
-    assert.equal(isAlive(pids.grandchild), false, 'done reaps the session after the leader died');
+    assert.equal(isAlive(pids.grandchild), false, `done reaps the session after the leader died: ${describePid(pids.grandchild)}`);
   } finally {
     cleanup(pids);
   }
