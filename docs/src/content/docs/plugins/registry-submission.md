@@ -131,8 +131,6 @@ The FinFocus team will:
 
 Example `.goreleaser.yml` for proper binary naming:
 
-{% raw %}
-
 ```yaml
 version: 2
 
@@ -168,8 +166,6 @@ release:
     owner: your-org
     name: your-plugin
 ```
-
-{% endraw %}
 
 ## Example Plugins
 
