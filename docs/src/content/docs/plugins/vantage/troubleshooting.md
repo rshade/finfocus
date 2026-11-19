@@ -3,10 +3,11 @@ title: Vantage Plugin Troubleshooting
 description: Common issues, solutions, and support paths for the FinFocus Vantage plugin
 ---
 
-> **Note:** written before the plugin was released, this page describes
-> an earlier design. The released plugin has no `pull`, `backfill`, or
-> `forecast` command and reads no `config.yaml`. It is configured only by the
-> environment variables on the [Vantage plugin page](../vantage.md), which is
+> **Earlier design.** This page was written before the plugin was released.
+> Install the plugin with `finfocus plugin install vantage`. The released
+> plugin has no `pull`, `backfill`, or `forecast` command and reads no
+> `config.yaml`. It is configured by the environment variables and the
+> per-request credential on the [Vantage plugin page](../vantage.md), which is
 > the reference when they disagree.
 
 This guide helps diagnose and resolve common issues with the Vantage plugin
@@ -428,7 +429,7 @@ The plugin automatically retries 429 responses with exponential backoff:
 3. Monitor resources:
 
    ```bash
-   watch -n 1 'ps aux | grep finfocus-vantage'
+   watch -n 1 'ps aux | grep finfocus-plugin-vantage'
    ```
 
 4. Use monthly granularity:
@@ -474,7 +475,7 @@ Error: plugin 'vantage' not found
 4. Verify binary executable:
 
    ```bash
-   chmod +x ~/.finfocus/plugins/vantage/finfocus-vantage
+   chmod +x ~/.finfocus/plugins/vantage/v<version>/finfocus-plugin-vantage
    ```
 
 ---
@@ -500,7 +501,7 @@ Failed to communicate with vantage plugin
 1. Test plugin directly:
 
    ```bash
-   ~/.finfocus/plugins/vantage/finfocus-vantage --version
+   ~/.finfocus/plugins/vantage/v<version>/finfocus-plugin-vantage --version
    ```
 
 2. Check plugin logs:
@@ -755,6 +756,6 @@ When reporting issues, include:
    ```
 
 5. **Environment Information**:
-   - Plugin version: `finfocus-vantage --version`
+   - Plugin version: `finfocus plugin list`
    - FinFocus version: `finfocus --version`
    - OS: `uname -a`

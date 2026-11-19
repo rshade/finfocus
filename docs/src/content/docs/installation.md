@@ -37,11 +37,15 @@ Complete installation instructions for FinFocus Core across different platforms 
 
 The install script picks the release archive for your OS (Linux or macOS) and
 architecture (amd64 or arm64) and checks it against the release's
-`checksums.txt`:
+`checksums.txt` when the release has one:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 ```
+
+The script installs to `/usr/local/bin` when it can write there and to
+`~/.local/bin` otherwise. That directory is often not on `PATH`, especially
+on macOS. The script prints the `export PATH=...` line to add.
 
 `FINFOCUS_VERSION` pins a release and `FINFOCUS_INSTALL_DIR` changes the
 install directory; [Quick Install](getting-started/installation.md#option-2-install-script-recommended)
@@ -81,12 +85,20 @@ $Version = "v0.5.8"
 $Arch = "amd64"
 $Zip = "finfocus-$Version-windows-$Arch.zip"
 
-Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/$Version/$Zip" -OutFile $Zip
-Expand-Archive $Zip -DestinationPath "finfocus-$Version"
+$Base = "https://github.com/rshade/finfocus/releases/download/$Version"
+
+Invoke-WebRequest -Uri "$Base/$Zip" -OutFile $Zip
+Invoke-WebRequest -Uri "$Base/checksums.txt" -OutFile checksums.txt
+
+# Verify the archive against checksums.txt
+$Expected = ((Get-Content checksums.txt | Where-Object { $_ -like "*  $Zip" }) -split '\s+')[0]
+if ((Get-FileHash $Zip -Algorithm SHA256).Hash -ne $Expected) { throw "Checksum mismatch for $Zip" }
+
+Expand-Archive $Zip -DestinationPath "finfocus-$Version" -Force
 
 # Move the binary into a bin directory on PATH
 New-Item -ItemType Directory -Force -Path $env:USERPROFILE\bin
-Move-Item "finfocus-$Version\finfocus.exe" $env:USERPROFILE\bin\
+Move-Item "finfocus-$Version\finfocus.exe" $env:USERPROFILE\bin\ -Force
 $env:PATH += ";$env:USERPROFILE\bin"
 ```
 
@@ -158,9 +170,10 @@ finfocus --version
 #### Bypass Gatekeeper (if needed)
 
 ```bash
-# If macOS blocks the binary due to security settings
-sudo spctl --add /usr/local/bin/finfocus
-sudo xattr -dr com.apple.quarantine /usr/local/bin/finfocus
+# If macOS blocks the binary due to security settings, use the path the
+# install script printed (/usr/local/bin/finfocus or ~/.local/bin/finfocus)
+sudo spctl --add "$(command -v finfocus)"
+sudo xattr -dr com.apple.quarantine "$(command -v finfocus)"
 ```
 
 ### Windows
@@ -171,12 +184,16 @@ sudo xattr -dr com.apple.quarantine /usr/local/bin/finfocus
 # Create bin directory
 New-Item -ItemType Directory -Force -Path $env:USERPROFILE\bin
 
-# Download and unpack a release (replace the version as needed)
+# Download, verify, and unpack a release (replace the version as needed)
 $Version = "v0.5.8"
 $Zip = "finfocus-$Version-windows-amd64.zip"
-Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/$Version/$Zip" -OutFile $Zip
-Expand-Archive $Zip -DestinationPath "finfocus-$Version"
-Move-Item "finfocus-$Version\finfocus.exe" "$env:USERPROFILE\bin\"
+$Base = "https://github.com/rshade/finfocus/releases/download/$Version"
+Invoke-WebRequest -Uri "$Base/$Zip" -OutFile $Zip
+Invoke-WebRequest -Uri "$Base/checksums.txt" -OutFile checksums.txt
+$Expected = ((Get-Content checksums.txt | Where-Object { $_ -like "*  $Zip" }) -split '\s+')[0]
+if ((Get-FileHash $Zip -Algorithm SHA256).Hash -ne $Expected) { throw "Checksum mismatch for $Zip" }
+Expand-Archive $Zip -DestinationPath "finfocus-$Version" -Force
+Move-Item "finfocus-$Version\finfocus.exe" "$env:USERPROFILE\bin\" -Force
 
 # Add to PATH (persistent)
 [Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";$env:USERPROFILE\bin", [System.EnvironmentVariableTarget]::User)

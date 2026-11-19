@@ -3,6 +3,13 @@ title: Vantage Plugin Features
 description: Supported cloud providers, cost types, limitations, and roadmap for the FinFocus Vantage plugin
 ---
 
+> **Earlier design.** This page was written before the plugin was released.
+> Install the plugin with `finfocus plugin install vantage`. The released
+> plugin has no `pull`, `backfill`, or `forecast` command and reads no
+> `config.yaml`. It is configured by the environment variables and the
+> per-request credential on the [Vantage plugin page](../vantage.md), which is
+> the reference when they disagree.
+
 This document describes the features, capabilities, and limitations of the
 Vantage plugin for FinFocus.
 

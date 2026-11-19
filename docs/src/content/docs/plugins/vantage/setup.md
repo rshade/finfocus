@@ -3,13 +3,12 @@ title: Vantage Plugin Setup Guide
 description: Step-by-step installation and configuration guide for the FinFocus Vantage plugin
 ---
 
-> **Note:** The Vantage plugin is released and in the plugin registry. Install it
-> with `finfocus plugin install vantage`. The rest of this page was written
-> before the release and describes an earlier design: the released plugin has
-> no `pull`, `backfill`, or `forecast` command and reads no `config.yaml`. It is
-> configured only by the environment variables on the
-> [Vantage plugin page](../vantage.md), which is the reference when they
-> disagree.
+> **Earlier design.** This page was written before the plugin was released.
+> Install the plugin with `finfocus plugin install vantage`. The released
+> plugin has no `pull`, `backfill`, or `forecast` command and reads no
+> `config.yaml`. It is configured by the environment variables and the
+> per-request credential on the [Vantage plugin page](../vantage.md), which is
+> the reference when they disagree.
 
 This guide walks you through installing and configuring the Vantage plugin for
 FinFocus. Follow these steps to enable multi-cloud cost aggregation using
