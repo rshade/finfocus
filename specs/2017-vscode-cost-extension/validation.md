@@ -762,7 +762,7 @@ by file because they do not carry requirement IDs. Everything was run on Linux
 | FR-025 (supported editor API level) | Partial | The editor job runs both `minimum-api` (1.90.0) and `stable` through `pnpm run test:editor`, and passes on Linux, macOS and Windows in CI (PR #2244). Open: the other editors and the .NET fixture (T072, T073), and `minFinfocusVersion` against a released core |
 | FR-026 (renaming a JSON field fails a test) | Verified | `test/unit/result.test.js` mutates every path in `contract/overview-fields.json`; Go `RemovingAnyRequiredFieldIsDetected` and `RetypingAnyRequiredFieldIsDetected` |
 | FR-027 (keyboard and screen reader) | Partial | Labels and keyboard paths are tested in `test/unit/dashboard.test.js` and `test/editor/dashboard.test.js`. NVDA and VoiceOver, high contrast and zoom are open (T067, owner) |
-| FR-028 (stop owned processes, bounded shutdown) | Partial | `test/integration/shutdown.test.js` and `test/unit/{runner,scheduler,processTree}.test.js`; the fixture-based shutdown tests pass on Linux, macOS and Windows in CI (PR #2244, ISS-003). Open: the real-CLI tests with plugin descendants skipped on every OS, and T016's Go tests ran on Linux only (T029, T058) |
+| FR-028 (stop owned processes, bounded shutdown) | Partial | `test/integration/shutdown.test.js`, `test/unit/{runner,scheduler,processTree}.test.js` and the real-CLI shutdown tests; the fixture-based tests pass on Linux, macOS and Windows in CI (ISS-003), and the real-CLI tests with a Pulumi child and a plugin pass on Linux. Open: the real-CLI case on macOS and Windows, and T016's Go tests on those OSes (T029, T058) |
 | SC-001 (every priced resource annotated, Node.js demo) | Partial | Node.js recorded and rendered; other runtimes open (see FR-001) |
 | SC-002 (cache hit within 2 s, idle miss within 20 s) | Verified | "Result reuse and completeness (T099)": hit 0.43 to 0.67 s, miss 6.5 to 8.6 s; "Real-CLI performance run" |
 | SC-003 (stale marker within 1 s) | Verified | "Performance run (T082)": 63 to 129 ms, no process spawned |
@@ -815,8 +815,19 @@ Run on GitHub-hosted runners with Node 22; the PR checks are the evidence.
 - **Packaging**: the job failed because `vsce` does not create the output
   directory; it now runs `mkdir -p ../../dist` first and the VSIX is built and
   inspected on CI.
-- **Still open**: the real-CLI cases on every OS (set `FINFOCUS_BINARY` and a
-  fixture project in the job); T016 on macOS and Windows.
+- **Real-CLI tests (`test-vscode-extension-real-cli.yml`, Linux)**: a new
+  workflow builds finfocus and the recorder plugin, deploys
+  `testdata/sourcepos/nodejs/program` to a throwaway local backend
+  (`test/fixtures/real/deploy-fixture.sh`) and runs the two real-CLI shutdown
+  tests and the real-CLI annotation case. All three ran and passed: a
+  `pulumi` child and `finfocus-plugin-recorder` appeared in finfocus's session
+  and both stop paths (stop mid-run, and stop after SIGKILL) left none of them
+  running (stops confirmed in 98 ms and 124 ms), and every display string,
+  count and missing location matched the CLI JSON. The plugin is the repo's
+  recorder, not a pricing plugin such as aws-public, and the run uses state
+  from dynamic resources.
+- **Still open**: the real-CLI shutdown test on macOS (it reads `/proc`, so it
+  is Linux only) and on Windows (it skips); T016 on macOS and Windows.
 
 ## Completion gates
 
