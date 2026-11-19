@@ -119,7 +119,9 @@ jobs:
         working-directory: packages/vscode-finfocus
         run: xvfb-run -a node_modules/.bin/vscode-test --label stable --grep 'annotations against the real CLI'
 
+      # Not on Windows: Pulumi (3.277.0) records no source position for a Node.js
+      # program there (see the step above), so there is no location to compare.
       - name: Annotations against the real CLI
-        if: runner.os != 'Linux'
+        if: runner.os == 'macOS'
         working-directory: packages/vscode-finfocus
         run: node_modules/.bin/vscode-test --label stable --grep 'annotations against the real CLI'
