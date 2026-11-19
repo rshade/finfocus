@@ -94,6 +94,50 @@ func assertHistoryLayout(t *testing.T, page playwright.Page) {
 	assert.Empty(t, issues)
 }
 
+func exerciseHistoryChart(t *testing.T, page playwright.Page) {
+	t.Helper()
+	zoom := page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Zoom in", Exact: playwright.Bool(true)})
+	require.NoError(t, zoom.Focus())
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	rangeLabel := page.Locator("#history-chart-range")
+	visible, err := rangeLabel.TextContent()
+	require.NoError(t, err)
+	assert.Equal(t, "Chart range 2026-10-01 to 2026-10-15", visible)
+	require.NoError(t, page.Keyboard().Press("Tab"))
+	focused, err := page.Evaluate(`() => document.activeElement?.id`)
+	require.NoError(t, err)
+	assert.Equal(t, "history-zoom-out", focused)
+	require.NoError(t, page.Locator("#history-pan-next").Click())
+	visible, err = rangeLabel.TextContent()
+	require.NoError(t, err)
+	assert.Equal(t, "Chart range 2026-10-15 to 2026-11-01", visible)
+	require.NoError(t, page.Locator("#history-reset-chart").Click())
+	require.NoError(t, page.Locator("#history-show-providers").Click())
+	legend, err := page.Locator(".history-chart-legend").TextContent()
+	require.NoError(t, err)
+	assert.Contains(t, legend, "AWS")
+	require.NoError(t, page.Locator("#history-show-budgets").Click())
+	count, err := page.Locator(".history-budget-line").Count()
+	require.NoError(t, err)
+	assert.Zero(t, count)
+	require.NoError(t, page.Locator("#history-show-budgets").Click())
+	require.NoError(t, page.Locator(".history-marker[data-version='36']").Click())
+	webWait(t, page, `() => document.querySelector('#history-diff-totals')?.textContent.includes('+$4.50')`)
+	selection, err := page.Locator("#history-selected-deployment").TextContent()
+	require.NoError(t, err)
+	assert.Contains(t, selection, "v36")
+	assert.Contains(t, selection, "resized")
+	first := page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "1. v35 update: baseline"})
+	require.NoError(t, first.Focus())
+	require.NoError(t, page.Keyboard().Press("Space"))
+	selection, err = page.Locator("#history-selected-deployment").TextContent()
+	require.NoError(t, err)
+	assert.Contains(t, selection, "No earlier checkpoint")
+	require.NoError(t, page.Locator(".history-marker[data-version='36']").Click())
+	historyLoaded(t, page)
+	require.NoError(t, page.Locator("#history-show-providers").Click())
+}
+
 // The Cost view and both detail panels draw collected cost history from the
 // display strings. The fixture seeds the timeline the dashboard reads.
 //
@@ -122,7 +166,7 @@ func TestWebUICostHistory(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, thresholds, 1)
 	assert.Equal(t, map[string]any{"amount": 120.0, "display": "$120"}, thresholds[0])
-	diff := s.query(t, "/api/history/diff?from=v35&to=v36", nil)
+	diff := s.query(t, "/api/history/diff?from=v35&to=v38", nil)
 	require.Equal(t, "ok", diff["status"])
 	resource := s.query(t, "/api/history/resource?id="+url.QueryEscape(historyURN), nil)
 	require.Equal(t, "ok", resource["status"])
@@ -131,7 +175,7 @@ func TestWebUICostHistory(t *testing.T) {
 	require.True(t, ok)
 	snapshots, ok := display["snapshots"].([]any)
 	require.True(t, ok)
-	require.Len(t, snapshots, 2)
+	require.Len(t, snapshots, 4)
 	totals := make([]string, 0, len(snapshots))
 	dates := make([]string, 0, len(snapshots))
 	for _, item := range snapshots {
@@ -205,8 +249,8 @@ func TestWebUICostHistory(t *testing.T) {
 			const following = Node.DOCUMENT_POSITION_FOLLOWING;
 			return Boolean(table && from && series && diff)
 				&& (table.compareDocumentPosition(from) & following) !== 0
-				&& (from.compareDocumentPosition(series) & following) !== 0
-				&& (series.compareDocumentPosition(diff) & following) !== 0;
+				&& (from.compareDocumentPosition(diff) & following) !== 0
+				&& (diff.compareDocumentPosition(series) & following) !== 0;
 		}`)
 		require.NoError(t, err)
 		assert.Equal(t, true, order)
@@ -223,6 +267,8 @@ func TestWebUICostHistory(t *testing.T) {
 		for _, width := range []int{1280, 390} {
 			require.NoError(t, page.SetViewportSize(width, 900))
 			historyLoaded(t, page)
+			assertHistoryLayout(t, page)
+			exerciseHistoryChart(t, page)
 			assertHistoryLayout(t, page)
 			webScreenshot(t, page, "history-"+string(*scheme)+"-"+strconv.Itoa(width), true)
 		}

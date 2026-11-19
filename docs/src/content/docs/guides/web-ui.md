@@ -78,6 +78,18 @@ name stops the command with exit code 2 and lists the stacks the project has. A
 list needs the project's own stacks, so it can't be combined with
 `--pulumi-json` or `--pulumi-state`.
 
+## Explore saved cost history
+
+Open **Cost** and scroll to **Cost history**. Apply a date range or currency
+to choose which saved checkpoints to load. Use the chart's zoom, pan, and
+reset buttons to explore those checkpoints.
+
+Select **Provider series** to show provider lines and **Budget thresholds**
+to toggle the configured thresholds. The legend names the visible lines.
+Select a chart marker or its deployment button to read the annotation and
+compare the deployment with the preceding checkpoint. The **Compare from**
+and **Compare to** fields also let you choose the two checkpoints directly.
+
 ## Run without opening a browser
 
 On a machine with no graphical browser, or when you want to choose the browser
