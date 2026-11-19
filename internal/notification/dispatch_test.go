@@ -220,7 +220,7 @@ func TestDeliverUnknownTypeFails(t *testing.T) {
 
 	d := notification.NewDispatcher(nil, nil)
 	results := d.Deliver(context.Background(), []notification.Delivery{{
-		Destination: config.NotificationDestination{Type: "email", URL: "https://a.example"},
+		Destination: config.NotificationDestination{Type: "sms", URL: "https://a.example"},
 		Event:       testEvent(80),
 	}}, notification.Options{})
 

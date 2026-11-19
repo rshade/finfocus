@@ -497,8 +497,8 @@ Overall Health: CRITICAL
 
 ## Budget Notifications
 
-An alert threshold can send a message to Slack or to any HTTPS endpoint when a
-cost command finds that the threshold was crossed. Notifications are opt-in per
+An alert threshold can send a message to Slack, an HTTPS endpoint, or email
+recipients when a cost command finds that the threshold was crossed. Notifications are opt-in per
 run, so local runs stay quiet while CI sends.
 
 ### Configure Destinations
@@ -537,8 +537,8 @@ Add `notifications` to any alert, in any scope (`global`, `providers.<name>`,
 
 | Field     | Applies to | Required | Description                                                       |
 | --------- | ---------- | -------- | ----------------------------------------------------------------- |
-| `type`    | all        | Yes      | `slack` (incoming webhook) or `webhook` (generic HTTPS endpoint)  |
-| `url`     | all        | Yes      | `https://` URL with a host, or a `${FINFOCUS_NOTIFY_*}` reference |
+| `type`    | all        | Yes      | `slack`, `webhook`, or `email`                                   |
+| `url`     | `slack`, `webhook` | Yes      | `https://` URL with a host, or a `${FINFOCUS_NOTIFY_*}` reference |
 | `channel` | `slack`    | No       | Channel override sent with the message                            |
 | `method`  | `webhook`  | No       | `POST` (default) or `PUT`                                         |
 | `headers` | `webhook`  | No       | Extra request headers. Values may use `${FINFOCUS_NOTIFY_*}`      |
@@ -549,6 +549,58 @@ destination, and any variable that doesn't start with `FINFOCUS_NOTIFY_`.
 
 Slack apps bind each incoming webhook to one channel, so Slack may ignore
 `channel`. Create one webhook per channel when you need several.
+
+### Configure Email (SMTP)
+
+Place an email destination in the alert's `notifications` array in the global
+config. This example uses STARTTLS on the default port, 587:
+
+```jsonc
+{
+  "type": "email",
+  "smtp": {
+    "host": "smtp.example.com",
+    "tls": "starttls",
+    "username": "${FINFOCUS_NOTIFY_SMTP_USERNAME}",
+    "password": "${FINFOCUS_NOTIFY_SMTP_PASSWORD}"
+  },
+  "from": "FinOps <alerts@example.com>",
+  "to": ["budget-owner@example.com"],
+  "cc": ["finance@example.com"]
+}
+```
+
+For a relay that expects TLS from the start, choose `tls`. The default port
+is 465, so this example sets it explicitly for clarity:
+
+```jsonc
+{
+  "type": "email",
+  "smtp": {
+    "host": "smtp.example.com",
+    "port": 465,
+    "tls": "tls",
+    "username": "${FINFOCUS_NOTIFY_SMTP_USERNAME}",
+    "password": "${FINFOCUS_NOTIFY_SMTP_PASSWORD}"
+  },
+  "from": "alerts@example.com",
+  "to": ["budget-owner@example.com"],
+  "subject": "[FinFocus] Budget alert at {{threshold}}%"
+}
+```
+
+Set the referenced variables in your environment or CI secrets. Omit
+`username` and `password` for a relay that allows unauthenticated delivery.
+Both TLS modes verify the server certificate. STARTTLS requires the relay
+to advertise the extension. Use `"tls": "none"` for a loopback relay only.
+Its default port is 25.
+
+Configure at least one `to` address. Optional `cc` addresses join the
+same SMTP transaction. The default subject is
+`[FinFocus] Budget Alert: <N>% threshold exceeded`. A custom subject can
+include `{{threshold}}` to insert the threshold percentage as a number.
+The plain-text body includes the budget, scope, spend or forecast, alert
+type, and FinFocus version.
 
 ### Send Notifications
 
@@ -592,8 +644,8 @@ finfocus cost projected --pulumi-json plan.json --notify --dry-run
 dry-run: would notify slack for global budget, 80% actual threshold
 ```
 
-Nothing is sent. Each line names the destination type and threshold, never
-the URL.
+Dry runs send no messages. Each line names the destination type and threshold.
+Email lines also show To and Cc addresses with any SMTP credentials masked.
 
 ### What the Receivers Get
 
@@ -620,7 +672,7 @@ JSON event:
 ### Delivery and Failures
 
 - Destinations are sent concurrently, each with a 10-second time limit.
-- URLs must use HTTPS. A URL built from a variable is checked after
+- Slack and webhook URLs must use HTTPS. A URL built from a variable is checked after
   expansion. Redirects are never followed. A 3xx response is a failure.
 - A failure (error status, timeout, unset variable) prints a warning on
   stderr and never changes the command's output or exit code:
@@ -635,7 +687,8 @@ JSON event:
   `Proxy-Authorization`, `Cookie`, or a name containing `token`, `key`, or
   `secret`.
   `config get` and `config list` show those values as `[REDACTED]`, except a
-  value that's only a `${NAME}` reference.
+  value that's only a `${NAME}` reference. The same masking applies to
+  SMTP usernames and passwords.
 - Nothing about notifications is written to stdout, so `--output json` and
   `--output ndjson` stay parseable.
 - Results with mixed currencies skip budget evaluation, so no notification

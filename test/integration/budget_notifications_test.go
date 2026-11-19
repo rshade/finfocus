@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -186,6 +189,60 @@ func TestBudgetNotifications(t *testing.T) {
 		assert.Len(t, recv.take(), 2)
 	})
 
+	t.Run("email obeys opt-in, dry run, and stdout contract", func(t *testing.T) {
+		port, messages := newBudgetSMTPRelay(t, false)
+		cfg := emailBudgetConfig(port)
+		env := []string{
+			"FINFOCUS_NOTIFY_SMTP_USER=relay-login-secret",
+			"FINFOCUS_NOTIFY_SMTP_PASS=relay-password-secret",
+		}
+
+		baseline := run(t, cfg, env, "--output", "json")
+		require.Zero(t, baseline.exitCode, baseline.stderr)
+		assert.Contains(t, baseline.stderr, "pass --notify or set FINFOCUS_NOTIFY=true")
+		assert.Empty(t, messages)
+
+		preview := run(t, cfg, env, "--output", "json", "--notify", "--dry-run")
+		require.Zero(t, preview.exitCode, preview.stderr)
+		assert.Contains(t, preview.stderr, "dry-run: would notify email")
+		assert.Contains(t, preview.stderr, "To: owner@example.com; Cc: finance@example.com")
+		assert.Empty(t, messages)
+
+		env = append(env, "FINFOCUS_NOTIFY=true")
+		sent := run(t, cfg, env, "--output", "json", "--debug")
+		require.Zero(t, sent.exitCode, sent.stderr)
+		require.True(t, json.Valid([]byte(sent.stdout)))
+		assert.NotContains(t, sent.stderr, "warning: email notification")
+		select {
+		case message := <-messages:
+			assert.Contains(t, message, "Subject: [FinFocus] Budget Alert: 0% threshold exceeded")
+			assert.Contains(t, message, "To: <owner@example.com>")
+			assert.Contains(t, message, "Cc: <finance@example.com>")
+		case <-time.After(time.Second):
+			t.Fatal("email was not delivered")
+		}
+		assert.Empty(t, messages)
+		for _, result := range []notifyRun{baseline, preview, sent} {
+			assert.NotContains(t, result.stdout+result.stderr, "relay-login-secret")
+			assert.NotContains(t, result.stdout+result.stderr, "relay-password-secret")
+		}
+	})
+
+	t.Run("email failure keeps budget exit status", func(t *testing.T) {
+		port, messages := newBudgetSMTPRelay(t, true)
+		result := run(t, emailBudgetConfig(port), []string{
+			"FINFOCUS_NOTIFY_SMTP_USER=relay-login-secret", "FINFOCUS_NOTIFY_SMTP_PASS=relay-password-secret",
+		}, "--output", "json", "--notify", "--exit-on-threshold", "--exit-code", "4")
+		assert.Equal(t, 4, result.exitCode, result.stderr)
+		assert.True(t, json.Valid([]byte(result.stdout)))
+		assert.Equal(t, 1, strings.Count(result.stderr, "warning: email notification"))
+		assert.NotContains(t, result.stderr, "budget notification not delivered")
+		assert.Contains(t, result.stderr, "SMTP recipient rejected (SMTP 550)")
+		assert.NotContains(t, result.stdout+result.stderr, "relay-login-secret")
+		assert.NotContains(t, result.stdout+result.stderr, "relay-password-secret")
+		assert.Empty(t, messages)
+	})
+
 	t.Run("project config referencing GITHUB_TOKEN is rejected", func(t *testing.T) {
 		recv.setStatus(http.StatusOK)
 		project := t.TempDir()
@@ -206,4 +263,71 @@ func TestBudgetNotifications(t *testing.T) {
 		assert.NotContains(t, result.stdout, ghToken)
 		assert.Empty(t, recv.take())
 	})
+}
+
+func emailBudgetConfig(port int) string {
+	return fmt.Sprintf(`{"logging":{"file":""},"cost":{"budgets":{"global":{"amount":100,"currency":"USD","alerts":[
+	  {"threshold":0,"type":"actual","notifications":[{"type":"email",
+	    "smtp":{"host":"127.0.0.1","port":%d,"tls":"none",
+	            "username":"${FINFOCUS_NOTIFY_SMTP_USER}","password":"${FINFOCUS_NOTIFY_SMTP_PASS}"},
+	    "from":"alerts@example.com","to":["owner@example.com"],"cc":["finance@example.com"]}]}
+	]}}}}`, port)
+}
+
+func newBudgetSMTPRelay(t *testing.T, rejectRecipient bool) (int, <-chan string) {
+	t.Helper()
+	var lc net.ListenConfig
+	listener, err := lc.Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	messages := make(chan string, 1)
+	done := make(chan struct{})
+	t.Cleanup(func() {
+		_ = listener.Close()
+		<-done
+	})
+	go func() {
+		defer close(done)
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer conn.Close()
+		_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
+		relay := textproto.NewConn(conn)
+		_ = relay.PrintfLine("220 relay ready")
+		for {
+			line, readErr := relay.ReadLine()
+			if readErr != nil {
+				return
+			}
+			verb, _, _ := strings.Cut(line, " ")
+			switch verb {
+			case "EHLO":
+				_ = relay.PrintfLine("250-relay")
+				_ = relay.PrintfLine("250 AUTH PLAIN")
+			case "AUTH":
+				_ = relay.PrintfLine("235 authenticated")
+			case "RCPT":
+				if rejectRecipient {
+					_ = relay.PrintfLine("550 relay-login-secret relay-password-secret")
+				} else {
+					_ = relay.PrintfLine("250 accepted")
+				}
+			case "DATA":
+				_ = relay.PrintfLine("354 send message")
+				data, dataErr := relay.ReadDotBytes()
+				if dataErr != nil {
+					return
+				}
+				messages <- string(data)
+				_ = relay.PrintfLine("250 queued")
+			case "QUIT":
+				_ = relay.PrintfLine("221 bye")
+				return
+			default:
+				_ = relay.PrintfLine("250 accepted")
+			}
+		}
+	}()
+	return listener.Addr().(*net.TCPAddr).Port, messages
 }

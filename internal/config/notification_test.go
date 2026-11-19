@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,10 +45,10 @@ func TestNotificationDestinationValidate(t *testing.T) {
 		},
 		{
 			name:      "unknown type lists supported types",
-			dest:      config.NotificationDestination{Type: "email", URL: "https://example.com"},
+			dest:      config.NotificationDestination{Type: "sms", URL: "https://example.com"},
 			wantErr:   config.ErrNotificationTypeInvalid,
 			wantField: "type",
-			contains:  "slack, webhook",
+			contains:  "slack, webhook, email",
 		},
 		{
 			name:      "empty url",
@@ -276,4 +277,86 @@ func TestNotificationReferenceHelpers(t *testing.T) {
 	assert.True(t, config.HasNotificationReference("x${"))
 	assert.True(t, config.HasNotificationReference("Bearer ${FINFOCUS_NOTIFY_TOKEN}"))
 	assert.False(t, config.HasNotificationReference("$NAME"))
+}
+
+func TestEmailDestinationValidate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, fields, wantField string
+	}{
+		{"valid", `"smtp":{"host":"smtp.example.com"},"from":"FinOps <alerts@example.com>","to":["owner@example.com"]`, ""},
+		{"loopback", `"smtp":{"host":"127.0.0.2","tls":"none","port":1025},"from":"a@example.com","to":["b@example.com"]`, ""},
+		{"references", `"smtp":{"host":"${FINFOCUS_NOTIFY_SMTP_HOST}","username":"${FINFOCUS_NOTIFY_USER}"},"from":"${FINFOCUS_NOTIFY_FROM}","to":["${FINFOCUS_NOTIFY_TO}"]`, ""},
+		{"missing smtp", `"from":"a@example.com","to":["b@example.com"]`, "smtp.host"},
+		{"missing host", `"smtp":{},"from":"a@example.com","to":["b@example.com"]`, "smtp.host"},
+		{"invalid host", `"smtp":{"host":"https://host.example/path"},"from":"a@example.com","to":["b@example.com"]`, "smtp.host"},
+		{"unknown mode", `"smtp":{"host":"smtp.example.com","tls":"opportunistic"},"from":"a@example.com","to":["b@example.com"]`, "smtp.tls"},
+		{"plaintext remote", `"smtp":{"host":"smtp.example.com","tls":"none"},"from":"a@example.com","to":["b@example.com"]`, "smtp.host"},
+		{"zero port", `"smtp":{"host":"localhost","port":0},"from":"a@example.com","to":["b@example.com"]`, "smtp.port"},
+		{"high port", `"smtp":{"host":"localhost","port":65536},"from":"a@example.com","to":["b@example.com"]`, "smtp.port"},
+		{"missing from", `"smtp":{"host":"localhost"},"to":["b@example.com"]`, "from"},
+		{"missing to", `"smtp":{"host":"localhost"},"from":"a@example.com"`, "to"},
+		{"invalid cc", `"smtp":{"host":"localhost"},"from":"a@example.com","to":["b@example.com"],"cc":["invalid"]`, "cc[0]"},
+		{"unsafe scope", `"smtp":{"host":"localhost","password":"${GITHUB_TOKEN}"},"from":"a@example.com","to":["b@example.com"]`, "smtp.password"},
+		{"header newline", `"smtp":{"host":"localhost"},"from":"a@example.com","to":["b@example.com"],"subject":"bad\r\nheader"`, "subject"},
+		{"foreign field", `"smtp":{"host":"localhost"},"from":"a@example.com","to":["b@example.com"],"url":"https://example.com"`, "url"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var dest config.NotificationDestination
+			require.NoError(t, json.Unmarshal([]byte(`{"type":"email",`+tc.fields+`}`), &dest))
+			err := dest.Validate()
+			if tc.wantField == "" {
+				require.NoError(t, err)
+				return
+			}
+			var fieldErr *config.NotificationFieldError
+			require.ErrorAs(t, err, &fieldErr)
+			assert.Equal(t, tc.wantField, fieldErr.Field)
+		})
+	}
+}
+
+func TestEmailConfigMasking(t *testing.T) {
+	t.Parallel()
+	raw := []byte(`{"cost":{"budgets":{"global":{"amount":100,"currency":"USD","alerts":[
+	  {"type":"actual","threshold":80,"notifications":[{"type":"email","from":"a@example.com",
+	  "to":["b@example.com"],"smtp":{"host":"localhost","username":"login-value","password":"password-value"}}]}
+	]}}}}`)
+	var cfg config.Config
+	require.NoError(t, json.Unmarshal(raw, &cfg))
+
+	masked, err := json.Marshal(cfg.MaskedForDisplay())
+	require.NoError(t, err)
+	assert.NotContains(t, string(masked), "login-value")
+	assert.NotContains(t, string(masked), "password-value")
+	assert.Contains(t, string(masked), "b@example.com")
+	assert.Contains(t, string(masked), config.RedactedValue)
+	original, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	assert.Contains(t, string(original), "login-value")
+	assert.Contains(t, string(original), "password-value")
+}
+
+func TestEmailConfigAcrossScopes(t *testing.T) {
+	t.Parallel()
+	notification := `{"type":"email","smtp":{"host":"localhost","tls":"none"},
+	    "from":"alerts@example.com","to":["owner@example.com"],
+	    "cc":["${FINFOCUS_NOTIFY_CC}"]}`
+	alerts := `"alerts":[{"threshold":80,"type":"actual","notifications":[` + notification + `]}]`
+	scope := `{"amount":100,"currency":"USD",` + alerts + `}`
+	raw := []byte(`{"cost":{"budgets":{"global":` + scope + `,"providers":{"aws":` + scope +
+		`},"tags":[{"selector":"team:platform","amount":100,` + alerts +
+		`}],"types":{"aws:ec2/instance":` + scope + `}}}}`)
+
+	global, _ := config.ValidateConfigSource("config.hujson", raw)
+	require.True(t, global.Valid, "%+v", global.Errors)
+	assert.Len(t, global.Warnings, 1) // Existing tag allocation warning.
+	project, _ := config.ValidateProjectConfigSource("config.hujson", raw)
+	require.False(t, project.Valid)
+	require.Len(t, project.Errors, 4)
+	for _, validationErr := range project.Errors {
+		assert.Contains(t, validationErr.Path, ".notifications[0].cc[0]")
+		assert.Contains(t, validationErr.Message, "project config destinations cannot use variables")
+	}
 }

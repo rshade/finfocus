@@ -273,10 +273,10 @@ func TestValidateConfigSource_Notifications(t *testing.T) {
 			name: "provider unknown type",
 			src: `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD"},
   "providers":{"aws":{"amount":50,"alerts":[{"threshold":100,"type":"forecasted",
-    "notifications":[{"type":"email","url":"https://example.com"}]}]}}}}}`,
+    "notifications":[{"type":"sms","url":"https://example.com"}]}]}}}}}`,
 			path: "cost.budgets.providers.aws.alerts[0].notifications[0].type",
-			text: "slack, webhook",
-			hint: "slack, webhook",
+			text: "slack, webhook, email",
+			hint: "slack, webhook, email",
 		},
 		{
 			name: "tag webhook channel",

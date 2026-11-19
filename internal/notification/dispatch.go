@@ -23,12 +23,12 @@ type Outcome string
 
 // Delivery outcomes.
 const (
-	// OutcomeSent means the destination answered with a 2xx status.
+	// OutcomeSent means the destination accepted the notification.
 	OutcomeSent Outcome = "sent"
 	// OutcomeSkipped means nothing was sent: an unresolved or disallowed variable,
 	// a project destination with a reference, or a non-HTTPS URL after expansion.
 	OutcomeSkipped Outcome = "skipped"
-	// OutcomeFailed means the request failed, timed out, or returned a non-2xx status.
+	// OutcomeFailed means delivery failed or timed out.
 	OutcomeFailed Outcome = "failed"
 	// OutcomeDryRun means the run was a dry run and nothing was sent.
 	OutcomeDryRun Outcome = "dry-run"
@@ -43,6 +43,7 @@ type Resolved struct {
 	Channel string
 	Method  string
 	Headers map[string]string
+	Email   config.EmailConfig
 }
 
 // Sender delivers an event to one resolved destination.
@@ -66,6 +67,8 @@ type DeliveryResult struct {
 	AlertType        config.AlertType
 	Outcome          Outcome
 	Reason           string
+	// RecipientSummary is set for email dry runs and masks SMTP credentials.
+	RecipientSummary string
 }
 
 // Options controls one Deliver call.
@@ -82,7 +85,7 @@ type Dispatcher struct {
 	senders map[config.NotificationType]Sender
 }
 
-// NewDispatcher returns a Dispatcher with the Slack and webhook senders
+// NewDispatcher returns a Dispatcher with the Slack, webhook, and email senders
 // registered. client is copied and never follows redirects; nil uses a new
 // client. lookup resolves ${FINFOCUS_NOTIFY_*} variables; nil resolves none.
 func NewDispatcher(client *http.Client, lookup func(string) (string, bool)) *Dispatcher {
@@ -93,6 +96,7 @@ func NewDispatcher(client *http.Client, lookup func(string) (string, bool)) *Dis
 	return &Dispatcher{lookup: lookup, senders: map[config.NotificationType]Sender{
 		config.NotificationTypeSlack:   &slackSender{client: httpClient},
 		config.NotificationTypeWebhook: &webhookSender{client: httpClient},
+		config.NotificationTypeEmail:   &emailSender{},
 	}}
 }
 
@@ -143,14 +147,22 @@ func (d *Dispatcher) deliverOne(
 	}
 
 	redactor := &Redactor{}
-	resolved, err := d.resolve(dest, redactor)
+	credentials := &Redactor{}
+	resolved, err := d.resolve(dest, redactor, credentials)
 	if err != nil {
 		return withOutcome(result, OutcomeSkipped, redactor.Redact(err.Error()))
 	}
-	if !config.IsHTTPSURL(resolved.URL) {
+	if dest.Type == config.NotificationTypeEmail {
+		if validateErr := resolved.Email.ValidateResolved(); validateErr != nil {
+			return withOutcome(result, OutcomeFailed, redactor.Redact(validateErr.Error()))
+		}
+	} else if !config.IsHTTPSURL(resolved.URL) {
 		return withOutcome(result, OutcomeSkipped, "url is not HTTPS after expansion")
 	}
 	if dryRun {
+		if dest.Type == config.NotificationTypeEmail {
+			result.RecipientSummary = emailRecipientSummary(resolved.Email, credentials)
+		}
 		return withOutcome(result, OutcomeDryRun, "")
 	}
 
@@ -167,7 +179,13 @@ func (d *Dispatcher) deliverOne(
 // registered with redactor. A literal header
 // value is registered only when it looks like a secret (see secretHeader), so
 // a short value such as "1" does not redact unrelated text.
-func (d *Dispatcher) resolve(dest config.NotificationDestination, redactor *Redactor) (Resolved, error) {
+func (d *Dispatcher) resolve(
+	dest config.NotificationDestination, redactor, credentials *Redactor,
+) (Resolved, error) {
+	if dest.Type == config.NotificationTypeEmail {
+		email, err := d.resolveEmail(dest.EmailConfig, redactor, credentials)
+		return Resolved{Type: dest.Type, Email: email}, err
+	}
 	lookup := func(name string) (string, bool) {
 		value, ok := d.lookup(name)
 		if ok {
