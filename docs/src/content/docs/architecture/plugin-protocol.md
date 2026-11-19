@@ -295,8 +295,8 @@ message ResourceDescriptor {
 
 - `provider` - Cloud provider (`aws`, `azure`, `gcp`, `kubernetes`, `custom`)
 - `resource_type` - Resource type (e.g., `ec2`, `s3`, `k8s-namespace`)
-- `sku` - Provider SKU or instance size (e.g., "t3.micro")
-- `region` - Deployment region (e.g., "us-east-1")
+- `sku` - Provider SKU or instance size (e.g., `t3.micro`)
+- `region` - Deployment region (e.g., `us-east-1`)
 - `tags` - Label/tag hints for resource identification (e.g., app=web)
 
 ### PricingSpec

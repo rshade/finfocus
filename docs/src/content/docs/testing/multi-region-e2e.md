@@ -265,7 +265,7 @@ Multi-region tests implement strict failure semantics:
 
 | Error Type                | Detection                                            | Action                   | Retry |
 | ------------------------- | ---------------------------------------------------- | ------------------------ | ----- |
-| **Missing Pricing Data**  | "no pricing data" in error                           | Fail immediately         | No    |
+| **Missing Pricing Data**  | `no pricing data` in error                           | Fail immediately         | No    |
 | **Network Failure**       | `connection refused`, `timeout`                      | Retry 3x with backoff    | Yes   |
 | **Invalid Region**        | Region not in [us-east-1, eu-west-1, ap-northeast-1] | Fail immediately         | No    |
 | **Cost Out of Tolerance** | Actual cost outside expected range                   | Record failure, continue | No    |
