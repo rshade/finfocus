@@ -1,0 +1,490 @@
+{
+  "steps": [
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::srcposgo::pulumi:pulumi:Stack::srcposgo-dev",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcposgo::pulumi:pulumi:Stack::srcposgo-dev",
+        "custom": false,
+        "type": "pulumi:pulumi:Stack",
+        "outputs": {
+          "web": "web"
+        },
+        "created": "2026-11-17T11:12:11.118464015Z",
+        "modified": "2026-11-17T11:12:11.118464015Z",
+        "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcposgo::pulumi:pulumi:Stack::srcposgo-dev",
+        "custom": false,
+        "type": "pulumi:pulumi:Stack",
+        "created": "2026-11-17T11:12:11.118464015Z",
+        "modified": "2026-11-17T11:12:11.118464015Z",
+        "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::srcposgo::shop:index:Pair::edge",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcposgo::shop:index:Pair::edge",
+        "custom": false,
+        "type": "shop:index:Pair",
+        "parent": "urn:pulumi:dev::srcposgo::pulumi:pulumi:Stack::srcposgo-dev",
+        "created": "2026-11-17T11:12:11.120531961Z",
+        "modified": "2026-11-17T11:12:11.120531961Z",
+        "sourcePosition": "project:///../../../../../../../srcposgo/main.go#16",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#16"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#144"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcposgo::shop:index:Pair::edge",
+        "custom": false,
+        "type": "shop:index:Pair",
+        "parent": "urn:pulumi:dev::srcposgo::pulumi:pulumi:Stack::srcposgo-dev",
+        "created": "2026-11-17T11:12:11.120531961Z",
+        "modified": "2026-11-17T11:12:11.120531961Z",
+        "sourcePosition": "project:///../../../../../../../srcposgo/main.go#18",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#18"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#144"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::srcposgo::command:local:Command::extra",
+      "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+      "newState": {
+        "urn": "urn:pulumi:dev::srcposgo::command:local:Command::extra",
+        "custom": true,
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo extra"
+        },
+        "parent": "urn:pulumi:dev::srcposgo::pulumi:pulumi:Stack::srcposgo-dev",
+        "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+        "propertyDependencies": {
+          "create": []
+        },
+        "sourcePosition": "project:///../../../../../../../srcposgo/main.go#21",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#21"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#144"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:dev::srcposgo::command:local:Command::web",
+      "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcposgo::command:local:Command::web",
+        "custom": true,
+        "id": "web658b5cc4",
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo web"
+        },
+        "outputs": {
+          "create": "echo web",
+          "stderr": "",
+          "stdout": "web"
+        },
+        "parent": "urn:pulumi:dev::srcposgo::pulumi:pulumi:Stack::srcposgo-dev",
+        "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:12:11.212995185Z",
+        "modified": "2026-11-17T11:12:11.212995185Z",
+        "sourcePosition": "project:///../../../../../../../srcposgo/main.go#12",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#12"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#144"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcposgo::command:local:Command::web",
+        "custom": true,
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo web-v2"
+        },
+        "parent": "urn:pulumi:dev::srcposgo::pulumi:pulumi:Stack::srcposgo-dev",
+        "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:12:11.212995185Z",
+        "modified": "2026-11-17T11:12:11.212995185Z",
+        "sourcePosition": "project:///../../../../../../../srcposgo/main.go#14",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#14"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#144"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "diffReasons": [
+        "create"
+      ],
+      "detailedDiff": {
+        "create": {
+          "kind": "update",
+          "inputDiff": false
+        }
+      }
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::srcposgo::shop:index:Pair$command:local:Command::edge-right",
+      "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcposgo::shop:index:Pair$command:local:Command::edge-right",
+        "custom": true,
+        "id": "edge-right9b73fad3",
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo right"
+        },
+        "outputs": {
+          "create": "echo right",
+          "stderr": "",
+          "stdout": "right"
+        },
+        "parent": "urn:pulumi:dev::srcposgo::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:12:11.213043058Z",
+        "modified": "2026-11-17T11:12:11.213043058Z",
+        "sourcePosition": "project:///../../../../../../../srcposgo/lib/pair.go#18",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/lib/pair.go#18"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#16"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#144"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcposgo::shop:index:Pair$command:local:Command::edge-right",
+        "custom": true,
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo right"
+        },
+        "parent": "urn:pulumi:dev::srcposgo::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:12:11.213043058Z",
+        "modified": "2026-11-17T11:12:11.213043058Z",
+        "sourcePosition": "project:///../../../../../../../srcposgo/lib/pair.go#18",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/lib/pair.go#18"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#18"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#144"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::srcposgo::shop:index:Pair$command:local:Command::edge-left",
+      "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcposgo::shop:index:Pair$command:local:Command::edge-left",
+        "custom": true,
+        "id": "edge-lefta5e9beea",
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo left"
+        },
+        "outputs": {
+          "create": "echo left",
+          "stderr": "",
+          "stdout": "left"
+        },
+        "parent": "urn:pulumi:dev::srcposgo::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:12:11.213218073Z",
+        "modified": "2026-11-17T11:12:11.213218073Z",
+        "sourcePosition": "project:///../../../../../../../srcposgo/lib/pair.go#18",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/lib/pair.go#18"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#16"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#144"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcposgo::shop:index:Pair$command:local:Command::edge-left",
+        "custom": true,
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo left"
+        },
+        "parent": "urn:pulumi:dev::srcposgo::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::srcposgo::pulumi:providers:command::default_1_3_0::c3ea3908-a37a-4195-aaa7-9388121d4727",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:12:11.213218073Z",
+        "modified": "2026-11-17T11:12:11.213218073Z",
+        "sourcePosition": "project:///../../../../../../../srcposgo/lib/pair.go#18",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/lib/pair.go#18"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#18"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#144"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#104"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../github.com/pulumi/pulumi/sdk/v3@v3.276.0/go/pulumi/run.go#53"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../srcposgo/main.go#11"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/proc.go#302"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../runtime/asm_amd64.s#1264"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "detailedDiff": null
+    }
+  ],
+  "changeSummary": {
+    "create": 1,
+    "same": 4,
+    "update": 1
+  }
+}

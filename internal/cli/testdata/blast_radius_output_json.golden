@@ -16,19 +16,37 @@
       "urn": "urn:pulumi:prod::myapp::aws:rds/instance:Instance::orders-db",
       "type": "aws:rds/instance:Instance",
       "resourceId": "orders-db",
-      "status": "active"
+      "status": "active",
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "✓ active"
+      }
     },
     {
       "urn": "urn:pulumi:prod::myapp::aws:ecs/service:Service::orders-api",
       "type": "aws:ecs/service:Service",
       "resourceId": "orders-api",
-      "status": "active"
+      "status": "active",
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "✓ active"
+      }
     },
     {
       "urn": "urn:pulumi:prod::myapp::aws:lb/loadBalancer:LoadBalancer::public-lb",
       "type": "aws:lb/loadBalancer:LoadBalancer",
       "resourceId": "public-lb",
-      "status": "active"
+      "status": "active",
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "✓ active"
+      }
     }
   ],
   "summary": {
@@ -36,7 +54,18 @@
     "projectedMonthly": 0,
     "projectedDelta": 0,
     "potentialSavings": 0,
-    "currency": "USD"
+    "currency": "USD",
+    "display": {
+      "projected": "$0.00",
+      "actual": "$0.00",
+      "delta": "$0.00"
+    }
   },
-  "errors": []
+  "errors": [],
+  "budgetDisplay": {
+    "healthDisplay": "",
+    "amountsDisplay": "",
+    "footerDisplay": "",
+    "details": []
+  }
 }

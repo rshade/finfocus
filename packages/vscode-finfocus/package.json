@@ -1,0 +1,173 @@
+{
+  "name": "vscode-finfocus",
+  "displayName": "FinFocus",
+  "description": "Shows each Pulumi resource's cost where it is declared in the editor.",
+  "version": "0.1.0",
+  "publisher": "finfocus",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rshade/finfocus.git",
+    "directory": "packages/vscode-finfocus"
+  },
+  "icon": "media/icon.png",
+  "categories": [
+    "Other"
+  ],
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=22.12.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "FinFocus runs the finfocus and pulumi executables, which are blocked until the workspace is trusted."
+    }
+  },
+  "main": "./src/extension.js",
+  "minFinfocusVersion": "0.5.8",
+  "scripts": {
+    "test": "node --test test/unit/",
+    "test:editor": "vscode-test",
+    "typecheck": "tsc --noEmit -p jsconfig.json",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/vscode": "~1.90.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.1.1",
+    "typescript": "^7.0.2"
+  },
+  "activationEvents": [
+    "workspaceContains:**/Pulumi.yaml",
+    "workspaceContains:**/Pulumi.yml"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "finfocus.refresh",
+        "title": "Refresh costs",
+        "category": "FinFocus"
+      },
+      {
+        "command": "finfocus.selectProject",
+        "title": "Select Pulumi project",
+        "category": "FinFocus"
+      },
+      {
+        "command": "finfocus.selectStack",
+        "title": "Select Pulumi stack",
+        "category": "FinFocus"
+      },
+      {
+        "command": "finfocus.runPreview",
+        "title": "Run preview",
+        "category": "FinFocus"
+      },
+      {
+        "command": "finfocus.cancelPreview",
+        "title": "Cancel preview",
+        "category": "FinFocus"
+      },
+      {
+        "command": "finfocus.openResource",
+        "title": "Open resource declaration",
+        "category": "FinFocus"
+      },
+      {
+        "command": "finfocus.showResourceDetails",
+        "title": "Show resource details",
+        "category": "FinFocus"
+      },
+      {
+        "command": "finfocus.revealDashboard",
+        "title": "Show cost summary",
+        "category": "FinFocus"
+      }
+    ],
+    "configuration": {
+      "title": "FinFocus",
+      "properties": {
+        "finfocus.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Path to the finfocus executable. Empty uses finfocus from PATH."
+        },
+        "finfocus.pulumiPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Path to the pulumi executable used to list stacks. Empty uses pulumi from PATH."
+        },
+        "finfocus.cache.ttlMinutes": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "scope": "window",
+          "description": "Minutes a deployed-state result is reused before finfocus runs again, as long as the stack, its settings, and finfocus are unchanged. 0 turns the cache off. Refresh costs always runs finfocus."
+        },
+        "finfocus.previewOnSave": {
+          "type": "boolean",
+          "default": false,
+          "scope": "window",
+          "description": "Run a preview each time a file in the project is saved. Off by default; it prices only the saved files and saves nothing else."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "finfocus",
+          "title": "FinFocus",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "views": {
+      "finfocus": [
+        {
+          "type": "webview",
+          "id": "finfocus.summary",
+          "name": "Summary"
+        },
+        {
+          "id": "finfocus.resources",
+          "name": "Resources"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "finfocus.openResource",
+          "when": "false"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "finfocus.showResourceDetails",
+          "when": "view == finfocus.resources && viewItem =~ /^resource/",
+          "group": "inline"
+        },
+        {
+          "command": "finfocus.openResource",
+          "when": "view == finfocus.resources && viewItem == resource.openable",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "finfocus.showResourceDetails",
+        "key": "alt+enter",
+        "when": "focusedView == finfocus.resources"
+      }
+    ]
+  }
+}

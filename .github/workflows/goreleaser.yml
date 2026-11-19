@@ -23,7 +23,7 @@ env:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
-    if: ${{ startsWith(inputs.tag || github.event.release.tag_name, 'v') }}
+    if: ${{ startsWith(inputs.tag || github.event.release.tag_name, 'v') && !startsWith(inputs.tag || github.event.release.tag_name, 'vscode-finfocus-') }}
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name }}
     steps:

@@ -1,0 +1,144 @@
+{
+  "runtime": "nodejs",
+  "state": {
+    "root": "program",
+    "resources": {
+      "shop-dev": null,
+      "edge": {
+        "file": "index.js",
+        "line": 8,
+        "column": 14
+      },
+      "default": null,
+      "vendored": {
+        "file": "index.js",
+        "line": 9,
+        "column": 18
+      },
+      "web": {
+        "file": "lib/box.js",
+        "line": 14,
+        "column": 5
+      },
+      "worker-a": {
+        "file": "lib/box.js",
+        "line": 14,
+        "column": 5
+      },
+      "worker-b": {
+        "file": "lib/box.js",
+        "line": 14,
+        "column": 5
+      },
+      "packed": {
+        "file": "index.js",
+        "line": 10,
+        "column": 16
+      },
+      "worker-c": {
+        "file": "lib/box.js",
+        "line": 14,
+        "column": 5
+      },
+      "edge-right": {
+        "file": "lib/box.js",
+        "line": 14,
+        "column": 5
+      },
+      "edge-left": {
+        "file": "lib/box.js",
+        "line": 14,
+        "column": 5
+      }
+    }
+  },
+  "preview": {
+    "root": "program-edited",
+    "resources": {
+      "shop-dev": {
+        "op": "same",
+        "location": null
+      },
+      "edge": {
+        "op": "same",
+        "location": {
+          "file": "index.js",
+          "line": 10,
+          "column": 14
+        }
+      },
+      "worker-a": {
+        "op": "update",
+        "location": {
+          "file": "lib/box.js",
+          "line": 14,
+          "column": 5
+        }
+      },
+      "worker-b": {
+        "op": "update",
+        "location": {
+          "file": "lib/box.js",
+          "line": 14,
+          "column": 5
+        }
+      },
+      "worker-c": {
+        "op": "update",
+        "location": {
+          "file": "lib/box.js",
+          "line": 14,
+          "column": 5
+        }
+      },
+      "extra": {
+        "op": "create",
+        "location": {
+          "file": "lib/box.js",
+          "line": 14,
+          "column": 5
+        }
+      },
+      "vendored": {
+        "op": "same",
+        "location": {
+          "file": "index.js",
+          "line": 11,
+          "column": 18
+        }
+      },
+      "packed": {
+        "op": "same",
+        "location": {
+          "file": "index.js",
+          "line": 12,
+          "column": 16
+        }
+      },
+      "web": {
+        "op": "update",
+        "location": {
+          "file": "lib/box.js",
+          "line": 14,
+          "column": 5
+        }
+      },
+      "edge-right": {
+        "op": "update",
+        "location": {
+          "file": "lib/box.js",
+          "line": 14,
+          "column": 5
+        }
+      },
+      "edge-left": {
+        "op": "update",
+        "location": {
+          "file": "lib/box.js",
+          "line": 14,
+          "column": 5
+        }
+      }
+    }
+  }
+}

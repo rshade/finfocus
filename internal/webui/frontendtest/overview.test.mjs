@@ -536,6 +536,21 @@ test('resource detail displays actual and projected breakdowns from the server',
   t.mounted.unmount();
 });
 
+test('resource detail shows the server-formatted Declared at row only when present', async () => {
+  const located = await setup(); located.calls[0].resolve(page([row('alpha')])); await flush();
+  located.container.querySelector('.resource-link').dispatch('click');
+  located.calls.at(-1).resolve({ row: row('alpha', { location: { file: 'src/<b>app</b>.ts', line: 12 } }), display: { declaredAt: 'src/<b>app</b>.ts:12' }, budgets: [] }); await flush();
+  const list = located.container.querySelector('.detail-panel').querySelector('.detail-list');
+  assert.match(list.textContent, /Declared atsrc\/<b>app<\/b>\.ts:12/);
+  located.mounted.unmount();
+
+  const bare = await setup(); bare.calls[0].resolve(page([row('beta')])); await flush();
+  bare.container.querySelector('.resource-link').dispatch('click');
+  bare.calls.at(-1).resolve({ row: row('beta'), display: {}, budgets: [] }); await flush();
+  assert.doesNotMatch(bare.container.querySelector('.detail-panel').textContent, /Declared at/);
+  bare.mounted.unmount();
+});
+
 test('budget health shows each server spend limit and utilization', async () => {
   const t = await setup(); t.stream.emit('budget', { display: {footerDisplay:'Budget: WARNING $75.68 / $100.12 (75.6%)',details:[{name:'Production',healthDisplay:'WARNING',currentSpendDisplay:'$75.68',limitDisplay:'$100.12',utilizationDisplay:'75.6%',forecastedDisplay:'$90.12',thresholds:[{text:'75% threshold triggered (ACTUAL)'}]}]}, budgets: [{ budgetID: 'b1', budgetName: 'Production', health: 'WARNING', utilization: 75, forecasted: 90, currency: 'USD', limit: 100, currentSpend: 75 }] });
   const footer = t.container.querySelector('.budget-footer').textContent;

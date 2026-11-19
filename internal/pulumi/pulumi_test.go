@@ -309,6 +309,18 @@ func TestPreview_Success(t *testing.T) {
 	assert.Contains(t, mock.lastArgs, "--json")
 }
 
+func TestPreview_ListsUnchangedResources(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	mock := &mockRunner{stdout: []byte(`{"steps":[]}`)}
+	withMockRunner(t, mock)
+
+	_, err := Preview(context.Background(), PreviewOptions{ProjectDir: "/project", Stack: "dev"})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"preview", "--json", "--show-sames", "--stack", "dev"}, mock.lastArgs,
+		"unchanged resources carry the current declaration of code that moved")
+}
+
 func TestPreview_WithStack(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	mock := &mockRunner{
@@ -595,4 +607,28 @@ func TestGetProjectName_MissingNameField(t *testing.T) {
 	_, err := GetProjectName(dir)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "has no 'name' field")
+}
+
+func TestGetProjectRuntime(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		yaml string
+		want string
+	}{
+		{"string form", "name: p\nruntime: nodejs\n", "nodejs"},
+		{"mapping form", "name: p\nruntime:\n  name: go\n  options:\n    binary: ./app\n", "go"},
+		{"absent", "name: p\n", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte(tt.yaml), 0o600))
+			got, err := GetProjectRuntime(dir)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/pulumi"
+	"github.com/rshade/finfocus/internal/sourcepos"
 
 	"golang.org/x/sync/errgroup"
 
@@ -55,8 +56,22 @@ func Load(ctx context.Context, src Source) (*Snapshot, error) {
 	}
 	return state.WithPlan(plan.Plan), nil
 }
+
+// locationResolver resolves declaration locations against the project. With no
+// project directory there is nothing to resolve against, so no locations are
+// reported; a project file that cannot be read leaves the runtime unknown,
+// which only disables the Go module-path rule.
+func locationResolver(src Source) *sourcepos.Resolver {
+	if src.ProjectDir == "" {
+		return nil
+	}
+	runtime, _ := pulumi.GetProjectRuntime(src.ProjectDir)
+	return sourcepos.NewResolver(src.ProjectDir, runtime)
+}
+
 func emptySnapshot(src Source) *Snapshot {
 	return &Snapshot{
+		resolver:    locationResolver(src),
 		StackName:   src.Stack,
 		ProjectDir:  src.ProjectDir,
 		StateStatus: Status{Reason: ReasonNotRequested},
@@ -95,7 +110,7 @@ func LoadState(ctx context.Context, src Source) (*Snapshot, error) {
 	}
 	result.stateGraph = BuildDependencyGraph(state.Deployment.Resources)
 	result.graph = result.stateGraph
-	result.State = convertStateResources(result.RawState)
+	result.State = convertStateResources(result.RawState, result.resolver)
 	result.ManifestTime = state.Deployment.Manifest.Time
 	result.StateStatus = Status{Loaded: true, Reason: ReasonNone}
 	if result.StackName == "" {

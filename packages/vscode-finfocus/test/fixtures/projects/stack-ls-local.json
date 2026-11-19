@@ -1,0 +1,14 @@
+[
+  {
+    "name": "dev",
+    "current": false,
+    "lastUpdate": "2026-11-17T13:09:31.357Z",
+    "resourceCount": 0
+  },
+  {
+    "name": "prod",
+    "current": true,
+    "lastUpdate": "2026-11-17T13:09:31.593Z",
+    "resourceCount": 0
+  }
+]

@@ -1,0 +1,98 @@
+body {
+  padding: 0 12px;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+h2 {
+  font-size: 1.2em;
+  margin: 12px 0 8px;
+  overflow-wrap: anywhere;
+}
+
+h3 {
+  font-size: 1em;
+  margin: 16px 0 4px;
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  margin: 0;
+}
+
+.figures dt {
+  color: var(--vscode-descriptionForeground);
+}
+
+.figures dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+li + li {
+  margin-top: 2px;
+}
+
+button {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-contrastBorder, transparent);
+  padding: 4px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+ol button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  color: var(--vscode-foreground);
+  background: transparent;
+  border-color: transparent;
+}
+
+ol button:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+ol .name {
+  overflow-wrap: anywhere;
+}
+
+#preview {
+  margin-top: 16px;
+}
+
+[hidden] {
+  display: none;
+}
+
+.completeness {
+  margin: 8px 0 0;
+  font-weight: 600;
+}
+
+.completeness.incomplete {
+  color: var(--vscode-editorWarning-foreground);
+}

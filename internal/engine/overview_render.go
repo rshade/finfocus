@@ -246,6 +246,33 @@ type OverviewMetadata struct {
 	StackContext
 }
 
+// OverviewRowDisplay carries the strings the overview table prints for one
+// row, so every JSON consumer shows the same text without formatting money.
+// "-" marks a value the table leaves empty; "ERR" marks a row whose pricing
+// failed.
+type OverviewRowDisplay struct {
+	Projected string `json:"projected"`
+	Actual    string `json:"actual"`
+	Delta     string `json:"delta"`
+	Status    string `json:"status"`
+}
+
+// OverviewSummaryDisplay carries the footer strings of the overview table,
+// without the currency suffix (Currency is a separate field).
+type OverviewSummaryDisplay struct {
+	Projected string `json:"projected"`
+	Actual    string `json:"actual"`
+	Delta     string `json:"delta"`
+}
+
+// OverviewJSONRow is one element of the JSON resources array: the full
+// OverviewRow schema plus the display strings.
+type OverviewJSONRow struct {
+	OverviewRow
+
+	Display OverviewRowDisplay `json:"display"`
+}
+
 // OverviewSummary holds aggregated summary statistics for the JSON output.
 type OverviewSummary struct {
 	TotalActualMTD   float64 `json:"totalActualMTD"`
@@ -254,45 +281,54 @@ type OverviewSummary struct {
 	PotentialSavings float64 `json:"potentialSavings"`
 	Currency         string  `json:"currency"`
 	// Spot is omitted when no projected row is DYNAMIC.
-	Spot *SpotExposure `json:"spot,omitempty"`
+	Spot    *SpotExposure          `json:"spot,omitempty"`
+	Display OverviewSummaryDisplay `json:"display"`
 }
 
 // OverviewJSONOutput is the top-level JSON output structure.
 type OverviewJSONOutput struct {
 	Metadata  OverviewMetadata     `json:"metadata"`
-	Resources []OverviewRow        `json:"resources"`
+	Resources []OverviewJSONRow    `json:"resources"`
 	Summary   OverviewSummary      `json:"summary"`
 	Budgets   []BudgetHealthResult `json:"budgets,omitempty"`
 	Errors    []OverviewRowError   `json:"errors"`
 }
 
-// RenderOverviewAsJSON renders the overview result as a structured JSON object
-// with metadata, resource array, summary, optional budgets, and errors.
-// Resources are marshaled from each row's Source OverviewRow so the serialized
-// schema is unchanged; totals come from the pre-computed summary.
+// BuildOverviewJSONOutput assembles the JSON overview document from the
+// pre-computed result. Resources are marshaled from each row's Source
+// OverviewRow, so the numeric schema is unchanged, and each row gains the
+// display strings computed once by ComputeOverviewResult; totals come from the
+// pre-computed summary.
 //
 // Parameters:
 //   - ctx: context for logging and tracing; threaded to CalculateBudgetHealthResults.
-//   - w: destination writer for the JSON output.
 //   - result: pre-computed overview result from ComputeOverviewResult.
-//   - stackCtx: stack context and metadata used in the output; GeneratedAt will be populated with the current time if zero.
-//   - budgetResult: optional budget data; when non-nil and non-empty, converted budgets are included
-//     in the `budgets` field. May be nil, in which case no budget entries are emitted.
+//   - stackCtx: stack context and metadata; GeneratedAt is set to the current time if zero.
+//   - budgetResult: optional budget data; when non-nil and non-empty, converted
+//     budgets are included in the `budgets` field.
 //
-// Returns ErrMixedCurrencies when the rows carry different currencies, or an
-// error if encoding/writing the JSON output fails.
-func RenderOverviewAsJSON(
-	ctx context.Context, w io.Writer, result OverviewResult,
+// Returns ErrMixedCurrencies when the rows carry different currencies.
+func BuildOverviewJSONOutput(
+	ctx context.Context, result OverviewResult,
 	stackCtx StackContext, budgetResult *BudgetResult,
-) error {
+) (OverviewJSONOutput, error) {
 	if result.Summary.MixedCurrencies {
-		return ErrMixedCurrencies
+		return OverviewJSONOutput{}, ErrMixedCurrencies
 	}
 
 	// Initialize resources to empty slice so JSON produces [] instead of null.
-	resources := make([]OverviewRow, len(result.Rows))
+	resources := make([]OverviewJSONRow, len(result.Rows))
 	for i := range result.Rows {
-		resources[i] = withoutProviderRegionRow(result.Rows[i].Source)
+		row := result.Rows[i]
+		resources[i] = OverviewJSONRow{
+			OverviewRow: withoutProviderRegionRow(row.Source),
+			Display: OverviewRowDisplay{
+				Projected: row.ProjectedDisplay,
+				Actual:    row.ActualDisplay,
+				Delta:     row.DeltaDisplay,
+				Status:    row.StatusDisplay,
+			},
+		}
 	}
 
 	// Ensure errors is non-nil for consistent JSON output.
@@ -312,11 +348,8 @@ func RenderOverviewAsJSON(
 		budgets = CalculateBudgetHealthResults(ctx, budgetResult.Budgets)
 	}
 
-	// Build output structure
-	output := OverviewJSONOutput{
-		Metadata: OverviewMetadata{
-			StackContext: stackCtx,
-		},
+	return OverviewJSONOutput{
+		Metadata:  OverviewMetadata{StackContext: stackCtx},
 		Resources: resources,
 		Summary: OverviewSummary{
 			TotalActualMTD:   result.Summary.TotalActual,
@@ -325,18 +358,42 @@ func RenderOverviewAsJSON(
 			PotentialSavings: result.Summary.TotalSavings,
 			Currency:         result.Summary.Currency,
 			Spot:             result.Summary.Spot,
+			Display: OverviewSummaryDisplay{
+				Projected: FormatOverviewCurrency(result.Summary.TotalProjected),
+				Actual:    FormatOverviewCurrency(result.Summary.TotalActual),
+				Delta:     FormatOverviewDelta(result.Summary.TotalDelta),
+			},
 		},
 		Budgets: budgets,
 		Errors:  errs,
-	}
+	}, nil
+}
 
-	// Marshal with indentation
+// RenderOverviewAsJSON renders the overview result as a structured JSON object
+// built by BuildOverviewJSONOutput: metadata, resources with display strings,
+// summary, optional budgets, and errors.
+//
+// Returns ErrMixedCurrencies when the rows carry different currencies, or an
+// error if encoding/writing the JSON output fails.
+func RenderOverviewAsJSON(
+	ctx context.Context, w io.Writer, result OverviewResult,
+	stackCtx StackContext, budgetResult *BudgetResult,
+) error {
+	output, err := BuildOverviewJSONOutput(ctx, result, stackCtx, budgetResult)
+	if err != nil {
+		return err
+	}
+	return EncodeOverviewJSON(w, output)
+}
+
+// EncodeOverviewJSON writes a JSON overview document with the indentation every
+// overview JSON producer shares. The value may embed OverviewJSONOutput.
+func EncodeOverviewJSON(w io.Writer, document any) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
-	if encErr := encoder.Encode(output); encErr != nil {
+	if encErr := encoder.Encode(document); encErr != nil {
 		return fmt.Errorf("encoding JSON: %w", encErr)
 	}
-
 	return nil
 }
 

@@ -44,11 +44,16 @@ type OverviewDetailDisplay struct {
 	ProjectedBreakdown []CostBreakdown `json:"projectedBreakdown"`
 	Impact             []DisplayField  `json:"impact"`
 	Drift              []DisplayField  `json:"drift"`
+	// DeclaredAt is "file:line" of the declaration, omitted when none is recorded.
+	DeclaredAt string `json:"declaredAt,omitempty"`
 }
 
 // BuildOverviewDetailDisplay shares overview detail currency, impact and drift conventions.
 func BuildOverviewDetailDisplay(row engine.OverviewRowResult, dayOfMonth int) OverviewDetailDisplay {
 	display := OverviewDetailDisplay{Impact: OverviewImpactDisplay(row, dayOfMonth), Drift: OverviewDriftDisplay(row)}
+	if row.Location != nil {
+		display.DeclaredAt = fmt.Sprintf("%s:%d", row.Location.File, row.Location.Line)
+	}
 	if row.ActualCost != nil {
 		display.ActualBreakdown = BreakdownDisplay(row.ActualCost.Breakdown, false)
 	}

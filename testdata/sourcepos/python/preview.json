@@ -1,0 +1,607 @@
+{
+  "steps": [
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::srcpospy::pulumi:pulumi:Stack::srcpospy-dev",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcpospy::pulumi:pulumi:Stack::srcpospy-dev",
+        "custom": false,
+        "type": "pulumi:pulumi:Stack",
+        "outputs": {
+          "web": "web"
+        },
+        "created": "2026-11-17T11:13:39.018671148Z",
+        "modified": "2026-11-17T11:13:39.018671148Z",
+        "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#235",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#235"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcpospy::pulumi:pulumi:Stack::srcpospy-dev",
+        "custom": false,
+        "type": "pulumi:pulumi:Stack",
+        "created": "2026-11-17T11:13:39.018671148Z",
+        "modified": "2026-11-17T11:13:39.018671148Z",
+        "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#235",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#235"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::srcpospy::shop:index:Pair::edge",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcpospy::shop:index:Pair::edge",
+        "custom": false,
+        "type": "shop:index:Pair",
+        "parent": "urn:pulumi:dev::srcpospy::pulumi:pulumi:Stack::srcpospy-dev",
+        "created": "2026-11-17T11:13:39.080301495Z",
+        "modified": "2026-11-17T11:13:39.080301495Z",
+        "sourcePosition": "project:///__main__.py#6",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///__main__.py#6"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#188"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#237"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcpospy::shop:index:Pair::edge",
+        "custom": false,
+        "type": "shop:index:Pair",
+        "parent": "urn:pulumi:dev::srcpospy::pulumi:pulumi:Stack::srcpospy-dev",
+        "created": "2026-11-17T11:13:39.080301495Z",
+        "modified": "2026-11-17T11:13:39.080301495Z",
+        "sourcePosition": "project:///__main__.py#8",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///__main__.py#8"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#188"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#237"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::srcpospy::command:local:Command::extra",
+      "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+      "newState": {
+        "urn": "urn:pulumi:dev::srcpospy::command:local:Command::extra",
+        "custom": true,
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo extra"
+        },
+        "parent": "urn:pulumi:dev::srcpospy::pulumi:pulumi:Stack::srcpospy-dev",
+        "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+        "propertyDependencies": {
+          "create": []
+        },
+        "sourcePosition": "project:///__main__.py#9",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///__main__.py#9"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#188"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#237"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:dev::srcpospy::command:local:Command::web",
+      "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcpospy::command:local:Command::web",
+        "custom": true,
+        "id": "web71471822",
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo web"
+        },
+        "outputs": {
+          "create": "echo web",
+          "stderr": "",
+          "stdout": "web"
+        },
+        "parent": "urn:pulumi:dev::srcpospy::pulumi:pulumi:Stack::srcpospy-dev",
+        "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:13:39.086882527Z",
+        "modified": "2026-11-17T11:13:39.086882527Z",
+        "sourcePosition": "project:///__main__.py#5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///__main__.py#5"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#188"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#237"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcpospy::command:local:Command::web",
+        "custom": true,
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo web-v2"
+        },
+        "parent": "urn:pulumi:dev::srcpospy::pulumi:pulumi:Stack::srcpospy-dev",
+        "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:13:39.086882527Z",
+        "modified": "2026-11-17T11:13:39.086882527Z",
+        "sourcePosition": "project:///__main__.py#7",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///__main__.py#7"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#188"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#237"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "diffReasons": [
+        "create"
+      ],
+      "detailedDiff": {
+        "create": {
+          "kind": "update",
+          "inputDiff": false
+        }
+      }
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::srcpospy::shop:index:Pair$command:local:Command::edge-left",
+      "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcpospy::shop:index:Pair$command:local:Command::edge-left",
+        "custom": true,
+        "id": "edge-left46b1e27b",
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo left"
+        },
+        "outputs": {
+          "create": "echo left",
+          "stderr": "",
+          "stdout": "left"
+        },
+        "parent": "urn:pulumi:dev::srcpospy::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:13:39.089014285Z",
+        "modified": "2026-11-17T11:13:39.089014285Z",
+        "sourcePosition": "project:///lib/pair.py#9",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/pair.py#9"
+          },
+          {
+            "sourcePosition": "project:///__main__.py#6"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#188"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#237"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcpospy::shop:index:Pair$command:local:Command::edge-left",
+        "custom": true,
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo left"
+        },
+        "parent": "urn:pulumi:dev::srcpospy::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:13:39.089014285Z",
+        "modified": "2026-11-17T11:13:39.089014285Z",
+        "sourcePosition": "project:///lib/pair.py#9",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/pair.py#9"
+          },
+          {
+            "sourcePosition": "project:///__main__.py#8"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#188"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#237"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::srcpospy::shop:index:Pair$command:local:Command::edge-right",
+      "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+      "oldState": {
+        "urn": "urn:pulumi:dev::srcpospy::shop:index:Pair$command:local:Command::edge-right",
+        "custom": true,
+        "id": "edge-right40e50fb6",
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo right"
+        },
+        "outputs": {
+          "create": "echo right",
+          "stderr": "",
+          "stdout": "right"
+        },
+        "parent": "urn:pulumi:dev::srcpospy::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:13:39.090644874Z",
+        "modified": "2026-11-17T11:13:39.090644874Z",
+        "sourcePosition": "project:///lib/pair.py#9",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/pair.py#9"
+          },
+          {
+            "sourcePosition": "project:///__main__.py#6"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#188"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#237"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::srcpospy::shop:index:Pair$command:local:Command::edge-right",
+        "custom": true,
+        "type": "command:local:Command",
+        "inputs": {
+          "create": "echo right"
+        },
+        "parent": "urn:pulumi:dev::srcpospy::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::srcpospy::pulumi:providers:command::default_1_3_0::10299ea6-5c14-47cb-a426-48fc60ff5bc6",
+        "propertyDependencies": {
+          "create": []
+        },
+        "created": "2026-11-17T11:13:39.090644874Z",
+        "modified": "2026-11-17T11:13:39.090644874Z",
+        "sourcePosition": "project:///lib/pair.py#9",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/pair.py#9"
+          },
+          {
+            "sourcePosition": "project:///__main__.py#8"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#188"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#237"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#133"
+          },
+          {
+            "sourcePosition": "project:///venv/lib/python3.14/site-packages/pulumi/runtime/stack.py#254"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/events.py#94"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#2057"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#677"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../usr/lib/python3.14/asyncio/base_events.py#706"
+          },
+          {
+            "sourcePosition": "project:///../../../../../../../home/user/.pulumi/bin/pulumi-language-python-exec#232"
+          }
+        ],
+        "replaceOnChanges": [
+          "triggers[*]"
+        ]
+      },
+      "detailedDiff": null
+    }
+  ],
+  "changeSummary": {
+    "create": 1,
+    "same": 4,
+    "update": 1
+  }
+}

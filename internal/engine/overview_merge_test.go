@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/sourcepos"
 )
 
 // ---------------------------------------------------------------------------
@@ -913,4 +914,274 @@ func TestBuildProjectedPropertiesByURN_ReplaceFlowEdgeCase(t *testing.T) {
 		require.Contains(t, result, "urn:x")
 		assert.Equal(t, "t3.large", result["urn:x"]["instanceType"])
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Declaration locations
+// ---------------------------------------------------------------------------
+
+func loc(line int) *sourcepos.Location {
+	return &sourcepos.Location{File: "index.js", Line: line, Column: 1}
+}
+
+func TestMergeResourcesForOverview_LocationPrecedence(t *testing.T) {
+	t.Parallel()
+
+	const urn = "urn:pulumi:dev::shop::aws:s3/bucket:Bucket::b"
+	deployed := loc(3)
+	current := loc(9)
+	oldDeclaration := loc(5)
+
+	tests := []struct {
+		name  string
+		state *sourcepos.Location
+		steps []engine.PlanStep
+		want  *sourcepos.Location
+	}{
+		{"no step keeps the deployed location", deployed, nil, deployed},
+		{"state without a location stays without one", nil, nil, nil},
+		{
+			"same takes the current location",
+			deployed,
+			[]engine.PlanStep{{URN: urn, Op: "same", Location: current}},
+			current,
+		},
+		{"same without a current location omits it", deployed, []engine.PlanStep{{URN: urn, Op: "same"}}, nil},
+		{
+			"update takes the current location",
+			deployed,
+			[]engine.PlanStep{{URN: urn, Op: "update", Location: current}},
+			current,
+		},
+		{"update without a current location omits it", deployed, []engine.PlanStep{{URN: urn, Op: "update"}}, nil},
+		{
+			"update fills in a missing deployed location",
+			nil,
+			[]engine.PlanStep{{URN: urn, Op: "update", Location: current}},
+			current,
+		},
+		{
+			"replace takes the current location",
+			deployed,
+			[]engine.PlanStep{{URN: urn, Op: "replace", Location: current}},
+			current,
+		},
+		{
+			"replacement pair uses the create step",
+			deployed,
+			[]engine.PlanStep{
+				{URN: urn, Op: "create-replacement", Location: current},
+				{URN: urn, Op: "delete-replaced", Location: oldDeclaration},
+			},
+			current,
+		},
+		{
+			"replacement pair is order independent",
+			deployed,
+			[]engine.PlanStep{
+				{URN: urn, Op: "delete-replaced", Location: oldDeclaration},
+				{URN: urn, Op: "create-replacement", Location: current},
+			},
+			current,
+		},
+		{"delete keeps the deployed location", deployed, []engine.PlanStep{{URN: urn, Op: "delete"}}, deployed},
+		{
+			"delete ignores a step location",
+			deployed,
+			[]engine.PlanStep{{URN: urn, Op: "delete", Location: oldDeclaration}},
+			deployed,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			state := []engine.StateResource{{URN: urn, Type: "aws:s3/bucket:Bucket", Custom: true, Location: tt.state}}
+			rows, err := engine.MergeResourcesForOverview(context.Background(), state, tt.steps)
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			assert.Equal(t, tt.want, rows[0].Location)
+		})
+	}
+}
+
+func TestMergeResourcesForOverview_PlanOnlyCreateTakesStepLocation(t *testing.T) {
+	t.Parallel()
+
+	steps := []engine.PlanStep{
+		{URN: "urn:located", Op: "create", Type: "aws:s3/bucket:Bucket", Location: loc(21)},
+		{URN: "urn:unlocated", Op: "create", Type: "aws:s3/bucket:Bucket"},
+	}
+
+	rows, err := engine.MergeResourcesForOverview(context.Background(), nil, steps)
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	assert.Equal(t, loc(21), rows[0].Location)
+	assert.Nil(t, rows[1].Location)
+}
+
+func TestNewRowsFromState_CarriesLocation(t *testing.T) {
+	t.Parallel()
+
+	state := []engine.StateResource{
+		{URN: "urn:a", Type: "aws:s3/bucket:Bucket", Custom: true, Location: loc(3)},
+		{URN: "urn:b", Type: "aws:s3/bucket:Bucket", Custom: true},
+	}
+
+	rows := engine.NewRowsFromState(context.Background(), state)
+	require.Len(t, rows, 2)
+	assert.Equal(t, loc(3), rows[0].Location)
+	assert.Nil(t, rows[1].Location)
+}
+
+func TestMergeResourcesForOverview_RowLocationIsACopy(t *testing.T) {
+	t.Parallel()
+
+	state := []engine.StateResource{
+		{URN: "urn:a", Type: "aws:s3/bucket:Bucket", Custom: true, Location: loc(3)},
+	}
+
+	rows, err := engine.MergeResourcesForOverview(context.Background(), state, nil)
+	require.NoError(t, err)
+	rows[0].Location.Line = 99
+
+	assert.Equal(t, 3, state[0].Location.Line, "editing a row must not rewrite the loaded snapshot")
+}
+
+func TestMergeResourcesForOverview_LocationLeavesPricingInputsUntouched(t *testing.T) {
+	t.Parallel()
+
+	props := func() map[string]any { return map[string]any{"instanceType": "t3.micro"} }
+	build := func(location *sourcepos.Location) ([]engine.StateResource, []engine.PlanStep) {
+		state := []engine.StateResource{{
+			URN: "urn:a", Type: "aws:ec2/instance:Instance", ID: "i-1", Custom: true,
+			Properties: props(), Location: location,
+		}}
+		steps := []engine.PlanStep{
+			{
+				URN:                 "urn:a",
+				Op:                  "update",
+				Type:                "aws:ec2/instance:Instance",
+				Location:            location,
+				ProjectedProperties: map[string]any{"instanceType": "t3.large"},
+				PropertyDiffs: []engine.PropertyDiff{
+					{Key: "instanceType", OldValue: "t3.micro", NewValue: "t3.large"},
+				},
+			},
+			{
+				URN: "urn:new", Op: "create", Type: "aws:ec2/instance:Instance", Location: location,
+				ProjectedProperties: map[string]any{"instanceType": "t3.nano"},
+			},
+		}
+		return state, steps
+	}
+
+	withState, withSteps := build(loc(3))
+	withoutState, withoutSteps := build(nil)
+	with, err := engine.MergeResourcesForOverview(context.Background(), withState, withSteps)
+	require.NoError(t, err)
+	without, err := engine.MergeResourcesForOverview(context.Background(), withoutState, withoutSteps)
+	require.NoError(t, err)
+	require.Len(t, with, len(without))
+
+	for i := range with {
+		assert.NotNil(t, with[i].Location, with[i].URN)
+		assert.Equal(t, without[i].Properties, with[i].Properties, with[i].URN)
+		assert.Equal(t, without[i].ProjectedProperties, with[i].ProjectedProperties, with[i].URN)
+		assert.Equal(t, without[i].PropertyDiffs, with[i].PropertyDiffs, with[i].URN)
+		assert.Equal(t, without[i].ResourceID, with[i].ResourceID, with[i].URN)
+		assert.Equal(t, without[i].Status, with[i].Status, with[i].URN)
+	}
+}
+
+func TestMergeResourcesForOverview_ModifiedAt(t *testing.T) {
+	t.Parallel()
+
+	const urn = "urn:pulumi:dev::shop::aws:s3/bucket:Bucket::b"
+	modified := time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name     string
+		modified *time.Time
+		steps    []engine.PlanStep
+		want     *time.Time
+	}{
+		{"no step keeps the deployed time", &modified, nil, &modified},
+		{"state without a time stays without one", nil, nil, nil},
+		{"update keeps the deployed time", &modified, []engine.PlanStep{{URN: urn, Op: "update"}}, &modified},
+		{"replace keeps the deployed time", &modified, []engine.PlanStep{{URN: urn, Op: "replace"}}, &modified},
+		{
+			"replacement pair keeps the deployed time",
+			&modified,
+			[]engine.PlanStep{{URN: urn, Op: "create-replacement"}, {URN: urn, Op: "delete-replaced"}},
+			&modified,
+		},
+		{"delete keeps the deployed time", &modified, []engine.PlanStep{{URN: urn, Op: "delete"}}, &modified},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			state := []engine.StateResource{{
+				URN: urn, Type: "aws:s3/bucket:Bucket", Custom: true, ModifiedAt: tt.modified,
+			}}
+			rows, err := engine.MergeResourcesForOverview(context.Background(), state, tt.steps)
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			assert.Equal(t, tt.want, rows[0].ModifiedAt)
+		})
+	}
+}
+
+func TestMergeResourcesForOverview_PlanOnlyCreateHasNoModifiedAt(t *testing.T) {
+	t.Parallel()
+
+	rows, err := engine.MergeResourcesForOverview(
+		context.Background(), nil,
+		[]engine.PlanStep{{URN: "urn:new", Op: "create", Type: "aws:s3/bucket:Bucket"}},
+	)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Nil(t, rows[0].ModifiedAt)
+}
+
+func TestNewRowsFromState_RowModifiedAtIsACopy(t *testing.T) {
+	t.Parallel()
+
+	modified := time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)
+	state := []engine.StateResource{{URN: "urn:a", Type: "aws:s3/bucket:Bucket", Custom: true, ModifiedAt: &modified}}
+
+	rows := engine.NewRowsFromState(context.Background(), state)
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].ModifiedAt)
+	*rows[0].ModifiedAt = time.Time{}
+
+	assert.Equal(t, modified, *state[0].ModifiedAt, "editing a row must not rewrite the loaded snapshot")
+}
+
+func TestMergeResourcesForOverview_ModifiedAtLeavesPricingInputsUntouched(t *testing.T) {
+	t.Parallel()
+
+	modified := time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)
+	build := func(at *time.Time) []engine.StateResource {
+		return []engine.StateResource{{
+			URN: "urn:a", Type: "aws:ec2/instance:Instance", ID: "i-1", Custom: true,
+			Properties: map[string]any{"instanceType": "t3.micro"}, ModifiedAt: at,
+		}}
+	}
+	steps := []engine.PlanStep{{
+		URN: "urn:a", Op: "update", Type: "aws:ec2/instance:Instance",
+		ProjectedProperties: map[string]any{"instanceType": "t3.large"},
+	}}
+
+	with, err := engine.MergeResourcesForOverview(context.Background(), build(&modified), steps)
+	require.NoError(t, err)
+	without, err := engine.MergeResourcesForOverview(context.Background(), build(nil), steps)
+	require.NoError(t, err)
+	require.Len(t, with, 1)
+	require.Len(t, without, 1)
+
+	assert.Equal(t, without[0].Properties, with[0].Properties)
+	assert.Equal(t, without[0].ProjectedProperties, with[0].ProjectedProperties)
+	assert.Equal(t, without[0].ResourceID, with[0].ResourceID)
 }

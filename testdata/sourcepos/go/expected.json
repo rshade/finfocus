@@ -1,0 +1,76 @@
+{
+  "runtime": "go",
+  "state": {
+    "root": "program",
+    "resources": {
+      "srcposgo-dev": {
+        "file": "main.go",
+        "line": 11
+      },
+      "edge": {
+        "file": "main.go",
+        "line": 16
+      },
+      "default_1_3_0": null,
+      "web": {
+        "file": "main.go",
+        "line": 12
+      },
+      "edge-right": {
+        "file": "lib/pair.go",
+        "line": 18
+      },
+      "edge-left": {
+        "file": "lib/pair.go",
+        "line": 18
+      }
+    }
+  },
+  "preview": {
+    "root": "program-edited",
+    "resources": {
+      "srcposgo-dev": {
+        "op": "same",
+        "location": {
+          "file": "main.go",
+          "line": 11
+        }
+      },
+      "edge": {
+        "op": "same",
+        "location": {
+          "file": "main.go",
+          "line": 18
+        }
+      },
+      "extra": {
+        "op": "create",
+        "location": {
+          "file": "main.go",
+          "line": 21
+        }
+      },
+      "web": {
+        "op": "update",
+        "location": {
+          "file": "main.go",
+          "line": 14
+        }
+      },
+      "edge-right": {
+        "op": "same",
+        "location": {
+          "file": "lib/pair.go",
+          "line": 18
+        }
+      },
+      "edge-left": {
+        "op": "same",
+        "location": {
+          "file": "lib/pair.go",
+          "line": 18
+        }
+      }
+    }
+  }
+}

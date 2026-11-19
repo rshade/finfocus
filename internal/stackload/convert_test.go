@@ -73,7 +73,7 @@ func TestStateTimestampAndStackIdentity(t *testing.T) {
 	now := time.Now()
 	state := sampleState()
 	state[0].Created = &now
-	converted := convertStateResources(state)
+	converted := convertStateResources(state, nil)
 	require.NotNil(t, converted[0].CreatedAt)
 	assert.Equal(t, now, *converted[0].CreatedAt)
 	s := &Snapshot{State: converted}
@@ -131,4 +131,43 @@ func TestLoadStateInfersStackFromRootURN(t *testing.T) {
 	explicit, err := LoadState(context.Background(), Source{StatePath: path, Stack: "explicit"})
 	require.NoError(t, err)
 	assert.Equal(t, "explicit", explicit.StackName)
+}
+
+func TestConvertStateResources_ModifiedAt(t *testing.T) {
+	t.Parallel()
+
+	modified := time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)
+	withTime := ingest.StackExportResource{
+		URN: "urn:a", Type: "aws:ec2/instance:Instance", Custom: true, ID: "i-1",
+		Inputs:   map[string]any{"instanceType": "t3.micro"},
+		Modified: &modified,
+	}
+	without := withTime
+	without.Modified = nil
+
+	got := convertStateResources([]ingest.StackExportResource{withTime, without}, nil)
+	require.Len(t, got, 2)
+	require.NotNil(t, got[0].ModifiedAt)
+	assert.Equal(t, modified, *got[0].ModifiedAt)
+	assert.Nil(t, got[1].ModifiedAt)
+	assert.NotSame(t, withTime.Modified, got[0].ModifiedAt, "the ingest layer's pointer must not be aliased")
+
+	assert.Equal(t, got[1].Properties, got[0].Properties, "a modification time is not a pricing property")
+	assert.Equal(t, got[1].ID, got[0].ID)
+}
+
+func TestSnapshotRows_ModifiedAtIsACopy(t *testing.T) {
+	t.Parallel()
+
+	modified := time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)
+	state := sampleState()
+	state[0].Modified = &modified
+	snapshot := &Snapshot{State: convertStateResources(state, nil)}
+
+	rows, err := snapshot.Rows(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, rows[0].ModifiedAt)
+	*rows[0].ModifiedAt = time.Time{}
+
+	assert.Equal(t, modified, *snapshot.State[0].ModifiedAt)
 }

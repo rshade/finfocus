@@ -800,3 +800,47 @@ func TestPulumiStep_ResourceType(t *testing.T) {
 		})
 	}
 }
+
+func TestParsePulumiPlan_PreservesSourcePositionAndStackTrace(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{
+		"steps": [
+			{
+				"op": "create",
+				"urn": "urn:pulumi:dev::shop::aws:s3/bucket:Bucket::extra",
+				"newState": {
+					"type": "aws:s3/bucket:Bucket",
+					"urn": "urn:pulumi:dev::shop::aws:s3/bucket:Bucket::extra",
+					"inputs": {"bucket": "extra"},
+					"sourcePosition": "project:///index.js#21,3",
+					"stackTrace": [{"sourcePosition": "project:///index.js#21,3"}, {}]
+				}
+			},
+			{
+				"op": "delete",
+				"urn": "urn:pulumi:dev::shop::aws:s3/bucket:Bucket::old",
+				"oldState": {
+					"type": "aws:s3/bucket:Bucket",
+					"urn": "urn:pulumi:dev::shop::aws:s3/bucket:Bucket::old",
+					"sourcePosition": "project:///index.js#3,1"
+				}
+			}
+		]
+	}`)
+
+	plan, err := ingest.ParsePulumiPlan(data)
+	require.NoError(t, err)
+	require.Len(t, plan.Steps, 2)
+
+	created := plan.Steps[0].NewState
+	require.NotNil(t, created)
+	assert.Equal(t, "project:///index.js#21,3", created.SourcePosition)
+	require.Len(t, created.StackTrace, 2)
+	assert.Equal(t, "project:///index.js#21,3", created.StackTrace[0].SourcePosition)
+	assert.Empty(t, created.StackTrace[1].SourcePosition)
+
+	deleted := plan.Steps[1].OldState
+	require.NotNil(t, deleted)
+	assert.Equal(t, "project:///index.js#3,1", deleted.SourcePosition)
+}

@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -41,7 +42,12 @@ func (p *plugin) GetProjectedCost(
 func main() {
 	name := strings.TrimPrefix(os.Args[0][strings.LastIndex(os.Args[0], "/")+1:], "finfocus-plugin-")
 
-	child := exec.Command("sleep", "600")
+	if os.Getenv("ORPHAN_CHILD") == "1" {
+		time.Sleep(10 * time.Minute)
+		return
+	}
+	child := exec.Command(os.Args[0])
+	child.Env = append(os.Environ(), "ORPHAN_CHILD=1")
 	if err := child.Start(); err != nil {
 		fmt.Fprintln(os.Stderr, "start child:", err)
 		os.Exit(1)

@@ -1,0 +1,117 @@
+name: Test VS Code extension
+
+on:
+  pull_request:
+    paths:
+      - 'packages/vscode-finfocus/**'
+      - '.github/workflows/test-vscode-extension.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/vscode-finfocus/**'
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Unit and type check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Unit tests
+        run: make test-vscode-extension
+
+      - name: Type check
+        run: make lint-vscode-extension
+
+  editor:
+    name: Editor tests (${{ matrix.os }})
+    needs: unit
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: packages/vscode-finfocus
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Editor tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm run test:editor
+
+      - name: Editor tests
+        if: runner.os != 'Linux'
+        run: pnpm run test:editor
+
+      - name: Process shutdown tests
+        run: node --test test/integration/
+
+  package:
+    name: Package the VSIX
+    needs: unit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/vscode-finfocus
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Package without store overrides
+        run: pnpm exec vsce package --no-dependencies --out ../../dist/vscode-finfocus.vsix
+
+      - name: Inspect packaged contents
+        run: |
+          unzip -Z1 ../../dist/vscode-finfocus.vsix | sort | tee ../../dist/contents.txt
+          for required in extension/package.json extension/LICENSE.txt extension/readme.md extension/src/extension.js extension/media/icon.png extension/contract/overview-fields.json; do
+            grep -qx "$required" ../../dist/contents.txt || { echo "missing $required" >&2; exit 1; }
+          done
+          if grep -E '^extension/(test/|node_modules/|\.vscode-test|\.env|\.npmrc|pnpm|jsconfig)' ../../dist/contents.txt; then
+            echo "packaged a file that must stay out" >&2
+            exit 1
+          fi
+          sha256sum ../../dist/vscode-finfocus.vsix | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the VSIX
+        uses: actions/upload-artifact@v7
+        with:
+          name: vscode-finfocus-vsix
+          path: dist/vscode-finfocus.vsix
+          if-no-files-found: error

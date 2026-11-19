@@ -142,6 +142,31 @@ finfocus overview --pulumi-state state.json --output json --yes
 
 Produces structured JSON with metadata, resources, summary, and errors.
 
+Each resource can carry these additions; existing fields keep their names and
+values:
+
+- `location`: where the resource is declared, as a project-relative `file`
+  with forward slashes, a 1-based `line`, and a 1-based `column` (omitted when
+  the language records none). It is omitted when Pulumi records no position
+  inside the project. A position in a dependency or outside the project is
+  never shown, and a location is never guessed.
+- `modifiedAt`: when the deployed resource last changed (RFC3339). Omitted for
+  a preview-only create and for state that records no time.
+- `display`: the strings the table prints for that row (`projected`,
+  `actual`, `delta`, `status`), so a consumer formats nothing.
+
+`summary.display` holds the table footer strings (`projected`, `actual`,
+`delta`). `budgetDisplay` is the budget display the dashboard serves
+(`healthDisplay`, `amountsDisplay`, `footerDisplay`, `details`); it is present,
+with empty `details`, when there is no budget.
+
+When no plugin returns a budget, JSON output applies the budget from
+`cost.budgets.global` in the config, the same fallback the interactive
+dashboard and `--web` use, and `budgets` then includes it.
+
+In non-interactive runs (plain, JSON, NDJSON), SIGINT and SIGTERM cancel the
+load: the Pulumi child stops and every plugin closes before finfocus exits.
+
 ### NDJSON streaming output
 
 ```bash
@@ -235,6 +260,8 @@ Press Enter on a resource to see a detailed breakdown including:
   `projectedCost.onDemandEquivalentMonthlyCost`, and
   `projectedCost.spotSavingsPercent`.
 - Cost drift analysis with extrapolation
+- Where the resource is declared (`file:line`), when Pulumi recorded a position
+  inside the project
 - Optimization recommendations with estimated savings
 - Stored cost history for this resource, loaded when the detail view opens.
   The series comes from `cost history collect` for the stack named by the

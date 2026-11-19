@@ -71,6 +71,31 @@ type StackExportResource struct {
 	// Modified tracks when the resource state was last altered.
 	// Available since Pulumi v3.60.0 (March 2023).
 	Modified *time.Time `json:"modified,omitempty"`
+	// SourcePosition is the raw position Pulumi recorded for the declaration.
+	// It is resolved to a project-relative location in stackload and never
+	// reaches a plugin.
+	SourcePosition string `json:"sourcePosition,omitempty"`
+	// StackTrace holds the recorded call frames, innermost first.
+	StackTrace []StackFrame `json:"stackTrace,omitempty"`
+}
+
+// StackFrame is one recorded call frame. SourcePosition is empty for a frame
+// Pulumi has no position for, such as an SDK frame.
+type StackFrame struct {
+	SourcePosition string `json:"sourcePosition,omitempty"`
+}
+
+// FramePositions returns the raw position of every frame in order, keeping
+// empty entries so callers see the recorded depth.
+func FramePositions(frames []StackFrame) []string {
+	if len(frames) == 0 {
+		return nil
+	}
+	out := make([]string, len(frames))
+	for i, f := range frames {
+		out[i] = f.SourcePosition
+	}
+	return out
 }
 
 // ParseStackExport parses Pulumi state JSON from bytes.

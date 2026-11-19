@@ -2,8 +2,10 @@ package engine
 
 import (
 	"context"
+	"time"
 
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/sourcepos"
 )
 
 // Pulumi plan operation constants.
@@ -58,8 +60,44 @@ func stateResourceToRow(res StateResource) OverviewRow {
 		Status:     StatusActive,
 		Properties: res.Properties,
 		CreatedAt:  res.CreatedAt,
+		ModifiedAt: cloneTime(res.ModifiedAt),
 		External:   res.External,
+		Location:   cloneLocation(res.Location),
 	}
+}
+
+func cloneTime(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	copied := *t
+	return &copied
+}
+
+func cloneLocation(loc *sourcepos.Location) *sourcepos.Location {
+	if loc == nil {
+		return nil
+	}
+	copied := *loc
+	return &copied
+}
+
+// currentLocationsByURN maps a URN to the declaration its preview step
+// reports. A delete step is absent: it describes code that is gone. A URN
+// present with a nil value has a current step the loader could not locate, so
+// the deployed location must not stand in for it.
+func currentLocationsByURN(planSteps []PlanStep) map[string]*sourcepos.Location {
+	locations := make(map[string]*sourcepos.Location, len(planSteps))
+	for _, step := range planSteps {
+		if step.Op == opDelete || step.Op == opDeleteReplaced {
+			continue
+		}
+		if existing, seen := locations[step.URN]; seen && existing != nil {
+			continue
+		}
+		locations[step.URN] = cloneLocation(step.Location)
+	}
+	return locations
 }
 
 // buildPlanByURN indexes plan steps by URN, keeping only the highest-precedence
@@ -107,6 +145,7 @@ func MergeResourcesForOverview(
 	// differs from diff precedence (create-replacement carries the diffs).
 	diffsByURN := BuildPropertyDiffsByURN(planSteps)
 	projectedPropsByURN := BuildProjectedPropertiesByURN(planSteps)
+	locationsByURN := currentLocationsByURN(planSteps)
 
 	rows := make([]OverviewRow, 0, len(stateResources)+len(planSteps))
 
@@ -118,6 +157,9 @@ func MergeResourcesForOverview(
 		row := stateResourceToRow(res)
 		if step, ok := planByURN[res.URN]; ok {
 			row.Status = MapOperationToStatus(step.Op)
+		}
+		if loc, ok := locationsByURN[res.URN]; ok {
+			row.Location = loc
 		}
 		if diffs, ok := diffsByURN[res.URN]; ok {
 			row.PropertyDiffs = append([]PropertyDiff(nil), diffs...)
@@ -164,6 +206,7 @@ func AppendPlanOnlyRows(rows []OverviewRow, planSteps []PlanStep) []OverviewRow 
 			URN:      step.URN,
 			Type:     step.Type,
 			Status:   StatusCreating,
+			Location: cloneLocation(step.Location),
 		}
 		if props, ok := projectedPropsByURN[step.URN]; ok {
 			row.ProjectedProperties = cloneProperties(props)

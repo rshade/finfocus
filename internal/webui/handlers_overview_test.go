@@ -19,6 +19,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/sourcepos"
 )
 
 func overviewFixtureRows() []engine.OverviewRow {
@@ -626,5 +627,52 @@ func TestOverviewResourceBlastRadius(t *testing.T) {
 				assert.Contains(t, allowedDependent, key)
 			}
 		}
+	})
+}
+
+func TestOverviewResourceDeclaredAt(t *testing.T) {
+	t.Parallel()
+	located := engine.OverviewRow{
+		URN:      "urn::located",
+		Type:     "aws:ec2/instance:Instance",
+		Status:   engine.StatusActive,
+		Location: &sourcepos.Location{File: "src/app.ts", Line: 12, Column: 3},
+	}
+	unlocated := engine.OverviewRow{
+		URN:    "urn::unlocated",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusActive,
+	}
+	session := NewSession(context.Background(), SessionOptions{DayOfMonth: 7})
+	session.SetData(nil, []engine.OverviewRow{located, unlocated}, engine.DateRange{}, "dev")
+	s := newRunningServer(t, Options{Session: session})
+
+	t.Run("a located resource carries location and declaredAt", func(t *testing.T) {
+		t.Parallel()
+		_, raw := decodeResourceDetail(t, overviewRequest(t, s, "GET", "/api/overview/resource?urn=urn::located", ""))
+		var body struct {
+			Row struct {
+				Location *sourcepos.Location `json:"location"`
+			} `json:"row"`
+			Display struct {
+				DeclaredAt string `json:"declaredAt"`
+			} `json:"display"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(raw), &body))
+		require.NotNil(t, body.Row.Location)
+		assert.Equal(t, sourcepos.Location{File: "src/app.ts", Line: 12, Column: 3}, *body.Row.Location)
+		assert.Equal(t, "src/app.ts:12", body.Display.DeclaredAt)
+	})
+
+	t.Run("an unlocated resource omits both", func(t *testing.T) {
+		t.Parallel()
+		_, raw := decodeResourceDetail(t, overviewRequest(t, s, "GET", "/api/overview/resource?urn=urn::unlocated", ""))
+		var body struct {
+			Row     map[string]json.RawMessage `json:"row"`
+			Display map[string]json.RawMessage `json:"display"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(raw), &body))
+		assert.NotContains(t, body.Row, "location")
+		assert.NotContains(t, body.Display, "declaredAt")
 	})
 }

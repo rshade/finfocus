@@ -1,0 +1,70 @@
+{
+  "runtime": "python",
+  "state": {
+    "root": "program",
+    "resources": {
+      "srcpospy-dev": null,
+      "edge": {
+        "file": "__main__.py",
+        "line": 6
+      },
+      "default_1_3_0": null,
+      "web": {
+        "file": "__main__.py",
+        "line": 5
+      },
+      "edge-left": {
+        "file": "lib/pair.py",
+        "line": 9
+      },
+      "edge-right": {
+        "file": "lib/pair.py",
+        "line": 9
+      }
+    }
+  },
+  "preview": {
+    "root": "program-edited",
+    "resources": {
+      "srcpospy-dev": {
+        "op": "same",
+        "location": null
+      },
+      "edge": {
+        "op": "same",
+        "location": {
+          "file": "__main__.py",
+          "line": 8
+        }
+      },
+      "extra": {
+        "op": "create",
+        "location": {
+          "file": "__main__.py",
+          "line": 9
+        }
+      },
+      "web": {
+        "op": "update",
+        "location": {
+          "file": "__main__.py",
+          "line": 7
+        }
+      },
+      "edge-left": {
+        "op": "same",
+        "location": {
+          "file": "lib/pair.py",
+          "line": 9
+        }
+      },
+      "edge-right": {
+        "op": "same",
+        "location": {
+          "file": "lib/pair.py",
+          "line": 9
+        }
+      }
+    }
+  }
+}

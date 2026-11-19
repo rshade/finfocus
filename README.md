@@ -44,6 +44,7 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 
 - **🔭 [Unified Overview](docs/src/content/docs/commands/overview.md)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
 - **📊 [Projected Costs](docs/src/content/docs/reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
+- **🧩 [Editor Extension](docs/src/content/docs/guides/editor-extension.md)**: Projected cost on the line that declares each Pulumi resource, in VS Code, Cursor, Windsurf, and VSCodium
 - **💰 [Budgets & Alerts](docs/src/content/docs/guides/budgets.md)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
 - **💡 [Recommendations](docs/src/content/docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
 - **♿ [Accessibility](docs/src/content/docs/guides/accessibility.md)**: High-contrast, plain text, and adaptive terminal UI modes
@@ -196,6 +197,16 @@ closing a browser tab leaves it running.
 
 See the [web UI guide](docs/src/content/docs/guides/web-ui.md) for launch options,
 storage behavior, and browser test commands.
+
+### Editor extension
+
+`packages/vscode-finfocus` shows each resource's projected cost at the end of
+the line that declares it, with a cost summary and a resource list. It runs
+`finfocus overview --format json` on the workspace host and displays the
+strings that command produced; it computes no money. A figure that no longer
+matches the saved program is marked stale. Install it from the VSIX attached to
+a `vscode-finfocus-vX.Y.Z` release; see the
+[editor extension guide](docs/src/content/docs/guides/editor-extension.md).
 
 ### 4. Calculate Costs
 

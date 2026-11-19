@@ -125,7 +125,7 @@ func parityOverview(t *testing.T, s *Server, rows []engine.OverviewRow) {
 		byURN[row.URN] = row.Source
 	}
 	for _, row := range canonical.Resources {
-		assert.Equal(t, row, byURN[row.URN])
+		assert.Equal(t, row.OverviewRow, byURN[row.URN])
 	}
 	assert.InDelta(t, canonical.Summary.TotalActualMTD, page.Totals.TotalActual, 1e-9)
 	assert.InDelta(t, canonical.Summary.ProjectedMonthly, page.Totals.TotalProjected, 1e-9)
