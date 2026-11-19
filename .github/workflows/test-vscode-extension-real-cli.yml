@@ -103,7 +103,7 @@ jobs:
         if: always()
         run: |
           cd "$FINFOCUS_FIXTURE_PROJECT"
-          pulumi stack export --stack dev | jq -c '.deployment.resources[] | {urn: (.urn | split("::") | last), sourcePosition, stackTrace}' | head -8
+          pulumi stack export --stack dev | jq -c '.deployment.resources[] | {urn: (.urn | split("::") | last), sourcePosition, stackTrace}'
           "$FINFOCUS_BINARY" overview --output json --format json --yes --state-only --stack dev | jq -c '.resources[] | {urn: (.urn | split("::") | last), location}'
 
       - name: Install extension dependencies
