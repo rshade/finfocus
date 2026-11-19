@@ -49,8 +49,10 @@ Plugins are executable binaries that run as separate processes and communicate o
   Checksums are published alongside release artifacts.
 - **Secure plugin mode**: Set `FINFOCUS_SECURE_PLUGINS=true` to make verification
   mandatory. An install or update then fails when the release has no `checksums.txt`
-  or it does not list the archive, the dashboard's accept-missing confirmation no longer
-  applies, and `--skip-checksum` is refused with exit 2. It is off by default, because
+  or it does not list the archive, `--skip-checksum` is refused with exit 2, and the
+  dashboard refuses to plan a release with no `checksums.txt` instead of offering its
+  accept-missing confirmation. `plugin install`, `plugin update`, `setup`, and
+  `finfocus --web` reject an invalid value with exit 2. It is off by default, because
   not every plugin release publishes `checksums.txt` yet.
 
 ## Network Security

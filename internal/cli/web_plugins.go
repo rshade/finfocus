@@ -136,6 +136,11 @@ func pluginPlan(ctx context.Context, name string, request webui.PluginPlanReques
 	if registry.FindChecksumAsset(&release) != nil {
 		checksum = "present"
 	}
+	if checksum == "missing" {
+		if refuseErr := refuseMissingChecksumInSecureMode(); refuseErr != nil {
+			return webui.PluginPlan{}, refuseErr
+		}
+	}
 	return webui.PluginPlan{
 		Action:        request.Action,
 		Name:          name,
@@ -148,6 +153,24 @@ func pluginPlan(ctx context.Context, name string, request webui.PluginPlanReques
 		Deprecated:    entry.Deprecated,
 		Replacement:   entry.Replacement,
 	}, nil
+}
+
+// refuseMissingChecksumInSecureMode fails the plan of a release with no
+// checksums.txt when secure plugin mode is on, so the dashboard never offers the
+// accept-missing confirmation. The installer still enforces the same rule.
+func refuseMissingChecksumInSecureMode() error {
+	secure, err := registry.SecurePluginsEnabled()
+	if err != nil {
+		return err
+	}
+	if !secure {
+		return nil
+	}
+	return pluginStatus(
+		http.StatusConflict,
+		"checksum_required",
+		config.EnvSecurePlugins+" is on: this release has no checksums.txt, so it cannot be installed",
+	)
 }
 
 func planPluginRemoval(name, version string) (webui.PluginPlan, error) {

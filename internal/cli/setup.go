@@ -271,6 +271,12 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions, runner *SetupRunner) error
 		ctx = context.Background()
 	}
 
+	if !opts.SkipPlugins {
+		if secureErr := registry.CheckSecurePlugins(false); secureErr != nil {
+			return toValidationError(ctx, secureErr)
+		}
+	}
+
 	traceID := logging.GetOrGenerateTraceID(ctx)
 	ctx = logging.ContextWithTraceID(ctx, traceID)
 

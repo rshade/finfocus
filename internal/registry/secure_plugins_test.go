@@ -36,19 +36,19 @@ func TestApplySecurePlugins(t *testing.T) {
 			name: "true requires the file",
 			env:  "true",
 			in:   checksumPolicy{},
-			want: checksumPolicy{requireFile: true},
+			want: checksumPolicy{requireFile: true, secure: true},
 		},
 		{
 			name: "1 requires the file",
 			env:  "1",
 			in:   checksumPolicy{},
-			want: checksumPolicy{requireFile: true},
+			want: checksumPolicy{requireFile: true, secure: true},
 		},
 		{
 			name: "true drops accept-missing",
 			env:  "TRUE",
 			in:   checksumPolicy{acceptMissing: true},
-			want: checksumPolicy{requireFile: true},
+			want: checksumPolicy{requireFile: true, secure: true},
 		},
 		{name: "true refuses skip", env: "true", in: checksumPolicy{skip: true}, wantErr: ErrSkipChecksumForbidden},
 		{name: "bad value", env: "yes", in: checksumPolicy{}, wantErr: ErrSecurePluginsValue},
@@ -121,6 +121,72 @@ func TestUpdate_SecurePluginsRefusesSkipChecksum(t *testing.T) {
 	_, err := installer.Update(context.Background(), "aws-public", UpdateOptions{SkipChecksum: true}, nil)
 
 	require.ErrorIs(t, err, ErrSkipChecksumForbidden)
+}
+
+func TestInstall_SecurePluginsAcceptsListedArchive(t *testing.T) {
+	t.Setenv(config.EnvSecurePlugins, "true")
+	installer := policyInstaller(t, t.TempDir(), policyRelease{plugin: "aws-public", version: "v1.0.0"})
+
+	result, err := installer.Install(context.Background(), "aws-public@v1.0.0", InstallOptions{NoSave: true}, nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, "v1.0.0", result.Version)
+}
+
+func TestInstall_SecurePluginsRejectsUnlistedArchive(t *testing.T) {
+	t.Setenv(config.EnvSecurePlugins, "true")
+	pluginDir := t.TempDir()
+	installer := policyInstaller(t, pluginDir, policyRelease{
+		plugin:          "aws-public",
+		version:         "v1.0.0",
+		checksumsOthers: true,
+	})
+
+	_, err := installer.Install(context.Background(), "aws-public@v1.0.0", InstallOptions{NoSave: true}, nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), config.EnvSecurePlugins+" is on")
+	_, statErr := os.Stat(filepath.Join(pluginDir, "aws-public", "v1.0.0"))
+	assert.True(t, os.IsNotExist(statErr))
+}
+
+func TestInstall_SecurePluginsFailureNamesTheVariable(t *testing.T) {
+	t.Setenv(config.EnvSecurePlugins, "1")
+	installer := policyInstaller(t, t.TempDir(), policyRelease{
+		plugin:       "aws-public",
+		version:      "v1.0.0",
+		omitChecksum: true,
+	})
+
+	_, err := installer.Install(context.Background(), "aws-public@v1.0.0", InstallOptions{NoSave: true}, nil)
+
+	require.ErrorIs(t, err, ErrChecksumUnavailable)
+	assert.Contains(t, err.Error(), config.EnvSecurePlugins+" is on")
+}
+
+func TestUpdate_SecurePluginsRequiresChecksumFile(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	pluginDir := t.TempDir()
+	first := policyInstaller(t, pluginDir, policyRelease{plugin: "aws-public", version: "v1.0.0"})
+	_, err := first.Install(context.Background(), "aws-public@v1.0.0", InstallOptions{}, nil)
+	require.NoError(t, err)
+
+	t.Setenv(config.EnvSecurePlugins, "true")
+	second := policyInstaller(t, pluginDir, policyRelease{
+		plugin:       "aws-public",
+		version:      "v2.0.0",
+		omitChecksum: true,
+	})
+	_, err = second.Update(context.Background(), "aws-public", UpdateOptions{
+		Version:               "v2.0.0",
+		AcceptMissingChecksum: true,
+	}, nil)
+
+	require.ErrorIs(t, err, ErrChecksumUnavailable)
+	_, oldErr := os.Stat(filepath.Join(pluginDir, "aws-public", "v1.0.0"))
+	require.NoError(t, oldErr, "the installed version must survive a refused update")
+	_, newErr := os.Stat(filepath.Join(pluginDir, "aws-public", "v2.0.0"))
+	assert.True(t, os.IsNotExist(newErr))
 }
 
 func TestCheckSecurePlugins(t *testing.T) {

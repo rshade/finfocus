@@ -15,6 +15,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/weblog"
 	"github.com/rshade/finfocus/internal/webui"
 )
@@ -145,6 +146,9 @@ func (f *webFlagValues) validate(cmd *cobra.Command) error {
 	if f.web {
 		if mcp, _ := cmd.Flags().GetBool(mcpFlag); mcp {
 			return fmt.Errorf("--%s and --%s are mutually exclusive", webFlag, mcpFlag)
+		}
+		if _, err := registry.SecurePluginsEnabled(); err != nil {
+			return err
 		}
 		return webui.ValidateAccess(f.allowedHosts, f.trustedProxy, f.allowedUsers)
 	}

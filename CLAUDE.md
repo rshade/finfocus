@@ -563,7 +563,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `AcceptMissingChecksum`, and refuses `SkipChecksum` (`ErrSkipChecksumForbidden`).
   It runs at the top of `Installer.Install` and `Installer.Update`, so the CLI,
   setup, and the dashboard share it; `plugin install` and `plugin update` also call
-  `registry.CheckSecurePlugins` first for exit 2. A hash mismatch is fatal either way.
+  `registry.CheckSecurePlugins` first for exit 2, and `setup` and `--web` validate
+  the value at startup. The dashboard plan (`refuseMissingChecksumInSecureMode`)
+  answers 409 `checksum_required` for a release with no `checksums.txt`, so the page
+  never offers accept-missing; the installer stays the enforcement point. A failure
+  names the variable. `internal/registry` tests unset it in `TestMain`; a test of the
+  mode sets it with `t.Setenv`. A hash mismatch is fatal either way.
 - Dashboard settings apply on the next `NewClient`. The first reload must not
   close the overview pipeline's original clients. Later reloads close only
   the set the previous reload opened. `closeReloaded` runs before

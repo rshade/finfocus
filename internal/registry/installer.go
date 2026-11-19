@@ -43,6 +43,10 @@ type InstallOptions struct {
 	// when the latest release has no assets. Any other value keeps the
 	// no-asset error instead of installing a different release.
 	AcceptFallbackVersion string
+
+	// secureMode is set by the installer when FINFOCUS_SECURE_PLUGINS forced the
+	// checksum policy, so a failure can name the variable.
+	secureMode bool
 }
 
 // InstallResult contains the result of a plugin installation.
@@ -141,6 +145,7 @@ func (i *Installer) Install(
 	}
 	opts.RequireChecksumFile = policy.requireFile
 	opts.AcceptMissingChecksum = policy.acceptMissing
+	opts.secureMode = policy.secure
 
 	report := newProgressReport(progress, opts.OnEvent)
 
@@ -515,6 +520,9 @@ func (i *Installer) verifyChecksumForRelease(
 		// The CLI warns and continues unless the caller required the file.
 		missingAccepted := errors.Is(err, ErrChecksumUnavailable) && opts.AcceptMissingChecksum
 		if opts.RequireChecksumFile && !missingAccepted {
+			if opts.secureMode {
+				return fmt.Errorf("%s is on: %w", config.EnvSecurePlugins, err)
+			}
 			return err
 		}
 		checksumWarn(report, err.Error()+", skipping verification")
@@ -720,6 +728,7 @@ func (i *Installer) Update(
 	}
 	opts.RequireChecksumFile = checksums.requireFile
 	opts.AcceptMissingChecksum = checksums.acceptMissing
+	secureMode := checksums.secure
 	policy := InstallOptions{
 		CatalogOnly:           opts.CatalogOnly,
 		RequireChecksumFile:   opts.RequireChecksumFile,
@@ -810,6 +819,7 @@ func (i *Installer) Update(
 		RequireChecksumFile:   opts.RequireChecksumFile,
 		AcceptMissingChecksum: opts.AcceptMissingChecksum,
 		AcceptFallbackVersion: opts.AcceptFallbackVersion,
+		secureMode:            secureMode,
 	}
 
 	repository := fmt.Sprintf("%s/%s", owner, repo)

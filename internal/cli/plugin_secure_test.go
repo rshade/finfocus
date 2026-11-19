@@ -36,6 +36,18 @@ func TestPluginInstallUpdate_SecurePluginsRejectsInput(t *testing.T) {
 			args:    []string{"plugin", "install", "aws-public"},
 			wantErr: config.EnvSecurePlugins + " must be one of",
 		},
+		{
+			name:    "dashboard rejects a bad value",
+			env:     "maybe",
+			args:    []string{"--web", "--no-browser"},
+			wantErr: config.EnvSecurePlugins + " must be one of",
+		},
+		{
+			name:    "setup rejects a bad value",
+			env:     "maybe",
+			args:    []string{"setup", "--non-interactive", "--skip-analyzer"},
+			wantErr: config.EnvSecurePlugins + " must be one of",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

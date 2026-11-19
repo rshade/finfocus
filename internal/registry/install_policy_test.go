@@ -184,6 +184,8 @@ type policyRelease struct {
 	version      string
 	hash         string
 	omitChecksum bool
+	// checksumsOthers publishes a checksums.txt that does not list the archive.
+	checksumsOthers bool
 }
 
 func policyInstaller(t *testing.T, pluginDir string, rel policyRelease) *Installer {
@@ -193,6 +195,9 @@ func policyInstaller(t *testing.T, pluginDir string, rel policyRelease) *Install
 	checksums := rel.hash + "  " + assetName + "\n"
 	if rel.hash == "" && !rel.omitChecksum {
 		checksums = checksumForBytes(archive) + "  " + assetName + "\n"
+	}
+	if rel.checksumsOthers {
+		checksums = checksumForBytes(archive) + "  some-other-archive.tar.gz\n"
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

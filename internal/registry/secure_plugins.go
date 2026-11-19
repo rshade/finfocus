@@ -2,6 +2,7 @@ package registry
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -15,13 +16,14 @@ var ErrSkipChecksumForbidden = errors.New(
 
 // ErrSecurePluginsValue is returned when FINFOCUS_SECURE_PLUGINS holds a value
 // that is not 1, true, 0, or false.
-var ErrSecurePluginsValue = errors.New("invalid " + config.EnvSecurePlugins)
+var ErrSecurePluginsValue = errors.New("invalid secure plugin mode setting")
 
 // checksumPolicy is the checksum handling an install or update asks for.
 type checksumPolicy struct {
 	skip          bool
 	requireFile   bool
 	acceptMissing bool
+	secure        bool
 }
 
 // applySecurePlugins tightens a checksum policy when secure plugin mode is on:
@@ -31,7 +33,7 @@ type checksumPolicy struct {
 func applySecurePlugins(policy checksumPolicy) (checksumPolicy, error) {
 	secure, err := config.ResolveSecurePlugins(os.Getenv)
 	if err != nil {
-		return policy, errors.Join(ErrSecurePluginsValue, err)
+		return policy, fmt.Errorf("%w: %w", ErrSecurePluginsValue, err)
 	}
 	if !secure {
 		return policy, nil
@@ -41,7 +43,18 @@ func applySecurePlugins(policy checksumPolicy) (checksumPolicy, error) {
 	}
 	policy.requireFile = true
 	policy.acceptMissing = false
+	policy.secure = true
 	return policy, nil
+}
+
+// SecurePluginsEnabled reports whether secure plugin mode is on, so a caller
+// can refuse early what the installer would refuse later.
+func SecurePluginsEnabled() (bool, error) {
+	secure, err := config.ResolveSecurePlugins(os.Getenv)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrSecurePluginsValue, err)
+	}
+	return secure, nil
 }
 
 // CheckSecurePlugins reports the error an install or update would return for
