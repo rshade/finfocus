@@ -94,8 +94,8 @@ docs/
 │
 ├── guides/                          # Audience-specific guides
 │   ├── README.md                    # Guides index
-│   ├── user-guide.md                # For end users: "How do I use this?"
-│   ├── developer-guide.md           # For engineers: "How do I extend this?"
+│   ├── user-guide.md                # For end users: "How do you use this?"
+│   ├── developer-guide.md           # For engineers: "How do you extend this?"
 │   ├── architect-guide.md           # For architects: "How is this designed?"
 │   └── business-value.md            # For CEO/product: "What problem does this solve?"
 │
@@ -195,7 +195,7 @@ docs/
 
 ### End Users
 
-**Goal:** "I have a Pulumi infrastructure. How do I see what it costs?"
+**Goal:** "How much does this Pulumi infrastructure cost?"
 
 **Entry Point:** `getting-started/quickstart.md`
 
@@ -224,7 +224,7 @@ docs/
 
 ### Engineers (Plugin Developers)
 
-**Goal:** "How do I build a FinFocus plugin for our cost service?"
+**Goal:** "How do you build a FinFocus plugin for a custom cost service?"
 
 **Entry Point:** `plugins/plugin-development.md`
 
