@@ -28,8 +28,9 @@ A: FinFocus works with Pulumi 3.0+. We recommend the newest Pulumi release.
 
 ### Q: Can I use FinFocus with my cloud provider?
 
-A: For projected costs, yes. It works with all Pulumi-supported clouds via the
-`aws-public` plugin or local pricing specs.
+A: For projected costs, yes, when a pricing plugin or a local pricing spec covers
+the resource. The `aws-public` and `azure-public` plugins price AWS and Azure resources
+from public pricing data. A local pricing spec can price a resource from any provider.
 For actual costs, a plugin with billing API access is required (e.g., Vantage,
 AWS Cost Explorer).
 

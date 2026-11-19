@@ -42,7 +42,7 @@ finfocus config set scoring.enabled true
 
 The kubernetes plugin also needs a reachable cluster via kubeconfig
 (`KUBECONFIG` or `~/.kube/config`) for Step 2. Set `scoring.plugin` before
-`scoring.enabled`, because FinFocus validates each config change and scoring
+`scoring.enabled`, because FinFocus validates each config change, and scoring
 cannot be enabled without a plugin.
 
 The first public scorer release and registry entry are pending; source install

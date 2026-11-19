@@ -13,7 +13,7 @@ billing periods, even when resources are replaced or destroyed mid-month.
 **Why this exists**: Cloud provider billing APIs report costs by resource ID
 (e.g., EC2 instance `i-abc123`). When Pulumi replaces a resource, the old cloud
 ID disappears from state and a new one takes its place. Without history, FinFocus
-can only query costs for the *current* resource and misses the old one entirely.
+can only query costs for the *current* resource, so it misses the old one entirely.
 
 **Target Audience**: End Users, DevOps Engineers, Platform Engineers
 

@@ -680,7 +680,7 @@ The `finfocus overview` command shows budget status differently per output mode:
 - **Plain** (`--plain`): Budget status is not rendered in the table. Use
   `--exit-on-threshold` for CI/CD enforcement.
 
-See [Budget Status](../commands/overview.md#budget-status) in the overview command for
+See [Budget Status](../commands/overview.md#budget-status) in the overview command reference for
 the complete visibility matrix and flag reference.
 
 ---

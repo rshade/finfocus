@@ -34,11 +34,11 @@ Add it to a workflow with [finfocus-action](https://github.com/rshade/finfocus-a
 
 Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but have no visibility into what it will cost until the bill arrives. FinFocus closes that gap:
 
-- **Shift-left on costs**—See projected costs *before* you deploy, directly from `pulumi preview` output
-- **No code changes required**—Works with any existing Pulumi project via JSON export
-- **Budget guardrails**—Enforce spending limits in CI/CD pipelines with non-zero exit codes
-- **Plugin architecture**—Swap pricing sources without changing your workflow
-- **Single dashboard**—Interactive TUI combining actual spend, projected costs, drift analysis, and recommendations
+- **Shift-left on costs**: see projected costs *before* you deploy, directly from `pulumi preview` output
+- **No code changes required**: works with any existing Pulumi project via JSON export
+- **Budget guardrails**: enforce spending limits in CI/CD pipelines with non-zero exit codes
+- **Plugin architecture**: swap pricing sources without changing your workflow
+- **Single dashboard**: one interactive TUI for actual spend and projected costs, plus drift analysis and recommendations
 
 ## Key Features
 
