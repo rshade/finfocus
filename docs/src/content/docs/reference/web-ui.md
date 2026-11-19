@@ -227,7 +227,8 @@ running session keeps its startup configuration.
 The page installs catalog names only. A download URL isn't accepted. When the
 newest release has no files yet, the confirmation names the older version that
 will be installed. A missing checksum file is named before the install
-continues. A checksum that doesn't match stops the install.
+continues, unless `FINFOCUS_SECURE_PLUGINS` is on: then the page refuses the
+release and nothing is installed. A checksum that doesn't match stops the install.
 
 ### Logs view
 

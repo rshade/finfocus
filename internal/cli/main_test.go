@@ -25,6 +25,10 @@ func TestMain(m *testing.M) {
 		time.Sleep(30 * time.Second)
 		os.Exit(0)
 	}
+	if err := os.Unsetenv("FINFOCUS_SECURE_PLUGINS"); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	cli.SetPluginSkillsForTest(func(_ context.Context, dir, version string) pluginskill.Result {
 		abs, err := filepath.Abs(dir)
 		if err != nil {

@@ -658,10 +658,10 @@ func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []
 				Name:   stepNamePluginInstall,
 				Status: StepWarning,
 				Message: fmt.Sprintf(
-					"Failed to install plugin %s: %v\n  Try later: finfocus plugin install %s",
+					"Failed to install plugin %s: %v%s",
 					pluginName,
 					err,
-					pluginName,
+					setupRetryHint(pluginName, err),
 				),
 				Err: err,
 			})
@@ -680,4 +680,11 @@ func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []
 	}
 
 	return results
+}
+
+func setupRetryHint(pluginName string, err error) string {
+	if on, _ := registry.SecurePluginsEnabled(); on && errors.Is(err, registry.ErrChecksumUnavailable) {
+		return ""
+	}
+	return "\n  Try later: finfocus plugin install " + pluginName
 }

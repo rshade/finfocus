@@ -61,6 +61,27 @@ func TestInstall_CatalogOnlyIgnoresSkipChecksum(t *testing.T) {
 	assert.True(t, os.IsNotExist(statErr))
 }
 
+func TestUpdate_CatalogOnlyIgnoresSkipChecksum(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	pluginDir := t.TempDir()
+	first := policyInstaller(t, pluginDir, policyRelease{plugin: "aws-public", version: "v1.0.0"})
+	_, err := first.Install(context.Background(), "aws-public@v1.0.0", InstallOptions{}, nil)
+	require.NoError(t, err)
+
+	second := policyInstaller(t, pluginDir, policyRelease{
+		plugin:  "aws-public",
+		version: "v2.0.0",
+		hash:    "0000000000000000000000000000000000000000000000000000000000000000",
+	})
+	_, err = second.Update(context.Background(), "aws-public", UpdateOptions{
+		Version:      "v2.0.0",
+		CatalogOnly:  true,
+		SkipChecksum: true,
+	}, nil)
+
+	require.ErrorIs(t, err, ErrChecksumMismatch)
+}
+
 func TestInstall_RequireChecksumFile(t *testing.T) {
 	t.Parallel()
 

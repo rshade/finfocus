@@ -563,8 +563,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `AcceptMissingChecksum`, and refuses `SkipChecksum` (`ErrSkipChecksumForbidden`).
   It runs at the top of `Installer.Install` and `Installer.Update`, so the CLI,
   setup, and the dashboard share it; `plugin install` and `plugin update` also call
-  `registry.CheckSecurePlugins` first for exit 2, and `setup` and `--web` validate
-  the value at startup. The dashboard plan (`refuseMissingChecksumInSecureMode`)
+  `registry.CheckSecurePlugins` first for exit 2, and `setup` (unless `--skip-plugins`) and `--web`
+  validate the value at startup. The dashboard plan (`refuseMissingChecksumInSecureMode`)
   answers 409 `checksum_required` for a release with no `checksums.txt`, so the page
   never offers accept-missing; the installer stays the enforcement point. A failure
   names the variable. `internal/registry` tests unset it in `TestMain`; a test of the
@@ -864,7 +864,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `ListLatestPlugins` order, sorted by name (router priority ties rely on it).
 - With `region` in `plugin.metadata.json`, discovery looks for
   `finfocus-plugin-<name>-<region>` first.
-- Only a confirmed checksum mismatch is fatal; `--skip-checksum` exists.
+- Only a confirmed checksum mismatch is fatal, unless secure plugin mode is on
+  (see "Secure plugin mode" above); `--skip-checksum` exists.
   The dashboard catalog path does not offer that flag. A missing
   `checksums.txt` warns and continues on the CLI and returns
   `ErrChecksumUnavailable` on the web path unless the person accepts it.
