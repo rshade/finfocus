@@ -472,3 +472,81 @@ test('resource history uses the section alert and never a raw error object', asy
   assert.doesNotMatch(dialog.textContent, /secret/);
   t.mounted.unmount();
 });
+
+test('chart controls zoom, pan and reset the loaded checkpoint window', async () => {
+  const t = await setup();
+  const snapshots = Array.from({ length: 5 }, (_, i) => ({
+    version: i + 1, timestamp: `2026-09-0${i + 1}T00:00:00Z`,
+    total_monthly: i + 8, by_provider: { aws: i + 8 },
+  }));
+  const displayed = snapshots.map((point) => ({ version: point.version, date: point.timestamp.slice(0, 10) }));
+  historyCall(t).resolve({
+    ...viewBody, snapshots, annotations: [],
+    thresholds: [{ provider: 'aws', amount: 20, display: 'AWS-TEXT' }],
+    display: { snapshots: displayed },
+  });
+  await flush();
+  const range = t.container.querySelector('#history-chart-range');
+  assert.match(range.textContent, /2026-09-01.*2026-09-05/);
+  const calls = t.calls.length;
+  t.container.querySelector('#history-zoom-in').dispatch('click');
+  assert.match(range.textContent, /2026-09-02.*2026-09-04/);
+  t.container.querySelector('#history-pan-next').dispatch('click');
+  assert.match(range.textContent, /2026-09-03.*2026-09-05/);
+  t.container.querySelector('#history-reset-chart').dispatch('click');
+  assert.match(range.textContent, /2026-09-01.*2026-09-05/);
+  t.container.querySelector('#history-show-providers').dispatch('click');
+  assert.match(t.container.querySelector('.history-chart-legend').textContent, /AWS.*AWS-TEXT/);
+  t.container.querySelector('#history-show-budgets').dispatch('click');
+  assert.doesNotMatch(t.container.querySelector('.history-chart-legend').textContent, /AWS-TEXT/);
+  assert.equal(t.calls.length, calls);
+  t.mounted.unmount();
+});
+
+test('deployment selection compares against its preceding checkpoint', async () => {
+  const t = await setup();
+  historyCall(t).resolve(viewBody);
+  await flush();
+  const original = t.calls.at(-1);
+  const selections = t.container.querySelectorAll('.history-deployment');
+  assert.equal(selections.length, 2);
+  selections[1].dispatch('click');
+  assert.equal(original.options.signal.aborted, true);
+  const comparison = t.calls.at(-1);
+  assert.equal(comparison.path, '/api/history/diff?from=v35&to=v36');
+  assert.equal(selections[1].attrs['aria-pressed'], 'true');
+  assert.match(t.container.querySelector('#history-selected-deployment').textContent, /v36.*resized/);
+  selections[0].dispatch('click');
+  assert.equal(comparison.options.signal.aborted, true);
+  assert.match(t.container.querySelector('#history-selected-deployment').textContent, /No earlier checkpoint/);
+  comparison.resolve({ status: 'ok', display: { delta: '+STALE' } });
+  await flush();
+  assert.doesNotMatch(t.container.querySelector('#history-diff-body').textContent, /STALE/);
+  t.mounted.unmount();
+});
+
+test('same-day zoom announces versions and provider paths support old snapshot keys', async () => {
+  const t = await setup();
+  const snapshots = Array.from({ length: 4 }, (_, i) => ({
+    version: i + 1, timestamp: `2026-09-01T0${i}:00:00Z`, total_monthly: 18,
+    by_provider: i === 0 ? { aws: 2, 'aws-native': 3, azure: 4, constructor: 1, gcp: 3, kubernetes: 5 } : { aws: 9 },
+  }));
+  historyCall(t).resolve({
+    status: 'ok', snapshots, thresholds: [{ provider: 'aws', amount: 20, display: 'AWS-TEXT' }],
+    display: { snapshots: snapshots.map((row) => ({ version: row.version, date: '2026-09-01' })) },
+  });
+  await flush();
+  t.container.querySelector('#history-show-providers').dispatch('click');
+  assert.match(t.container.querySelector('.history-chart-legend').textContent, /AWS.*AWS-TEXT/);
+  assert.doesNotMatch(t.container.querySelector('.history-chart-legend').textContent, /AWS-NATIVE/);
+  const paths = t.container.querySelector('.history-chart').querySelectorAll('polyline');
+  assert.equal(paths.length, 5);
+  assert.notEqual(paths[0].attrs['stroke-dasharray'], paths[4].attrs['stroke-dasharray']);
+  for (const path of paths) assert.doesNotMatch(path.attrs.points, /NaN/);
+
+  const range = t.container.querySelector('#history-chart-range');
+  assert.equal(range.textContent, 'Chart range 2026-09-01 (v1 to v4)');
+  t.container.querySelector('#history-zoom-in').dispatch('click');
+  assert.equal(range.textContent, 'Chart range 2026-09-01 (v2 to v3)');
+  t.mounted.unmount();
+});

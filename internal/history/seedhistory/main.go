@@ -1,4 +1,4 @@
-// Command seedhistory writes two cost-timeline snapshots for the web e2e.
+// Command seedhistory writes cost-timeline snapshots for the web e2e.
 // The e2e module cannot import internal/history, so the test runs this
 // package from the root module.
 package main
@@ -43,11 +43,12 @@ func seed(args []string) error {
 		version int
 		when    string
 		total   float64
-		kind    string
 		message string
 	}{
-		{35, "2026-09-01T00:00:00Z", 8, "update", "baseline"},
-		{36, "2026-10-01T00:00:00Z", 12.5, "update", "resized"},
+		{35, "2026-09-01T00:00:00Z", 8, "baseline"},
+		{36, "2026-10-01T00:00:00Z", 12.5, "resized"},
+		{37, "2026-10-15T00:00:00Z", 16, "expanded"},
+		{38, "2026-11-01T00:00:00Z", 10, "scaled down"},
 	}
 	for _, snapshot := range snapshots {
 		when, parseErr := time.Parse(time.RFC3339, snapshot.when)
@@ -60,6 +61,7 @@ func seed(args []string) error {
 			TotalMonthly:  snapshot.total,
 			Currency:      "USD",
 			ResourceCount: 1,
+			ByProvider:    map[string]float64{"aws": snapshot.total},
 			Resources: []history.CostResource{{
 				URN:         urn,
 				Type:        "aws:ec2/instance:Instance",
@@ -68,7 +70,7 @@ func seed(args []string) error {
 			}},
 		}, history.CostAnnotation{
 			Version: snapshot.version,
-			Kind:    snapshot.kind,
+			Kind:    "update",
 			Message: snapshot.message,
 		})
 		if putErr != nil {

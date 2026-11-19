@@ -1,4 +1,5 @@
 import { el } from './app.js';
+import { mountHistoryChart } from './history-chart.js';
 
 const NO_HISTORY = 'No cost history is stored yet. Run finfocus cost history collect.';
 const NO_POINTS = 'No cost history points are stored for this resource.';
@@ -102,80 +103,6 @@ export function appendResourceHistory(parent, { get, id, signal, current }) {
   return section;
 }
 
-function svgEl(tag, attrs) {
-  const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
-  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
-  return node;
-}
-
-// Chart coordinates come from stored totals and the numeric budget. Every
-// visible amount is a display string. The chart is hidden from assistive
-// technology; the series table is the text alternative.
-function historyChart(body) {
-  if (typeof document.createElementNS !== 'function') return null;
-  const snapshots = Array.isArray(body?.snapshots) ? body.snapshots : [];
-  const points = [];
-  for (const snapshot of snapshots) {
-    const x = Date.parse(snapshot?.timestamp);
-    const y = snapshot?.total_monthly;
-    if (Number.isFinite(x) && Number.isFinite(y)) points.push({ x, y, version: snapshot.version });
-  }
-  if (points.length === 0) return null;
-  const budget = typeof body.budget === 'number' && Number.isFinite(body.budget) ? body.budget : null;
-  const width = 640;
-  const height = 160;
-  const pad = 28;
-  let minY = Math.min(...points.map((point) => point.y));
-  let maxY = Math.max(...points.map((point) => point.y));
-  if (budget !== null) {
-    minY = Math.min(minY, budget);
-    maxY = Math.max(maxY, budget);
-  }
-  if (minY === maxY) {
-    minY -= 1;
-    maxY += 1;
-  }
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const sx = (x) => pad + (maxX === minX ? (width - 2 * pad) / 2 : ((x - minX) / (maxX - minX)) * (width - 2 * pad));
-  const sy = (y) => height - pad - ((y - minY) / (maxY - minY)) * (height - 2 * pad);
-  const svg = svgEl('svg', {
-    class: 'history-chart',
-    viewBox: `0 0 ${width} ${height}`,
-    role: 'presentation',
-    'aria-hidden': 'true',
-    focusable: 'false',
-  });
-  svg.append(svgEl('polyline', {
-    points: points.map((point) => `${sx(point.x)},${sy(point.y)}`).join(' '),
-    fill: 'none',
-    stroke: 'currentColor',
-    'stroke-width': '2',
-  }));
-  if (budget !== null && body.display?.budget) {
-    const y = sy(budget);
-    svg.append(svgEl('line', {
-      class: 'history-budget-line',
-      x1: pad,
-      x2: width - pad,
-      y1: y,
-      y2: y,
-    }));
-  }
-  const annotations = Array.isArray(body.annotations) ? body.annotations : [];
-  annotations.forEach((annotation, index) => {
-    const point = points.find((item) => item.version === annotation.version);
-    if (!point) return;
-    const mark = svgEl('g', { class: 'history-marker' });
-    mark.append(svgEl('circle', { cx: sx(point.x), cy: sy(point.y), r: '7' }));
-    const label = svgEl('text', { x: sx(point.x), y: sy(point.y) + 3, 'text-anchor': 'middle' });
-    label.textContent = String(index + 1);
-    mark.append(label);
-    svg.append(mark);
-  });
-  return svg;
-}
-
 function seriesTable(rows) {
   return el('div', { class: 'table-wrap', tabindex: '0' },
     el('table', { class: 'detail-table history-series' },
@@ -188,13 +115,6 @@ function seriesTable(rows) {
         el('td', { text: row.version === undefined || row.version === null ? '' : String(row.version) }),
         el('td', { text: row.date ?? '' }),
         el('td', { class: 'col-num', text: row.total ?? '' }))))));
-}
-
-function annotationList(annotations) {
-  if (!Array.isArray(annotations) || annotations.length === 0) return null;
-  return el('ol', { class: 'history-annotations' }, ...annotations.map((item, index) => el('li', {
-    text: `${index + 1}. v${item.version} ${item.kind}: ${item.message}`,
-  })));
 }
 
 function diffRows(body) {
@@ -242,6 +162,7 @@ export function mountCostHistoryPanel({ api }) {
   let diffAbort;
   let waitingForReady = false;
   let alertOwner = '';
+  let mountedChart;
 
   const from = el('input', { id: 'history-from', class: 'filter-input', type: 'text' });
   const to = el('input', { id: 'history-to', class: 'filter-input', type: 'text' });
@@ -259,6 +180,7 @@ export function mountCostHistoryPanel({ api }) {
   alert.hidden = true;
   const status = el('p', { id: 'history-status', role: 'status', text: 'Loading cost history…' });
   const series = el('div', { class: 'history-series-slot' });
+  const checkpointTable = el('div', { class: 'history-checkpoints' });
   const diffFrom = el('input', { id: 'history-diff-from', class: 'filter-input', type: 'text', list: 'history-diff-options' });
   const diffTo = el('input', { id: 'history-diff-to', class: 'filter-input', type: 'text', list: 'history-diff-options' });
   const diffList = el('datalist', { id: 'history-diff-options' });
@@ -275,7 +197,7 @@ export function mountCostHistoryPanel({ api }) {
   diffSection.hidden = true;
   const section = el('section', { class: 'history-panel', 'aria-labelledby': 'cost-history-panel-title' },
     el('h3', { id: 'cost-history-panel-title', text: 'Cost history' }),
-    rangeForm, queryError, warning, alert, status, series, diffSection);
+    rangeForm, queryError, warning, alert, status, series, diffSection, checkpointTable);
   const rangeInputs = [from, to, currency];
 
   function clearOwnedAlert(owner) {
@@ -363,22 +285,43 @@ export function mountCostHistoryPanel({ api }) {
   function loadDiff(token) {
     if (diffSection.hidden) return undefined;
     diffAbort?.abort();
-    diffAbort = new AbortController();
+    const controller = new AbortController();
+    diffAbort = controller;
     clearOwnedAlert('diff');
     diffError.hidden = true;
     setDescribed([diffFrom, diffTo], 'history-diff-error', false);
     diffStatus.hidden = false;
     diffStatus.textContent = 'Loading cost history diff…';
     diffBody.replaceChildren();
-    return api.get(`/api/history/diff${queryString({ from: diffFrom.value, to: diffTo.value })}`, { signal: diffAbort.signal })
+    return api.get(`/api/history/diff${queryString({ from: diffFrom.value, to: diffTo.value })}`, { signal: controller.signal })
       .then((body) => {
-        if (token !== generation) return;
+        if (token !== generation || controller.signal.aborted) return;
         paintDiff(body);
       })
       .catch((err) => {
-        if (token !== generation || err?.name === 'AbortError') return;
+        if (token !== generation || controller.signal.aborted || err?.name === 'AbortError') return;
         paintDiffError(err);
       });
+  }
+
+  function compareDeployment(previous, version, token) {
+    diffFrom.value = previous === undefined ? '' : `v${previous}`;
+    diffTo.value = `v${version}`;
+    if (previous !== undefined) return loadDiff(token);
+    diffAbort?.abort();
+    clearOwnedAlert('diff');
+    diffError.hidden = true;
+    setDescribed([diffFrom, diffTo], 'history-diff-error', false);
+    diffStatus.hidden = true;
+    diffStatus.textContent = '';
+    diffBody.replaceChildren();
+    return undefined;
+  }
+
+  function clearChart() {
+    mountedChart = null;
+    series.replaceChildren();
+    checkpointTable.replaceChildren();
   }
 
   function paintView(body, token) {
@@ -392,7 +335,7 @@ export function mountCostHistoryPanel({ api }) {
     if (body?.status === 'no_history') {
       status.hidden = false;
       status.textContent = NO_HISTORY;
-      series.replaceChildren();
+      clearChart();
       diffSection.hidden = true;
       diffBody.replaceChildren();
       return;
@@ -402,24 +345,23 @@ export function mountCostHistoryPanel({ api }) {
     if (!Array.isArray(displayed) || displayed.length === 0) {
       status.hidden = false;
       status.textContent = NO_SNAPSHOTS;
-      series.replaceChildren();
+      clearChart();
       diffBody.replaceChildren();
       diffStatus.textContent = '';
       return;
     }
     status.hidden = true;
     status.textContent = '';
-    const chart = historyChart(body);
-    const budget = body?.display?.budget
-      ? el('p', { class: 'history-budget', text: `Budget line: ${body.display.budget}` })
-      : null;
-    series.replaceChildren(...[chart, seriesTable(displayed), budget, annotationList(body.annotations)].filter(Boolean));
+    mountedChart = mountHistoryChart(body, displayed,
+      (previous, version) => compareDeployment(previous, version, token));
+    if (mountedChart) series.replaceChildren(mountedChart.element);
+    checkpointTable.replaceChildren(seriesTable(displayed));
     fillSelectors(displayed);
     loadDiff(token);
   }
 
   function paintViewError(err) {
-    series.replaceChildren();
+    clearChart();
     diffBody.replaceChildren();
     diffSection.hidden = true;
     const message = historyMessage(err);
@@ -456,7 +398,7 @@ export function mountCostHistoryPanel({ api }) {
     setDescribed(rangeInputs, 'history-query-error', false);
     status.hidden = false;
     status.textContent = 'Loading cost history…';
-    series.replaceChildren();
+    clearChart();
     diffBody.replaceChildren();
     return api.get(`/api/history/view${queryString({ from: from.value, to: to.value, currency: currency.value })}`, { signal: viewAbort.signal })
       .then((body) => {
@@ -475,6 +417,7 @@ export function mountCostHistoryPanel({ api }) {
   });
   diffForm.addEventListener('submit', (event) => {
     event.preventDefault();
+    mountedChart?.clearSelection();
     loadDiff(generation);
   });
 
