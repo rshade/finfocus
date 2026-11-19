@@ -41,6 +41,7 @@ func NewPluginConformanceCmd() *cobra.Command {
 		timeout    string
 		categories []string
 		filter     string
+		probe      probeFlags
 	)
 
 	cmd := &cobra.Command{
@@ -50,7 +51,22 @@ func NewPluginConformanceCmd() *cobra.Command {
 
 The conformance suite validates that a plugin correctly implements the FinFocus
 gRPC protocol. It tests protocol compliance, error handling, timeout behavior,
-and context cancellation.`,
+and context cancellation.
+
+Some probes send a resource and depend on its type:
+
+  GetProjectedCost_ValidResource, Batch_Handling
+      Price the probe resource. The plugin must support its type.
+  GetProjectedCost_PermissionDenied, _InternalError, _Unavailable
+      Send sentinel resource types that only a plugin built to recognize them
+      answers with the matching status. They run with the built-in probe only.
+  GetProjectedCost_InvalidResource, Context_Cancellation
+      Use the probe's provider and region; the type does not matter.
+
+The built-in probe is an AWS EC2 instance. When the plugin lists providers and
+none is AWS, the probes that need a supported type are skipped, with the reason
+in the report. Use --provider and --resource-type to probe with a resource the
+plugin prices; the sentinel probes are then skipped too.`,
 		Example: `  # Basic conformance check
   finfocus plugin conformance ./plugins/aws-cost
 
@@ -64,11 +80,15 @@ and context cancellation.`,
   finfocus plugin conformance --output junit --output-file report.xml ./plugins/aws-cost
 
   # Use stdio mode
-  finfocus plugin conformance --mode stdio ./plugins/aws-cost`,
+  finfocus plugin conformance --mode stdio ./plugins/aws-cost
+
+  # Probe a Kubernetes-only plugin with a resource it prices
+  finfocus plugin conformance --provider kubernetes \
+    --resource-type kubernetes:apps/v1:Deployment ./plugins/opencost`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPluginConformanceCmd(
-				cmd, args[0], mode, verbosity, output, outputFile, timeout, categories, filter,
+				cmd, args[0], mode, verbosity, output, outputFile, timeout, categories, filter, probe,
 			)
 		},
 	}
@@ -83,8 +103,41 @@ and context cancellation.`,
 		&categories, "category", nil, "Filter by category (repeatable): protocol, error, performance, context",
 	)
 	cmd.Flags().StringVar(&filter, "filter", "", "Regex filter for test names")
+	probe.register(cmd)
 
 	return cmd
+}
+
+// probeFlags holds the flags that replace the built-in AWS probe resource.
+type probeFlags struct {
+	provider     string
+	resourceType string
+	sku          string
+	region       string
+}
+
+func (f *probeFlags) register(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&f.provider, "provider", "",
+		"Provider of the probe resource (replaces the built-in AWS probe; needs --resource-type)")
+	cmd.Flags().StringVar(&f.resourceType, "resource-type", "",
+		"Resource type of the probe resource, which the plugin must price (needs --provider)")
+	cmd.Flags().StringVar(&f.sku, "sku", "", "SKU of the probe resource (optional)")
+	cmd.Flags().StringVar(&f.region, "region", "", "Region of the probe resource (optional)")
+}
+
+func (f *probeFlags) resource(ctx context.Context) (conformance.ProbeResource, error) {
+	probe := conformance.ProbeResource{
+		Provider:     f.provider,
+		ResourceType: f.resourceType,
+		SKU:          f.sku,
+		Region:       f.region,
+	}
+	if err := probe.Validate(); err != nil {
+		return conformance.ProbeResource{}, toValidationError(
+			ctx, fmt.Errorf("--provider and --resource-type go together: %w", err),
+		)
+	}
+	return probe, nil
 }
 
 func runPluginConformanceCmd(
@@ -92,12 +145,13 @@ func runPluginConformanceCmd(
 	pluginPath, mode, verbosity, output, outputFile, timeout string,
 	categories []string,
 	filter string,
+	probe probeFlags,
 ) error {
 	ctx := cmd.Context()
 	output = resolveOutputFormat(cmd, "output", output)
 
 	// Validate inputs and create suite config
-	cfg, err := buildSuiteConfig(ctx, pluginPath, mode, verbosity, timeout, categories, filter)
+	cfg, err := buildSuiteConfig(ctx, pluginPath, mode, verbosity, timeout, categories, filter, probe)
 	if err != nil {
 		return err
 	}
@@ -133,6 +187,7 @@ func buildSuiteConfig(
 	pluginPath, mode, verbosity, timeout string,
 	categories []string,
 	filter string,
+	probe probeFlags,
 ) (conformance.SuiteConfig, error) {
 	// Validate plugin path exists
 	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
@@ -163,6 +218,11 @@ func buildSuiteConfig(
 		return conformance.SuiteConfig{}, err
 	}
 
+	probeResource, err := probe.resource(ctx)
+	if err != nil {
+		return conformance.SuiteConfig{}, err
+	}
+
 	// Get logger from context
 	logger := logging.FromContext(ctx)
 
@@ -174,6 +234,7 @@ func buildSuiteConfig(
 		Categories: categoryList,
 		TestFilter: filter,
 		Logger:     *logger,
+		Probe:      probeResource,
 	}, nil
 }
 

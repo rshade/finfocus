@@ -31,12 +31,7 @@ func testContextCancellation(ctx *TestContext) *TestResult {
 	cancel() // Cancel immediately
 
 	req := &pbc.GetProjectedCostRequest{
-		Resource: &pbc.ResourceDescriptor{
-			Provider:     testProviderAWS,
-			ResourceType: testResourceTypeEC2Instance,
-			Sku:          testSKUT3Micro,
-			Region:       testRegionUSEast1,
-		},
+		Resource: ctx.probeResource().Descriptor(),
 	}
 
 	_, err := client.GetProjectedCost(cancCtx, req)
