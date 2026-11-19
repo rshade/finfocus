@@ -1,7 +1,10 @@
 package cli
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,5 +37,42 @@ func TestRefuseMissingChecksumInSecureMode(t *testing.T) {
 		t.Setenv(config.EnvSecurePlugins, "maybe")
 
 		require.Error(t, refuseMissingChecksumInSecureMode())
+	})
+}
+
+func TestPluginPlan_SecureModeRefusesReleaseWithoutChecksums(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/rshade/finfocus-plugin-aws-public/releases/latest" {
+			http.NotFound(w, r)
+			return
+		}
+		assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{
+			"tag_name": "v1.0.0",
+			"assets":   []map[string]any{{"name": "aws-public_v1.0.0_linux_amd64.tar.gz", "size": 1}},
+		}))
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("FINFOCUS_GITHUB_API", server.URL)
+	t.Setenv("FINFOCUS_CATALOG_FILE", "")
+	request := webui.PluginPlanRequest{Action: "install"}
+
+	t.Run("on answers 409 before any confirmation", func(t *testing.T) {
+		t.Setenv(config.EnvSecurePlugins, "true")
+
+		_, err := pluginPlan(context.Background(), "aws-public", request)
+
+		var status *webui.StatusError
+		require.ErrorAs(t, err, &status)
+		assert.Equal(t, http.StatusConflict, status.Status)
+		assert.Equal(t, "checksum_required", status.Code)
+	})
+
+	t.Run("off still plans a missing checksum for confirmation", func(t *testing.T) {
+		t.Setenv(config.EnvSecurePlugins, "false")
+
+		plan, err := pluginPlan(context.Background(), "aws-public", request)
+
+		require.NoError(t, err)
+		assert.Equal(t, "missing", plan.ChecksumFile)
 	})
 }

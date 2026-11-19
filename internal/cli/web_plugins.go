@@ -169,7 +169,7 @@ func refuseMissingChecksumInSecureMode() error {
 	return pluginStatus(
 		http.StatusConflict,
 		"checksum_required",
-		config.EnvSecurePlugins+" is on: this release has no checksums.txt, so it cannot be installed",
+		config.EnvSecurePlugins+" is on: this release has no checksums.txt, so it cannot be installed or updated",
 	)
 }
 

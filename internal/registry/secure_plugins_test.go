@@ -183,6 +183,7 @@ func TestUpdate_SecurePluginsRequiresChecksumFile(t *testing.T) {
 	}, nil)
 
 	require.ErrorIs(t, err, ErrChecksumUnavailable)
+	assert.Contains(t, err.Error(), config.EnvSecurePlugins+" is on")
 	_, oldErr := os.Stat(filepath.Join(pluginDir, "aws-public", "v1.0.0"))
 	require.NoError(t, oldErr, "the installed version must survive a refused update")
 	_, newErr := os.Stat(filepath.Join(pluginDir, "aws-public", "v2.0.0"))

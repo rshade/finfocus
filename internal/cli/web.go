@@ -147,9 +147,6 @@ func (f *webFlagValues) validate(cmd *cobra.Command) error {
 		if mcp, _ := cmd.Flags().GetBool(mcpFlag); mcp {
 			return fmt.Errorf("--%s and --%s are mutually exclusive", webFlag, mcpFlag)
 		}
-		if _, err := registry.SecurePluginsEnabled(); err != nil {
-			return err
-		}
 		return webui.ValidateAccess(f.allowedHosts, f.trustedProxy, f.allowedUsers)
 	}
 	for _, name := range webCompanionFlags {
@@ -173,6 +170,10 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		auditKeyPulumiState: flags.pulumiState,
 		auditKeyPulumiJSON:  flags.pulumiJSON,
 	})
+
+	if _, secureErr := registry.SecurePluginsEnabled(); secureErr != nil {
+		return toValidationError(ctx, secureErr)
+	}
 
 	stacks, stackErr := normalizeStackList(flags.stack)
 	if stackErr != nil {
