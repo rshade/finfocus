@@ -5,21 +5,21 @@ description: Record a projected snapshot and daily actuals after each pulumi up.
 
 Run `finfocus cost history collect` as a post-deploy step so each successful
 `pulumi up` adds one projected-cost snapshot. Later `view`, `diff`, and
-`list` commands read that database and do not call plugins.
+`list` commands read that database and don't call plugins.
 
 `collect` still needs the Pulumi CLI, stack credentials, and a cost plugin.
-`--versions` does not remove those requirements.
+`--versions` doesn't remove those requirements.
 
 ## `--versions 1`
 
 `--versions` defaults to `0`, which means no limit. A collect with the
-default stores every successful `update` and `destroy` that is not already
+default stores every successful `update` and `destroy` that isn't already
 in the database.
 
 `--versions 1` keeps only the newest successful checkpoint, then skips it
 when that version is already stored. Use it after a deploy so the job
 records the update that just finished. A retry that finds the same version
-prints `No new versions to collect.` and does not call the pricer again.
+prints `No new versions to collect.` and doesn't call the pricer again.
 
 ```bash
 finfocus cost history collect --stack dev --versions 1
@@ -27,13 +27,13 @@ finfocus cost history collect-daily --stack dev
 ```
 
 `collect-daily` is a separate step. It prices actual cost and stores one
-point per resource per UTC day. It does not read checkpoints and it does not
+point per resource per UTC day. It doesn't read checkpoints and it doesn't
 modify the projected database. The default window is the last 30 complete
 UTC days. Pass `--from` and `--to` to correct a shorter range. Days outside
 that response stay stored. `--output json` prints how many resources were
 stored, how many had no daily series, and which ones failed.
 
-The parent `cost --stack` flag is required. History subcommands do not
+The parent `cost --stack` flag is required. History subcommands don't
 declare a second copy.
 
 ## Where the database lives
@@ -124,7 +124,7 @@ jobs:
 
 Install a cost plugin into `$FINFOCUS_HOME` before the collect step, and
 give the job the cloud credentials that plugin expects. Those steps depend
-on the plugin, so they are not pinned here.
+on the plugin, so they aren't pinned here.
 
 ## GitLab CI
 

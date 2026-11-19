@@ -24,7 +24,7 @@ Alternatively, export `FINFOCUS_AWS_CARBON_ENABLED=true`. The plugin advertises
 this setting so FinFocus delivers configuration through its existing settings
 mechanism. Standard AWS credentials and Sustainability read permissions are
 required. Enabling the feature performs no AWS request by itself, and ordinary
-monetary cost requests do not request Sustainability data.
+monetary cost requests don't request Sustainability data.
 
 ## Query complete months
 
@@ -56,9 +56,9 @@ zero emissions remain explicit numeric zero values.
 The report includes its resolved request even when no records are available.
 An empty JSON report has `records: []` and `totalGrams: null`. A returned zero
 record has `value: 0` and contributes to a numeric total. The total sums only
-returned, available records. It does not claim a complete physical inventory.
+returned, available records. It doesn't claim a complete physical inventory.
 AWS publication lag or missing data must not be interpreted as zero emissions.
-Model revisions are not additive identities.
+Model revisions aren't additive identities.
 
 FinFocus validates all pages before writing output. It rejects duplicate record
 identities, changed query dimensions, mixed methods or scopes, repeated page
@@ -70,7 +70,7 @@ failures return an error without a partial report on stdout.
 The existing MCP command surface exposes the read-only `finfocus-carbon-actual`
 tool with the same flags. Its schema marks `start` and `end` as required and
 declares the method, scope, and output choices. Listing tools or reading their
-schemas does not launch the report provider or request AWS credentials. A tool
+schemas doesn't launch the report provider or request AWS credentials. A tool
 invocation still requires the plugin opt-in and performs the same validated
 report query as the CLI.
 

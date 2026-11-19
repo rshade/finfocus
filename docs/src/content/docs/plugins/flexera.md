@@ -9,7 +9,7 @@ nav_order: 13
 
 The `flexera` plugin reads cloud cost from the Flexera One Cloud Cost
 Optimization Bill Analysis API and serves it to FinFocus. It reports what
-Flexera has billed for a resource, so it is a source for actual cost across AWS,
+Flexera has billed for a resource, so it's a source for actual cost across AWS,
 Azure, and GCP. See also the [Vantage plugin](vantage.md) for another
 billing-data source.
 
@@ -42,7 +42,7 @@ finfocus plugin install flexera
 finfocus plugin install flexera@v0.1.1
 ```
 
-`finfocus setup` does not install this plugin by default.
+`finfocus setup` doesn't install this plugin by default.
 
 ## Configuration
 
@@ -90,13 +90,13 @@ Any other type is declined with `unsupported resource type`.
 
 ## Limitations
 
-- **Pulumi Type Tokens**: As of v0.1.1 the plugin matches the ids above and does
-  not map Pulumi type tokens such as `aws:ec2/instance:Instance`. FinFocus sends
+- **Pulumi Type Tokens**: As of v0.1.1 the plugin matches the ids above and doesn't
+  map Pulumi type tokens such as `aws:ec2/instance:Instance`. FinFocus sends
   Pulumi tokens for resources read from a plan or state, so those resources are
   declined until the plugin maps them. Check the plugin releases before relying
   on it in a Pulumi workflow.
 - **Billing Centers Required**: Every call sends the configured billing centers.
-  The plugin does not take a billing center as a per-request filter.
+  The plugin doesn't take a billing center as a per-request filter.
 - **Forecast Source**: A projected cost can come from a linear extrapolation
   instead of the Flexera forecast report. Check `billing_detail`.
 

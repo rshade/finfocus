@@ -110,9 +110,9 @@ Use containers for repeatable, isolated execution in shared environments.
   that runs `pulumi preview`, so both `pulumi-language-finfocus` and
   `pulumi-analyzer-policy-finfocus` exist, and put `~/.finfocus/analyzer` on
   `PATH`. The entries link to the `finfocus` binary that ran the install. A
-  pack created inside the container points at a path the host does not have,
+  pack created inside the container points at a path the host doesn't have,
   so on a host, run the install there with a host `finfocus` binary.
-  The official image does not include the Pulumi CLI, so run the preview from
+  The official image doesn't include the Pulumi CLI, so run the preview from
   an image that has Pulumi installed (for example one built on the official
   image) or on a host that has Pulumi and a host-installed pack.
 

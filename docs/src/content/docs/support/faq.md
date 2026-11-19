@@ -41,8 +41,9 @@ AWS Cost Explorer).
 ## Usage
 
 <a id="q-what-is-the-simplest-way-to-see-my-costs"></a>
+<a id="q-what-is-the-simplest-way-to-see-your-costs"></a>
 
-### Q: What is the simplest way to see your costs?
+### Q: What's the simplest way to see your costs?
 
 A: Navigate into any Pulumi project directory and run:
 
@@ -146,7 +147,9 @@ See [Plugin Documentation](../plugin-system.md#available-plugins) for per-plugin
 
 ## Pulumi Analyzer
 
-### Q: What is the Pulumi Analyzer?
+<a id="q-what-is-the-pulumi-analyzer"></a>
+
+### Q: What's the Pulumi Analyzer?
 
 A: The analyzer is a FinFocus mode that shows cost estimates directly inside
 `pulumi preview` output, with no separate command needed. It runs as a Pulumi
@@ -170,7 +173,7 @@ full walkthrough.
 ### Q: Preview says no language plugin 'pulumi-language-finfocus'
 
 A: Pulumi 3.270.0 and later starts a policy pack through
-`pulumi-language-finfocus` and does not fall back to
+`pulumi-language-finfocus` and doesn't fall back to
 `pulumi-analyzer-policy-finfocus`. The preview error is:
 
 ```text

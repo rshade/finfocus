@@ -9,7 +9,7 @@ FinFocus has a built-in [Model Context Protocol](https://modelcontextprotocol.io
 (MCP) server. An MCP client, such as Claude Code or Claude Desktop, starts
 finfocus as a subprocess. It can then call the finfocus commands as tools.
 For example, it can calculate the projected cost of a Pulumi plan, fetch actual
-spend, or list installed plugins. You do not need to install a separate server.
+spend, or list installed plugins. You don't need to install a separate server.
 
 **Target Audience**: Developers and platform engineers using AI assistants
 
@@ -48,10 +48,10 @@ The server writes only MCP protocol messages to stdout. Logs go to the
 finfocus log file (`~/.finfocus/logs/finfocus.log` by default). Other
 diagnostics go to stderr.
 
-> **Note**: `finfocus --web` is not an MCP entry point. It is a separate
-> root-local flag that serves the browser-based cost dashboard on localhost,
-> and it is mutually exclusive with `--mcp`. The web UI adds no MCP tools and
-> is not reachable through the MCP server. See
+> **Note**: `finfocus --web` is a separate root-local flag that serves the
+> browser-based cost dashboard on localhost. It's mutually exclusive with
+> `--mcp`. The web UI adds no MCP tools and
+> isn't reachable through the MCP server. See
 > [CLI Commands Reference](../reference/cli-commands.md#root-command-entry-points).
 
 ## Claude Code
@@ -69,13 +69,13 @@ claude mcp add finfocus -- finfocus mcp-server
 ```
 
 Run `claude mcp list` to confirm that the server connects. Then ask something
-like "What is the projected monthly cost of `plan.json`?"
+like "What's the projected monthly cost of `plan.json`?"
 
 ## Claude Desktop
 
 Add finfocus to `claude_desktop_config.json`. On macOS the file is in
-`~/Library/Application Support/Claude/`. On Windows it is in
-`%APPDATA%\Claude\`. Claude Desktop does not use your shell `PATH`, so set
+`~/Library/Application Support/Claude/`. On Windows it's in
+`%APPDATA%\Claude\`. Claude Desktop doesn't use your shell `PATH`, so set
 `command` to the absolute path of the finfocus binary (`which finfocus`).
 
 ```json
@@ -148,7 +148,7 @@ call, and each command then emits its JSON output. An explicit `output`
 argument takes precedence. Pass `"output": "table"` to get the human table
 instead. The same rule applies on the command line: `finfocus cost projected
 --format json`, or setting `AGENT_MODE=1`, prints JSON unless you also pass
-`--output`. Piping output alone does not switch it to JSON.
+`--output`. Piping output alone doesn't switch it to JSON.
 
 ### Safety arguments
 
@@ -159,7 +159,7 @@ Every tool also accepts the agent-safety arguments:
   `{"action": "would_create", ...}` and writes no file.
 - `yes`: approve a confirmation-gated operation. The server never approves on
   the client's behalf. Today the confirmation-gated commands, such as
-  `cost recommendations dismiss <id>`, take positional arguments, so they are
+  `cost recommendations dismiss <id>`, take positional arguments, so they're
   CLI-only.
 - `idempotency-key`: a retry-deduplication key. The server generates one when
   you omit it.
@@ -167,7 +167,7 @@ Every tool also accepts the agent-safety arguments:
 A failed call returns the finfocus error envelope as JSON, with `isError`
 set. For example: `{"error_code": "validation_error", "message": "..."}`.
 
-## Commands that are not tools
+## Commands that aren't tools
 
 These commands are never exposed as tools:
 
@@ -223,7 +223,7 @@ pooled into one median.
 
 ## Documentation from Context7
 
-The finfocus MCP server runs commands. It does not serve the FinFocus
+The finfocus MCP server runs commands. It doesn't serve the FinFocus
 documentation. The finfocus repository has a `context7.json` file at its root
 that sets how [Context7](https://context7.com) indexes these docs.
 The Context7 library ID is `/rshade/finfocus`. An assistant that has the

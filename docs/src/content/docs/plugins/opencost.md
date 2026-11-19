@@ -10,7 +10,7 @@ nav_order: 12
 The `opencost` plugin reads Kubernetes allocation cost over HTTP from an
 [OpenCost](https://opencost.io/) endpoint and serves it to FinFocus. It
 reports what the cluster actually spent per namespace, controller, pod, or
-node, so it is the source for Kubernetes actual cost. For cluster-level allocation
+node, so it's the source for Kubernetes actual cost. For cluster-level allocation
 see the [Kubernetes cluster costs guide](../guides/cluster-costs.md).
 
 **About OpenCost:** [opencost.io](https://opencost.io/), the
@@ -20,7 +20,7 @@ see the [Kubernetes cluster costs guide](../guides/cluster-costs.md).
 product built on OpenCost. Its kubecost.com address now redirects to Apptio's
 Kubecost page.
 
-It needs a reachable OpenCost allocation API. It does not read cloud provider
+It needs a reachable OpenCost allocation API. It doesn't read cloud provider
 credentials. With the default `opencost` profile it sends no token.
 
 ## Using Kubecost
@@ -35,7 +35,7 @@ export KUBECOST_API_TOKEN=...
 ```
 
 The `kubecost` profile calls `GET /model/allocation` and sends the token as a
-bearer token when one is set. It has not been verified against a live Kubecost
+bearer token when one is set. It hasn't been verified against a live Kubecost
 yet. Its responses are contract fixtures. Prefer the default `opencost` profile
 when you can run OpenCost.
 
@@ -62,7 +62,7 @@ finfocus plugin install opencost
 finfocus plugin install github.com/rshade/finfocus-plugin-opencost
 ```
 
-`finfocus setup` does not install this plugin by default.
+`finfocus setup` doesn't install this plugin by default.
 
 ## Configuration
 
@@ -102,7 +102,7 @@ manages.
 | `kubernetes:core/v1:Node`                  | `node/<name>`                       |
 
 The short types `k8s-namespace`, `k8s-pod`, `k8s-node`, and `k8s-controller`
-also work. `kubernetes:core/v1:Service` is not supported.
+also work. `kubernetes:core/v1:Service` isn't supported.
 
 ## Usage
 
@@ -116,10 +116,10 @@ finfocus cost projected --pulumi-json plan.json
 - **Needs a Backend**: Without a reachable OpenCost endpoint there are no
   results.
 - **Trailing Average**: Projected cost extends the last 30 days of observed
-  spend. It does not model a planned change.
+  spend. It doesn't model a planned change.
 - **Kubecost Profile Not Yet Verified**: Its responses are contract fixtures and
-  are not verified against a live Kubecost.
-- **No Allocation Service**: The plugin does not implement `AllocatorService`.
+  aren't verified against a live Kubecost.
+- **No Allocation Service**: The plugin doesn't implement `AllocatorService`.
 - **Idle and Shared Cost**: Requests exclude idle and shared cost.
 
 See the

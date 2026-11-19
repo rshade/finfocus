@@ -261,7 +261,7 @@ type ActualCostResult struct {
 
 **Validation Steps:**
 
-1. **Empty Check** - Ensure results array is not empty
+1. **Empty Check** - Ensure results array isn't empty
 2. **Currency Validation** - Ensure all results use same currency
 3. **Date Range Validation** - Ensure EndDate > StartDate
 4. **GroupBy Validation** - Ensure time-based grouping (daily or monthly)

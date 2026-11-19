@@ -74,7 +74,7 @@ stateDiagram-v2
 
 ### 1. Undiscovered
 
-Plugin binary exists in the filesystem but has not been detected by the
+Plugin binary exists in the filesystem but hasn't been detected by the
 Registry. This is the initial state for all plugins.
 
 **Location:** `~/.finfocus/plugins/<name>/<version>/<binary>`

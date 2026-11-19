@@ -8,7 +8,7 @@ nav_order: 16
 ## Overview
 
 The `cloudzero` plugin reads actual cost per resource from the CloudZero
-billing costs API (`GET /v2/billing/costs`) and serves it to FinFocus. It is an
+billing costs API (`GET /v2/billing/costs`) and serves it to FinFocus. It's an
 actual-cost source only: projected cost, pricing specs, and estimates return
 `Unimplemented`. See also the [Vantage plugin](vantage.md) and the
 [Flexera plugin](flexera.md) for other billing-data sources.
@@ -42,7 +42,7 @@ finfocus plugin install cloudzero
 finfocus plugin install cloudzero@v0.1.0
 ```
 
-`finfocus setup` does not install this plugin by default.
+`finfocus setup` doesn't install this plugin by default.
 
 ## Configuration
 
@@ -67,13 +67,13 @@ a reason, and cost calls return `FailedPrecondition`.
 
 - **Rate Limit**: CloudZero allows 60 cost requests in a rolling 24 hours, and
   other callers on the same key count toward it. A 429 becomes
-  `ResourceExhausted`, and the plugin does not retry it.
+  `ResourceExhausted`, and the plugin doesn't retry it.
 - **Costs Outside the Stack**: CloudZero records root EBS volumes and the
   public IPv4 charge of an Elastic IP as their own resources (`volume` and
-  `network-interface`). They are not part of the instance or the EIP result.
+  `network-interface`). They aren't part of the instance or the EIP result.
 - **Verification**: v0.1.0 was checked against a live CloudZero account for
-  AWS EC2 instances, NAT gateways, and Elastic IPs. Azure and GCP behaviour is
-  not verified.
+  AWS EC2 instances, NAT gateways, and Elastic IPs. Azure and GCP behaviour isn't
+  verified.
 
 See the
 [plugin README](https://github.com/rshade/finfocus-plugin-cloudzero#readme)

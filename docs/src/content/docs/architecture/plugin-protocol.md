@@ -41,18 +41,18 @@ The `BatchCost` RPC is OPTIONAL. Plugins that support it report
 `PLUGIN_CAPABILITY_BATCH_COST` in their capabilities. When supported,
 finfocus core sends multiple resource descriptors in a single RPC call
 instead of N individual calls, reducing round-trips for large stacks.
-Plugins that do not implement `BatchCost` are queried per-resource as before.
+Plugins that don't implement `BatchCost` are queried per-resource as before.
 
 Actual cost (`cost actual`, `cost history collect-daily`, and the web Cost
 page) batches too. A per-resource error in a batch response is reported for
-that resource and core does not ask the same plugin again with
+that resource and core doesn't ask the same plugin again with
 `GetActualCost`. It moves on to the next fallback plugin. The exception is
 `Unavailable`, a transient error: core asks the same plugin for that
 resource alone once. A batch has one start, so resources created inside the
 requested window are batched by creation hour, and each descriptor carries
 the resource `arn`. A plugin that prices actual cost by elapsed time, rather
 than from recorded billing, would see up to an hour more window for such a
-resource. It should not declare `PLUGIN_CAPABILITY_BATCH_COST` until it
+resource. It shouldn't declare `PLUGIN_CAPABILITY_BATCH_COST` until it
 handles that. A type the
 plugin marks unsupported in the batch is still queried per resource.
 
@@ -111,7 +111,7 @@ message SupportsRequest {
 }
 ```
 
-FinFocus sets `capability` to the operation it is about to call:
+FinFocus sets `capability` to the operation it's about to call:
 `PLUGIN_CAPABILITY_PROJECTED_COSTS` for projected cost and projected batches,
 `PLUGIN_CAPABILITY_ACTUAL_COSTS` for actual cost and actual batches,
 `PLUGIN_CAPABILITY_CARBON`, or

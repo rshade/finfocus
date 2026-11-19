@@ -5,7 +5,7 @@ description: Why the terminal UI, the browser dashboard, the GitHub Action, and 
 
 FinFocus has four ways in: the terminal UI, the browser dashboard (`finfocus --web`), the
 [GitHub Action](https://github.com/rshade/finfocus-action), and the MCP server for AI agents (`finfocus --mcp`).
-They are not four products that happen to agree. Each one is a thin layer over the same Go engine, and every
+They aren't four products that happen to agree. Each one is a thin layer over the same Go engine, and every
 resource price comes from the same engine call through the same plugin. This page explains where the surfaces meet,
 what each one owns, and what that means for users, plugin authors, and contributors.
 
@@ -69,7 +69,7 @@ A surface owns only how it takes input and how it shows the result:
   JSON output, and writes the pull request comment.
 - **MCP server:** the tool list and the transport: stdio for `finfocus --mcp`, or streamable HTTP on loopback with
   `finfocus mcp-server --transport=http`. The server comes from
-  [ax-go](https://github.com/rshade/ax-go), which turns the command tree into MCP tools. Commands that cannot run
+  [ax-go](https://github.com/rshade/ax-go), which turns the command tree into MCP tools. Commands that can't run
   inside a tool call are left out of the tool list: the interactive dashboard, `analyzer serve`,
   `cost history collect`, `cost history collect-daily`, `setup`, `plugin init`, and `plugin upgrade`. The list,
   with the reason for each, is `mcpExcludedCommands` in `internal/cli/mcp.go`.

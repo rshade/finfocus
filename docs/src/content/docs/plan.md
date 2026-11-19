@@ -722,7 +722,7 @@ ai-tells.AbsoluteAssertions = suggestion
 # ...one suggestion line for each ai-tells rule
 ```
 
-- `vale sync` downloads the packages into `docs/.vale/styles/`. They are
+- `vale sync` downloads the packages into `docs/.vale/styles/`. They're
   git-ignored. Only `config/vocabularies/FinFocus/accept.txt` is tracked. It
   lists exact product terms, and each entry also sets the casing Vale expects.
 - `ai-tells` flags prose patterns common in text that a language model wrote.
@@ -731,7 +731,7 @@ ai-tells.AbsoluteAssertions = suggestion
   rule is missing from that list.
 - Google is the only base style. Microsoft was dropped because most of its
   hits repeated a Google rule and the rest reported correct text here.
-- A Google rule that is wrong for these docs, such as `Google.WordList`
+- A Google rule that's wrong for these docs, such as `Google.WordList`
   (which wants "command-line tool" for "CLI") or `Google.Units` (which flags Go
   durations), is turned off. A rule with both real and false hits is lowered
   to `warning`. Each carries its reason as a comment. A rule goes back to
@@ -740,7 +740,7 @@ ai-tells.AbsoluteAssertions = suggestion
   `docs-validate.yml` `vale` job runs `vale-cli/vale-action` with reviewdog on
   pull requests, with `filter_mode: added` and `fail_on_error: true`. It
   reports added lines only. An error-level finding fails the job. A
-  warning or suggestion does not.
+  warning or suggestion doesn't.
 
 ### Makefile Targets for Docs
 

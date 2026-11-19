@@ -5,13 +5,13 @@ description: List resources whose month-to-date run-rate has diverged from the p
 
 `finfocus cost anomalies` lists rows by two methods. When a resource has
 enough daily actuals stored, its most recent complete day is scored against its own
-recent days (`method: robust-median`). When it does not, the overview's drift
+recent days (`method: robust-median`). When it doesn't, the overview's drift
 warnings stand (`method: drift`): a row appears when a resource's extrapolated
 monthly run-rate differs from its projected monthly cost by more than 10%. An
 agent or a person gets the short list instead of reading every overview row.
 
-The command runs the same pricing pipeline as `finfocus overview`, so it is as
-slow as `overview --output json`. It does not change the overview or the drift
+The command runs the same pricing pipeline as `finfocus overview`, so it's as
+slow as `overview --output json`. It doesn't change the overview or the drift
 calculation, and the drift path adds no threshold of its own. The web dashboard
 has an **Anomalies** page that shows the same list from the rows it already
 holds, served at `GET /api/overview/anomalies`. See the
@@ -32,9 +32,9 @@ The flags, their defaults, and examples are in the generated reference for
 [`finfocus cost anomalies`](../reference/cli/finfocus_cost_anomalies.md).
 
 The command takes no positional arguments. Without `--pulumi-json` it reads the
-deployed state and does not run `pulumi preview`, because drift compares actual
+deployed state and doesn't run `pulumi preview`, because drift compares actual
 spend with deployed resources. `--filter` uses the overview's keys, so `tag:`
-filters are not accepted.
+filters aren't accepted.
 
 ## Output
 
@@ -108,9 +108,9 @@ same rows `n/a`.
 A resource whose stored daily actuals cover at least 14 earlier days in one
 currency is scored. Its drift row is replaced only when the most recent
 complete UTC day crosses the cutoff below. The most recent complete UTC day of the
-series is the observation. The current partial day is not an observation.
-The baseline is the median of those earlier points, and the observation day is
-not part of the median, so the day under test cannot pull the median toward
+series is the observation. The current partial day isn't an observation.
+The baseline is the median of those earlier points, and the observation day isn't
+part of the median, so the day under test can't pull the median toward
 itself.
 
 The score is a robust z-score: `0.6745 * (observed - median) / MAD`, where the
@@ -118,11 +118,11 @@ MAD is the median of `|point - median|` over the same baseline points. A day
 is reported when the absolute score is at least 3.5, with severity `warning`.
 Both the 14-day minimum and the 3.5 cutoff are fixed in the code, not config
 keys. The 0.6745 factor exists to put the score on the standard z-score's
-scale for a normal sample. Cost days are not normal, and 3.5 is a cutoff, not
+scale for a normal sample. Cost days aren't normal, and 3.5 is a cutoff, not
 a probability.
 
-A missing day is a gap. It is never stored as zero, never interpolated, and it
-does not count toward the 14. A resource's currencies are never pooled into
+A missing day is a gap. It's never stored as zero, never interpolated, and it
+doesn't count toward the 14. A resource's currencies are never pooled into
 one median: a currency change splits the series, and each side needs its own
 14 points. A resource appears at most once, and when no daily series qualifies
 for it, its drift row stands unchanged.
@@ -150,7 +150,7 @@ Two things stay silent by design:
 - **A stack that has never been collected.** With no stored daily file the
   output is exactly the drift list.
 
-## What is not an anomaly
+## What isn't an anomaly
 
 The overview already leaves drift unset for these, and so does this command:
 
@@ -160,7 +160,7 @@ The overview already leaves drift unset for these, and so does this command:
 - A deleted resource with no projection.
 - A resource a preview marks for deletion, even if it has drift data.
 - A resource with fewer than 14 earlier daily points in its currency: its
-  drift row stands, and if drift did not fire either, it gets no row.
+  drift row stands, and if drift didn't fire either, it gets no row.
 
 A resource whose cost lookup failed is also left out, even if drift data is
 present. An empty stack exits 0 with an empty list.

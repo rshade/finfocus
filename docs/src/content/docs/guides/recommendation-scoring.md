@@ -59,7 +59,7 @@ Opt in per scorer in `config.hujson`:
 | `scoring.needs_review.risk`                  | Flag for review at or above this risk                         | `0.3`           |
 | `scoring.needs_review.false_positive`        | Flag for review at or above this false-positive score         | `0.3`           |
 | `scoring.needs_review.insufficient_evidence` | Flag for review at or above this thin-evidence score          | `0.5`           |
-| `scoring.needs_review.dead_band`             | Width of the band around each threshold that is still flagged | `0.1`           |
+| `scoring.needs_review.dead_band`             | Width of the band around each threshold that's still flagged | `0.1`           |
 
 Valid `field_allowlist` names are `category`, `action_type`, `resource`, `impact`, `priority`, `confidence_score`,
 `description`, `reasoning`, `source`, `created_at`, `metadata`, `action_detail`, `primary_reason`,
@@ -79,7 +79,7 @@ If a hosted scorer reports rate limits often, raise it.
 The `scorer` plugin defaults to TypeSafe AI's Jev model. Read the
 [data-handling notes](https://github.com/rshade/finfocus/tree/main/plugins/scorer#opt-in-and-data-handling) first.
 The catalog plugin named `jev` is deprecated. `SCORER_BACKEND=jev` selects the
-Jev model inside `scorer`. It does not install the old plugin.
+Jev model inside `scorer`. It doesn't install the old plugin.
 
 ```bash
 make install-scorer  # from the repository root; public scorer release pending
@@ -107,13 +107,13 @@ and the adapter adds the account path. `SCORER_TIMEOUT`, `SCORER_BATCH_SIZE` and
 
 Both hosted backends send recommendation data to third parties. A compatible local endpoint may avoid hosted calls,
 but Clef self-hosting and vLLM compatibility are untested and outside this change's scope. Both backends provide
-ranking signals, never approval, and Jev evaluations do not establish Clef quality or calibration.
+ranking signals, never approval, and Jev evaluations don't establish Clef quality or calibration.
 
 The first public scorer release and registry entry are pending. Source install works now. Once assets are published,
 use `finfocus plugin install scorer`. The retained `finfocus plugin install jev` command installs the last legacy
-release separately and does not migrate configuration. Historical Jev tags remain available.
+release separately and doesn't migrate configuration. Historical Jev tags remain available.
 
-The scorer does not read legacy settings. Rename them explicitly:
+The scorer doesn't read legacy settings. Rename them explicitly:
 
 | Removed setting | Replacement |
 | --- | --- |
@@ -175,22 +175,22 @@ threshold. Each threshold is widened downward by half the dead band, so with a r
 be decided by a decimal.
 
 Scorers say in `calibration` whether their numbers are probabilities. Most are `ranking_only`: the values order
-recommendations, but a 0.3 is not a 30 percent chance. Tune the thresholds on your own data, and again when the scorer's
+recommendations, but a 0.3 isn't a 30 percent chance. Tune the thresholds on your own data, and again when the scorer's
 model version changes. The reference probe was 80 synthetic recommendations, so treat it as a starting point only.
 
 ### Duplicate groups
 
 Recommendations that describe the same change to the same resource share a `duplicate_group_id` (`dup-1`, `dup-2`, and so
-on). The list is not merged or reduced: every recommendation stays visible, and the group id is only a label. Groups are
-found within one scorer response, so recommendations split across batches are not compared. With `identifier_mode:
-omitted`, scorers usually cannot group.
+on). The list isn't merged or reduced: every recommendation stays visible, and the group id is only a label. Groups are
+found within one scorer response, so recommendations split across batches aren't compared. With `identifier_mode:
+omitted`, scorers usually can't group.
 
 ## Data Handling
 
 Scoring is the one place where core sends recommendation content to a plugin that might forward it off the host, for
 example to a hosted model. Treat the scorer as you would any service that receives your infrastructure metadata.
 
-**What is sent.** A `ScoreRecommendations` request carries the recommendations as plugins returned them, limited by
+**What's sent.** A `ScoreRecommendations` request carries the recommendations as plugins returned them, limited by
 `field_allowlist`: category, action type, impact and cost detail, resource information (provider, type, region, SKU, tags,
 utilization), description, reasoning, source, metadata, priority, confidence, creation time, the provider-specific
 `action_detail`, the `primary_reason` and `secondary_reasons` codes, and, for a move to spot, the target
@@ -214,11 +214,11 @@ In `pseudonymized` and `omitted` modes core also:
 - Applies the same mode to identifiers inside `action_detail`: a Kubernetes `cluster_id`, `namespace`,
   `controller_name` and `container_name` are pseudonymized or removed exactly like `resource.id` and `resource.name`.
 - Derives tokens with HMAC-SHA256 over the normalized (trimmed, lower-case) resource id, using a random key generated for
-  each request and never stored. Tokens are not comparable across requests.
+  each request and never stored. Tokens aren't comparable across requests.
 
-**What is not protected.** Tags, metadata, and free text can still contain sensitive values that are not the resource id
-or name, such as team names, account names, or hostnames. Identifier handling alone does not make a request safe to send.
-Use `field_allowlist` to drop fields you do not want a scorer to see, and read the scorer plugin's own data-handling
+**What isn't protected.** Tags, metadata, and free text can still contain sensitive values that aren't the resource id
+or name, such as team names, account names, or hostnames. Identifier handling alone doesn't make a request safe to send.
+Use `field_allowlist` to drop fields you don't want a scorer to see, and read the scorer plugin's own data-handling
 documentation, which must say what leaves the host.
 
 **Dry run.** `--scoring-dry-run` sends nothing. It prints exactly the requests that would be sent after identifier
@@ -228,31 +228,31 @@ handling and the allowlist:
 finfocus cost recommendations --pulumi-json plan.json --scoring-dry-run
 ```
 
-Recommendations already in the score cache are not part of the output, because they would not be sent.
+Recommendations already in the score cache aren't part of the output, because they would not be sent.
 
 **Score cache.** Scores are cached in the `scores` bucket of the existing BoltDB cache (`~/.finfocus/cache/cache.db`),
 keyed on a hash of the recommendation content plus the scorer name, plugin version, and model. Only the extracted score
 values are stored. Raw scorer requests, responses, and provider request ids are never persisted, and the resource id and
-name are not part of the hashed content in `pseudonymized` and `omitted` modes. Deleting the cache is always safe. The cache
+name aren't part of the hashed content in `pseudonymized` and `omitted` modes. Deleting the cache is always safe. The cache
 follows the normal `cost.cache` settings, so with the cache disabled, nothing is stored.
 
 ## When Scoring Is Unavailable
 
-Scoring never fails the command. If the scorer is not installed, does not advertise the capability, times out, returns an
+Scoring never fails the command. If the scorer isn't installed, doesn't advertise the capability, times out, returns an
 error or returns an invalid response, FinFocus prints a warning to stderr, lists it under `scoring.warnings` in JSON
 output, and shows the recommendations unscored. Errors for individual recommendations leave only those unscored.
 
 ## How It Runs
 
 1. Plugins return recommendations, and dismissed recommendations are excluded as usual.
-2. The scorer plugin is looked up by `scoring.plugin` and must advertise `recommendation_scoring`. Scorer-only plugins are
-   not queried for recommendations.
+2. The scorer plugin is looked up by `scoring.plugin` and must advertise `recommendation_scoring`. Scorer-only plugins aren't
+   queried for recommendations.
 3. Scores found in the cache are applied. The rest are sent in batches. The first call is made alone with up to 20
    recommendations to learn the scorer's `max_batch_size`. The remaining batches then run up to 8 at a time, each with the
    configured timeout.
 4. Every response is validated against the scorer contract before any score is used.
 
-Dismissed and snoozed recommendations shown with `--include-dismissed` are not scored.
+Dismissed and snoozed recommendations shown with `--include-dismissed` aren't scored.
 
 ## See Also
 

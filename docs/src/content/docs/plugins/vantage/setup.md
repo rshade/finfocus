@@ -6,7 +6,7 @@ description: Step-by-step installation and configuration guide for the FinFocus 
 > **Earlier design.** This page was written before the plugin was released.
 > Install the plugin with `finfocus plugin install vantage`. The released
 > plugin has no `pull`, `backfill`, or `forecast` command and reads no
-> `config.yaml`. It is configured by the environment variables and the
+> `config.yaml`. It's configured by the environment variables and the
 > per-request credential on the [Vantage plugin page](../vantage.md), which is
 > the reference when they disagree.
 

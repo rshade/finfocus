@@ -131,7 +131,7 @@ message SupportsRequest {
 - `capability` (PluginCapability) - Operation the host is about to call.
   `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability.
 
-FinFocus sets `capability` to the operation it is about to call:
+FinFocus sets `capability` to the operation it's about to call:
 `PLUGIN_CAPABILITY_PROJECTED_COSTS` for projected cost and projected batches,
 `PLUGIN_CAPABILITY_ACTUAL_COSTS` for actual cost and actual batches,
 `PLUGIN_CAPABILITY_CARBON`, or
@@ -502,7 +502,7 @@ grpcurl -plaintext -d '{
 
 ### BatchCost
 
-Calculates cost for multiple resources in a single RPC call. A plugin that does not
+Calculates cost for multiple resources in a single RPC call. A plugin that doesn't
 implement this optional capability returns `UNIMPLEMENTED`, and the core falls back to per-resource cost calls.
 
 **Method:** `BatchCost(BatchCostRequest) BatchCostResponse`
@@ -754,7 +754,7 @@ enum ErrorCode {
 **Categories:**
 
 - **Transient** (1-5) - Retry with backoff
-- **Permanent** (6-11) - Do not retry
+- **Permanent** (6-11) - Don't retry
 - **Configuration** (12-16) - Fix configuration
 
 ### Error Categories
@@ -818,7 +818,7 @@ message ActualCostData {
 ### ResourceError
 
 Structured error information for a single resource failure within a batch.
-Per-resource errors do not cause the entire batch RPC to fail. They appear in
+Per-resource errors don't cause the entire batch RPC to fail. They appear in
 the `error` field of `ResourceCostResult` (see [BatchCost](#batchcost)).
 
 ```protobuf
