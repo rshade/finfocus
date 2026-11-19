@@ -80,7 +80,10 @@ func TestHistoryView_ReturnsDocumentBudgetAndDisplay(t *testing.T) {
 	s := newCostHistoryServer(t, SessionOptions{
 		HistoryView: func(_ context.Context, q HistoryViewQuery) (HistoryViewResult, error) {
 			got = q
-			return HistoryViewResult{Document: historyViewFixture(), Budget: &budget, BudgetCurrency: "USD"}, nil
+			return HistoryViewResult{
+				Document: historyViewFixture(), Budget: &budget, BudgetCurrency: "USD",
+				Thresholds: []history.ChartBudget{{Provider: "aws", Amount: 1000, Display: "$1,000"}},
+			}, nil
 		},
 	})
 
@@ -89,6 +92,7 @@ func TestHistoryView_ReturnsDocumentBudgetAndDisplay(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	var body HistoryViewResponse
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+	assert.Equal(t, []history.ChartBudget{{Provider: "aws", Amount: 1000, Display: "$1,000"}}, body.Thresholds)
 
 	assert.Equal(t, HistoryViewQuery{From: "2026-01-01", To: "2026-04-01", Currency: "usd", Strict: true}, got)
 	assert.Equal(t, HistoryStatusOK, body.Status)

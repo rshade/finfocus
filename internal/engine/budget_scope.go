@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -307,7 +306,7 @@ func NewScopedBudgetEvaluator(cfg *config.BudgetsConfig) *ScopedBudgetEvaluator 
 		}
 	}
 
-	providerIndex := buildProviderIndex(cfg.Providers)
+	providerIndex := config.ProviderBudgetIndex(cfg.Providers)
 
 	// Sort tag budgets by priority (descending)
 	tagBudgets := make([]config.TagBudget, len(cfg.Tags))
@@ -357,35 +356,6 @@ func NewScopedBudgetEvaluator(cfg *config.BudgetsConfig) *ScopedBudgetEvaluator 
 // The provider is normalized, so "aws-native" finds the budget for "aws".
 func (e *ScopedBudgetEvaluator) GetProviderBudget(provider string) *config.ScopedBudget {
 	return e.providerIndex[resourcetype.NormalizeProvider(provider)]
-}
-
-// buildProviderIndex indexes provider budgets by normalized cloud, skipping nil
-// and disabled budgets. When several keys name the same cloud, the cloud's own
-// key ("aws") wins over a package-named one ("aws-native"); otherwise the
-// alphabetically first key wins so the choice does not depend on map order.
-func buildProviderIndex(providers map[string]*config.ScopedBudget) map[string]*config.ScopedBudget {
-	names := make([]string, 0, len(providers))
-	for name := range providers {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	index := make(map[string]*config.ScopedBudget, len(providers))
-	canonical := make(map[string]bool, len(providers))
-	for _, name := range names {
-		budget := providers[name]
-		if budget == nil || budget.IsDisabled() {
-			continue
-		}
-		key := resourcetype.NormalizeProvider(name)
-		isCanonical := key == strings.ToLower(strings.TrimSpace(name))
-		if _, exists := index[key]; exists && (canonical[key] || !isCanonical) {
-			continue
-		}
-		index[key] = budget
-		canonical[key] = isCanonical
-	}
-	return index
 }
 
 // GetTypeBudget returns the budget for a resource type, or nil if not configured.

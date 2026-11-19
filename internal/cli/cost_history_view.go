@@ -2,13 +2,17 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/history"
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 const defaultChartHeight = 15
@@ -56,27 +60,7 @@ func runView(cmd *cobra.Command, deps viewDeps) error {
 	if err != nil {
 		return err
 	}
-	stack := target.Stack
-	if err = requireHistoryFile(target); err != nil {
-		return err
-	}
-	db, err := openHistoryTargetRead(target)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = db.Close() }()
-	if err = diffStackMatches(db, stack); err != nil {
-		return err
-	}
-	from, to, err := viewBounds(cmd)
-	if err != nil {
-		return err
-	}
-	choice, err := viewCurrencyChoice(cmd)
-	if err != nil {
-		return err
-	}
-	doc, err := readHistoryView(db, stack, from, to, choice)
+	doc, from, to, err := loadHistoryView(cmd, target)
 	if err != nil {
 		return err
 	}
@@ -87,14 +71,74 @@ func runView(cmd *cobra.Command, deps viewDeps) error {
 	if format == historyOutputJSON {
 		return writeJSON(cmd, doc)
 	}
-	if doc.CurrencyWarning != "" {
-		cmd.Println(doc.CurrencyWarning)
-	}
-	opt, err := viewChartOptions(cmd, deps, stack, from, to)
+	opt, err := viewChartOptions(cmd, deps, target.Stack, from, to)
 	if err != nil {
 		return err
 	}
+	input := cmd.InOrStdin()
+	if historyInteractiveMode(cmd, outputModeFromCmd(cmd), historyTerminalInput(input)) {
+		return runInteractiveHistory(cmd, input, doc, opt, deps.cfg)
+	}
+	if doc.CurrencyWarning != "" {
+		cmd.Println(doc.CurrencyWarning)
+	}
 	cmd.Print(history.RenderChart(snapshots, annotations, opt))
+	return nil
+}
+
+func loadHistoryView(cmd *cobra.Command, target historyTarget) (history.ViewDocument, time.Time, time.Time, error) {
+	if err := requireHistoryFile(target); err != nil {
+		return history.ViewDocument{}, time.Time{}, time.Time{}, err
+	}
+	db, err := openHistoryTargetRead(target)
+	if err != nil {
+		return history.ViewDocument{}, time.Time{}, time.Time{}, err
+	}
+	defer func() { _ = db.Close() }()
+	if err = diffStackMatches(db, target.Stack); err != nil {
+		return history.ViewDocument{}, time.Time{}, time.Time{}, err
+	}
+	from, to, err := viewBounds(cmd)
+	if err != nil {
+		return history.ViewDocument{}, time.Time{}, time.Time{}, err
+	}
+	choice, err := viewCurrencyChoice(cmd)
+	if err != nil {
+		return history.ViewDocument{}, time.Time{}, time.Time{}, err
+	}
+	doc, err := readHistoryView(db, target.Stack, from, to, choice)
+	if err != nil {
+		return history.ViewDocument{}, time.Time{}, time.Time{}, err
+	}
+	return doc, from, to, nil
+}
+
+func historyTerminalInput(input io.Reader) bool {
+	fd, ok := input.(interface{ Fd() uintptr })
+	return ok && term.IsTerminal(int(fd.Fd()))
+}
+
+func historyInteractiveMode(cmd *cobra.Command, mode tui.OutputMode, terminalInput bool) bool {
+	return mode == tui.OutputModeInteractive && terminalInput && !cmd.Flags().Changed("output")
+}
+
+func runInteractiveHistory(
+	cmd *cobra.Command, input io.Reader, doc history.ViewDocument, opt history.ChartOptions, cfg *config.Config,
+) error {
+	if !cmd.Flags().Changed("width") {
+		opt.Width = 0
+	}
+	if cfg == nil {
+		cfg = config.GetGlobalConfig()
+	}
+	budgets := history.ChartBudgets(cfg.Cost.Budgets, doc.Snapshots)
+	model := tui.NewHistoryViewModel(doc, opt, budgets)
+	program := tea.NewProgram(
+		model, tea.WithContext(cmd.Context()), tea.WithInput(input), tea.WithOutput(cmd.OutOrStdout()),
+	)
+	if _, err := program.Run(); err != nil {
+		return fmt.Errorf("run interactive cost history: %w", err)
+	}
 	return nil
 }
 
