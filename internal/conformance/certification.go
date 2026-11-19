@@ -31,12 +31,17 @@ func Certify(suiteReport *SuiteReport, name, version string) *CertificationRepor
 		SuiteSummary:  suiteReport.Summary,
 	}
 
-	// Include both failures and errors in certification check
-	if suiteReport.Summary.Failed > 0 || suiteReport.Summary.Errors > 0 {
+	// A skipped probe is unverified, so it blocks certification like a failure.
+	summary := suiteReport.Summary
+	if summary.Failed > 0 || summary.Errors > 0 || summary.Skipped > 0 {
 		report.Certified = false
 		for _, res := range suiteReport.Results {
-			if res.Status == StatusFail || res.Status == StatusError {
+			switch res.Status {
+			case StatusFail, StatusError:
 				report.Issues = append(report.Issues, fmt.Sprintf("%s: %s", res.TestName, res.Error))
+			case StatusSkip:
+				report.Issues = append(report.Issues, fmt.Sprintf("%s: skipped: %s", res.TestName, res.Error))
+			case StatusPass:
 			}
 		}
 	} else {

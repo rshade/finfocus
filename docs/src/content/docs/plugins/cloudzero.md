@@ -39,7 +39,7 @@ one row per resource.
 finfocus plugin install cloudzero
 
 # Or pin the published release
-finfocus plugin install cloudzero@v0.1.0
+finfocus plugin install cloudzero@v0.1.1
 ```
 
 `finfocus setup` does not install this plugin by default.
@@ -67,10 +67,15 @@ a reason, and cost calls return `FailedPrecondition`.
 
 - **Rate Limit**: CloudZero allows 60 cost requests in a rolling 24 hours, and
   other callers on the same key count toward it. A 429 becomes
-  `ResourceExhausted`, and the plugin does not retry it.
+  `ResourceExhausted` that names the wait CloudZero gives. The plugin does not
+  retry it: for 5 minutes after a 429, new queries fail at once without
+  spending the daily budget.
 - **Costs Outside the Stack**: CloudZero records root EBS volumes and the
   public IPv4 charge of an Elastic IP as their own resources (`volume` and
-  `network-interface`). They are not part of the instance or the EIP result.
+  `network-interface`). From v0.1.1, when an instance's attributes name its
+  root volume (`rootBlockDevice.volumeId`, as Pulumi state does), the volume's
+  cost is added to the instance as a separate root volume line. Data volumes
+  are not added, and the public IPv4 charge is not part of the EIP result.
 - **Verification**: v0.1.0 was checked against a live CloudZero account for
   AWS EC2 instances, NAT gateways, and Elastic IPs. Azure and GCP behaviour is
   not verified.

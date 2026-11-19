@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/conformance"
 )
@@ -55,4 +56,22 @@ func TestCertification_Fail(t *testing.T) {
 	assert.False(t, certReport.Certified)
 	assert.NotEmpty(t, certReport.Issues)
 	assert.Contains(t, certReport.Issues[0], "Protocol.Version")
+}
+
+func TestCertification_SkippedProbeBlocksCertification(t *testing.T) {
+	t.Parallel()
+
+	suiteReport := &conformance.SuiteReport{
+		Summary: conformance.Summary{Total: 2, Passed: 1, Skipped: 1},
+		Results: []conformance.TestResult{
+			{TestName: "Protocol.Name", Status: conformance.StatusPass},
+			{TestName: "Batch_Handling", Status: conformance.StatusSkip, Error: "plugin lists providers [kubernetes]"},
+		},
+	}
+
+	certReport := conformance.Certify(suiteReport, "test-plugin", "v1.0.0")
+
+	assert.False(t, certReport.Certified)
+	require.Len(t, certReport.Issues, 1)
+	assert.Contains(t, certReport.Issues[0], "Batch_Handling: skipped: plugin lists providers")
 }

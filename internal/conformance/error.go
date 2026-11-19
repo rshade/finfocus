@@ -53,10 +53,10 @@ func testGetProjectedCostErrorCode(ctx *TestContext, resourceType string, expect
 
 	req := &pbc.GetProjectedCostRequest{
 		Resource: &pbc.ResourceDescriptor{
-			Provider:     testProviderAWS,
+			Provider:     ctx.probeResource().Provider,
 			ResourceType: resourceType,
 			Sku:          "any",
-			Region:       testRegionUSEast1,
+			Region:       ctx.probeResource().Region,
 		},
 	}
 

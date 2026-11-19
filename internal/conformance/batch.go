@@ -24,12 +24,7 @@ func testBatchHandling(ctx *TestContext) *TestResult {
 
 	for range batchSize {
 		req := &pbc.GetProjectedCostRequest{
-			Resource: &pbc.ResourceDescriptor{
-				Provider:     testProviderAWS,
-				ResourceType: testResourceTypeEC2Instance,
-				Sku:          testSKUT3Micro,
-				Region:       testRegionUSEast1,
-			},
+			Resource: ctx.probeResource().Descriptor(),
 		}
 
 		_, err := client.GetProjectedCost(rpcCtx, req)
