@@ -24,7 +24,10 @@ finfocus logs [options]
 ## Options
 
 The flags, their defaults, and examples are in the generated reference for
-[`finfocus logs`](../reference/cli/finfocus_logs.md).
+[`finfocus logs`](../reference/cli/finfocus_logs.md). Without `--file`, the
+command reads `logging.file`, which defaults to `logs/finfocus.log` under the
+FinFocus home: `$FINFOCUS_HOME`, then `$PULUMI_HOME/finfocus`, then
+`~/.finfocus`.
 
 Filters combine: an entry must match a listed source, be at or above the
 level, and contain the text. `--tail` applies after the filters, so

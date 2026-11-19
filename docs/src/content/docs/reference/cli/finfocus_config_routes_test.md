@@ -28,13 +28,13 @@ finfocus config routes test <resource-type> [region] [flags]
 
 ```bash
   # Test routing for EC2 instances
-  finfocus config routes test aws:ec2:Instance
+  finfocus config routes test aws:ec2/instance:Instance
 
   # Include region in selection context
-  finfocus config routes test aws:ec2:Instance us-east-1
+  finfocus config routes test aws:ec2/instance:Instance us-east-1
 
   # JSON output for automation
-  finfocus config routes test aws:ec2:Instance --output json
+  finfocus config routes test aws:ec2/instance:Instance --output json
 ```
 
 ## Options

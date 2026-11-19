@@ -409,7 +409,8 @@ func TestRootCmd_OutsidePulumiProject(t *testing.T) {
 	assert.Contains(t, output, "FinFocus", "help output should contain product name")
 	assert.Contains(t, output, "Available Commands:", "help output should list commands")
 	assert.NotContains(t, output, "[w]")
-	assert.NotContains(t, output, "finfocus --web")
+	// The root Example shows `finfocus --web`; the TUI dashboard hint must not appear.
+	assert.NotContains(t, output, "web dashboard · finfocus --web")
 }
 
 // TestRootCmd_InPulumiProject verifies that running finfocus with no args
