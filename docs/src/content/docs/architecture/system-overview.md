@@ -282,12 +282,14 @@ With optional grouping by:
 
 ### Transient Errors
 
-**Examples:** Network timeout, rate limiting, service unavailable
+**Examples:** Rate limiting (gRPC `ResourceExhausted`), network timeout, service unavailable
 
 **Handling:**
 
-- Retry up to 3 times with exponential backoff
-- Wait 100 ms before the first retry, doubling to 400 ms before the third
+- Retry a rate limit (`ResourceExhausted`) up to twice against the same plugin.
+  Other errors are not retried.
+- Wait the plugin's `retry_after_seconds` when it sets one, otherwise 100-200 ms
+  before the first retry and 200-400 ms before the second
 - Continue with next plugin or fallback to specs
 
 ### Permanent Errors

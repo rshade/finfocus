@@ -380,14 +380,14 @@ go test -bench=BenchmarkScale1K -benchtime=10x -benchmem ./test/benchmarks/...
 
 **Available benchmarks:**
 
-| Benchmark                    | Description             | Target    |
-| ---------------------------- | ----------------------- | --------- |
-| `BenchmarkScale1K`           | 1,000 resources         | < 1 s     |
-| `BenchmarkScale10K`          | 10,000 resources        | < 30 s    |
-| `BenchmarkScale100K`         | 100,000 resources       | < 5 min   |
-| `BenchmarkDeeplyNested`      | Deep nesting complexity | < 1 s     |
-| `BenchmarkJSONParsing`       | JSON parsing at scale   | Baseline  |
-| `BenchmarkGeneratorOverhead` | Generator overhead      | Baseline  |
+| Benchmark                    | Description             | Target       |
+| ---------------------------- | ----------------------- | ------------ |
+| `BenchmarkScale1K`           | 1,000 resources         | < 1 second   |
+| `BenchmarkScale10K`          | 10,000 resources        | < 30 seconds |
+| `BenchmarkScale100K`         | 100,000 resources       | < 5 minutes  |
+| `BenchmarkDeeplyNested`      | Deep nesting complexity | < 1 second   |
+| `BenchmarkJSONParsing`       | JSON parsing at scale   | Baseline     |
+| `BenchmarkGeneratorOverhead` | Generator overhead      | Baseline     |
 
 **Benchmark guidelines:**
 

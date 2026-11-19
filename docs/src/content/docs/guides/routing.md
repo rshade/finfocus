@@ -596,7 +596,7 @@ Routing decisions are designed to be fast:
 - **Regex pattern match**: ~200 nanoseconds per resource (compiled regex cache)
 - **Priority sorting**: ~O(n log n) where n = matching plugins
 
-**Target**: <10 ms routing overhead per request (SC-002)
+**Target**: < 10 milliseconds of routing overhead per request (SC-002)
 
 **Typical**: 100-200 microseconds for 10 patterns × 100 resources
 
@@ -718,7 +718,7 @@ Results include which plugin provided the data:
 
 6. **Pattern Specificity**: Make patterns as specific as needed - general patterns can cause unexpected routing.
 
-7. **Monitor Performance**: Ensure routing overhead stays <10 ms per request.
+7. **Monitor Performance**: Ensure routing overhead stays under 10 milliseconds per request.
 
 ## Related Documentation
 
