@@ -707,7 +707,7 @@ message ResourceDescriptor {
 **Fields:**
 
 - `provider` (string) - Cloud provider (aws, azure, gcp, kubernetes)
-- `resource_type` (string) - Resource type (ec2, s3, vm, k8s-namespace)
+- `resource_type` (string) - Resource type (`ec2`, `s3`, `vm`, `k8s-namespace`)
 - `sku` (string) - SKU or instance size (t3.micro, Standard_D2s_v3)
 - `region` (string) - Geographic region (us-east-1, westus2)
 - `tags` (map) - Label/tag hints for identification
