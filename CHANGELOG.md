@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.9](https://github.com/rshade/finfocus/compare/v0.5.8...v0.5.9) (2026-11-19)
+
+
+### Added
+
+* **docs:** generate the CLI reference from the cobra command tree ([#2214](https://github.com/rshade/finfocus/issues/2214)) ([a77928f](https://github.com/rshade/finfocus/commit/a77928ffe54d9e78e23cf6673b9f32b4336b7e93)), closes [#2196](https://github.com/rshade/finfocus/issues/2196)
+* **registry:** add cloudzero plugin ([#2200](https://github.com/rshade/finfocus/issues/2200)) ([ee0a70e](https://github.com/rshade/finfocus/commit/ee0a70ee9ed9f9dc43fbdcbe5a053ce73842585f))
+* **registry:** add prometheus plugin ([#2205](https://github.com/rshade/finfocus/issues/2205)) ([9c97f88](https://github.com/rshade/finfocus/commit/9c97f88019a05193beddbf9c43d525396b5fd657))
+* **skills:** run the cost check automatically when infrastructure code changes ([#2182](https://github.com/rshade/finfocus/issues/2182)) ([fe479fc](https://github.com/rshade/finfocus/commit/fe479fcbb6d624db9c824da82e842be25dd8a1e0))
+* **web:** share plugin processes across stacks whose plugin environment matches ([#2165](https://github.com/rshade/finfocus/issues/2165)) ([be3016b](https://github.com/rshade/finfocus/commit/be3016b98377eaee4c29008bb64502476465c822))
+
+
+### Fixed
+
+* **deps:** update dependency @astrojs/starlight to ^0.43.0 ([#2180](https://github.com/rshade/finfocus/issues/2180)) ([a3d8d71](https://github.com/rshade/finfocus/commit/a3d8d71402c41d19556296b03dbe6aa450cf477e))
+* **engine:** format the actual cost note in one time zone ([#2170](https://github.com/rshade/finfocus/issues/2170)) ([585d9e9](https://github.com/rshade/finfocus/commit/585d9e9d7382b6db43cc637b0b28043252297c20))
+
+
+### Dependencies
+
+* update go dependencies ([#2178](https://github.com/rshade/finfocus/issues/2178)) ([25cbdcf](https://github.com/rshade/finfocus/commit/25cbdcfe3f11bc65677071832f710484d3620dc4))
+
+
+### Documentation
+
+* **budgets:** point config reference links at the cost--budgets anchor ([#2207](https://github.com/rshade/finfocus/issues/2207)) ([88030db](https://github.com/rshade/finfocus/commit/88030dbdd620c0df7786bc744fd69ceb739f19ac))
+* **cli:** apply review fixes to the generated CLI reference ([#2216](https://github.com/rshade/finfocus/issues/2216)) ([09e8153](https://github.com/rshade/finfocus/commit/09e81539263c5d4a478bef3d1905fc6c4df3fbfd)), closes [#2196](https://github.com/rshade/finfocus/issues/2196)
+* **cli:** point plugin config examples at real plugins ([#2209](https://github.com/rshade/finfocus/issues/2209)) ([56fb36d](https://github.com/rshade/finfocus/commit/56fb36dfaea013cc6f9b0510af3afa651bd82b20)), closes [#2201](https://github.com/rshade/finfocus/issues/2201)
+* drop the credential claims for the public pricing plugins ([#2193](https://github.com/rshade/finfocus/issues/2193)) ([47fe53a](https://github.com/rshade/finfocus/commit/47fe53a082b7a497b85c150e7bebc43c53e2db97))
+* fix eight broken external links ([#2187](https://github.com/rshade/finfocus/issues/2187)) ([91aacb0](https://github.com/rshade/finfocus/commit/91aacb0c6d75da3674744685fefc7abb80f5dbb4))
+* list FinFocus on Context7 with a context7.json ([#2208](https://github.com/rshade/finfocus/issues/2208)) ([e7d303d](https://github.com/rshade/finfocus/commit/e7d303daadedf00cd932497014524970fac86256))
+* **plugins:** bring the aws-public page up to date with v0.2.5 ([#2169](https://github.com/rshade/finfocus/issues/2169)) ([c229bc1](https://github.com/rshade/finfocus/commit/c229bc12a70ec5546e956e77abce86e300d1925d))
+* remove the competitive comparison guide ([#2186](https://github.com/rshade/finfocus/issues/2186)) ([a1f3cf1](https://github.com/rshade/finfocus/commit/a1f3cf1e665927d6abbc46853584735ee9eb50c9))
+* **roadmap:** sync after v0.5.8, promote [#2166](https://github.com/rshade/finfocus/issues/2166), add brainstorm ideas ([#2176](https://github.com/rshade/finfocus/issues/2176)) ([79b1138](https://github.com/rshade/finfocus/commit/79b11388638d7078e8e136c96bff23372811b63e))
+* show the real plugin name in the analyzer sample output ([3872558](https://github.com/rshade/finfocus/commit/3872558256093c5a2d3a26538152d28a898b9e5a))
+
 ## [0.5.8](https://github.com/rshade/finfocus/compare/v0.5.7...v0.5.8) (2026-11-16)
 
 
