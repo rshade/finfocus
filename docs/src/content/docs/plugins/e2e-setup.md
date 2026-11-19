@@ -39,6 +39,6 @@ This guide explains how to set up your environment for running End-to-End
 
 ## Troubleshooting
 
-- **Skipped Tests**: If tests are skipped with "missing credentials",
+- **Skipped Tests**: If tests are skipped with `missing credentials`,
   check your environment variables.
 - **Timeouts**: Increase `FINFOCUS_E2E_TIMEOUT` for complex stacks.

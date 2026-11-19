@@ -70,10 +70,10 @@ Add your plugin to `internal/registry/registry.json`:
 | Field                 | Description                                                         |
 | --------------------- | ------------------------------------------------------------------- |
 | `author`              | Plugin author or organization                                       |
-| `license`             | SPDX license identifier (e.g., "Apache-2.0", "MIT")                 |
+| `license`             | SPDX license identifier, such as `Apache-2.0` or `MIT`              |
 | `homepage`            | URL to documentation or homepage                                    |
 | `supported_providers` | Cloud providers supported (aws, gcp, azure, kubernetes)             |
-| `capabilities`        | Features: "projected" (cost estimates), "actual" (historical costs) |
+| `capabilities`        | Features: `projected` (cost estimates), `actual` (historical costs) |
 | `security_level`      | Trust level (see below)                                             |
 | `min_spec_version`    | Minimum finfocus-spec version required                              |
 

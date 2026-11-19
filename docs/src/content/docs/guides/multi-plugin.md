@@ -100,8 +100,8 @@ the cost of this pull request: $109.61 a month. aws-public priced the EC2
 instance, EBS volume, and RDS instance from its embedded pricing data. The
 kubernetes plugin priced the Deployment from its declared requests, and its
 note shows the arithmetic. The S3 bucket has no price from any installed
-plugin; it is listed under `ERRORS` and counted as $0, which means "unknown",
-not "free".
+plugin; it is listed under `ERRORS` and counted as $0, which means "unknown,"
+not "free."
 
 Neither plugin needed AWS credentials or a live cluster for this step, so it
 runs safely in CI.
@@ -193,7 +193,7 @@ The Jev backend's scores are `ranking_only`: they order the list, and they are n
 probabilities. Priority is a relative score, so read it only against the
 other rows in the same run. Jev rated the gp2→gp3 change as both lower risk
 and more worth doing, so it sorts first. It flagged the instance upgrade for
-`review`, which the summary line counts as "1 need review". `GROUP` is empty
+`review`, which the summary line counts as `1 need review`. `GROUP` is empty
 because Jev found no duplicates. Scores can shift slightly between runs.
 
 A score never approves, dismisses, or applies anything; that decision stays
