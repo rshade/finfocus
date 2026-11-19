@@ -195,3 +195,51 @@ func TestCheckSecurePlugins(t *testing.T) {
 	require.NoError(t, CheckSecurePlugins(false))
 	require.ErrorIs(t, CheckSecurePlugins(true), ErrSkipChecksumForbidden)
 }
+
+func TestUpdate_SecurePluginsDryRunRefusesReleaseWithoutChecksums(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	pluginDir := t.TempDir()
+	first := policyInstaller(t, pluginDir, policyRelease{plugin: "aws-public", version: "v1.0.0"})
+	_, err := first.Install(context.Background(), "aws-public@v1.0.0", InstallOptions{}, nil)
+	require.NoError(t, err)
+	second := policyInstaller(t, pluginDir, policyRelease{
+		plugin:       "aws-public",
+		version:      "v2.0.0",
+		omitChecksum: true,
+	})
+	opts := UpdateOptions{Version: "v2.0.0", DryRun: true}
+
+	t.Run("off previews the update", func(t *testing.T) {
+		t.Setenv(config.EnvSecurePlugins, "false")
+
+		result, updateErr := second.Update(context.Background(), "aws-public", opts, nil)
+
+		require.NoError(t, updateErr)
+		assert.Equal(t, "v2.0.0", result.NewVersion)
+	})
+
+	t.Run("on refuses what a real update would refuse", func(t *testing.T) {
+		t.Setenv(config.EnvSecurePlugins, "true")
+
+		_, updateErr := second.Update(context.Background(), "aws-public", opts, nil)
+
+		require.ErrorIs(t, updateErr, ErrSecureModeRefusal)
+		require.ErrorIs(t, updateErr, ErrChecksumUnavailable)
+	})
+}
+
+func TestInstall_SecurePluginsRefusalCarriesSentinels(t *testing.T) {
+	t.Setenv(config.EnvSecurePlugins, "true")
+	installer := policyInstaller(t, t.TempDir(), policyRelease{
+		plugin:          "aws-public",
+		version:         "v1.0.0",
+		checksumsOthers: true,
+	})
+
+	_, err := installer.Install(context.Background(), "aws-public@v1.0.0", InstallOptions{NoSave: true}, nil)
+
+	require.ErrorIs(t, err, ErrSecureModeRefusal)
+	require.ErrorIs(t, err, ErrAssetNotInChecksums)
+	assert.True(t, IsUnverifiableRelease(err))
+	assert.Contains(t, err.Error(), config.EnvSecurePlugins+" is on")
+}

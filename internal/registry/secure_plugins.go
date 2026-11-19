@@ -14,6 +14,10 @@ var ErrSkipChecksumForbidden = errors.New(
 	config.EnvSecurePlugins + " is on: checksum verification cannot be skipped",
 )
 
+// ErrSecureModeRefusal marks an install or update that secure plugin mode
+// refused. Its text names the variable.
+var ErrSecureModeRefusal = errors.New(config.EnvSecurePlugins + " is on")
+
 // ErrSecurePluginsValue is returned when FINFOCUS_SECURE_PLUGINS holds a value
 // that is not 1, true, 0, or false.
 var ErrSecurePluginsValue = errors.New("invalid secure plugin mode setting")

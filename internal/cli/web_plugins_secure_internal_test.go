@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/webui"
 )
 
@@ -75,4 +78,40 @@ func TestPluginPlan_SecureModeRefusesReleaseWithoutChecksums(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "missing", plan.ChecksumFile)
 	})
+}
+
+func TestPluginPlan_SecureModePlansReleaseWithChecksums(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/rshade/finfocus-plugin-aws-public/releases/latest" {
+			http.NotFound(w, r)
+			return
+		}
+		assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{
+			"tag_name": "v1.0.0",
+			"assets": []map[string]any{
+				{"name": "aws-public_v1.0.0_linux_amd64.tar.gz", "size": 1},
+				{"name": "checksums.txt", "size": 1},
+			},
+		}))
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("FINFOCUS_GITHUB_API", server.URL)
+	t.Setenv("FINFOCUS_CATALOG_FILE", "")
+	t.Setenv(config.EnvSecurePlugins, "true")
+
+	plan, err := pluginPlan(context.Background(), "aws-public", webui.PluginPlanRequest{Action: "install"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "present", plan.ChecksumFile)
+}
+
+func TestSetupRetryHint(t *testing.T) {
+	t.Parallel()
+
+	refused := fmt.Errorf("%w: %w", registry.ErrSecureModeRefusal, registry.ErrAssetNotInChecksums)
+	download := fmt.Errorf("%w: %w", registry.ErrSecureModeRefusal, errors.New("download failed"))
+
+	assert.Empty(t, setupRetryHint("aws-public", refused))
+	assert.Contains(t, setupRetryHint("aws-public", download), "finfocus plugin install aws-public")
+	assert.Contains(t, setupRetryHint("aws-public", errors.New("boom")), "finfocus plugin install aws-public")
 }

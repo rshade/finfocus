@@ -683,7 +683,7 @@ func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []
 }
 
 func setupRetryHint(pluginName string, err error) string {
-	if on, _ := registry.SecurePluginsEnabled(); on && errors.Is(err, registry.ErrChecksumUnavailable) {
+	if errors.Is(err, registry.ErrSecureModeRefusal) && registry.IsUnverifiableRelease(err) {
 		return ""
 	}
 	return "\n  Try later: finfocus plugin install " + pluginName

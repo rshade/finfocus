@@ -521,7 +521,7 @@ func (i *Installer) verifyChecksumForRelease(
 		missingAccepted := errors.Is(err, ErrChecksumUnavailable) && opts.AcceptMissingChecksum
 		if opts.RequireChecksumFile && !missingAccepted {
 			if opts.secureMode {
-				return fmt.Errorf("%s is on: %w", config.EnvSecurePlugins, err)
+				return fmt.Errorf("%w: %w", ErrSecureModeRefusal, err)
 			}
 			return err
 		}
@@ -564,9 +564,12 @@ func (i *Installer) fetchExpectedHash(
 
 	switch {
 	case errors.Is(err, ErrAssetNotInChecksums):
-		return "", fmt.Errorf("%s not found in checksums file", assetName)
+		return "", &checksumFileError{
+			msg:  fmt.Sprintf("%s not found in checksums file", assetName),
+			kind: ErrAssetNotInChecksums,
+		}
 	case errors.Is(err, ErrMalformedChecksums):
-		return "", errors.New("checksums.txt is malformed")
+		return "", &checksumFileError{msg: "checksums.txt is malformed", kind: ErrMalformedChecksums}
 	default:
 		return "", fmt.Errorf("failed to parse checksums.txt: %w", err)
 	}
@@ -796,6 +799,9 @@ func (i *Installer) Update(
 	}
 
 	if opts.DryRun {
+		if secureMode && FindChecksumAsset(release) == nil {
+			return nil, fmt.Errorf("%w: %w", ErrSecureModeRefusal, ErrChecksumUnavailable)
+		}
 		report.msg(fmt.Sprintf("Would update %s from %s to %s", name, oldVersion, newVersion))
 		return &UpdateResult{
 			Name:       name,
@@ -1095,4 +1101,23 @@ func (i *Installer) discoverPluginFromFilesystem(
 		}, nil
 	}
 	return nil, fmt.Errorf("no version found for plugin %q", name)
+}
+
+// checksumFileError keeps the checksum failure text callers already see while
+// letting [errors.Is] tell which sentinel caused it.
+type checksumFileError struct {
+	msg  string
+	kind error
+}
+
+func (e *checksumFileError) Error() string { return e.msg }
+
+func (e *checksumFileError) Unwrap() error { return e.kind }
+
+// IsUnverifiableRelease reports whether err says the release itself cannot be
+// verified: no checksums.txt, an archive it does not list, or no valid entries.
+func IsUnverifiableRelease(err error) bool {
+	return errors.Is(err, ErrChecksumUnavailable) ||
+		errors.Is(err, ErrAssetNotInChecksums) ||
+		errors.Is(err, ErrMalformedChecksums)
 }
