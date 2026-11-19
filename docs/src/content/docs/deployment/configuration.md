@@ -19,7 +19,7 @@ committing sensitive data.
 ## File-Based Configuration
 
 The default configuration file lives at `~/.finfocus/config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 output:

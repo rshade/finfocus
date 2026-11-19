@@ -205,7 +205,7 @@ params:
 
 - **Description**: Cost data lags 12-48 hours from actual usage
 - **Impact**: Real-time cost tracking not possible
-- **Workaround**: Account for lag in reporting; use 3-day window for
+- **Workaround**: Account for lag in reporting. Use a 3-day window for
   incremental syncs
 
 #### 3. Rate Limiting

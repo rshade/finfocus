@@ -81,7 +81,7 @@ message NameResponse {
 
 **Fields:**
 
-- `name` (string) - Plugin display name (e.g., "opencost", "vantage")
+- `name` (string) - Plugin display name, such as `opencost` or `vantage`
 
 **Example:**
 
@@ -128,8 +128,8 @@ message SupportsRequest {
 **Fields:**
 
 - `resource` (ResourceDescriptor) - Resource to check support for
-- `capability` (PluginCapability) - Operation the host is about to call;
-  `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability
+- `capability` (PluginCapability) - Operation the host is about to call.
+  `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability.
 
 FinFocus sets `capability` to the operation it is about to call:
 `PLUGIN_CAPABILITY_PROJECTED_COSTS` for projected cost and projected batches,
@@ -241,10 +241,10 @@ message GetProjectedCostResponse {
 **Fields:**
 
 - `unit_price` (double) - Price per unit (hourly rate for compute)
-- `currency` (string) - Currency code (e.g., "USD", "EUR")
+- `currency` (string) - Currency code, such as `USD` or `EUR`
 - `cost_per_month` (double) - Estimated monthly cost
-- `billing_detail` (string) - Billing context (e.g., "on-demand",
-  "reserved")
+- `billing_detail` (string) - Billing context, such as `on-demand` or
+  `reserved`
 
 **Example:**
 
@@ -337,8 +337,8 @@ message ActualCostResult {
 - `timestamp` (Timestamp) - Point-in-time or bucket start
 - `cost` (double) - Total cost for the period
 - `usage_amount` (double) - Optional usage amount
-- `usage_unit` (string) - Unit of usage (e.g., "hour", "GB")
-- `source` (string) - Data source (e.g., "kubecost", "vantage")
+- `usage_unit` (string) - Unit of usage, such as `hour` or `GB`
+- `source` (string) - Data source, such as `kubecost` or `vantage`
 
 **Example:**
 
@@ -502,9 +502,8 @@ grpcurl -plaintext -d '{
 
 ### BatchCost
 
-Calculates cost for multiple resources in a single RPC call. This is an
-optional capability — plugins that do not implement it will return
-`UNIMPLEMENTED`, and the core falls back to per-resource cost calls.
+Calculates cost for multiple resources in a single RPC call. A plugin that does not
+implement this optional capability returns `UNIMPLEMENTED`, and the core falls back to per-resource cost calls.
 
 **Method:** `BatchCost(BatchCostRequest) BatchCostResponse`
 
@@ -563,16 +562,16 @@ message CostData {
 - `results` (repeated ResourceCostResult) - Per-resource results in the
   same order as the request
 - `max_batch_size` (int32) - Optional hint for the maximum number of
-  resources the plugin can handle in a single batch; the core re-chunks
+  resources the plugin can handle in a single batch. The core re-chunks
   remaining resources when this is set
 
 **Fields (ResourceCostResult):**
 
 - `resource` (ResourceDescriptor) - The resource this result corresponds to
 - `cost_data` (CostData) - Cost data on success (projected or actual
-  depending on `query_type`); see [ActualCostData](#actualcostdata) for the
+  depending on `query_type`). See [ActualCostData](#actualcostdata) for the
   actual cost payload
-- `error` (ResourceError) - Per-resource error (e.g., unsupported type); see
+- `error` (ResourceError) - Per-resource error, such as an unsupported type. See
   [ResourceError](#resourceerror)
 
 **Example:**
@@ -708,7 +707,7 @@ message ResourceDescriptor {
 **Fields:**
 
 - `provider` (string) - Cloud provider (aws, azure, gcp, kubernetes)
-- `resource_type` (string) - Resource type (ec2, s3, vm, k8s-namespace)
+- `resource_type` (string) - Resource type (`ec2`, `s3`, `vm`, `k8s-namespace`)
 - `sku` (string) - SKU or instance size (t3.micro, Standard_D2s_v3)
 - `region` (string) - Geographic region (us-east-1, westus2)
 - `tags` (map) - Label/tag hints for identification
@@ -819,7 +818,7 @@ message ActualCostData {
 ### ResourceError
 
 Structured error information for a single resource failure within a batch.
-Per-resource errors do not cause the entire batch RPC to fail; they appear in
+Per-resource errors do not cause the entire batch RPC to fail. They appear in
 the `error` field of `ResourceCostResult` (see [BatchCost](#batchcost)).
 
 ```protobuf
@@ -834,7 +833,7 @@ message ResourceError {
 
 - `code` (int32) - Required. gRPC-compatible status code from
   `google.rpc.Code`. Common values: `INVALID_ARGUMENT` (3), `NOT_FOUND` (5),
-  `UNIMPLEMENTED` (12), `INTERNAL` (13). Must not be `OK` (0) — the presence
+  `UNIMPLEMENTED` (12), `INTERNAL` (13). Must not be `OK` (0), because the presence
   of `ResourceError` implies a non-OK status
 - `message` (string) - Required. Human-readable error description
 - `resource_type_unsupported` (bool) - Optional. True when the error is

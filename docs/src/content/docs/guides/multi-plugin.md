@@ -1,6 +1,6 @@
 ---
 title: Running aws-public, Kubernetes, and Scorer Together
-description: End-to-end walkthrough of the three FinFocus plugins working together — aws-public pricing AWS resources, kubernetes splitting cluster costs, and scorer ranking the recommendations.
+description: End-to-end walkthrough of the three FinFocus plugins working together, with aws-public pricing AWS resources, kubernetes splitting cluster costs, and scorer ranking the recommendations.
 ---
 
 ## What Each Plugin Does
@@ -8,7 +8,7 @@ description: End-to-end walkthrough of the three FinFocus plugins working togeth
 FinFocus plugins each do one job, and Core routes work between them. This
 walkthrough runs a realistic day with all three plugins installed:
 
-- **aws-public** prices AWS resources from public list pricing — both in a
+- **aws-public** prices AWS resources from public list pricing, both in a
   Pulumi plan and the live nodes of an EKS cluster. No AWS credentials needed.
 - **kubernetes** reports what's running in the cluster and splits each priced
   node's cost across namespaces and workloads. It also prices Kubernetes
@@ -42,17 +42,17 @@ finfocus config set scoring.enabled true
 
 The kubernetes plugin also needs a reachable cluster via kubeconfig
 (`KUBECONFIG` or `~/.kube/config`) for Step 2. Set `scoring.plugin` before
-`scoring.enabled` — every config change is validated, and scoring cannot be
-enabled without a plugin.
+`scoring.enabled`, because FinFocus validates each config change, and scoring
+cannot be enabled without a plugin.
 
-The first public scorer release and registry entry are pending; source install
+The first public scorer release and registry entry are pending. Source install
 is available now. Once assets are published, `finfocus plugin install scorer`
 will install it. `finfocus plugin install jev` still installs the last legacy
 Jev release separately and does not migrate settings.
 
 Hosted Jev sends recommendation data to TypeSafe AI. To select hosted Clef,
 use `SCORER_BACKEND=clef`, a Cloudflare token in `SCORER_API_KEY`, and your
-32-hex-character `SCORER_CLEF_ACCOUNT_ID`; its default model is `clef`. Hosted
+32-hex-character `SCORER_CLEF_ACCOUNT_ID`. Its default model is `clef`. Hosted
 Clef sends the data to Cloudflare. Inspect `--scoring-dry-run` and narrow data
 with `scoring.field_allowlist` before enabling either. See the
 [scorer README](https://github.com/rshade/finfocus/tree/main/plugins/scorer)
@@ -63,7 +63,7 @@ for migration and backend settings.
 The stack already runs an `m4.large` API server and a 200 GB gp2 data volume.
 A pull request adds an RDS instance, an S3 bucket, and a `search-indexer`
 Deployment (3 replicas, each requesting 0.5 vCPU and 1 GiB). One command
-prices both providers — Core routes each resource to the plugin that claims
+prices both providers. Core routes each resource to the plugin that claims
 it:
 
 ```bash
@@ -100,8 +100,8 @@ the cost of this pull request: $109.61 a month. aws-public priced the EC2
 instance, EBS volume, and RDS instance from its embedded pricing data. The
 kubernetes plugin priced the Deployment from its declared requests, and its
 note shows the arithmetic. The S3 bucket has no price from any installed
-plugin; it is listed under `ERRORS` and counted as $0, which means "unknown",
-not "free".
+plugin. It is listed under `ERRORS` and counted as $0, which means "unknown,"
+not "free."
 
 Neither plugin needed AWS credentials or a live cluster for this step, so it
 runs safely in CI.
@@ -140,19 +140,19 @@ workload requested, not a pricing gap. A namespace whose pods request nothing,
 such as `local-path-storage` here, gets $0.
 
 The `search` row is the same `search-indexer` Deployment from Step 1. In Step
-1 it cost $54.75 at the configured plan-time rates; here it costs $13.59 as
+1 it cost $54.75 at the configured plan-time rates. Here it costs $13.59 as
 its share of real node prices. Plan-time rates are configuration, so set them
 close to your nodes' per-vCPU and per-GiB cost if you want the two to agree.
 
 On EKS, the plugin also reports the control plane as a priceable resource
 when the configured API server host matches the EKS endpoint pattern
 (`<id>.<region>.eks.amazonaws.com`). A `__cluster__` row is added only when FinFocus
-returns a price for it; if no installed plugin prices the control plane, no
+returns a price for it. If no installed plugin prices the control plane, no
 row appears.
 
 ## Step 3: Score the Recommendations
 
-aws-public also produces recommendations — here, moving the gp2 volume to gp3
+aws-public also produces recommendations. Here they suggest moving the gp2 volume to gp3
 and the `m4.large` instance to `m5.large`. With scoring enabled, Core sends
 them to scorer, which returns risk, false-positive, worth-acting, and priority
 scores for each:
@@ -193,10 +193,10 @@ The Jev backend's scores are `ranking_only`: they order the list, and they are n
 probabilities. Priority is a relative score, so read it only against the
 other rows in the same run. Jev rated the gp2→gp3 change as both lower risk
 and more worth doing, so it sorts first. It flagged the instance upgrade for
-`review`, which the summary line counts as "1 need review". `GROUP` is empty
+`review`, which the summary line counts as `1 need review`. `GROUP` is empty
 because Jev found no duplicates. Scores can shift slightly between runs.
 
-A score never approves, dismisses, or applies anything; that decision stays
+A score never approves, dismisses, or applies anything. That decision stays
 with the reviewer.
 
 ## How They Fit Together

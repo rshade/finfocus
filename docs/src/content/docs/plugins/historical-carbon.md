@@ -23,7 +23,7 @@ configuration), then restart the plugin:
 Alternatively, export `FINFOCUS_AWS_CARBON_ENABLED=true`. The plugin advertises
 this setting so FinFocus delivers configuration through its existing settings
 mechanism. Standard AWS credentials and Sustainability read permissions are
-required. Enabling the feature performs no AWS request by itself; ordinary
+required. Enabling the feature performs no AWS request by itself, and ordinary
 monetary cost requests do not request Sustainability data.
 
 ## Query complete months
@@ -43,7 +43,7 @@ An explicit `--output` value takes precedence.
 Filter using `--account`, `--region`, and `--service`. Each accepts comma-separated
 values or repeated flags, for example `--account 111111111111,222222222222`
 and `--service AmazonEC2 --service AmazonS3`. Empty filter values are invalid.
-These are AWS aggregate dimensions; no resource matching or allocation occurs.
+These are AWS aggregate dimensions, so no resource matching or allocation occurs.
 Only the `aws-ce` report provider is queried.
 
 ## Interpret available records
@@ -56,7 +56,7 @@ zero emissions remain explicit numeric zero values.
 The report includes its resolved request even when no records are available.
 An empty JSON report has `records: []` and `totalGrams: null`. A returned zero
 record has `value: 0` and contributes to a numeric total. The total sums only
-returned, available records; it does not claim a complete physical inventory.
+returned, available records. It does not claim a complete physical inventory.
 AWS publication lag or missing data must not be interpreted as zero emissions.
 Model revisions are not additive identities.
 

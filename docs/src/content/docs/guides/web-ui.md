@@ -165,8 +165,8 @@ When the session starts from state only, choose **Run preview** in the overview
 to run `pulumi preview` on demand, like the `p` key in the terminal UI. The
 overview shows the elapsed time and updates pending changes when the preview
 finishes. Only one preview runs at a time. A resource's detail panel lists its
-dependents under **Blast radius**; after the preview it includes the
-dependents the plan creates, changes or deletes. The terminal
+dependents under **Blast radius**. After the preview it includes the
+dependents the plan creates, changes, or deletes. The terminal
 [overview](../commands/overview.md#blast-radius) shows the same section.
 
 The **Blast radius** table keeps its summary and column headings in view while
@@ -194,14 +194,14 @@ shows a separate error and preserves the current estimate.
 Zero baseline, zero rate, or zero actual spend does not establish non-billability.
 Unsupported resources, missing region or SKU, pricing errors, and unknown
 billability remain available for estimation. Metadata is used only when already
-available for the effective pricing providers; listing resources never triggers
+available for the effective pricing providers. Listing resources never triggers
 new pricing probes. A positive projected baseline helps choose the initial
 resource without affecting which resources are visible.
 
 If only known non-billable resources remain, the picker explains the empty list
 and offers **Show all resources**. Planned resources and existing launch filters
 still apply. Interactive plan estimation uses the same default eligibility
-policy; explicit `cost estimate --provider ... --resource-type ...` remains
+policy. An explicit `cost estimate --provider ... --resource-type ...` remains
 available for inspecting a specific type.
 
 ## Forecast from past spend
@@ -210,7 +210,7 @@ Open **Forecast** to project monthly cost. The default is the plugins' growth
 models, the same as `finfocus cost forecast`. To fit past spend instead,
 choose **Statistical (ARIMA)** and pick a CSV of `date,value` rows, one per
 consecutive day or month, exported from your billing console. The file stays
-on your machine; the page reads it and sends the text to the local server.
+on your machine. The page reads it and sends the text to the local server.
 
 Add a **Growth cap** such as `1.25` to keep every month within 25% of the
 current one, or **Steps** such as `2027-06-01=500` for a known change. For a
@@ -319,7 +319,7 @@ To narrow what you see:
   as a file with one JSON object per line.
 
 For the same data in a terminal, run [`finfocus logs`](../commands/logs.md). It
-reads the log file once, with the same filters and the same redaction.
+reads the log file once and applies the same filters and redaction.
 
 ### What the log view shows
 
@@ -351,7 +351,7 @@ printed URL. The session cookie is marked `Secure` because the proxy sends
 
 - `--allowed-host` is repeatable and matches the exact name. Wildcards, IP
   addresses, and values with a scheme or path are refused at startup. A port is
-  optional; without one, the HTTPS default (443) is assumed. Any other `Host` is
+  optional. Without one, the HTTPS default (443) is assumed. Any other `Host` is
   still refused with 403.
 - Each request must still carry the token cookie, so the proxy needs no
   special setup.
@@ -408,7 +408,7 @@ that launched it to shut down the server and its plugins.
 
 - Pulumi only. `--terraform-state` is not a `--web` flag.
 - A stack list needs a Pulumi project. There are no totals or comparisons across
-  stacks; each tab is independent.
+  stacks, and each tab is independent.
 - Loopback listener only. There is no option to listen on a non-loopback
   address and no built-in TLS. To reach the dashboard from other devices, put
   an HTTPS proxy on the same machine in front of it

@@ -62,8 +62,8 @@ finfocus cost projected --pulumi-json multi-cloud-plan.json
 
 **Provider Extraction**: FinFocus takes the first segment of the resource type
 and maps it to the cloud that bills the resource. The provider is the cloud
-(`aws`, `azure`, `gcp`, `kubernetes`), not the Pulumi package or Terraform
-provider name:
+(`aws`, `azure`, `gcp`, `kubernetes`) rather than the Pulumi package or
+Terraform provider name:
 
 | Resource Type                                 | Provider     |
 | --------------------------------------------- | ------------ |
@@ -77,17 +77,21 @@ provider name:
 | `google_compute_instance` (Terraform)         | `gcp`        |
 | `kubernetes:core/v1:Pod`                      | `kubernetes` |
 
-These names map to a cloud: `aws-native` to `aws`; `azure-native` and
-`azurerm` to `azure`; `google-native` and `google` to `gcp`. Any other prefix
-is used as written, lowercased. The resource type itself is never changed, so
+These names map to a cloud:
+
+- `aws-native` to `aws`
+- `azure-native` and `azurerm` to `azure`
+- `google-native` and `google` to `gcp`
+
+Any other prefix is used as written, lowercased. The resource type itself is never changed, so
 a plugin can still read the package from the type token, and a routing pattern
 such as `aws-native:*` still matches it. `finfocus config routes test` shows
 both, for example `provider: aws (package: aws-native)`.
 
-A plugin that reports `aws` receives `aws-native` resources. A plugin that
-still lists a package name, such as `azure-native`, keeps matching, and now
-also receives resources of the same cloud under another package name; it can
-decline them through `Supports`.
+A plugin that reports `aws` receives `aws-native` resources. Plugins that
+still list a package name, such as `azure-native`, keep matching, and now
+also receive resources of the same cloud under another package name. They can
+decline those resources through `Supports`.
 
 Cost reports, provider budgets, the `provider=` filter and history charts use
 the same cloud name, so `aws` and `aws-native` spend appears under one `aws`
@@ -102,8 +106,8 @@ descriptor provider that differs from the type prefix also counts: Terraform
 labels an unmapped type `custom`. Plugins with an empty list or `*` are
 still asked.
 
-Core also asks a plugin only for the features its capabilities list, with or
-without a routing configuration. Projected cost needs `projected_costs`, actual
+Whether or not routing is configured, core also asks a plugin only for the
+features its capabilities list. Projected cost needs `projected_costs`, actual
 cost `actual_costs`, recommendations `recommendations`, and carbon `carbon`.
 `--pricing-spec-fallback` and `--explain` ask for a pricing spec only from
 plugins on the projected route that list `pricing_spec`, in the same priority
@@ -126,7 +130,7 @@ If no region binary is found, the standard binary is used as a fallback.
 ### Layer 2: Declarative Configuration (Advanced Control)
 
 For advanced scenarios, add routing rules to `~/.finfocus/config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 routing:
@@ -378,11 +382,11 @@ routing:
 > When finfocus runs as a Pulumi policy pack (`pulumi preview --policy-pack`),
 > routing configuration is **not consulted**. All plugins discovered in the plugin
 > directory are loaded and queried for every resource. Pulumi 3.270.0 and later
-> starts that pack through `pulumi-language-finfocus`; earlier releases start
+> starts that pack through `pulumi-language-finfocus`. Earlier releases start
 > `pulumi-analyzer-policy-finfocus`. `finfocus analyzer install` writes both.
 >
 > Additionally, global plugins (those with `supported_providers: ["*"]`) cannot be
-> excluded via routing even in standard CLI mode — they are always included for all
+> excluded via routing even in standard CLI mode. They are always included for all
 > resources.
 >
 > To exclude specific plugins when running as a policy pack, use `FINFOCUS_HOME`
@@ -561,7 +565,7 @@ gcp-public  1.0.0    gcp          ProjectedCosts, ActualCosts      healthy
 
 ### All Plugins Failing
 
-**Symptoms**: All plugins fail, falling back to specs or "no cost data".
+**Symptoms**: All plugins fail, falling back to specs or `no cost data available`.
 
 **Solutions**:
 

@@ -131,8 +131,8 @@ example, `Spot exposure  400.00 USD (40.0% of 1000.00 USD), weighted risk 0.18`.
 A resource with an unknown risk counts as spot but is left out of the weighted
 risk, and the line says how many were left out. When no resource has a risk
 score, the weighted risk reads `unknown`, never `0.00`. A cost diff adds a
-`Spot change` line with the spot cost before, after, and the difference; a
-replaced resource counts once. JSON carries these as `summary.spot` (and
+`Spot change` line with the spot cost before, after, and the difference, counting a
+replaced resource once. JSON carries these as `summary.spot` (and
 `spotChange` for a diff). The figures are informational: they do not feed
 budgets, exit codes, or CI gates. A total with no spot resource, or with mixed
 currencies, shows no exposure.
@@ -149,7 +149,7 @@ and `--include-dismissed` still shows it as spot. Which resources qualify, and
 the savings, come from the plugin (aws-ce for AWS).
 
 On the web Recommendations page the label sits under the action in the Action
-column, and each resource is named by the last segment of its URN; the full
+column, and each resource is named by the last segment of its URN. The full
 URN is in the button's tooltip and the detail. The detail explains that the
 spot risk is the chance the spot capacity is interrupted, which is separate
 from the scorer's `Risk` signal.
@@ -229,7 +229,7 @@ more than a documented cutoff. A resource with 15 or more stored daily actuals
 in one currency (14 earlier days plus the day under test) is scored: its most recent complete UTC day is compared with the
 median of the days before it. The resource gets `method: robust-median` only
 when the median absolute deviation of those days is not zero and the day's
-robust z-score reaches 3.5; that row replaces the resource's drift row. A
+robust z-score reaches 3.5. That row replaces the resource's drift row. A
 resource without that much daily history, or whose most recent day does not
 qualify, keeps `method: drift`, the overview's own calculation:
 its month-to-date run-rate has diverged from the projected month by more than
@@ -341,9 +341,9 @@ when several match. `view --output json` prints the snapshots and annotations.
 
 ## Automatic Pulumi Integration
 
-When you run `finfocus cost projected` or `finfocus cost actual` inside a Pulumi
-project directory, FinFocus automatically detects the project and runs the appropriate
-Pulumi CLI command. No flags required.
+FinFocus detects the Pulumi project and runs the appropriate Pulumi CLI command
+when you run `finfocus cost projected` or `finfocus cost actual` inside a Pulumi
+project directory. No flags required.
 
 ### Simplified Workflow
 
@@ -602,7 +602,7 @@ infrastructure spending.
 ### Configuring a Budget
 
 Add a budget configuration to your `~/.finfocus/config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 cost:
@@ -853,8 +853,8 @@ OP  RESOURCE                       BEFORE  AFTER  CHANGE  CURRENCY
 finfocus cost projected --pulumi-json plan.json --output json
 ```
 
-**Output** (trimmed; each resource also carries `adapter`, `hourly`, `notes`, and
-the other cost result fields):
+**Output**, trimmed. Each resource also carries `adapter`, `hourly`, `notes`, and
+the other cost result fields:
 
 ```text
 {
@@ -886,7 +886,7 @@ the resource's `before` and `after` cost results.
 finfocus cost projected --pulumi-json plan.json --output ndjson
 ```
 
-**Output** (each line trimmed; `before` and `after` are full cost results):
+**Output**, each line trimmed. The `before` and `after` values are full cost results:
 
 ```text
 {"operation":"create","resourceType":"aws:ec2/instance:Instance","resourceId":"web","before":{...},"after":{...},"deltaMonthly":7.5,"currency":"USD"}
@@ -1016,7 +1016,7 @@ FinFocus provides comprehensive logging capabilities for debugging, monitoring, 
 ### Configuration File
 
 Create or edit `~/.finfocus/config.hujson` to configure logging.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 logging:
@@ -1104,7 +1104,7 @@ logging:
 
 | Field          | Description                                                  |
 | -------------- | ------------------------------------------------------------ |
-| `command`      | CLI command executed (e.g., "cost projected", "cost actual") |
+| `command`      | CLI command, such as `cost projected` or `cost actual`       |
 | `trace_id`     | Unique request identifier for correlation                    |
 | `duration_ms`  | Command execution time in milliseconds                       |
 | `success`      | Whether the command completed successfully                   |

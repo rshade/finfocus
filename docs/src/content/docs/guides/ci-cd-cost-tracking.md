@@ -29,7 +29,7 @@ finfocus cost history collect-daily --stack dev
 `collect-daily` is a separate step. It prices actual cost and stores one
 point per resource per UTC day. It does not read checkpoints and it does not
 modify the projected database. The default window is the last 30 complete
-UTC days. Pass `--from` and `--to` to correct a shorter range; days outside
+UTC days. Pass `--from` and `--to` to correct a shorter range. Days outside
 that response stay stored. `--output json` prints how many resources were
 stored, how many had no daily series, and which ones failed.
 

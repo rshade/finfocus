@@ -479,7 +479,7 @@ example, `kubernetes-v0.1.0`) rather than the CLI's bare `vX.Y.Z` tags:
   version bump are tracked separately from the CLI.
 - `.github/workflows/release-monorepo-plugin.yml` builds and uploads release
   archives (`scripts/release-plugin-assets.sh`) for a published `<plugin>-v*`
-  release; the CLI's `goreleaser.yml` and `nightly.yml` release-triggered jobs
+  release. The CLI's `goreleaser.yml` and `nightly.yml` release-triggered jobs
   are guarded to skip these tags.
 - The plugin's registry entry needs **both** `tag_prefix` set (for example,
   `"kubernetes-"`) so the installer can resolve prefixed tags to a canonical
@@ -490,7 +490,7 @@ example, `kubernetes-v0.1.0`) rather than the CLI's bare `vX.Y.Z` tags:
   `release-monorepo-plugin.yml`/`scripts/release-plugin-assets.sh` produce.
 - Monorepo plugin names (and thus `tag_prefix` values) must not start with
   `v`. The CLI's own release workflows distinguish a bare CLI tag from a
-  plugin tag with `startsWith(tag, 'v')`; a plugin prefix starting with `v`
+  plugin tag with `startsWith(tag, 'v')`. A plugin prefix starting with `v`
   (e.g. `vantage-v0.1.0`) would defeat that guard, so
   `ValidateRegistryEntry` rejects it.
 - A published `<plugin>-vX.Y.Z` release is never allowed to hold the
@@ -568,7 +568,7 @@ FinFocus spans these repositories:
 | --------------------------- | ------------------------------------------- |
 | [finfocus][core]     | CLI tool, plugin host, orchestration engine |
 | [finfocus-spec][spec]     | Protocol buffer definitions, SDK generation |
-| Plugin implementations | Separate repositories such as [finfocus-plugin-aws-public][aws-public], and modules under `plugins/` in [finfocus][core]; see the [plugin registry][registry] for repository locations |
+| Plugin implementations | Separate repositories such as [finfocus-plugin-aws-public][aws-public], and modules under `plugins/` in [finfocus][core]. See the [plugin registry][registry] for repository locations |
 
 [core]: https://github.com/rshade/finfocus
 [spec]: https://github.com/rshade/finfocus-spec

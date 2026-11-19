@@ -116,7 +116,7 @@ make test-e2e-web    # Real Chromium against the real binary
 Playwright version resolved by the nested `test/e2e` module, and runs the
 `e2e_web`-tagged `TestWebUI*` tests. The fixture plugin and Pulumi process are
 local and deterministic. The Makefile sets `FINFOCUS_WEB_E2E_REQUIRED=1`, so a
-missing binary fails the run; a direct `go test` run skips with a message
+missing binary fails the run. A direct `go test` run skips with a message
 instead. CI runs both targets.
 
 On a machine without Chromium's system libraries, let Playwright install them:

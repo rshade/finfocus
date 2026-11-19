@@ -21,14 +21,9 @@ func testGetProjectedCostValid(ctx *TestContext) *TestResult {
 		return &TestResult{Status: StatusError, Error: errInvalidPluginClientType}
 	}
 
-	// Create a standard test resource (e.g., t3.micro EC2)
+	// Send the probe resource (the built-in t3.micro EC2 unless overridden)
 	req := &pbc.GetProjectedCostRequest{
-		Resource: &pbc.ResourceDescriptor{
-			Provider:     testProviderAWS,
-			ResourceType: testResourceTypeEC2Instance,
-			Sku:          testSKUT3Micro,
-			Region:       testRegionUSEast1,
-		},
+		Resource: ctx.probeResource().Descriptor(),
 	}
 
 	// Use context with timeout from TestContext
@@ -70,10 +65,10 @@ func testGetProjectedCostInvalid(ctx *TestContext) *TestResult {
 	// Create an invalid/unsupported resource
 	req := &pbc.GetProjectedCostRequest{
 		Resource: &pbc.ResourceDescriptor{
-			Provider:     testProviderAWS,
+			Provider:     ctx.probeResource().Provider,
 			ResourceType: "invalid:resource",
 			Sku:          "non-existent",
-			Region:       testRegionUSEast1,
+			Region:       ctx.probeResource().Region,
 		},
 	}
 

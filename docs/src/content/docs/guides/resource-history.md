@@ -13,7 +13,7 @@ billing periods, even when resources are replaced or destroyed mid-month.
 **Why this exists**: Cloud provider billing APIs report costs by resource ID
 (e.g., EC2 instance `i-abc123`). When Pulumi replaces a resource, the old cloud
 ID disappears from state and a new one takes its place. Without history, FinFocus
-can only query costs for the *current* resource — missing the old one entirely.
+can only query costs for the *current* resource, so it misses the old one entirely.
 
 **Target Audience**: End Users, DevOps Engineers, Platform Engineers
 
@@ -74,8 +74,9 @@ during the requested period.
 FinFocus uses a layered query strategy:
 
 1. **Primary**: Query billing APIs by all known cloud IDs from the history store
-2. **Fallback**: For resources with no history (cold start, created and destroyed
-   between runs), query billing APIs by configured cost allocation tags
+2. **Fallback**: For resources with no history (a cold start, or a resource
+   created and destroyed between runs), query billing APIs by configured cost
+   allocation tags
 3. **Deduplication**: Costs from tag-based queries are deduplicated against
    ID-based results to prevent double-counting
 
@@ -91,7 +92,7 @@ timeline without running a plan.
 By default, the identity combines the normalized Git `origin` with the Terraform
 root's path relative to the Git root, and uses the stack name `unscoped`. Without
 Git or `origin`, it uses the cleaned absolute path. The database filename contains
-a hash; the stored display label contains the path, without the raw remote URL.
+a hash. The stored display label contains the path, without the raw remote URL.
 
 To keep separate histories for Terraform workspaces:
 
@@ -101,14 +102,14 @@ finfocus cost history list --include-workspace
 ```
 
 Use the same setting when recording and reading snapshots. The flag overrides
-`cost.terraform.include_workspace` for one run; `--include-workspace=false`
+`cost.terraform.include_workspace` for one run, and `--include-workspace=false`
 overrides a configured `true`. The workspace command runs only when enabled.
 The workspace name `unscoped` is reserved. Pulumi history identities ignore this
 flag.
 
 `cost history collect` reads Pulumi checkpoints. In a Terraform directory it exits
 2 without running a plan because Terraform plans contain no checkpoint list.
-For actual costs, pass `--terraform-state`; FinFocus does not plan for actual costs.
+For actual costs, pass `--terraform-state`. FinFocus does not plan for actual costs.
 
 ## Configuration
 
@@ -151,7 +152,7 @@ configuration.
 Pulumi Cloud history fills observation gaps by reading state snapshots from past
 `update`, `refresh`, `destroy`, and `import` operations. Imported observations
 have source `pulumi_cloud`. FinFocus extracts only URN, cloud ID, resource type,
-and provider; it caches those identities in `history.db`. It never stores
+and provider. It caches those identities in `history.db`. It never stores
 snapshot properties or secrets.
 
 `config set` writes the global `config.hujson` (`~/.finfocus/` by default), so
@@ -182,13 +183,13 @@ unavailable instead of waiting.
 
 FinFocus reuses the Pulumi CLI login. There is no config token key. To override
 the saved token, use `PULUMI_ACCESS_TOKEN`. For a backend selected in a project's
-`backend.url`, an override also requires explicitly setting `PULUMI_BACKEND_URL`;
-otherwise FinFocus uses only credentials saved for that project backend URL.
+`backend.url`, an override also requires explicitly setting `PULUMI_BACKEND_URL`.
+Otherwise, FinFocus uses only credentials saved for that project backend URL.
 
 The import range is clamped to the retention cutoff. Retention resolves from
 `FINFOCUS_HISTORY_RETENTION_DAYS`, then `cost.history.retention_days`, then 90
 days, matching history cleanup. Without `--from`, the import command starts at
-that cutoff; `--to` defaults to now. Repeated runs reuse cached identities.
+that cutoff, and `--to` defaults to now. Repeated runs reuse cached identities.
 
 **Known limit:** Only snapshots observed within the requested period add
 identities. A resource created before the period and destroyed inside it may
@@ -214,8 +215,8 @@ during every `pulumi up` operation in real-time.
 
 ## Cost Allocation Tags
 
-For the most complete cost coverage — especially for resources that are created
-and destroyed between FinFocus runs — configure cost allocation tags on your
+For the most complete cost coverage, especially for resources that are created
+and destroyed between FinFocus runs, configure cost allocation tags on your
 cloud resources.
 
 > **Key requirement**: Tags must be present on the resource **while it incurs
@@ -336,7 +337,7 @@ These tags are commonly used for cost attribution across cloud providers:
 |----------|----------------------|-------------------|
 | **Purpose** | Resource identity timeline | Cost query results |
 | **Lifecycle** | Persistent, accumulates | Ephemeral, rebuildable |
-| **Safe to delete?** | **No** — loses identity data | Yes — rebuilds on next query |
+| **Safe to delete?** | **No**, it loses identity data | Yes, it rebuilds on the next query |
 | **Retention** | Configurable (default: 90 days) | TTL-based (default: 1 hour) |
 | **Grows over time?** | Yes, bounded by retention | No, bounded by TTL + compaction |
 
@@ -425,5 +426,5 @@ The database is bounded by `retention_days`. If it's larger than expected:
 1. Verify tags are on your cloud resources: check the AWS/GCP/Azure console
 2. For AWS: confirm tags are activated as Cost Allocation Tags in Billing Console
 3. Check tag key format: GCP uses underscores (`pulumi_project`), not colons
-4. Tags must have been present **while costs were incurred** — retroactive
+4. Tags must have been present **while costs were incurred**. Retroactive
    tagging does not apply to historical billing data

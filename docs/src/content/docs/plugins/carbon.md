@@ -21,7 +21,7 @@ finfocus plugin list
 finfocus cost projected --pulumi-json plan.json
 ```
 
-The plugin releases independently under `carbon-vX.Y.Z`; catalog installation
+The plugin releases independently under `carbon-vX.Y.Z`. Catalog installation
 requires the first release's downloadable assets. Until then, build from source.
 Install a monetary pricing plugin or configure local pricing specifications for
 dollar estimates. A carbon-only installation still reports `NO_COST_DATA` for
@@ -42,8 +42,8 @@ power, and provisioned memory is not scaled by CPU utilization.
 The canonical `carbon_footprint` metric contains a monthly total in `gCO2e`, based
 on 730 hours. At the default utilization, t3.medium in us-east-1 estimates
 1437.00152 grams CO2e/month. Existing output converts qualifying totals into
-[carbon equivalencies](../guides/greenops-equivalencies.md). A monetary source's existing carbon takes precedence;
-carbon failures do not discard successful monetary prices.
+[carbon equivalencies](../guides/greenops-equivalencies.md). A monetary source's existing carbon takes precedence.
+Carbon failures do not discard successful monetary prices.
 
 Carbon enrichment runs again on monetary cache hits, so changed assumptions take
 effect on the next query. It never turns missing pricing into a free-resource
@@ -53,9 +53,9 @@ claim or duplicates resource rows.
 
 There are 34 supported sizes and 38 regions in the pinned snapshot. Unknown
 sizes/regions are declined explicitly. These are operational compute and memory
-estimates, not measurements or total lifecycle emissions. They exclude storage,
-networking, embodied emissions, actual billing data, other clouds, and Kubernetes
-workload allocation.
+estimates. They are not measurements or total lifecycle emissions. They
+exclude storage, networking, embodied emissions, actual billing data, other
+clouds, and Kubernetes workload allocation.
 
 See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/carbon)
 for exact supported sizes, installation paths, and development commands, and

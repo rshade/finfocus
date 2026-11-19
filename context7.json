@@ -1,7 +1,7 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "FinFocus",
-  "description": "FinFocus is a Go CLI and GitHub Action that prices pulumi preview output through a plugin-based architecture, with budget enforcement and historical cost tracking.",
+  "description": "FinFocus is a Go CLI and GitHub Action that prices pulumi preview output through a plugin-based architecture. It also enforces budgets and tracks historical costs.",
   "folders": ["docs/src/content/docs"],
   "excludeFolders": ["docs/src/content/docs/testing"],
   "excludeFiles": ["plan.md", "GETTING-STARTED-DEV.md", "TABLE-OF-CONTENTS.md"]

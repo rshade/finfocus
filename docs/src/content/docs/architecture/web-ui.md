@@ -6,8 +6,8 @@ description: Why the finfocus --web dashboard shares the CLI engine, how a sessi
 `finfocus --web` is a third presentation layer next to the CLI output and the
 terminal UI. This page explains the choices behind it: why the browser computes
 nothing, how one session serves several tabs, and why the local server needs
-more protection than "it only listens on localhost". For tasks, see
-[Use the browser dashboard](../guides/web-ui.md); for exact behavior, see the
+more protection than "it only listens on localhost." For tasks, see
+[Use the browser dashboard](../guides/web-ui.md), and for exact behavior, see the
 [Web UI reference](../reference/web-ui.md).
 
 ## One engine, three renderers
@@ -46,7 +46,7 @@ the load again. Per-view choices, such as expanded clusters, stay in the page
 that made them, so two tabs do not interfere with each other.
 
 The dashboard refreshes only where the terminal UI does: an on-demand
-`pulumi preview` and estimate recalculation. There is no timed refresh; you
+`pulumi preview` and estimate recalculation. There is no timed refresh. You
 relaunch for fresh actual costs.
 
 ## Stack routes and path prefixes
@@ -81,14 +81,14 @@ root. `app.js` reads it once through `base()` and builds every network URL with
 and the log viewer's dynamic `import()`. `<base href>` is not enough, because it
 does not rewrite root-relative `/api` or `/static` URLs or `import()` calls. New
 frontend code must not pass an absolute `/api` or `/static` literal to a network
-call; `frontendtest/base.test.mjs` fails if it does.
+call. The `frontendtest/base.test.mjs` test fails if it does.
 
 ## One runtime per stack
 
 `runWebSession` builds its stack through `newWebStack`, which owns that stack's
 query data, overview pipeline, session, passphrase channel, and ESC source. A
-`--stack` list builds one `webStack` per name the same way (`runWebStacks`);
-one name, or none, builds exactly one.
+`--stack` list builds one `webStack` per name the same way (`runWebStacks`).
+One name, or none, builds exactly one.
 
 - **Shared stores.** The cost cache and the resource history are opened once per
   process by `openSharedStores` and injected into every stack's engine and
@@ -117,13 +117,13 @@ one name, or none, builds exactly one.
   reload, and the scorer all reach it. Stacks share a plugin's process when the
   binary and the exact environment the process receives match. The pool learns
   each binary's advertised settings from its first launch, so a later request
-  can resolve that environment before launching; ESC values the plugin never
+  can resolve that environment before launching. ESC values the plugin never
   receives do not prevent sharing. Until the settings are known the key also
   covers everything the stack's ESC environments offer, because a value for an
   advertised setting is allowed only after `GetPluginInfo`, and a request with
   another offer waits for that first launch rather than starting its own.
   Each stack holds its own
-  `Client` copy; closing it releases one hold, and the last release stops the
+  `Client` copy. Closing it releases one hold, and the last release stops the
   process. The pool, not a stack, owns each process's launch context, so
   stopping or cancelling one stack cannot kill a process another holds. A
   running process is checked with a `Name` call before it is handed out, and
@@ -144,7 +144,7 @@ registers each under `/s/<name>/`. It then serves with an empty root session.
 The browser, not the server, decides which stack runs: a stack's pipeline starts
 the first time the page activates it, once, however often that is asked. Opening
 a stack's own page (`GET /s/<name>/`) activates it through the same once-only
-path, so that page never streams from a stack that does not run; requests under
+path, so that page never streams from a stack that does not run. Requests under
 `/s/<name>/api/` never activate.
 Building a runtime cannot fail and starts no plugin, so every failure, at start
 or later, reaches that stack's own session as a pipeline error and never aborts
@@ -166,12 +166,12 @@ The root server adds two routes, and a stack's own tree never has them:
 - `POST /api/stacks/{name}/activate` runs the stack's `Activate` callback
   (`webStack.start`) through a `sync.Once` and answers `202` with the state.
 
-The root page names the stacks in `<meta name="finfocus-stacks">`, written like
-the base prefix, only for two or more stacks. The shell reads it at boot, so it
-never waits on a request to decide whether to show tabs. A server whose page
-lacks the tag, and any page under `/s/<name>/`, keeps `#/<view>` addresses,
-activation-free loading, and no stack list. The tab bar sits in the header
-between the title and the view links.
+When there are two or more stacks, the root page names them in
+`<meta name="finfocus-stacks">`, written like the base prefix. The shell reads
+it at boot, so it never waits on a request to decide whether to show tabs. A
+server whose page lacks the tag, and any page under `/s/<name>/`, keeps
+`#/<view>` addresses, activation-free loading, and no stack list. The tab bar
+sits in the header between the title and the view links.
 
 A single-stack root page instead names its Pulumi stack in
 `<meta name="finfocus-stack">` (`Options.StackName`). `runWebSession` passes the
@@ -215,8 +215,8 @@ plugin calls and `pulumi preview`, so it defends against each of those paths.
 | Threat | Control | Why this control |
 | --- | --- | --- |
 | Access from another machine | Binds `127.0.0.1` only, with no flag to change it | A local, single-user tool has no reason to accept remote connections. Unlike `finfocus mcp-server --transport=http`, there is no opt-in. |
-| Another local process or user guessing the port | 128-bit random token in the printed URL | The port is easy to find; a 128-bit token cannot be guessed. Treat the printed URL as a secret. |
-| Token leaking through history, logs, or referrers | The token is exchanged once for an `HttpOnly` cookie, followed by a redirect to `/`; request logs omit query strings; `Referrer-Policy: no-referrer` | A token in every URL would end up in browser history and logs on each reconnect. `EventSource` cannot send custom headers, so the cookie carries authentication for the event stream. |
+| Another local process or user guessing the port | 128-bit random token in the printed URL | The port is easy to find. A 128-bit token cannot be guessed. Treat the printed URL as a secret. |
+| Token leaking through history, logs, or referrers | The token is exchanged once for an `HttpOnly` cookie, followed by a redirect to `/`. Request logs omit query strings. `Referrer-Policy: no-referrer` is set. | A token in every URL would end up in browser history and logs on each reconnect. `EventSource` cannot send custom headers, so the cookie carries authentication for the event stream. |
 | DNS rebinding (a hostile domain resolving to `127.0.0.1`) | The `Host` header must be `127.0.0.1:<port>` or `localhost:<port>`, or an exact `--allowed-host` | A rebinding page sends its own domain as `Host`, so the check rejects it. An allowed host is an exact, normalized name: no wildcards, no IP literals, no suffix matching. |
 | A web page submitting forms or `fetch` calls | `POST` requires the server's own `Origin` and `Content-Type: application/json` | Browsers do not let a cross-origin page send JSON without a preflight, and they always attach `Origin` to such requests. |
 | A page on another localhost port | `SameSite=Strict`, plus refusal of any request whose `Sec-Fetch-Site` is not `same-origin` or `none` | `SameSite` treats all localhost ports as one site, so it does not help here. Some read requests call plugins and record history, and an `<img>` tag on another port could send one with the cookie and no `Origin`. `Sec-Fetch-Site` tells the server where the request really came from. |
@@ -233,7 +233,7 @@ tightens the cookie.
 ### Behind a proxy
 
 `--allowed-host` widens the `Host` and `Origin` checks to exact public names
-(`https://<name>` for the origin); the listener stays on loopback.
+(`https://<name>` for the origin). The listener stays on loopback.
 `--trusted-proxy` adds an identity path in `authenticate`: a request needs no
 token cookie when the TCP peer is loopback, the `Host` is allowed, and the
 `Tailscale-User-Login` header appears once and names an `--allowed-user`. It
@@ -284,7 +284,7 @@ the project keeps one copy of each. Redacting in JavaScript would need a second
 list that could drift. So the `internal/weblog` package turns each raw line
 into an entry, redacts its fields, and sets its display strings before the line
 is stored. The browser receives entries and never a raw line. The free-text
-`message` is not redacted, because it cannot be inspected reliably; plugins are
+`message` is not redacted, because it cannot be inspected reliably. Plugins are
 told never to log credentials. `finfocus logs` uses the same package, so the
 terminal and the page show one pipeline's output.
 

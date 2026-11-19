@@ -12,7 +12,9 @@ section. Jump to: [Installation](#installation--setup) |
 
 ## Installation & Setup
 
-### Q: How do I install FinFocus?
+<a id="q-how-do-i-install-finfocus"></a>
+
+### Q: How do you install FinFocus?
 
 A: The fastest way is the install script:
 
@@ -26,16 +28,21 @@ For full options see the [Installation Guide](../getting-started/installation.md
 
 A: FinFocus works with Pulumi 3.0+. We recommend the newest Pulumi release.
 
-### Q: Can I use FinFocus with my cloud provider?
+<a id="q-can-i-use-finfocus-with-my-cloud-provider"></a>
 
-A: For projected costs, yes — works with all Pulumi-supported clouds via the
-`aws-public` plugin or local pricing specs.
+### Q: Can you use FinFocus with your cloud provider?
+
+A: For projected costs, yes, when a pricing plugin or a local pricing spec covers
+the resource. The `aws-public` and `azure-public` plugins price AWS and Azure resources
+from public pricing data. A local pricing spec can price a resource from any provider.
 For actual costs, a plugin with billing API access is required (e.g., Vantage,
 AWS Cost Explorer).
 
 ## Usage
 
-### Q: What is the simplest way to see my costs?
+<a id="q-what-is-the-simplest-way-to-see-my-costs"></a>
+
+### Q: What is the simplest way to see your costs?
 
 A: Navigate into any Pulumi project directory and run:
 
@@ -47,13 +54,17 @@ FinFocus auto-detects your project and stack, exports the current state, runs
 `pulumi preview --json`, and opens an interactive cost dashboard. No flags needed.
 `finfocus overview` and `finfocus ov` are aliases for the same command.
 
-### Q: Do I need to export the Pulumi state and plan manually?
+<a id="q-do-i-need-to-export-the-pulumi-state-and-plan-manually"></a>
 
-A: No — auto-detection handles this when you run `finfocus` from inside a Pulumi
+### Q: Do you need to export the Pulumi state and plan manually?
+
+A: No. Auto-detection handles this when you run `finfocus` from inside a Pulumi
 project directory. Use `--pulumi-state` and `--pulumi-json` only when you want
 to provide pre-exported files (e.g., in CI/CD where you control the export step).
 
-### Q: How do I select a specific Pulumi stack?
+<a id="q-how-do-i-select-a-specific-pulumi-stack"></a>
+
+### Q: How do you select a specific Pulumi stack?
 
 A: Pass `--stack`:
 
@@ -75,7 +86,9 @@ A: Accuracy depends on the plugin or spec used. The `aws-public` plugin uses
 AWS public pricing and is accurate for on-demand instance types. Actual costs
 may vary based on reserved instances, savings plans, and data transfer.
 
-### Q: Can I filter by custom tags?
+<a id="q-can-i-filter-by-custom-tags"></a>
+
+### Q: Can you filter by custom tags?
 
 A: Yes. Use `--filter "tag:key=value"` with any cost command:
 
@@ -84,7 +97,9 @@ finfocus overview --filter tag:env=production --plain --yes
 finfocus cost projected --filter tag:team=platform
 ```
 
-### Q: How do I reset configuration?
+<a id="q-how-do-i-reset-configuration"></a>
+
+### Q: How do you reset configuration?
 
 A: FinFocus uses two config locations:
 
@@ -102,19 +117,23 @@ A: The main plugins today:
 | Plugin | Projected Costs | Actual Costs | Notes |
 |--------|----------------|--------------|-------|
 | `aws-public` | ✓ | ✓ | AWS public pricing API |
-| `aws-ce` | Account and service forecasts | ✓ | Billed AWS cost, AWS Budgets, and recommendations from Cost Explorer; needs AWS credentials |
+| `aws-ce` | Account and service forecasts | ✓ | Billed AWS cost, AWS Budgets, and recommendations from Cost Explorer (needs AWS credentials) |
 | `azure-public` | ✓ | ✓ | Azure Retail Prices API, no credentials |
-| `vantage` | — | ✓ | Imported billing from a Vantage Cost Report; needs a Vantage account |
-| `flexera` | ✓ | ✓ | Flexera One Bill Analysis for AWS, Azure, and GCP; needs a Flexera org and billing center |
-| `cloudzero` | — | ✓ | CloudZero billing costs per resource; needs a CloudZero API key and a resource dimension |
+| `vantage` | — | ✓ | Imported billing from a Vantage Cost Report (needs a Vantage account) |
+| `flexera` | ✓ | ✓ | Flexera One Bill Analysis for AWS, Azure, and GCP (needs a Flexera org and billing center) |
+| `cloudzero` | — | ✓ | CloudZero billing costs per resource (needs a CloudZero API key and a resource dimension) |
 | `opencost` | ✓ | ✓ | Kubernetes allocation from an OpenCost or Kubecost endpoint (set the `kubecost` profile for Kubecost) |
 
-### Q: Do I need a plugin?
+<a id="q-do-i-need-a-plugin"></a>
 
-A: For projected costs: No — local pricing specs work without plugins.
-For actual costs: Yes — a plugin with billing API access is required.
+### Q: Do you need a plugin?
 
-### Q: How do I install a plugin?
+A: For projected costs, no. Local pricing specs work without plugins.
+For actual costs, yes. A plugin with billing API access is required.
+
+<a id="q-how-do-i-install-a-plugin"></a>
+
+### Q: How do you install a plugin?
 
 A: Use the plugin install command:
 
@@ -130,10 +149,12 @@ See [Plugin Documentation](../plugin-system.md#available-plugins) for per-plugin
 ### Q: What is the Pulumi Analyzer?
 
 A: The analyzer is a FinFocus mode that shows cost estimates directly inside
-`pulumi preview` output — no separate command needed. It runs as a Pulumi
+`pulumi preview` output, with no separate command needed. It runs as a Pulumi
 Policy Pack.
 
-### Q: How do I set up the analyzer?
+<a id="q-how-do-i-set-up-the-analyzer"></a>
+
+### Q: How do you set up the analyzer?
 
 A: Install the analyzer plugin, then add it to your PATH:
 
@@ -168,7 +189,7 @@ pulumi preview --policy-pack ~/.finfocus/analyzer
 
 ### Q: Does the analyzer block deployments?
 
-A: No. All cost diagnostics are `ADVISORY` severity — they appear as
+A: No. All cost diagnostics are `ADVISORY` severity. They appear as
 informational output and never prevent `pulumi up` from running.
 
 ## Troubleshooting
@@ -213,15 +234,19 @@ finfocus overview --plain --yes
 
 ## Data & Privacy
 
-### Q: Does FinFocus send my data anywhere?
+<a id="q-does-finfocus-send-my-data-anywhere"></a>
+
+### Q: Does FinFocus send your data anywhere?
 
 A: Only to the plugins you configure (e.g., a Vantage or OpenCost endpoint).
 Local specs and the cache are entirely on your machine. No telemetry is sent.
 
-### Q: Is my infrastructure data secure?
+<a id="q-is-my-infrastructure-data-secure"></a>
 
-A: Pulumi state JSON contains resource details — treat it as sensitive. FinFocus
-is a local CLI tool; all data stays on your machine unless explicitly sent to a
+### Q: Is your infrastructure data secure?
+
+A: Pulumi state JSON contains resource details, so treat it as sensitive. FinFocus
+is a local CLI tool. All data stays on your machine unless explicitly sent to a
 plugin's external API.
 
 ## Performance
@@ -231,7 +256,9 @@ plugin's external API.
 A: First run: 1–10 seconds depending on stack size and plugin API latency.
 Subsequent runs: sub-second for cached results.
 
-### Q: Can I use FinFocus with large infrastructure (1000+ resources)?
+<a id="q-can-i-use-finfocus-with-large-infrastructure-1000-resources"></a>
+
+### Q: Can you use FinFocus with large infrastructure (1000+ resources)?
 
 A: Yes. The overview enriches resources concurrently and paginates the TUI
 automatically. For very large stacks, use `--output ndjson` for streaming output
@@ -239,7 +266,9 @@ or `--filter` to narrow scope.
 
 ## Support
 
-### Q: Where can I get help?
+<a id="q-where-can-i-get-help"></a>
+
+### Q: Where can you get help?
 
 A: See these resources:
 
@@ -247,10 +276,14 @@ A: See these resources:
 - [GitHub Issues](https://github.com/rshade/finfocus/issues)
 - [GitHub Discussions](https://github.com/rshade/finfocus/discussions)
 
-### Q: How do I report a bug?
+<a id="q-how-do-i-report-a-bug"></a>
+
+### Q: How do you report a bug?
 
 A: [Open a GitHub Issue](https://github.com/rshade/finfocus/issues/new)
 
-### Q: Can I contribute?
+<a id="q-can-i-contribute"></a>
+
+### Q: Can you contribute?
 
 A: Yes! See [Contributing Guide](contributing.md).

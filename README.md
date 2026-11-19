@@ -10,7 +10,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 **See what your Pulumi stack will cost before you deploy.** FinFocus is a Go CLI and GitHub Action that prices
-`pulumi preview` output through a plugin-based architecture, with budget enforcement and historical cost tracking.
+`pulumi preview` output through a plugin-based architecture. It also enforces budgets and tracks historical costs.
 Public AWS pricing needs no billing access and no changes to your Pulumi program.
 
 ## Cost on every pull request
@@ -34,11 +34,11 @@ Add it to a workflow with [finfocus-action](https://github.com/rshade/finfocus-a
 
 Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but have no visibility into what it will cost until the bill arrives. FinFocus closes that gap:
 
-- **Shift-left on costs** — See projected costs *before* you deploy, directly from `pulumi preview` output
-- **No code changes required** — Works with any existing Pulumi project via JSON export
-- **Budget guardrails** — Enforce spending limits in CI/CD pipelines with non-zero exit codes
-- **Plugin architecture** — Swap pricing sources without changing your workflow
-- **Single dashboard** — Interactive TUI combining actual spend, projected costs, drift analysis, and recommendations
+- **Shift-left on costs**: see projected costs *before* you deploy, directly from `pulumi preview` output
+- **No code changes required**: works with any existing Pulumi project via JSON export
+- **Budget guardrails**: enforce spending limits in CI/CD pipelines with non-zero exit codes
+- **Plugin architecture**: swap pricing sources without changing your workflow
+- **Single dashboard**: one interactive TUI that shows drift analysis and recommendations next to actual spend and projected costs
 
 ## Key Features
 
@@ -177,23 +177,23 @@ Sources follow `finfocus overview`: auto-detect the current Pulumi project and
 stack, or pass `--pulumi-json plan.json` / `--pulumi-state state.json`.
 `--stack`, `--from`, `--to`, `--adapter`, and `--filter` are also accepted.
 These source flags, `--port`, and `--no-browser` are root-local companions to
-`--web`; they are rejected without it. `--web` is mutually exclusive with `--mcp`.
+`--web`. They are rejected without it. `--web` is mutually exclusive with `--mcp`.
 Terraform inputs are outside the web UI's current scope.
 
 The Cost view's group selector and tag filter, and the Recommendations view's
 **Include dismissed** toggle, add browser controls for existing CLI flags.
 The TUI fixes grouping at launch and has no include-dismissed toggle.
-Estimate changes are temporary what-if calculations; the dashboard cannot
+Estimate changes are temporary what-if calculations. The dashboard cannot
 change infrastructure or dismiss recommendations. What-If hides known non-billable
-resources by default; **Show all resources** restores them. Unknown billability
+resources by default. **Show all resources** restores them. Unknown billability
 and zero-spend resources remain available. Use **Run preview** for an
 on-demand Pulumi preview and restart the session to load fresh actual costs.
 
 Keep the printed URL private: its token opens an authenticated local session.
 The server binds to loopback, replaces the token in the address bar with an
 HTTP-only session cookie, and checks request origins. Encrypted stacks use a
-masked browser passphrase prompt with retries. Stop the server with Ctrl+C;
-closing a browser tab leaves it running.
+masked browser passphrase prompt with retries. Stop the server with Ctrl+C.
+Closing a browser tab leaves it running.
 
 See the [web UI guide](docs/src/content/docs/guides/web-ui.md) for launch options,
 storage behavior, and browser test commands.
@@ -363,7 +363,7 @@ export AWS_REGION="us-east-1"
 A plugin can advertise the settings it reads, each with its own environment
 variable, and its docs pages list them. For example,
 [aws-ce](docs/src/content/docs/plugins/aws-ce.md) reads `carbon_enabled` from
-`FINFOCUS_AWS_CARBON_ENABLED`; see
+`FINFOCUS_AWS_CARBON_ENABLED`. See
 [Historical AWS Carbon Reporting](docs/src/content/docs/plugins/historical-carbon.md).
 FinFocus takes each advertised value from that variable, or else from the plugin's section of the project or
 global config file. As a fallback, a config key the plugin does not advertise
@@ -372,8 +372,8 @@ with hyphens as underscores.
 
 ### Cost Allocation Tags
 
-For accurate month-long cost tracking — especially when resources are replaced
-or destroyed mid-month — FinFocus can query cloud billing APIs by **resource
+For accurate month-long cost tracking, especially when resources are replaced
+or destroyed mid-month, FinFocus can query cloud billing APIs by **resource
 tags**. This requires your Pulumi-managed resources to carry consistent tags.
 
 > **Why this matters**: When a resource is replaced (e.g., EC2 instance swap),
@@ -386,7 +386,7 @@ tags**. This requires your Pulumi-managed resources to carry consistent tags.
 > You must explicitly configure resource tagging using one of the methods below.
 
 <details>
-<summary><strong>AWS — Provider Default Tags</strong></summary>
+<summary><strong>AWS with Provider Default Tags</strong></summary>
 
 **Option A: Stack configuration (static values)**
 
@@ -459,7 +459,7 @@ in the AWS Billing Console. Tags take ~24 hours to appear in Cost Explorer.
 </details>
 
 <details>
-<summary><strong>GCP — Provider Default Labels</strong></summary>
+<summary><strong>GCP with Provider Default Labels</strong></summary>
 
 > GCP labels must be lowercase with hyphens/underscores only (no colons).
 > Use `pulumi_project` instead of `pulumi:project`.
@@ -518,7 +518,7 @@ provider = gcp.Provider("tagged", default_labels={
 </details>
 
 <details>
-<summary><strong>Azure — Stack Transformations</strong></summary>
+<summary><strong>Azure with Stack Transformations</strong></summary>
 
 Azure Native does not have a provider-level `defaultTags` option. Use a
 stack transformation to inject tags into all taggable resources:
@@ -596,7 +596,7 @@ month-long cost queries even when resources are replaced or destroyed mid-month.
 **How it works**: Every time FinFocus runs, it snapshots the current state of your
 resources. Over time, this builds a timeline of all cloud IDs each logical resource
 has had. When you query actual costs for a full month, FinFocus queries billing APIs
-for *all* historical IDs — not just the current one.
+for *all* historical IDs instead of only the current one.
 
 > **Important**: Unlike the cache (`cache.db`), the history database is **not safe
 > to delete**. Deleting it loses the resource identity timeline, reducing cost
@@ -775,7 +775,7 @@ finfocus plugin validate
 | `cloudzero` | Available | Actual cost per resource from the CloudZero billing costs API |
 | `prometheus` | Available | Historical Kubernetes CPU and memory usage from Prometheus for `cost cluster --from/--to`. See the [Prometheus plugin page](docs/src/content/docs/plugins/prometheus.md). |
 | `carbon` | Build from source | Offline EC2 operational carbon estimates alongside monetary pricing. See the [carbon plugin guide](docs/src/content/docs/plugins/carbon.md). |
-| `scorer` | Source install; first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`; hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
+| `scorer` | Source install, first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`. Hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
 
 `jev` stays in the registry so an existing install can be updated, and it is
 marked deprecated. `finfocus plugin install jev` warns and still installs that
@@ -937,7 +937,7 @@ FinFocus ships [agent skills](agent-skills/) for AI coding assistants
 
 | Skill | Description |
 |-------|-------------|
-| [finfocus-install](agent-skills/finfocus-install/) | Install CLI, detect providers, setup plugins and config |
+| [finfocus-install](agent-skills/finfocus-install/) | Install the CLI, detect providers, and set up plugins and config |
 | [finfocus-analyzer-setup](agent-skills/finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation |
 | [finfocus-routing](agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
 | [finfocus-budget](agent-skills/finfocus-budget/) | Configure budget thresholds, health, and CI exit codes |
@@ -953,8 +953,8 @@ See [agent-skills/README.md](agent-skills/README.md) for the full list.
 - [finfocus-spec](https://github.com/rshade/finfocus-spec) - Protocol definitions and schemas
 - [finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public) - AWS public pricing plugin
 - [finfocus-action](https://github.com/rshade/finfocus-action) - GitHub Action that posts cost estimates on pull requests
-- [finfocus-demo](https://github.com/rshade/finfocus-demo) - Live demo of finfocus-action; see [PR #1](https://github.com/rshade/finfocus-demo/pull/1) for the output
-- [agent-skills](https://github.com/rshade/agent-skills) - Generic agent skills; holds stubs that point to the cost skills here
+- [finfocus-demo](https://github.com/rshade/finfocus-demo) - Live demo of finfocus-action. See [PR #1](https://github.com/rshade/finfocus-demo/pull/1) for the output
+- [agent-skills](https://github.com/rshade/agent-skills) - Generic agent skills, with stubs that point to the cost skills here
 
 ---
 

@@ -129,7 +129,7 @@ build date from `date`, and passes them to the binary through `-ldflags`.
 `.dockerignore` excludes `.git/`, so the build has no Git metadata: the
 binary reports version `docker` and commit `unknown`. Published images do
 the same (`finfocus --version` prints `finfocus version docker`), tracked in
-[#2237](https://github.com/rshade/finfocus/issues/2237); the image tag is the
+[#2237](https://github.com/rshade/finfocus/issues/2237). The image tag is the
 release version.
 
 ### Health Check

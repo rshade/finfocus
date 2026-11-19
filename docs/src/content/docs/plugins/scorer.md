@@ -12,7 +12,7 @@ The `scorer` plugin rates cost recommendations that other plugins produce. It se
 [Jev](https://typesafe.ai/) (from TypeSafe AI) or
 [Clef](https://blog.cloudflare.com/clef-decision-models/) backend and returns a risk, false-positive,
 worth-acting, priority and thin-evidence score for each one, plus duplicate groups. Core uses the scores to
-sort, filter and flag recommendations for review. **A score never approves, dismisses or applies anything.**
+sort, filter, and flag recommendations for review. **A score never approves, dismisses, or applies anything.**
 
 This page walks through a run end to end. The configuration reference is the
 [Recommendation Scoring Guide](../guides/recommendation-scoring.md), and the data-handling details are in the
@@ -142,7 +142,7 @@ In this output:
   so it cannot be reversed or matched across runs. Within one request the same resource always gets the same token,
   which is what lets the scorer find duplicates.
 - **The resource name is absent.** In `pseudonymized` mode core replaces the id and name and removes them from free
-  text. Tags and metadata that hold other sensitive values are still sent; narrow them with `scoring.field_allowlist`.
+  text. Tags and metadata that hold other sensitive values are still sent. Narrow them with `scoring.field_allowlist`.
 - **Everything else is sent as is**: description, reasoning, metadata, cost impact and the `modify` action detail. The
   plugin forwards these fields to the selected backend.
 
@@ -219,10 +219,10 @@ finfocus cost recommendations --pulumi-json examples/plans/aws-legacy-plan.json 
 finfocus cost recommendations --pulumi-json examples/plans/aws-legacy-plan.json --filter "worth_acting>=0.6"
 ```
 
-Both backends report `ranking_only`. Use scores to order work for review;
-a risk of 0.3 is not a calibrated 30 percent chance. Scores are cached in the
-`scores` bucket, so the same recommendations can reuse prior results. No Clef
-accuracy, price or calibration claim is established by the recorded spike.
+Both backends report `ranking_only`. Use scores to order work for review.
+A risk of 0.3 is not a calibrated 30 percent chance. Scores are cached in the
+`scores` bucket, so the same recommendations can reuse prior results. No claim
+about Clef accuracy, price, or calibration is established by the recorded spike.
 
 ## Backend Configuration and Migration
 
@@ -232,7 +232,7 @@ Jev is the default (`SCORER_BACKEND=jev`, model `jev-1.13.0`). Hosted Clef uses
 `SCORER_BASE_URL` is an optional origin: `https://api.typesafe.ai` for Jev or
 `https://api.cloudflare.com` for Clef. The Clef adapter appends the account path.
 For Clef, the origin must have no path, query, user info or fragment, and
-`SCORER_MODEL` must be `clef`; other model ids are rejected.
+`SCORER_MODEL` must be `clef`. Other model ids are rejected.
 `SCORER_TIMEOUT`, `SCORER_BATCH_SIZE` and `SCORER_DUPLICATE_THRESHOLD` default to
 `60s`, `25` and `0.5` respectively.
 
@@ -248,24 +248,24 @@ The scorer does not read the legacy settings. Migrate them explicitly:
 | `JEV_DUPLICATE_THRESHOLD` | `SCORER_DUPLICATE_THRESHOLD` |
 | `scoring.plugin: jev` | `scoring.plugin: scorer` |
 
-The first public scorer release and registry entry are pending; use
+The first public scorer release and registry entry are pending. Use
 `make install-scorer` from source now. Once release assets exist,
 `finfocus plugin install scorer` will be the registry command. The retained
 `finfocus plugin install jev` command installs the last legacy release
 separately and does not migrate settings. If Jev is already installed, the
-command reports `already installed`; install scorer explicitly and change
+command reports `already installed`. Install scorer explicitly and change
 `scoring.plugin` to migrate. Historical Jev tags remain available.
 
 Hosted Jev and Clef both send recommendation data to third parties. Use the dry
 run and `field_allowlist` to inspect and narrow that data. A compatible local
-endpoint may avoid hosted calls; Clef self-hosting and vLLM compatibility remain
+endpoint may avoid hosted calls. Clef self-hosting and vLLM compatibility remain
 untested and outside this change's scope.
 
 [Cloudflare's Clef announcement](https://blog.cloudflare.com/clef-decision-models/)
 and the [go-decide v0.1.0 adapter](https://github.com/rshade/go-decide/blob/v0.1.0/clefclient/transport.go)
 provide the upstream context. The
 [recorded spike](https://github.com/rshade/finfocus/tree/main/specs/1728-clef-spike)
-passed `noul` and `score` decoding but rejected `choice`; the scorer sends no
+passed `noul` and `score` decoding but rejected `choice`. The scorer sends no
 `choice` questions. No live calls were made and no credentials were accessed.
 This evidence does not validate live Clef scores.
 
@@ -274,7 +274,7 @@ This evidence does not validate live Clef scores.
 | Symptom                                                    | Cause and fix                                                                                                    |
 | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `--scoring-dry-run requires scoring`                       | Set `scoring.plugin` and `scoring.enabled` first                                                                 |
-| `SCORER_API_KEY is not set` warning                      | Export the key in the shell that runs `finfocus`; the plugin inherits its environment                            |
+| `SCORER_API_KEY is not set` warning                      | Export the key in the shell that runs `finfocus`. The plugin inherits its environment                            |
 | `requests: []` in the dry run                              | No recommendations to score, or they are all already in the score cache. Check the output with `--no-scoring` |
 | Rate-limit or outage warnings                              | Raise `scoring.timeout_seconds`. It bounds the whole call, including the plugin's retries                        |
 | Sorting or filtering by a score is an error                | Scoring is disabled, or `--no-scoring` was passed                                                                |

@@ -51,7 +51,7 @@ Enable the cache in under 2 minutes.
 
 Edit `~/.finfocus/config.hujson` (global) or your project's
 `.finfocus/config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 # yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
@@ -188,7 +188,7 @@ directory to drop them. That file is `~/.finfocus/cache/cache.db` unless
 `FINFOCUS_CACHE_DIR` or `cost.cache.directory` selects another directory.
 Actual cost queries are cached as a whole (the full query including time
 range and filters forms the key). Recommendation queries are also cached as a
-whole: `inputs-hash` covers the identity, provider, type and flattened
+whole: `inputs-hash` covers the identity, provider, type, and flattened
 properties of every requested resource plus the dismissed recommendation IDs.
 Dotted keys change that hash, so recommendation entries miss once too. A
 different resource set or a new dismissal never reuses an older entry.
@@ -200,7 +200,7 @@ enabled. It holds extracted score values keyed on a hash of the recommendation c
 
 - Expiration is **lazy**: entries are checked on read and discarded if past their TTL.
 - A startup cleanup pass removes all expired entries when the cache is opened.
-- Setting `ttl_seconds: 0` or `enabled: false` disables the cache; no file is written.
+- Setting `ttl_seconds: 0` or `enabled: false` disables the cache, so the cache file is not written.
 
 ### Graceful Degradation
 

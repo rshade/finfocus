@@ -38,6 +38,10 @@ func TestPluginConformanceCmd_Flags(t *testing.T) {
 		"timeout",
 		"category",
 		"filter",
+		"provider",
+		"resource-type",
+		"sku",
+		"region",
 	}
 
 	for _, flag := range expectedFlags {
@@ -215,4 +219,20 @@ func TestPluginConformanceCmd_CommandRegistered(t *testing.T) {
 	require.NotNil(t, conformanceCmd)
 
 	assert.Equal(t, "conformance <plugin-path>", conformanceCmd.Use)
+}
+
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
+func TestPluginConformanceCmd_ProviderNeedsResourceType(t *testing.T) {
+	pluginPath := filepath.Join(t.TempDir(), "test-plugin")
+	require.NoError(t, os.WriteFile(pluginPath, []byte("#!/bin/bash\necho test"), 0o755))
+
+	result := axtest.Run(
+		context.Background(),
+		t,
+		cli.NewRootCmd("test"),
+		[]string{"plugin", "conformance", "--provider", "kubernetes", pluginPath},
+	)
+
+	assert.Equal(t, 2, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "--provider and --resource-type go together")
 }
