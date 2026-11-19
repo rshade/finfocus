@@ -14,9 +14,9 @@ in both. `cost projected` keeps its plan total and reports the full inventory
 separately as the stack total. The terminal and web views use the same snapshot.
 
 When a saved preview is supplied with `--pulumi-json` and the project's state
-cannot be read, overview continues with preview resources only. A warning
+can't be read, overview continues with preview resources only. A warning
 identifies the state-availability reason and the number of unchanged resources
-omitted by the preview. Plain output writes the warning to stderr; the terminal
+omitted by the preview. Plain output writes the warning to stderr. The terminal
 dashboard and web overview keep it visible alongside the results. Totals in this
 fallback cover only the preview resources. Supply a readable `--pulumi-state`
 export with the preview to include deployed resources.
@@ -95,7 +95,7 @@ finfocus overview --pulumi-state state.json --pulumi-json plan.json
 ```
 
 Opens an interactive TUI with progressive data loading. Resources appear as
-they are enriched with cost data. Use this when you manage the `pulumi stack export`
+they're enriched with cost data. Use this when you manage the `pulumi stack export`
 and `pulumi preview --json` steps yourself.
 
 ### With pending changes from plan
@@ -165,7 +165,7 @@ interactive dashboard built with Bubble Tea.
 
 To explore the same data in a browser instead, run `finfocus --web` from the
 project directory. It takes the overview's source, date, adapter, and filter
-flags; see [Use the browser dashboard](../guides/web-ui.md).
+flags. See [Use the browser dashboard](../guides/web-ui.md).
 
 ### Keyboard shortcuts
 
@@ -176,7 +176,7 @@ The list view shows a one-line hint under the status bar:
 ```
 
 On a narrow terminal the hint shortens to `[w] web`, then disappears. It stays
-on one line. The hint is not shown in plain text, JSON, or the detail view.
+on one line. The hint isn't shown in plain text, JSON, or the detail view.
 
 | Key | Action |
 |-----|--------|
@@ -208,7 +208,7 @@ Press Enter on a resource to see a detailed breakdown including:
 - Projected cost (monthly) with breakdown, and a `Pricing` line such as
   `SPOT · risk 0.12 · -62% vs on-demand` when the plugin priced the resource
   as spot and supplied its on-demand price (`spot savings unavailable`
-  replaces the saving when it did not). The interactive list shows `SPOT`
+  replaces the saving when it didn't). The interactive list shows `SPOT`
   beside the projected amount, the table and the dashboard list show the full
   label, and JSON rows carry `projectedCost.pricingCategory`,
   `projectedCost.spotInterruptionRisk`,
@@ -219,7 +219,7 @@ Press Enter on a resource to see a detailed breakdown including:
 - Stored cost history for this resource, loaded when the detail view opens.
   The series comes from `cost history collect` for the stack named by the
   resource, not the state-file name. A missing history database leaves this
-  section out. A read failure stays in the detail view; press `r` to try
+  section out. A read failure stays in the detail view. Press `r` to try
   again. On a short terminal, Up and Down scroll the detail view so the
   history section and the retry hint stay reachable.
 - Blast radius: the resources that depend on this one directly or through
@@ -245,13 +245,13 @@ needs no network.
 - **The total**: the summed projected monthly cost of the priced dependents
   that will exist. It leaves out dependents a preview deletes, dependents with
   no price, and components, which are listed so the tree stays connected but
-  are not counted. A note under the total says how many were left out. When
+  aren't counted. A note under the total says how many were left out. When
   dependents use different currencies, the total is withheld.
 - **Markers**: `[new]`, `[updating]`, `[replacing]`, `[deleting]` and
-  `[component]` follow the cost. `no price` means the plugin returned none;
-  `$0.00` is a price.
-- **Empty and unavailable**: "nothing depends on this resource" means the
-  resource is a leaf. "dependency information is not available" appears for
+  `[component]` follow the cost. `no price` means the plugin returned none,
+  while `$0.00` is a price.
+- **Empty and unavailable**: `nothing depends on this resource` means the
+  resource is a leaf. `dependency information is not available` appears for
   Terraform and OpenTofu sources and for an empty state, which carry no
   dependency data.
 - **State-only runs**: press `p` to run a preview. Dependents that the plan
@@ -264,7 +264,7 @@ same computation.
 
 Rows for Kubernetes cluster resources (EKS, GKE, AKS) expand into workload
 rows. The cluster row shows a `▸` marker when collapsed and `▾` when
-expanded; children render indented beneath it.
+expanded. Children render indented beneath it.
 
 Two data sources feed the expansion:
 
@@ -275,7 +275,7 @@ Two data sources feed the expansion:
 - **Live**: when a usage-source plugin and an allocator plugin are installed
   (e.g. `finfocus plugin install kubernetes`), the cluster is expanded from
   live allocation data grouped by namespace, including idle capacity. Live
-  rows re-allocate node cost already shown by other rows, so they are
+  rows re-allocate node cost already shown by other rows, so they're
   excluded from the summary totals.
 
 Overview asks for the run rate. When several usage-source plugins are
@@ -289,14 +289,14 @@ allocator plugins are installed, the cluster keeps its projected view and a
 
 When both are available, live data wins: the projected workload rows are
 hidden and a `†` footnote reports how many were suppressed. The summary
-resource count still includes the hidden rows and does not count the live
+resource count still includes the hidden rows and doesn't count the live
 namespace rows.
 
 The usage-source plugin is asked for these kubeconfig contexts in order, and
 the first one it answers is used:
 
 1. The `overview.cluster_contexts` config mapping (cluster name or full URN
-   to context). When a mapping exists, it is the only context tried.
+   to context). When a mapping exists, it's the only context tried.
 2. The cluster's `name` property, its full ARN (the context name that
    `aws eks update-kubeconfig` writes), and the name segment of its ARN.
 3. The current context, for single-cluster stacks only (footnoted as
@@ -304,11 +304,11 @@ the first one it answers is used:
 
 Set a mapping with `finfocus config set overview.cluster_contexts.<cluster>
 <context>`. A cluster with no answering context keeps its projected view.
-Clusters that are being deleted, or whose cost lookup failed, are not
+Clusters that are being deleted, or whose cost lookup failed, aren't
 expanded.
 
 Projected grouping needs exactly one cluster in the stack. A stack with more
-than one cluster keeps its declared workload rows flat, because core cannot
+than one cluster keeps its declared workload rows flat, because core can't
 tell which cluster a workload is deployed to. Live expansion still runs for
 each cluster that has a name, ARN, or mapping.
 
@@ -330,7 +330,7 @@ the output mode.
 | Interactive TUI | Footer bar + detail view | Color-coded health badge, spend/limit, utilization %. Press Enter for per-budget breakdown with forecasts and triggered alerts |
 | Plain (`--plain`) | Not rendered | Budget enforcement available via `--exit-on-threshold` |
 | JSON (`--output json`) | `budgets` array in output | Full budget health objects with utilization, forecasted spend, triggered thresholds |
-| NDJSON (`--output ndjson`) | Not included | NDJSON is resource-scoped; budgets are stack-scoped |
+| NDJSON (`--output ndjson`) | Not included | NDJSON is resource-scoped, but budgets are stack-scoped |
 
 ### Budget Flags
 
@@ -346,7 +346,7 @@ the output mode.
 Plain mode focuses on the resource table for piping and CI/CD use. Use
 `--exit-on-threshold` for budget enforcement in non-interactive environments.
 NDJSON emits one object per resource and budgets are stack-scoped, so they
-do not fit the per-line streaming model. Use `--output json` or the interactive
+don't fit the per-line streaming model. Use `--output json` or the interactive
 TUI to see full budget details.
 
 ## Output formats
@@ -360,12 +360,12 @@ ASCII table with the following columns:
 | `Resource` | Resource URN, truncated to the column width. The detail view shows the full URN |
 | `Type` | Pulumi resource type (for example `aws:ec2/instance:Instance`). The plain table shortens a value longer than 24 characters |
 | `Status` | Lifecycle state with an icon prefix (see below) |
-| `Actual(MTD)` | Month-to-date spend from the actual-cost plugin. Plain header is `ACTUAL(MTD)`; the TUI header is `Actual`. `-` when the resource has no billing history |
+| `Actual(MTD)` | Month-to-date spend from the actual-cost plugin. Plain header is `ACTUAL(MTD)`. The TUI header is `Actual`. `-` when the resource has no billing history |
 | `Projected` | Full-month estimate (730 hours) from the projected-cost plugin. Plain header is `PROJECTED`, or `PROJECTED*` in state-only mode. The TUI uses `Projected` and `Projected*`. `-` when there is no projection |
 | `Delta` | How this row changes the monthly bill. The plain table prints a positive amount as `+$` and a negative amount as `-$`. Updating or replacing: new projected monthly cost minus the current projected cost, or minus the extrapolated actual when there is no baseline. Creating: the new projected cost. Deleting: minus the extrapolated actual being removed. Active: the drift delta when drift is shown, otherwise `-` |
-| `Drift%` | Calendar-month extrapolation of month-to-date spend compared with the projected monthly cost, scaled to the month's length. It is the drift `Delta` divided by that scaled projection, so it is not the `Delta` column divided by the `Projected` column. `-` when drift is not shown (fewer than two days have elapsed, at or under 10%, or nothing to compare). A shown value is above 10% and ends with a warning mark |
+| `Drift%` | Calendar-month extrapolation of month-to-date spend compared with the projected monthly cost, scaled to the month's length. It's the drift `Delta` divided by that scaled projection, so it isn't the `Delta` column divided by the `Projected` column. `-` when drift isn't shown (fewer than two days have elapsed, at or under 10%, or nothing to compare). A shown value is above 10% and ends with a warning mark |
 | `Recs` | Open recommendation count. `N(-M)` when M of them are dismissed. `-` when there are none |
-| `Warn` | Conditions for this resource, comma-separated in derivation order: `drift`, `error`, `new`. `-` when none apply. A shown drift stays in `Drift%` and is also listed here. The TUI column keeps that list when it fits, and otherwise shows the first name plus `+N` for the rest. `estimate` and `stale` are reserved and are not shown |
+| `Warn` | Conditions for this resource, comma-separated in derivation order: `drift`, `error`, `new`. `-` when none apply. A shown drift stays in `Drift%` and is also listed here. The TUI column keeps that list when it fits, and otherwise shows the first name plus `+N` for the rest. `estimate` and `stale` are reserved and aren't shown |
 
 Plain output (`--plain`) from the table renderer. Amounts are sample data, and
 the drift percentages assume a 30-day month.
@@ -460,7 +460,7 @@ NDJSON uses the same resource object.
 `error` marks a failed cost fetch: the engine returned an error, or a plugin
 reported one for that resource, such as a timeout, a failed call, or a
 validation failure. The resource's `error` object carries the message and type.
-A resource that no plugin has a price for, such as an IAM role, is not an error.
+A resource that no plugin has a price for, such as an IAM role, isn't an error.
 
 ### NDJSON
 
@@ -509,5 +509,5 @@ Large stacks with many resources may take longer. Use `--filter` to narrow scope
 A warning icon appears when the extrapolated monthly spend differs from projected
 cost by more than 10%. This helps identify resources with unexpected cost changes.
 Drift needs at least two elapsed days of data, counted from the start of the
-window or from the resource's creation time if that is later. For a resource
-that existed all month, that is from the start of the third day.
+window or from the resource's creation time if that's later. For a resource
+that existed all month, that's from the start of the third day.

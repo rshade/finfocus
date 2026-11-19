@@ -92,7 +92,7 @@ timeline without running a plan.
 By default, the identity combines the normalized Git `origin` with the Terraform
 root's path relative to the Git root, and uses the stack name `unscoped`. Without
 Git or `origin`, it uses the cleaned absolute path. The database filename contains
-a hash; the stored display label contains the path, without the raw remote URL.
+a hash. The stored display label contains the path, without the raw remote URL.
 
 To keep separate histories for Terraform workspaces:
 
@@ -102,14 +102,14 @@ finfocus cost history list --include-workspace
 ```
 
 Use the same setting when recording and reading snapshots. The flag overrides
-`cost.terraform.include_workspace` for one run; `--include-workspace=false`
+`cost.terraform.include_workspace` for one run, and `--include-workspace=false`
 overrides a configured `true`. The workspace command runs only when enabled.
 The workspace name `unscoped` is reserved. Pulumi history identities ignore this
 flag.
 
 `cost history collect` reads Pulumi checkpoints. In a Terraform directory it exits
 2 without running a plan because Terraform plans contain no checkpoint list.
-For actual costs, pass `--terraform-state`; FinFocus does not plan for actual costs.
+For actual costs, pass `--terraform-state`. FinFocus doesn't plan for actual costs.
 
 ## Configuration
 
@@ -152,7 +152,7 @@ configuration.
 Pulumi Cloud history fills observation gaps by reading state snapshots from past
 `update`, `refresh`, `destroy`, and `import` operations. Imported observations
 have source `pulumi_cloud`. FinFocus extracts only URN, cloud ID, resource type,
-and provider; it caches those identities in `history.db`. It never stores
+and provider. It caches those identities in `history.db`. It never stores
 snapshot properties or secrets.
 
 `config set` writes the global `config.hujson` (`~/.finfocus/` by default), so
@@ -170,7 +170,7 @@ The dashboard Config page exposes the same setting as an enum with `false`,
 `auto`, and `true` choices. The default is `false`, which makes no requests.
 `auto` uses local history when Cloud history is unavailable and warns when an
 import is incomplete. `true` fails before reporting totals when Cloud history
-cannot be read completely. Both modes require `cost.history.enabled: true`.
+can't be read completely. Both modes require `cost.history.enabled: true`.
 
 `cost actual` imports before it reads local resource history. `--verbose` sends
 import counters to stderr. A separate `--import-cloud-history` run prepares
@@ -183,17 +183,17 @@ unavailable instead of waiting.
 
 FinFocus reuses the Pulumi CLI login. There is no config token key. To override
 the saved token, use `PULUMI_ACCESS_TOKEN`. For a backend selected in a project's
-`backend.url`, an override also requires explicitly setting `PULUMI_BACKEND_URL`;
-otherwise FinFocus uses only credentials saved for that project backend URL.
+`backend.url`, an override also requires explicitly setting `PULUMI_BACKEND_URL`.
+Otherwise, FinFocus uses only credentials saved for that project backend URL.
 
 The import range is clamped to the retention cutoff. Retention resolves from
 `FINFOCUS_HISTORY_RETENTION_DAYS`, then `cost.history.retention_days`, then 90
 days, matching history cleanup. Without `--from`, the import command starts at
-that cutoff; `--to` defaults to now. Repeated runs reuse cached identities.
+that cutoff, and `--to` defaults to now. Repeated runs reuse cached identities.
 
 **Known limit:** Only snapshots observed within the requested period add
 identities. A resource created before the period and destroyed inside it may
-have no in-period snapshot containing its ID, so Cloud history does not add it.
+have no in-period snapshot containing its ID, so Cloud history doesn't add it.
 Previously stored observations and billing tags can still provide coverage.
 
 ### Plan Lineage (From Preview)
@@ -221,7 +221,7 @@ cloud resources.
 
 > **Key requirement**: Tags must be present on the resource **while it incurs
 > costs**. Cloud billing systems snapshot the tag state per cost record. You
-> cannot retroactively tag resources and have historical costs updated.
+> can't retroactively tag resources and have historical costs updated.
 
 ### AWS Setup
 
@@ -252,8 +252,8 @@ provider, _ := aws.NewProvider(ctx, "tagged", &aws.ProviderArgs{
 **After tagging**: Activate `pulumi:project` and `pulumi:stack` as
 [Cost Allocation Tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html)
 in the AWS Billing Console. Tags take approximately 24 hours to appear in
-Cost Explorer after activation. Historical costs from before activation are
-**not** retroactively tagged.
+Cost Explorer after activation. Historical costs from before activation
+**aren't** retroactively tagged.
 
 ### GCP Setup
 
@@ -275,7 +275,7 @@ querying GCP billing exports.
 
 ### Azure Setup
 
-Azure Native does not have a provider-level default tags option. Use a stack
+Azure Native doesn't have a provider-level default tags option. Use a stack
 transformation:
 
 ```go
@@ -427,4 +427,4 @@ The database is bounded by `retention_days`. If it's larger than expected:
 2. For AWS: confirm tags are activated as Cost Allocation Tags in Billing Console
 3. Check tag key format: GCP uses underscores (`pulumi_project`), not colons
 4. Tags must have been present **while costs were incurred**. Retroactive
-   tagging does not apply to historical billing data
+   tagging doesn't apply to historical billing data

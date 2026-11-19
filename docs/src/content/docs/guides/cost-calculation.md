@@ -12,7 +12,7 @@ FinFocus supports two primary workflows for analyzing infrastructure costs: **Pr
 
 ## 1. Projected Costs (Pre-Deployment)
 
-The projected cost workflow estimates monthly spending based on the resources defined in your Pulumi plan, before they are
+The projected cost workflow estimates monthly spending based on the resources defined in your Pulumi plan, before they're
 created in the cloud.
 
 ### Projected Workflow

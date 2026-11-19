@@ -8,7 +8,7 @@ infrastructure.
 
 ## Table of Contents
 
-1. [What is FinFocus?](#what-is-finfocus)
+1. [What's FinFocus?](#whats-finfocus)
 2. [Installation](#installation)
 3. [Quick Start](#quick-start)
 4. [Cost Types](#cost-types)
@@ -24,7 +24,9 @@ infrastructure.
 
 ---
 
-## What is FinFocus?
+<a id="what-is-finfocus"></a>
+
+## What's FinFocus?
 
 FinFocus is a command-line tool that calculates cloud infrastructure costs from your Pulumi infrastructure definitions.
 
@@ -104,7 +106,7 @@ interruption risk, for example `SPOT · risk 0.12`. The Pulumi analyzer's
 per-resource cost diagnostic shows the same label after ` | `, following the
 cost line. A risk below 0.005 reads
 `SPOT · risk <0.01`. A risk of 0.0 reads `SPOT · risk unknown`, because
-protobuf cannot tell a zero score from an unset one. The tag is plain text,
+protobuf can't tell a zero score from an unset one. The tag is plain text,
 so it appears with `NO_COLOR` and `--plain`. JSON and NDJSON carry
 `pricingCategory` (`DYNAMIC` for spot) on cost results where the plugin set a
 category. They carry `spotInterruptionRisk` only for spot results with a known
@@ -120,9 +122,9 @@ none, sends an on-demand price of 0, or sends one so small that the saving
 exceeds 999%, the tag reads
 `SPOT · risk 0.12 · spot savings unavailable`, never `0%`, because 0% would
 claim that spot costs the same as on demand. JSON and NDJSON carry
-`onDemandEquivalentMonthlyCost` (the plugin's figure, kept even when it is 0)
-and `spotSavingsPercent` (positive when spot is cheaper, absent when it cannot
-be computed) on spot results. Neither appears on a result that is not spot,
+`onDemandEquivalentMonthlyCost` (the plugin's figure, kept even when it's 0)
+and `spotSavingsPercent` (positive when spot is cheaper, absent when it can't
+be computed) on spot results. Neither appears on a result that isn't spot,
 and an invalid plugin value (negative or not a number) is dropped.
 
 When any resource is spot, the cost diff also reports the exposure: the spot
@@ -131,9 +133,9 @@ example, `Spot exposure  400.00 USD (40.0% of 1000.00 USD), weighted risk 0.18`.
 A resource with an unknown risk counts as spot but is left out of the weighted
 risk, and the line says how many were left out. When no resource has a risk
 score, the weighted risk reads `unknown`, never `0.00`. A cost diff adds a
-`Spot change` line with the spot cost before, after, and the difference; a
-replaced resource counts once. JSON carries these as `summary.spot` (and
-`spotChange` for a diff). The figures are informational: they do not feed
+`Spot change` line with the spot cost before, after, and the difference, counting a
+replaced resource once. JSON carries these as `summary.spot` (and
+`spotChange` for a diff). The figures are informational: they don't feed
 budgets, exit codes, or CI gates. A total with no spot resource, or with mixed
 currencies, shows no exposure.
 
@@ -149,7 +151,7 @@ and `--include-dismissed` still shows it as spot. Which resources qualify, and
 the savings, come from the plugin (aws-ce for AWS).
 
 On the web Recommendations page the label sits under the action in the Action
-column, and each resource is named by the last segment of its URN; the full
+column, and each resource is named by the last segment of its URN. The full
 URN is in the button's tooltip and the detail. The detail explains that the
 spot risk is the chance the spot capacity is interrupted, which is separate
 from the scorer's `Risk` signal.
@@ -168,7 +170,7 @@ finfocus cost actual --pulumi-json plan.json --from 2024-01-01
 
 ### Projected Costs
 
-**What it is:** Estimated costs based on your infrastructure definitions
+**Definition:** Estimated costs based on your infrastructure definitions
 
 **When to use:**
 
@@ -184,7 +186,7 @@ finfocus cost projected --pulumi-json plan.json
 
 ### Actual Costs
 
-**What it is:** Real costs from your cloud provider's billing system
+**Definition:** Real costs from your cloud provider's billing system
 
 **When to use:**
 
@@ -208,11 +210,11 @@ finfocus cost actual --pulumi-json plan.json --from 2024-01-01 --to 2024-01-31
 forward. A plugin can mark a resource `none`, `linear`, or `exponential`.
 `--growth-rate 0.10` is 10% per month. Linear growth is
 `base * (1 + rate * month)`. Exponential growth compounds. The current
-monthly price does not change.
+monthly price doesn't change.
 
 The default view is an ASCII chart for 12 months ahead. `--output json`
 returns the points with timestamps. When `--stack` has cost history in the
-same currency, that series is included. A missing history file does not fail
+same currency, that series is included. A missing history file doesn't fail
 the command. The interactive history chart is a separate view.
 
 ```bash
@@ -228,16 +230,16 @@ Full page: [cost forecast](../commands/forecast.md)
 more than a documented cutoff. A resource with 15 or more stored daily actuals
 in one currency (14 earlier days plus the day under test) is scored: its most recent complete UTC day is compared with the
 median of the days before it. The resource gets `method: robust-median` only
-when the median absolute deviation of those days is not zero and the day's
-robust z-score reaches 3.5; that row replaces the resource's drift row. A
-resource without that much daily history, or whose most recent day does not
+when the median absolute deviation of those days isn't zero and the day's
+robust z-score reaches 3.5. That row replaces the resource's drift row. A
+resource without that much daily history, or whose most recent day doesn't
 qualify, keeps `method: drift`, the overview's own calculation:
 its month-to-date run-rate has diverged from the projected month by more than
 10%. Each row has a baseline and an observed figure, the deviation, and the
 percent drift (omitted when a robust-median median is 0). JSON output also
-reports how many rows were considered, so an empty list is not mistaken for a
+reports how many rows were considered, so an empty list isn't mistaken for a
 failed run. The daily series belongs to one stack: `--stack` names it, and the
-stack named in the loaded resources does otherwise. It is also available to MCP clients
+stack named in the loaded resources does otherwise. It's also available to MCP clients
 as `finfocus-cost-anomalies`.
 
 ```bash
@@ -272,9 +274,9 @@ deployment of the program, so cost that an import adds first appears at the next
 update. `collect` reads the whole Pulumi history, page by page, not only the
 newest updates.
 
-`collect` can run for minutes, so it is not offered as an MCP tool, where it
+`collect` can run for minutes, so it isn't offered as an MCP tool, where it
 would stall the server's other calls. Run it from the CLI. `list` skips a
-database it cannot open, such as one a running `collect` holds locked, and says
+database it can't open, such as one a running `collect` holds locked, and says
 which on stderr. `view --provider` stops with an error when no snapshot has that
 provider, rather than drawing a $0 line, and its caption and amounts use the
 snapshots' currency.
@@ -314,12 +316,20 @@ finfocus cost history export --stack dev --format json
 finfocus cost history prune --stack dev --older-than 365d --dry-run
 ```
 
+On an interactive terminal, `cost history view` opens a chart of projected
+monthly costs. Use the arrow keys to pan, plus and minus to zoom, and Home or
+End to jump to the first or last checkpoint. Press `s` to split by provider,
+Tab to highlight a provider, and `b` to toggle applicable monthly budget
+thresholds. Triangles mark deployments. Press `d` for the nearest deployment's
+details, `1` through `9` to jump to a deployment, and `q` to quit. Use `--plain`
+to print the chart. Redirected output also prints the chart by default.
+
 `collect-daily` stores one actual-cost amount per resource, per UTC day, and
-per currency in `<project>@<stack>.daily.db`. It does not change the projected
+per currency in `<project>@<stack>.daily.db`. It doesn't change the projected
 timeline. With no dates, the window is the last 30 complete UTC days. A plugin
-that omits daily amounts is skipped, and a day it does not send is left as it
-was. Run it beside `collect` after a deploy when you want a baseline that is
-not tied to checkpoints. `--output json` prints the stored, skipped, and
+that omits daily amounts is skipped, and a day it doesn't send is left as it
+was. Run it beside `collect` after a deploy when you want a baseline that isn't
+tied to checkpoints. `--output json` prints the stored, skipped, and
 failed counts.
 
 Each stack of each project has one database, `<project>@<stack>.history.db`,
@@ -332,7 +342,7 @@ project, and `list` shows each one as `project/stack`.
 
 Databases written by earlier versions are named `<stack>.history.db`. They keep
 working: the project is read from the resource URNs they hold, and a project
-that does not own one gets a new file instead of sharing it. Outside a project
+that doesn't own one gets a new file instead of sharing it. Outside a project
 directory, `--stack dev` uses a single matching database, and asks for a project
 when several match. `view --output json` prints the snapshots and annotations.
 `--plain` forces the text chart.
@@ -576,7 +586,7 @@ resources:
 
 A stack that already imports an ESC environment can supply plugin credentials
 from that environment. ESC wins over the shell, which is a change from
-earlier releases: a variable exported in the shell does not hide the ESC
+earlier releases: a variable exported in the shell doesn't hide the ESC
 value. Only names the plugin advertises, plus names you list for that plugin,
 are delivered.
 
@@ -585,9 +595,9 @@ finfocus config set esc.environments 'billing/aws-readonly'
 finfocus config set esc.plugins.vantage.variables 'VANTAGE_TOKEN'
 ```
 
-An empty list turns ESC off. When ESC cannot be opened, the command continues
+An empty list turns ESC off. When ESC can't be opened, the command continues
 with shell and config values and prints one warning. The dashboard settings
-page names the environment that supplied a row and does not show the value.
+page names the environment that supplied a row and doesn't show the value.
 
 See [Pulumi ESC credentials](esc-credentials.md).
 
@@ -602,7 +612,7 @@ infrastructure spending.
 ### Configuring a Budget
 
 Add a budget configuration to your `~/.finfocus/config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 cost:
@@ -845,7 +855,7 @@ OP  RESOURCE                       BEFORE  AFTER  CHANGE  CURRENCY
 ```
 
 `OP` is `+` for a create, `~` for an update or replace, `-` for a delete, and
-`=` for a resource the plan does not change.
+`=` for a resource the plan doesn't change.
 
 ### JSON
 
@@ -853,8 +863,8 @@ OP  RESOURCE                       BEFORE  AFTER  CHANGE  CURRENCY
 finfocus cost projected --pulumi-json plan.json --output json
 ```
 
-**Output** (trimmed; each resource also carries `adapter`, `hourly`, `notes`, and
-the other cost result fields):
+**Output**, trimmed. Each resource also carries `adapter`, `hourly`, `notes`, and
+the other cost result fields:
 
 ```text
 {
@@ -886,7 +896,7 @@ the resource's `before` and `after` cost results.
 finfocus cost projected --pulumi-json plan.json --output ndjson
 ```
 
-**Output** (each line trimmed; `before` and `after` are full cost results):
+**Output**, each line trimmed. The `before` and `after` values are full cost results:
 
 ```text
 {"operation":"create","resourceType":"aws:ec2/instance:Instance","resourceId":"web","before":{...},"after":{...},"deltaMonthly":7.5,"currency":"USD"}
@@ -1016,7 +1026,7 @@ FinFocus provides comprehensive logging capabilities for debugging, monitoring, 
 ### Configuration File
 
 Create or edit `~/.finfocus/config.hujson` to configure logging.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 logging:
@@ -1055,7 +1065,7 @@ COST DIFF
 
 **Fallback Behavior:**
 
-If the configured log file cannot be written (permissions, disk full), FinFocus:
+If the configured log file can't be written (permissions, disk full), FinFocus:
 
 1. Falls back to stderr
 2. Displays a warning with the reason
@@ -1116,7 +1126,7 @@ logging:
 
 ### Log Rotation
 
-FinFocus does not perform log rotation internally. Use external tools:
+FinFocus doesn't perform log rotation internally. Use external tools:
 
 **Linux (logrotate):**
 

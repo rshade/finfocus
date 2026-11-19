@@ -134,7 +134,7 @@ bash: ./finfocus: Permission denied
 2. **Download correct binary**: re-run the install script, which reads
    `uname` and picks the archive for your OS and architecture. For a manual
    download, use the `finfocus-<version>-<os>-<arch>` archive from the
-   [release](https://github.com/rshade/finfocus/releases); on a Mac, Intel is
+   [release](https://github.com/rshade/finfocus/releases). On a Mac, Intel is
    `macos-amd64` and Apple Silicon is `macos-arm64`.
 
    ```bash
@@ -396,7 +396,7 @@ Error: failed to connect to plugin: context deadline exceeded
    kill <pid>
    ```
 
-   Do not run `pkill -f finfocus`. The `-f` flag matches the full command
+   Don't run `pkill -f finfocus`. The `-f` flag matches the full command
    line of every process, so it can stop unrelated processes, including the
    shell you run it from.
 
@@ -420,7 +420,7 @@ Failed: plugin exited before binding to port (exit status 1): config: config: ba
    full plugin output, read the FinFocus log file or run the command with
    `--debug`.
 
-FinFocus does not retry a plugin that exits on its own, unless the plugin
+FinFocus doesn't retry a plugin that exits on its own, unless the plugin
 reports that its port was already in use. The `--port` and pluginsdk upgrade
 hint in the log appears only when a plugin keeps running for the whole bind
 wait without opening its port.
@@ -429,7 +429,7 @@ wait without opening its port.
 
 **Problem**: A large plugin, such as `aws-public` with its embedded pricing
 data, can take several seconds to load the first time it runs after install
-or reboot. When it does not open its port in time, FinFocus reports how long
+or reboot. When it doesn't open its port in time, FinFocus reports how long
 it waited:
 
 ```text
@@ -444,10 +444,10 @@ Failed: plugin failed to bind to port within 20s: timeout waiting for plugin to 
    for a plugin to start and answer. Cost commands wait up to 65 seconds for
    the plugin to open its port (125 seconds when `CI=true`), then up to 10
    seconds to connect to it. These limits are fixed. Apart from the longer
-   bind wait under `CI=true`, no environment variable changes them;
-   FinFocus does not read `PLUGIN_TIMEOUT`.
+   bind wait under `CI=true`, no environment variable changes them, and
+   FinFocus doesn't read `PLUGIN_TIMEOUT`.
 3. A plugin that never opens its port within those limits is stuck, not slow.
-   FinFocus does not start it a second time. Run the command with `--debug`
+   FinFocus doesn't start it a second time. Run the command with `--debug`
    and read the FinFocus log file.
 
 ## Cost Calculation Issues
@@ -529,7 +529,7 @@ order core checks them:
    has no `region` input. A secret or unknown `region` input gives no provider
    region. Core finds the provider through the resource's provider reference in
    the stack state or the preview. The price after a change uses the provider
-   the preview assigns; the price before it, actual costs, and a delete use the
+   the preview assigns. The price before it, actual costs, and a delete use the
    deployed provider. A `--pulumi-json` run inside a Pulumi project also reads the stack
    state. Without state, the provider is seen only when the preview creates or
    updates it.
@@ -545,7 +545,7 @@ Core reads a region from the provider resource, not from stack configuration
 once its state or preview includes the provider.
 
 A regionless S3 bucket is expected to price at `$0.00` without an error: the
-plugin accepts it, and bucket contents cannot be measured from a plan.
+plugin accepts it, and bucket contents can't be measured from a plan.
 
 ### Inaccurate Cost Estimates
 
@@ -738,7 +738,7 @@ Error: no cost data available for time range
 
 ### Directory Permissions
 
-**Problem**: Cannot create or access configuration directories.
+**Problem**: Can't create or access configuration directories.
 
 **Solutions**:
 
@@ -820,7 +820,7 @@ Error: no cost data available for time range
 
 ### API Authentication Failures
 
-**Problem**: Plugin cannot authenticate with external APIs.
+**Problem**: Plugin can't authenticate with external APIs.
 
 ```text
 Error: authentication failed: invalid API key
@@ -867,7 +867,7 @@ Error: x509: certificate signed by unknown authority
    sudo yum update ca-certificates
    ```
 
-2. **Do not look for a switch to skip verification**: FinFocus has none. A
+2. **Don't look for a switch to skip verification**: FinFocus has none. A
    plugin that calls an external API may offer its own option, so check the
    plugin's documentation, but trusting the CA certificate (next step) is the
    fix.
@@ -990,8 +990,8 @@ lsof -i :50051
 Error: context deadline exceeded
 ```
 
-**Solution**: A plugin did not answer in time. If it was starting, see
-[Plugin Is Slow to Start](#plugin-is-slow-to-start); those limits are fixed.
+**Solution**: A plugin didn't answer in time. If it was starting, see
+[Plugin Is Slow to Start](#plugin-is-slow-to-start). Those limits are fixed.
 Otherwise, check network connectivity to the plugin's external API, then run
 the command with `--debug` and find the call that timed out:
 

@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -107,8 +108,20 @@ func TestWebUICostHistory(t *testing.T) {
 	s := f.start(t, plan, false, "WEB_STATE_ONLY=true", "WEB_STATE="+state, "WEB_BUDGET=120")
 	seedCostHistory(t, f.root, s.home)
 
+	require.Eventually(t, func() bool {
+		resp, err := s.client.Get(s.origin + "/api/history/view")
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 20*time.Second, 100*time.Millisecond, "the history view becomes ready")
 	view := s.query(t, "/api/history/view", nil)
 	require.Equal(t, "ok", view["status"])
+	thresholds, ok := view["thresholds"].([]any)
+	require.True(t, ok)
+	require.Len(t, thresholds, 1)
+	assert.Equal(t, map[string]any{"amount": 120.0, "display": "$120"}, thresholds[0])
 	diff := s.query(t, "/api/history/diff?from=v35&to=v36", nil)
 	require.Equal(t, "ok", diff["status"])
 	resource := s.query(t, "/api/history/resource?id="+url.QueryEscape(historyURN), nil)

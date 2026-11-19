@@ -70,7 +70,7 @@ These flags are accepted by `overview`, `cost projected`, `cost actual`, and `co
 | ----------------- | ---------------------- | ---------------------------------------------------------------------------- |
 | `--no-color`      | Disable colored output | Selects plain text. Wins over `--color` and `--high-contrast`.               |
 | `--plain`         | Enable plain text mode | Removes colors, borders, and interactive elements. Ideal for screen readers. |
-| `--color`         | Force colored output   | Styles output when stdout is not a terminal. `--force-color` is the same switch. |
+| `--color`         | Force colored output   | Styles output when stdout isn't a terminal. `--force-color` is the same switch. |
 | `--high-contrast` | Enable high contrast   | Brighter budget colors: OK 46, warning 226, critical 196, header 231.        |
 
 `--high-contrast` recolors the budget box, including the provider, tag, and type
@@ -93,14 +93,14 @@ Environment variables allow you to set preferences globally without typing flags
 
 An explicit flag wins over the environment. `--plain` and `--no-color` win over
 `--color`, `--force-color`, and `--high-contrast`. `FINFOCUS_PLAIN` and `NO_COLOR`
-win over `FORCE_COLOR` and `FINFOCUS_HIGH_CONTRAST` when those color modes were
-not set by a flag.
+win over `FORCE_COLOR` and `FINFOCUS_HIGH_CONTRAST` when those color modes weren't
+set by a flag.
 
 `cost history view` accepts `--plain`, and `FINFOCUS_PLAIN` selects its plain
 chart when no output format was asked for. An explicit `--output json`, a
 `--format json`, or `AGENT_MODE=json` keeps the JSON output, so a server or
 script started with `FINFOCUS_PLAIN=1` still gets JSON when it asks for it. An
-explicit `--plain` flag still wins. `--plain` is not a parent `cost` flag,
+explicit `--plain` flag still wins. `--plain` isn't a parent `cost` flag,
 because `cost history view` already defines it.
 
 An explicit `--color` or `--high-contrast` wins over `NO_COLOR`, so the whole

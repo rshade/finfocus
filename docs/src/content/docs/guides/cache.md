@@ -51,7 +51,7 @@ Enable the cache in under 2 minutes.
 
 Edit `~/.finfocus/config.hujson` (global) or your project's
 `.finfocus/config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 # yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
@@ -181,7 +181,7 @@ The database contains one bucket per cached operation:
 Projected costs are cached per individual resource, so changing one resource only
 invalidates that resource's entry. The projected key adds `/tags-{digest}`, the
 first eight bytes of SHA-256 over the flattened tag map, so two resources that
-differ only by a nested field such as `sku.capacity` do not share an entry.
+differ only by a nested field such as `sku.capacity` don't share an entry.
 `/refs-{digest}` is appended when `ref.*` properties are present. The digest
 invalidates projected entries once. Delete `cache.db` in the resolved cache
 directory to drop them. That file is `~/.finfocus/cache/cache.db` unless
@@ -200,11 +200,11 @@ enabled. It holds extracted score values keyed on a hash of the recommendation c
 
 - Expiration is **lazy**: entries are checked on read and discarded if past their TTL.
 - A startup cleanup pass removes all expired entries when the cache is opened.
-- Setting `ttl_seconds: 0` or `enabled: false` disables the cache; no file is written.
+- Setting `ttl_seconds: 0` or `enabled: false` disables the cache, so the cache file isn't written.
 
 ### Graceful Degradation
 
-Cache failures never block cost operations. If the cache file cannot be opened or a
+Cache failures never block cost operations. If the cache file can't be opened or a
 read fails, FinFocus logs a warning and continues with live plugin calls. If the file
 is corrupted, FinFocus automatically deletes and recreates it.
 
@@ -292,7 +292,7 @@ finfocus cost projected --cache-ttl 0 --pulumi-json plan.json
 
 ### Issue: Stale data after resource changes
 
-**Symptoms:** Cost output does not reflect a resource, tag, or nested input change.
+**Symptoms:** Cost output doesn't reflect a resource, tag, or nested input change.
 
 **Cause:** The projected key is `provider/type/region/sku` plus a digest of the
 flattened tag map. Changing the provider, type, region, SKU, a tag, or a nested
@@ -308,7 +308,7 @@ fresh data. A field that never reaches the flattened map can still reuse the ent
 **Cause:** The `cache.db` file was corrupted (e.g., process killed mid-write).
 
 **Solution:** FinFocus auto-recovers by deleting and recreating the file. If auto-recovery
-does not trigger, delete the file manually:
+doesn't trigger, delete the file manually:
 
 ```bash
 rm ~/.finfocus/cache/cache.db

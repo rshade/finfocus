@@ -131,7 +131,7 @@ The budget engine is designed for high performance:
 
 - **Health Calculation**: < 100 ms for 1000 budgets
 - **Filtering**: < 500 ms for 1000 budgets
-- **Stateless**: No database required; all calculations happen in-memory
+- **Stateless**: No database required. All calculations happen in-memory
 
 ## Troubleshooting
 
@@ -148,7 +148,7 @@ The budget engine is designed for high performance:
 
 ### Currency Mismatches
 
-- **Issue**: Summary totals cannot be calculated for mixed currencies.
+- **Issue**: Summary totals can't be calculated for mixed currencies.
 - **Behavior**: The engine groups summaries by currency code,
   such as `USD` or `EUR`. Ensure you check the `ByCurrency` map in the
   summary result.

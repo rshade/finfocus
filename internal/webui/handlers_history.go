@@ -48,6 +48,7 @@ type HistoryViewResult struct {
 	Document       history.ViewDocument
 	Budget         *float64
 	BudgetCurrency string
+	Thresholds     []history.ChartBudget
 }
 
 // HistoryPoint is one resource's monthly cost at one snapshot, as the terminal
@@ -63,9 +64,10 @@ type HistoryPoint struct {
 type HistoryViewResponse struct {
 	history.ViewDocument
 
-	Status  string             `json:"status"`
-	Budget  *float64           `json:"budget,omitempty"`
-	Display HistoryViewDisplay `json:"display"`
+	Status     string                `json:"status"`
+	Budget     *float64              `json:"budget,omitempty"`
+	Thresholds []history.ChartBudget `json:"thresholds,omitempty"`
+	Display    HistoryViewDisplay    `json:"display"`
 }
 
 // HistoryViewDisplay holds the formatted budget and one entry per snapshot, in
@@ -169,6 +171,7 @@ func (s *Server) handleHistoryView(w http.ResponseWriter, r *http.Request) {
 		ViewDocument: result.Document,
 		Status:       HistoryStatusOK,
 		Budget:       result.Budget,
+		Thresholds:   result.Thresholds,
 		Display:      historyViewDisplay(result),
 	})
 }

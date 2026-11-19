@@ -62,7 +62,7 @@ func filterSnapshots(snapshots []CostSnapshot, from, to time.Time) []CostSnapsho
 }
 
 func formatSingle(stack, provider string, snapshot CostSnapshot) string {
-	amount := formatMoneyIn(snapshot.Currency, seriesValue(snapshot, provider))
+	amount := FormatChartMoney(snapshot.Currency, SnapshotSeriesValue(snapshot, provider))
 	if isDollar(snapshot.Currency) {
 		amount += " " + snapshot.Currency
 	}
@@ -118,7 +118,7 @@ func chartCaption(stack string, snapshots []CostSnapshot) string {
 func chartSeries(snapshots []CostSnapshot, opt ChartOptions) ([][]float64, []string, []asciigraph.AnsiColor) {
 	totals := make([]float64, len(snapshots))
 	for i, snapshot := range snapshots {
-		totals[i] = seriesValue(snapshot, opt.Provider)
+		totals[i] = SnapshotSeriesValue(snapshot, opt.Provider)
 	}
 	legend := "Total"
 	if opt.Provider != "" {
@@ -152,7 +152,7 @@ func appendProviders(
 	for i, name := range providerNames(snapshots) {
 		series := make([]float64, len(snapshots))
 		for j, snapshot := range snapshots {
-			series[j] = seriesValue(snapshot, name)
+			series[j] = SnapshotSeriesValue(snapshot, name)
 		}
 		data = append(data, series)
 		legends = append(legends, strings.ToUpper(name))
@@ -195,7 +195,8 @@ func providerNames(snapshots []CostSnapshot) []string {
 	return names
 }
 
-func seriesValue(snapshot CostSnapshot, provider string) float64 {
+// SnapshotSeriesValue returns the total or the sum for the normalized provider.
+func SnapshotSeriesValue(snapshot CostSnapshot, provider string) float64 {
 	if provider == "" {
 		return snapshot.TotalMonthly
 	}
@@ -260,17 +261,17 @@ func previousSnapshot(snapshots []CostSnapshot, version int) (CostSnapshot, bool
 }
 
 func formatChange(provider string, current, prev CostSnapshot, hasPrev bool) string {
-	now := seriesValue(current, provider)
-	nowText := formatMoneyIn(current.Currency, now) + "/mo"
+	now := SnapshotSeriesValue(current, provider)
+	nowText := FormatChartMoney(current.Currency, now) + "/mo"
 	if !hasPrev {
 		return nowText
 	}
-	before := seriesValue(prev, provider)
+	before := SnapshotSeriesValue(prev, provider)
 	return fmt.Sprintf(
 		"%s → %s (%s)",
-		formatMoneyIn(prev.Currency, before)+"/mo",
+		FormatChartMoney(prev.Currency, before)+"/mo",
 		nowText,
-		signedMoneyIn(current.Currency, now-before),
+		FormatChartDelta(current.Currency, now-before),
 	)
 }
 
@@ -298,9 +299,9 @@ func captionCurrency(currency string) string {
 	return strings.ToUpper(currency)
 }
 
-// formatMoneyIn writes value in currency: "$1,200" for dollars, "1,200 EUR" for
+// FormatChartMoney writes value in currency: "$1,200" for dollars, "1,200 EUR" for
 // any other currency, so a euro total is never printed with a dollar sign.
-func formatMoneyIn(currency string, value float64) string {
+func FormatChartMoney(currency string, value float64) string {
 	text := formatMoney(value)
 	if isDollar(currency) {
 		return text
@@ -313,15 +314,16 @@ func formatMoneyIn(currency string, value float64) string {
 	return sign + strings.TrimPrefix(text, "$") + " " + strings.ToUpper(currency)
 }
 
-func signedMoneyIn(currency string, value float64) string {
+// FormatChartDelta writes a signed change in the chart currency.
+func FormatChartDelta(currency string, value float64) string {
 	if isDollar(currency) {
 		return signedMoney(value)
 	}
 	if value > 0 {
-		return "+" + formatMoneyIn(currency, value)
+		return "+" + FormatChartMoney(currency, value)
 	}
 	if value < 0 {
-		return formatMoneyIn(currency, value)
+		return FormatChartMoney(currency, value)
 	}
 	return "0 " + strings.ToUpper(currency)
 }

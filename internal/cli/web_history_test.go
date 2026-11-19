@@ -140,7 +140,8 @@ func TestWebHistoryView_CarriesGlobalBudget(t *testing.T) {
 	dir := t.TempDir()
 	seedParityHistory(t, dir)
 	cfg := &config.Config{Cost: config.CostConfig{Budgets: &config.BudgetsConfig{
-		Global: &config.ScopedBudget{Amount: 150, Currency: "USD"},
+		Global:    &config.ScopedBudget{Amount: 150, Currency: "USD"},
+		Providers: map[string]*config.ScopedBudget{"aws": {Amount: 100}, "aws-native": {Amount: 500}},
 	}}}
 
 	result, err := historyWebData(dir, "dev", cfg).historyView(context.Background(), webui.HistoryViewQuery{})
@@ -151,6 +152,9 @@ func TestWebHistoryView_CarriesGlobalBudget(t *testing.T) {
 	require.True(t, ok)
 	assert.InDelta(t, amount, *result.Budget, 0)
 	assert.Equal(t, "USD", result.BudgetCurrency)
+	assert.Equal(t, history.ChartBudgets(cfg.Cost.Budgets, result.Document.Snapshots), result.Thresholds)
+	require.Len(t, result.Thresholds, 2)
+	assert.Equal(t, history.ChartBudget{Provider: "aws", Amount: 100, Display: "$100"}, result.Thresholds[1])
 }
 
 func TestWebHistoryDiff_MatchesCLIJSON(t *testing.T) {
@@ -415,7 +419,12 @@ func TestWebHistoryView_PrefersMergedProjectConfig(t *testing.T) {
 	data := historyWebData(dir, "dev", global)
 	data.mergedCfg = merged
 
-	result, err := data.historyView(context.Background(), webui.HistoryViewQuery{})
+	usd, err := data.historyView(context.Background(), webui.HistoryViewQuery{})
+	require.NoError(t, err)
+	assert.Nil(t, usd.Budget)
+	assert.Empty(t, usd.Thresholds)
+
+	result, err := data.historyView(context.Background(), webui.HistoryViewQuery{Currency: "EUR"})
 
 	require.NoError(t, err)
 	require.NotNil(t, result.Budget)

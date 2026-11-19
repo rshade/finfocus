@@ -35,7 +35,7 @@ development. This ensures features are well-planned, documented, and testable.
 
 ### Minor Bug Fixes (SpecKit Optional)
 
-Minor bug fixes and small improvements **do not require** SpecKit. You may
+Minor bug fixes and small improvements **don't require** SpecKit. You may
 submit a pull request directly.
 
 **What qualifies as a minor bug fix:**
@@ -139,7 +139,7 @@ Run `make help` for a complete list. All available targets:
 After `vale sync`, it checks that every `ai-tells` rule is a suggestion, then
 lints `docs/src/content/docs/` with `docs/.vale.ini`.
 The existing pages have a backlog of findings, and a full run exits nonzero
-until it is cleared. Pass the pages you changed to check only them:
+until it's cleared. Pass the pages you changed to check only them:
 
 ```bash
 make docs-vale VALE_FILES=docs/src/content/docs/guides/budgets.md
@@ -155,7 +155,7 @@ sets the casing Vale expects for that term.
 
 Write CLI commands, binary names, and plugin ids in backticks in prose, such
 as `finfocus` or the `kubernetes` plugin. Vale skips code, so the vocabulary
-casing for FinFocus and Kubernetes does not flag them.
+casing for FinFocus and Kubernetes doesn't flag them.
 
 ### Verifying Your Setup
 
@@ -235,14 +235,14 @@ pipx install git+https://github.com/github/spec-kit.git
 
 ### Web parity (required for user-facing features)
 
-A CLI feature that produces user-visible output is not complete until
+A CLI feature that produces user-visible output isn't complete until
 `finfocus --web` can reach it. This is Constitution Principle VII:
 
 - The spec has a `Web UI Fit` section, and `/speckit.tasks` generates the Web
   Parity tasks. `/speckit.checklist` and `/speckit.analyze` flag any gaps.
 - The `internal/webui` handler is part of the CLI feature. It calls the same Go
   method as the CLI command, and `contracts/http-api.md` names that method.
-- When the CLI feature is complete, file one `web-ui` follow-up issue. It is
+- When the CLI feature is complete, file one `web-ui` follow-up issue. It's
   UX only: layout, rendering, interaction, copy, and accessibility.
 - Features with no web surface record `Not applicable` and a reason in the spec.
 
@@ -413,7 +413,7 @@ type(scope): description
 Use `deps` for a change that only updates dependencies, such as
 `deps: bump finfocus-spec to v0.7.10`. It appears under Dependencies in the
 release notes of every module it touches. Land a `finfocus-spec` bump this way
-before the feature that needs it, so the feature does not show up in each
+before the feature that needs it, so the feature doesn't show up in each
 plugin's release notes.
 
 **Examples:**
@@ -479,7 +479,7 @@ example, `kubernetes-v0.1.0`) rather than the CLI's bare `vX.Y.Z` tags:
   version bump are tracked separately from the CLI.
 - `.github/workflows/release-monorepo-plugin.yml` builds and uploads release
   archives (`scripts/release-plugin-assets.sh`) for a published `<plugin>-v*`
-  release; the CLI's `goreleaser.yml` and `nightly.yml` release-triggered jobs
+  release. The CLI's `goreleaser.yml` and `nightly.yml` release-triggered jobs
   are guarded to skip these tags.
 - The plugin's registry entry needs **both** `tag_prefix` set (for example,
   `"kubernetes-"`) so the installer can resolve prefixed tags to a canonical
@@ -490,7 +490,7 @@ example, `kubernetes-v0.1.0`) rather than the CLI's bare `vX.Y.Z` tags:
   `release-monorepo-plugin.yml`/`scripts/release-plugin-assets.sh` produce.
 - Monorepo plugin names (and thus `tag_prefix` values) must not start with
   `v`. The CLI's own release workflows distinguish a bare CLI tag from a
-  plugin tag with `startsWith(tag, 'v')`; a plugin prefix starting with `v`
+  plugin tag with `startsWith(tag, 'v')`. A plugin prefix starting with `v`
   (e.g. `vantage-v0.1.0`) would defeat that guard, so
   `ValidateRegistryEntry` rejects it.
 - A published `<plugin>-vX.Y.Z` release is never allowed to hold the
@@ -568,7 +568,7 @@ FinFocus spans these repositories:
 | --------------------------- | ------------------------------------------- |
 | [finfocus][core]     | CLI tool, plugin host, orchestration engine |
 | [finfocus-spec][spec]     | Protocol buffer definitions, SDK generation |
-| Plugin implementations | Separate repositories such as [finfocus-plugin-aws-public][aws-public], and modules under `plugins/` in [finfocus][core]; see the [plugin registry][registry] for repository locations |
+| Plugin implementations | Separate repositories such as [finfocus-plugin-aws-public][aws-public], and modules under `plugins/` in [finfocus][core]. See the [plugin registry][registry] for repository locations |
 
 [core]: https://github.com/rshade/finfocus
 [spec]: https://github.com/rshade/finfocus-spec
@@ -606,7 +606,7 @@ gh issue list --repo rshade/finfocus --state closed --label decision
 **Why this matters:**
 
 - Prevents re-litigating the same issues
-- New contributors can understand *why* things are the way they are
+- New contributors can understand *why* things work the way they do
 - Creates searchable institutional knowledge
 
 ### Standard Labels

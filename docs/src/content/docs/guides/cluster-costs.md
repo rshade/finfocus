@@ -8,7 +8,7 @@ description: Break down a Kubernetes cluster's cost by namespace, controller, po
 `finfocus cost cluster` allocates the cost of a [Kubernetes](https://kubernetes.io/docs/concepts/overview/)
 cluster's nodes (and, on EKS, its control plane and each Fargate pod) across
 the workloads running on them. With no window, that cost is the monthly run
-rate. With `--from` and `--to`, it is the actual spend over that window.
+rate. With `--from` and `--to`, it's the actual spend over that window.
 A usage-source plugin reports cluster state, FinFocus prices the
 reported nodes through its normal pricing plugins, and an allocator plugin
 splits each node's cost across the workloads. By default, unused
@@ -64,20 +64,20 @@ Policy:  built-in defaults · 3f2a9c1b4d5e
 
 The footer reports the mode and period, the priced total, the idle cost with
 its share of the total, the policy source with a short digest, and any
-resources that could not be priced.
+resources that couldn't be priced.
 
 ## Several usage sources
 
 The kubernetes plugin serves only the run rate and the prometheus plugin only
 a historical window, so both can stay installed. When more than one usage
-source is installed and `--usage-source` is not set, FinFocus asks each one,
+source is installed and `--usage-source` isn't set, FinFocus asks each one,
 in name order, and uses the one that accepts the request. A source that
 rejects the request as invalid (`InvalidArgument`, which is how a source
-declines a mode it cannot serve) is skipped. With both plugins installed, a
+declines a mode it can't serve) is skipped. With both plugins installed, a
 run with no window uses the kubernetes plugin and a run with `--from` uses
 Prometheus.
 
-When two sources accept the same request, FinFocus cannot choose and exits 2
+When two sources accept the same request, FinFocus can't choose and exits 2
 with both names:
 
 ```text
@@ -85,7 +85,7 @@ several usage sources can serve run-rate usage (kubernetes, other); choose one w
 ```
 
 When every source rejects the request, the run exits 2 and the error lists
-each rejection, for example a kubeconfig context that does not exist next to
+each rejection, for example a kubeconfig context that doesn't exist next to
 Prometheus declining a run with no window. `--usage-source <name>` always
 uses that plugin alone, with no other source asked, and its rejection exits 2
 too:
@@ -108,13 +108,13 @@ unlabeled      1      10.00   10.0%   1.00
 ```
 
 Each allocated row, idle rows included, counts once, under the capacity type
-of its node (matched by cluster and node name; a usage source that sends no
-cluster tag still matches, as in the allocator), so the rows sum to the cluster
+of its node (matched by cluster and node name as the allocator matches them, so a usage
+source that sends no cluster tag still matches), so the rows sum to the cluster
 total and idle cost is never counted twice. Rows that match no node, such as
-the control plane, Fargate pods (which name a pod host that is not a priced
+the control plane, Fargate pods (which name a pod host that isn't a priced
 node), and orphan rows (which name a node that no longer exists), go under
 `unlabeled`, as does
-any node whose usage source sends no `capacity_type`; they are not folded into
+any node whose usage source sends no `capacity_type`. They aren't folded into
 on-demand. The kubernetes and prometheus plugins default a node with no spot
 label to `on-demand`, so with them `unlabeled` holds only rows that match no node. Tag
 values are shown as the plugin reports them. The section is omitted when no
@@ -132,8 +132,8 @@ window carries actual spend and adds no such note.
 - `controller`: `namespace/controller_kind/controller` (for example
   `payments/Deployment/api`)
 - `pod`: `namespace/pod`
-- `node`: node name; idle rows group under their node
-- `label:<key>`: the value of pod label `<key>`; pods without the label group
+- `node`: node name. Idle rows group under their node
+- `label:<key>`: the value of pod label `<key>`. Pods without the label group
   under `<none>` and are never dropped
 - `pulumi-stack`: `<stack>/<project>` parsed from the pod annotation
   `finfocus.dev/pulumi-urn`. A missing or malformed URN groups under `<none>`
@@ -177,7 +177,7 @@ The allocator's policy is resolved, first found wins (files never merge):
 Files are HuJSON (comments and trailing commas allowed), standardized before
 being passed to the allocator. A discovered file that fails to parse is a
 fatal error. FinFocus never silently falls back to defaults. A policy file
-that cannot be read or is not valid HuJSON exits 2 before any plugin starts,
+that can't be read or isn't valid HuJSON exits 2 before any plugin starts,
 with error code `config_invalid`. The message gives the file. For a syntax
 error it also gives the line and column, for example:
 
@@ -202,10 +202,10 @@ cost is `max(cpu_request, cpu_usage)` over the node's allocatable CPU, and
 memory works the same way. Which of the two inputs exists depends on the
 usage source. The kubernetes source reports requests and no usage, so a
 run-rate report charges requests. A pod with zero effective CPU and memory
-requests (including pod overhead; Kubernetes copies a limit into a missing
+requests (including pod overhead and any limit that Kubernetes copies into a missing
 request) claims no share of its
-node. With the default policy it is charged `$0`, and the node cost it would
-have claimed stays in `__idle__`. `idle: "share"` alone does not change that,
+node. With the default policy it's charged `$0`, and the node cost it would
+have claimed stays in `__idle__`. `idle: "share"` alone doesn't change that,
 because idle is shared in proportion to the cost a workload already holds.
 `system_workloads: "share"` can. It moves kube-system and DaemonSet cost onto
 the other workloads on the node in proportion to the CPU or memory cost they
@@ -215,7 +215,7 @@ system cost in each dimension where no other non-system workload on its node
 has cost. With `idle: "share"` as well, that part includes the idle the system
 workloads absorbed first. Beside a workload that has cost in a dimension, it
 still gets nothing in that dimension.
-The Prometheus source reports usage and no requests; see
+The Prometheus source reports usage and no requests. See
 [Historical window](#historical-window).
 
 Print the effective policy (defaults plus overrides) and its digest without
@@ -237,7 +237,7 @@ traced back to the exact policy that produced it.
 report is scoped when either flag is true. `capacity` is an array (empty when
 there are no rows) of `capacity_type`, `cpu_cost`, `mem_cost`, `total_cost`,
 `idle_cost` (omitted when scoped, like the top-level `idle`), `nodes`, `rows`,
-and `notes` (omitted when the group has none); the `total_cost` values sum to
+and `notes` (omitted when the group has none). The `total_cost` values sum to
 `total`. With `--namespace` or `--selector`, the table shows `-` in the IDLE
 column. In historical mode, `priced[].monthly` is the window total
 (`TotalCost`), not a 730-hour projection. Each group may include `pulumi_urns` when a workload in it
@@ -282,7 +282,7 @@ The [OpenCost plugin](../plugins/opencost.md) prices these workload types
 too, from what the cluster has really cost: a 30-day trailing average of the
 workload's OpenCost allocation, projected to 730 hours. With both plugins
 installed, FinFocus offers the workload to one plugin at a time and uses the
-first price it gets. A plugin that cannot price the workload declines and the
+first price it gets. A plugin that can't price the workload declines and the
 next one is asked.
 
 Without a `routing` section in `config.hujson`, the order is the plugin
@@ -311,9 +311,9 @@ To prefer the observed cost, give `opencost` a priority in `config.hujson`
 }
 ```
 
-A higher priority is asked first, and a plugin that is not listed keeps
+A higher priority is asked first, and a plugin that isn't listed keeps
 priority 0. Fallback is on by default: when OpenCost has no data for the
-workload, for example because it is not deployed yet, or cannot be reached,
+workload, for example because it isn't deployed yet, or can't be reached,
 the `kubernetes` estimate is used if that plugin can price it.
 `finfocus config routes list` shows the rules in effect, and the
 [routing guide](./routing.md) covers the rest of the configuration.
@@ -323,10 +323,10 @@ the `kubernetes` estimate is used if that plugin can price it.
 `--from` and `--to` price actual spend over that window. Both accept
 `2006-01-02` and RFC3339. `--to` defaults to now when only `--from` is set.
 An invalid window, `--group-by`, `--selector`, or `--output`, and a policy
-file that cannot be read or parsed, exit 2 before any plugin starts. Input a
+file that can't be read or parsed, exit 2 before any plugin starts. Input a
 plugin rejects also exits 2: a `--usage-source` or `--allocator` that names
 no installed plugin or is missing where several could serve, a request the usage source rejects as invalid (a
-`--context` it cannot find, or a window it cannot serve), and a policy file
+`--context` it can't find, or a window it can't serve), and a policy file
 the allocator rejects. Other plugin, allocation, and conservation failures
 exit 1.
 With the kubernetes and prometheus plugins both installed, a window goes to
@@ -342,19 +342,19 @@ finfocus cost cluster \
 
 The footer mode is `historical` and the period is the window and its
 length, for example `historical (2026-09-28 to 2026-10-05, 7 days)`. A
-window whose bounds are not both UTC midnight prints RFC3339 bounds. A length
-that is not whole days prints its largest unit and the next one, for example
-`historical (2026-11-11T00:00:00Z to 2026-11-11T20:24:27Z, 20 hours 24 minutes)`;
-smaller remainders are dropped, and a window under a minute is
+window whose bounds aren't both UTC midnight prints RFC3339 bounds. A length
+that isn't whole days prints its largest unit and the next one, for example
+`historical (2026-11-11T00:00:00Z to 2026-11-11T20:24:27Z, 20 hours 24 minutes)`.
+Smaller remainders are dropped, and a window under a minute is
 `under 1 minute`. A run with no window stays `run-rate (monthly, 730 h)`.
 When Prometheus holds no data for the start of the window, for example
 because its retention is shorter than the window, the report is marked
 incomplete with a warning naming the time stored data starts. The missing
-part is not counted as zero usage. Pods with gaps in their samples are
+part isn't counted as zero usage. Pods with gaps in their samples are
 reported the same way: one warning per pod and metric.
 
 The footer says why a report is incomplete: what the usage source reported
-missing, and, only when there are any, the resources that could not be
+missing, and, only when there are any, the resources that couldn't be
 priced:
 
 ```text
@@ -388,34 +388,34 @@ the Prometheus Operator service. The
 bearer token, and the metrics the plugin reads.
 
 A node's provider, instance type, and region come from those recorded
-series. When they lack a value the node needs, the source reads the node as
-it is now through your kubeconfig and prices it with the current labels. The
+series. When they lack a value the node needs, the source reads the node's
+current state through your kubeconfig and prices it with the current labels. The
 report then carries a warning that names the node and the fields read from
 the live node, such as
 `node ip-10-0-1-5: instance type, region taken from the live node, ...`.
 A node that was replaced or relabeled after the window can be priced with
-its new instance type. The warning does not mark the report incomplete.
+its new instance type. The warning doesn't mark the report incomplete.
 
 Pod labels come from kube-state-metrics, which exports only the labels named
-in its `--metric-labels-allowlist` flag and replaces every character that is
-not a letter, digit, or underscore with `_`. A historical `--group-by` uses
+in its `--metric-labels-allowlist` flag and replaces every character that isn't
+a letter, digit, or underscore with `_`. A historical `--group-by` uses
 that recorded key: `app.kubernetes.io/name` is
 `label:app_kubernetes_io_name`, and `--group-by label:app.kubernetes.io/name`
 puts every pod under `<none>`. The `--selector` flag accepts either form.
 
-The Prometheus source does not read pod annotations, so
+The Prometheus source doesn't read pod annotations, so
 `--group-by pulumi-stack` has no `finfocus.dev/pulumi-urn` to parse over a
 window: every workload groups under `<none>` and JSON and NDJSON groups have
 no `pulumi_urns`. Adding the annotation to the kube-state-metrics
-`--metric-annotations-allowlist` does not change this, because the source
-does not query `kube_pod_annotations`. To group by Pulumi stack, run without
+`--metric-annotations-allowlist` doesn't change this, because the source
+doesn't query `kube_pod_annotations`. To group by Pulumi stack, run without
 `--from` and `--to` (with `--usage-source kubernetes` when several sources are
 installed), so the kubernetes source reads the annotation from the live pods.
 
 ## Plugin call deadlines
 
 Each usage-source and allocator call has its own deadline, so a plugin that
-stops answering cannot hang `cost cluster` or overview cluster expansion:
+stops answering can't hang `cost cluster` or overview cluster expansion:
 
 | Call | Deadline |
 | --- | --- |
@@ -436,7 +436,7 @@ plugin and the call, for example
 `get usage stats: usage source prometheus did not answer GetStats within 22m30s`.
 FinFocus then stops the plugin processes. With several usage sources and no
 `--usage-source`, a source that runs out its deadline stops the selection, and
-later sources are not asked. Ctrl-C still stops the run at once. In the
+later sources aren't asked. Ctrl-C still stops the run at once. In the
 overview, a deadline skips live expansion for that cluster, keeps its
 projected rows, and adds a `live cluster expansion skipped` note.
 
@@ -448,10 +448,10 @@ Pricing calls keep the engine's own per-resource limits.
   error. A window needs a source that reports historical mode.
 - On the no-window path, spot nodes are priced on-demand. Each EKS Fargate pod
   is priced on its own from its vCPU and memory request when the pricing
-  plugin returns a positive monthly cost; otherwise the pod is a $0 row with
-  a note. kind cannot simulate Fargate, so `make test-e2e-kind` does not
+  plugin returns a positive monthly cost. Otherwise, the pod is a $0 row with
+  a note. kind can't simulate Fargate, so `make test-e2e-kind` doesn't
   cover that path. The rates live in
   [finfocus-plugin-aws-public#409](https://github.com/rshade/finfocus-plugin-aws-public/issues/409).
 - A node whose price resolves to `$0` (for example an unknown instance type in
-  aws-public) is treated as unpriced, never as free; if no node can be priced
-  at all the command fails.
+  aws-public) is treated as unpriced, never as free. If no node can be priced
+  at all, the command fails.

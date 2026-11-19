@@ -56,7 +56,7 @@ Get started with budgets in under 5 minutes.
 ### Step 1: Configure Budget
 
 Create or edit your `~/.finfocus/config.hujson` to define a budget.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 # yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
@@ -112,7 +112,7 @@ Complete reference for all budget configuration options.
 ### File Location
 
 Configuration is stored in `~/.finfocus/config.hujson`. Examples on this page
-show the keys in YAML form; the file uses JSON syntax.
+show the keys in YAML form. The file uses JSON syntax.
 
 ### Schema Reference
 
@@ -160,7 +160,7 @@ Override configuration with environment variables:
 | ----------------------------------- | ------------------------------------------- | -------- |
 | `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` | Exit process when budget threshold exceeded | `true`   |
 | `FINFOCUS_BUDGET_EXIT_CODE`         | Exit code to use when enforcement triggers  | `2`      |
-| `FINFOCUS_NOTIFY`                   | Send budget notifications when `--notify` is not set | `true` |
+| `FINFOCUS_NOTIFY`                   | Send budget notifications when `--notify` isn't set | `true` |
 
 No environment variable sets the budget amount or currency. Set
 `cost.budgets.global.amount` and `currency` in the configuration file.
@@ -278,8 +278,8 @@ See [complete example](https://github.com/rshade/finfocus/blob/main/docs/src/con
 ## Scoped Budgets
 
 > **Note:** Every budget lives under a scope. The [Quick Start](#quick-start) examples
-> above set only `cost.budgets.global`; the sections below add `providers`, `tags`, and
-> `types` beside it. FinFocus does not apply `amount`, `currency`, `period`, or `alerts`
+> above set only `cost.budgets.global`. The sections below add `providers`, `tags`, and
+> `types` beside it. FinFocus doesn't apply `amount`, `currency`, `period`, or `alerts`
 > placed directly under `cost.budgets`, and `finfocus config validate` warns about them.
 
 Define budgets at multiple levels for granular cost control: global, per-provider, per-tag, and per-resource-type.
@@ -491,7 +491,7 @@ Overall Health: CRITICAL
 - Type is extracted from Pulumi resource type (e.g., `aws:ec2/instance:Instance` → `aws:ec2/instance`)
 - All type budgets must use the same currency as the global budget
 - Each resource's cost counts toward its type budget AND the global budget
-- Unconfigured resource types do not appear in the BY TYPE section
+- Unconfigured resource types don't appear in the BY TYPE section
 
 ---
 
@@ -541,11 +541,11 @@ Add `notifications` to any alert, in any scope (`global`, `providers.<name>`,
 | `url`     | all        | Yes      | `https://` URL with a host, or a `${FINFOCUS_NOTIFY_*}` reference |
 | `channel` | `slack`    | No       | Channel override sent with the message                            |
 | `method`  | `webhook`  | No       | `POST` (default) or `PUT`                                         |
-| `headers` | `webhook`  | No       | Extra request headers; values may use `${FINFOCUS_NOTIFY_*}`      |
+| `headers` | `webhook`  | No       | Extra request headers. Values may use `${FINFOCUS_NOTIFY_*}`      |
 
 Check the file with `finfocus config validate`. Validation rejects unknown
 types, `http://` URLs, `channel` on a webhook, `method` or `headers` on a Slack
-destination, and any variable that does not start with `FINFOCUS_NOTIFY_`.
+destination, and any variable that doesn't start with `FINFOCUS_NOTIFY_`.
 
 Slack apps bind each incoming webhook to one channel, so Slack may ignore
 `channel`. Create one webhook per channel when you need several.
@@ -557,7 +557,7 @@ and `overview`) or set `FINFOCUS_NOTIFY=true`. An explicit `--notify=false`
 wins over the variable. An invalid `FINFOCUS_NOTIFY` value prints a warning
 and counts as false.
 
-When a run does not opt in and a crossed threshold has destinations, nothing
+When a run doesn't opt in and a crossed threshold has destinations, nothing
 is sent and stderr shows one hint:
 
 ```text
@@ -580,7 +580,7 @@ steps:
 
 Write the destinations into the global config from the workflow, for example
 with a step that creates `$FINFOCUS_HOME/config.hujson`. A pull request
-cannot change that step for runs that receive secrets.
+can't change that step for runs that receive secrets.
 
 ### Preview With Dry Run
 
@@ -621,7 +621,7 @@ JSON event:
 
 - Destinations are sent concurrently, each with a 10-second time limit.
 - URLs must use HTTPS. A URL built from a variable is checked after
-  expansion. Redirects are never followed; a 3xx response is a failure.
+  expansion. Redirects are never followed. A 3xx response is a failure.
 - A failure (error status, timeout, unset variable) prints a warning on
   stderr and never changes the command's output or exit code:
 
@@ -631,11 +631,11 @@ JSON event:
 
 - Warnings and logs never contain a URL, a variable's value, a secret header
   value, or a response body. A literal header value is treated as secret when
-  it is at least 8 characters long or the header is `Authorization`,
+  it's at least 8 characters long or the header is `Authorization`,
   `Proxy-Authorization`, `Cookie`, or a name containing `token`, `key`, or
   `secret`.
   `config get` and `config list` show those values as `[REDACTED]`, except a
-  value that is only a `${NAME}` reference.
+  value that's only a `${NAME}` reference.
 - Nothing about notifications is written to stdout, so `--output json` and
   `--output ndjson` stay parseable.
 - Results with mixed currencies skip budget evaluation, so no notification
@@ -656,13 +656,13 @@ pull request controls:
    reject a `${...}` reference there with a hint to move the destination to
    the global config. This covers a legacy `.finfocus/config.yaml` too. If one
    reaches a run, that destination is skipped with a warning.
-3. When FinFocus cannot find a home directory and falls back to
+3. When FinFocus can't find a home directory and falls back to
    `./.finfocus` for its global config, that file is treated as a project
    config, because it may be committed.
 
 A project-config destination with only literal values still sends. A pull
 request can therefore point the budget event at a host it chooses. The event
-holds budget figures only, but do not set `FINFOCUS_NOTIFY` on runs for
+holds budget figures only, but don't set `FINFOCUS_NOTIFY` on runs for
 untrusted pull requests.
 
 ---
@@ -677,7 +677,7 @@ The `finfocus overview` command shows budget status differently per output mode:
 - **JSON** (`--output json`): Full budget data in the top-level `budgets` array.
 - **NDJSON** (`--output ndjson`): Budgets are excluded, because NDJSON is resource-scoped
   and budgets are stack-scoped.
-- **Plain** (`--plain`): Budget status is not rendered in the table. Use
+- **Plain** (`--plain`): Budget status isn't rendered in the table. Use
   `--exit-on-threshold` for CI/CD enforcement.
 
 See [Budget Status](../commands/overview.md#budget-status) in the overview command reference for
@@ -699,7 +699,7 @@ Common issues and solutions for budget configuration.
 **Cause:**
 
 - `amount`, `currency`, or `alerts` placed directly under `cost.budgets` instead
-  of `cost.budgets.global`; run `finfocus config validate` to find them
+  of `cost.budgets.global` (run `finfocus config validate` to find them)
 - Mismatch between `currency` in config and cost data
 - Using `actual` alert type for projected costs (or vice versa)
 

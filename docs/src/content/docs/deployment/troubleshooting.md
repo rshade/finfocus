@@ -60,7 +60,7 @@ Debugging steps:
 
 1. Confirm required `FINFOCUS_*` variables are set in the runtime environment.
 2. Run `finfocus config validate` to check `~/.finfocus/config.hujson`.
-3. Log masked config values in CI to confirm they are injected.
+3. Log masked config values in CI to confirm they're injected.
 
 ### Network and Proxy Errors
 

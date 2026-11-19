@@ -88,7 +88,7 @@ finfocus overview --filter type=aws:ec2/instance:Instance --plain --yes
 ## Step 5: Set Up Budgets (Optional)
 
 Create `~/.finfocus/config.hujson` with hierarchical budgets.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 cost:
@@ -120,7 +120,7 @@ finfocus cost history collect --stack dev --versions 1
 ```
 
 `--versions` defaults to `0`, which stores every successful checkpoint
-that is not already in the database. `1` keeps the newest checkpoint
+that isn't already in the database. `1` keeps the newest checkpoint
 only. The file is `~/.finfocus/history/<project>@<stack>.history.db` by
 default. Recipes for GitHub Actions, GitLab CI, and the Automation API are in
 [CI/CD cost tracking](../guides/ci-cd-cost-tracking.md).

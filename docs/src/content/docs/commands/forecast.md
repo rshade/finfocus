@@ -10,7 +10,7 @@ monthly price itself stays the current month.
 The plain view is an ASCII chart. JSON and NDJSON emit one point per month,
 with a timestamp, so a later interactive history chart can plot the same
 series. Stored cost history for `--stack` is included when that database
-exists and uses the same currency. A missing history file does not fail the
+exists and uses the same currency. A missing history file doesn't fail the
 command.
 
 ## Usage
@@ -36,8 +36,8 @@ one. Only the unchanged resources are the same with or without `--pulumi-json`.
 A saved preview given with no stack state, such as `--pulumi-json plan.json`
 outside a Pulumi project, forecasts only what that file lists, because nothing
 else is known. Earlier releases forecast only the resources a default preview
-lists; the total now includes the unchanged ones.
-`cost projected` and its budgets keep the plan total and are not affected.
+lists. The total now includes the unchanged ones.
+`cost projected` and its budgets keep the plan total and aren't affected.
 
 ## Growth
 
@@ -53,7 +53,7 @@ output says so. A rate below -1 is rejected. A result below zero is shown as
 zero.
 
 Resources are projected on their own, then added. A missing currency counts
-as USD, so it does not join a total in another currency. Two currencies fail
+as USD, so it doesn't join a total in another currency. Two currencies fail
 the command. A plugin error is left out of the total and listed. A global
 budget in a different currency is left off the chart, and the output says so.
 
@@ -61,7 +61,7 @@ budget in a different currency is left off the chart, and the output says so.
 
 `--model arima` forecasts from past spend instead of from the plan's growth
 models. `--spend-history` is a CSV of `date,value` rows, one per consecutive
-day or one per consecutive month, at least ten rows. A first row that is not a
+day or one per consecutive month, at least ten rows. A first row that isn't a
 number is a header. Dates are `2006-01-02` or RFC3339. Values are in the
 plan's currency, or USD when the plan has none.
 
@@ -75,7 +75,7 @@ for example `SARIMA(4,1,2)(0,1,1)[7]` for daily spend with a weekly pattern.
 Daily spend is forecast per day and summed into calendar months. Days the CSV
 already records count at their recorded value, so a partly recorded current
 month is the recorded days plus the forecast for the rest. A monthly row counts
-as that whole month, so leave out a current month that is not over yet. The
+as that whole month, so leave out a current month that isn't over yet. The
 output warns when the CSV starts partway through the current month (the days
 before it are in no total) or ends more than a month before it (the forecast
 spans the gap).
@@ -105,11 +105,11 @@ Drivers apply known changes on top of the forecast.
 | --- | --- | --- |
 | `--exclude FROM:TO` | Replace spend in the range with a straight line between its neighbors before fitting. Points at either end of the CSV are dropped instead. Recorded days still count at their real value in the month they fall in. Repeatable | arima |
 | `--step DATE=AMOUNT` | Add AMOUNT to every month from DATE's month on. AMOUNT may be negative. A step before the current month applies from the current month. Repeatable | both |
-| `--growth-cap FACTOR` | Limit every month, and each bound, to FACTOR times the current month. `1.25` is +25%. Applied after steps; ignored, with a warning, when the current month is zero | both |
+| `--growth-cap FACTOR` | Limit every month, and each bound, to FACTOR times the current month. `1.25` is +25%. Applied after steps. Ignored, with a warning, when the current month is zero | both |
 
 Values and bounds below zero are shown as zero. The output names the months a
-cap limited. With the growth model, drivers change the `forecast` total only;
-provider lines stay the undriven projection.
+cap limited. With the growth model, drivers change the `forecast` total only.
+Provider lines stay the undriven projection.
 
 ## Output
 

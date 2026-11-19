@@ -37,9 +37,10 @@ func (d *webData) historyView(ctx context.Context, query webui.HistoryViewQuery)
 	}
 	result := webui.HistoryViewResult{Document: doc}
 	if cfg := d.historyConfig(); cfg != nil {
-		if amount, ok := globalBudget(cfg); ok {
-			result.Budget = &amount
-			result.BudgetCurrency = cfg.Cost.Budgets.Global.Currency
+		result.Thresholds = history.ChartBudgets(cfg.Cost.Budgets, doc.Snapshots)
+		if thresholds := result.Thresholds; len(thresholds) > 0 && thresholds[0].Provider == "" {
+			result.Budget = &thresholds[0].Amount
+			result.BudgetCurrency = cfg.Cost.Budgets.GetGlobalCurrency()
 		}
 	}
 	return result, nil

@@ -53,19 +53,19 @@ finfocus cost recommendations --terraform-plan tfplan.json
 ```
 
 In a Pulumi project, omitting input flags loads the live inventory from state
-and preview; use `--stack` to select a stack. `--terraform-plan`,
+and preview. Use `--stack` to select a stack. `--terraform-plan`,
 `--pulumi-json`, `--pulumi-state`, and `--terraform-state` are mutually exclusive.
 Saved Terraform plan files must use format version 1 and be at most 32 MiB.
 Missing or invalid files exit 2. Planning failures exit 1 and explain whether to
 install Terraform, run init, fix credentials or backend access, or inspect the
-plan error. FinFocus does not run init or authenticate for you.
+plan error. FinFocus doesn't run init or authenticate for you.
 
-`--include-workspace` overrides `cost.terraform.include_workspace` for this run;
-it is ignored for Pulumi. A plan with no changes reports zero projected cost.
+`--include-workspace` overrides `cost.terraform.include_workspace` for this run.
+It's ignored for Pulumi. A plan with no changes reports zero projected cost.
 
 The `dismiss` and `snooze` subcommands never run a plan, including in Terraform
-directories. Their optional `--pulumi-json` flag enables plugin communication;
-both reject `--terraform-plan`.
+directories. Their optional `--pulumi-json` flag enables plugin communication.
+Both reject `--terraform-plan`.
 
 ### Step 2: Navigate Interactive UI
 
@@ -179,7 +179,7 @@ finfocus cost recommendations --pulumi-json plan.json --output json > savings.js
 
 The first five keys of each recommendation (`resource_id`, `action_type`, `description`,
 `estimated_savings`, `currency`) and `status` are stable. The remaining keys carry the
-full record the plugin returned and are omitted when the plugin did not report them:
+full record the plugin returned and are omitted when the plugin didn't report them:
 `id`, `category`, `priority`, `confidence_score`, `source`, `created_at`, `metadata`,
 `reasoning`, `impact` (`projection_period`, `current_cost`, `projected_cost`,
 `savings_percentage`, `implementation_cost`, `migration_effort_hours`) and `resource`
@@ -194,7 +194,7 @@ The `id` value is the identifier to pass to `dismiss`, `snooze`, `undismiss` and
 
 When the optional [scoring step](./recommendation-scoring.md) is enabled, each recommendation also carries a `scores`
 object (`risk`, `false_positive`, `worth_acting`, `priority`, `insufficient_evidence`, `duplicate_group_id` and
-`needs_review`) and the output carries a `scoring` summary. Scores rank work for review; they never dismiss or apply
+`needs_review`) and the output carries a `scoring` summary. Scores rank work for review. They never dismiss or apply
 anything.
 
 ### Plugin Routing and Caching
@@ -206,7 +206,7 @@ are never sent to plugins.
 Results are cached per request. The cache key includes the identity, provider, type and
 properties of every requested resource plus the IDs of dismissed recommendations, so a
 different set of resources, a changed property, or a new dismissal produces a fresh
-query. Older cache entries written under the previous key format are not matched and
+query. Older cache entries written under the previous key format aren't matched and
 expire by TTL.
 
 ### Example 2: Filtering by Category
@@ -237,7 +237,7 @@ finfocus cost recommendations --pulumi-json plan.json --filter "category=rightsi
 
 **Solution:**
 
-Ensure you have a plugin installed (e.g., `vantage`) that provides recommendations and it is properly authenticated.
+Ensure you have a plugin installed (such as `vantage`) that provides recommendations and it's properly authenticated.
 
 ### Issue: TUI not displaying correctly
 

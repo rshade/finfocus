@@ -19,8 +19,8 @@ for billed spend.
 
 ## What it prices
 
-- **Compute**: EC2 instances (on-demand; Linux, Windows, RHEL or SUSE; shared,
-  dedicated or host tenancy), Auto Scaling groups, Lambda, and ECS services on
+- **Compute**: EC2 instances (on-demand pricing for Linux, Windows, RHEL or SUSE, with
+  shared, dedicated or host tenancy), Auto Scaling groups, Lambda, and ECS services on
   Fargate. It also prices EKS pods on Fargate that the `kubernetes` plugin
   reports.
 - **Storage and data**: EBS, S3, EFS, RDS, DynamoDB, and ElastiCache.
@@ -39,13 +39,17 @@ $0. Gateway Load Balancers are reported as unsupported.
 - **Actual costs**: Estimates actual cost as list price times how long the
   resource has run, from its creation time in
   [Pulumi state](https://www.pulumi.com/docs/iac/concepts/state-and-backends/)
-  or from `--from` and `--to`. This is not billed spend.
+  or from `--from` and `--to`. This isn't billed spend.
 - **Carbon**: Estimates gCO2e for compute, storage, and database resources: EC2,
   Auto Scaling groups, EBS, S3, EFS, Lambda, RDS, DynamoDB, and ElastiCache.
-- **Recommendations**: Newer instance generations and Graviton for EC2 (not for
-  Windows), RDS and ElastiCache; Redis to Valkey for ElastiCache; gp3 instead of
-  gp2 for EBS; arm64 for Lambda; and S3 and DynamoDB gateway endpoints for NAT
-  Gateways when a data-volume tag is set.
+- **Recommendations**:
+  - Newer instance generations and Graviton for EC2 (not for Windows), RDS,
+    and ElastiCache
+  - Redis to Valkey for ElastiCache
+  - gp3 instead of gp2 for EBS
+  - arm64 for Lambda
+  - S3 and DynamoDB gateway endpoints for NAT Gateways when a data-volume tag
+    is set
 - **No credentials**: Safe to use in CI/CD without secrets.
 
 ## Installation
@@ -99,13 +103,13 @@ finfocus cost actual --pulumi-state state.json --from 2025-01-01 --to 2025-01-31
 
 Without routing, FinFocus asks every plugin that supports `aws` in name order,
 and falls back to the next one when a plugin returns an error. If you also
-install [`aws-ce`](aws-ce.md), it is asked before `aws-public`. To send
+install [`aws-ce`](aws-ce.md), it's asked before `aws-public`. To send
 projected cost to `aws-public`, configure
 [routing](../guides/routing.md).
 
 ## Limitations
 
-- **List prices only**: Does not account for Reserved Instances, Savings Plans,
+- **List prices only**: Doesn't account for Reserved Instances, Savings Plans,
   or EDP discounts.
 - **Spot**: EC2 Spot instances and Fargate Spot are priced at on-demand rates.
 - **Estimates**: Values are estimates and may differ from the final bill.
@@ -128,9 +132,9 @@ in pricing data`:
 
 If a resource is reported as unsupported:
 
-1. Check that it is in one of the 10 built regions.
+1. Check that it's in one of the 10 built regions.
 2. Give the resource a region (its `region`, availability zone or ARN), or set
-   `AWS_REGION`. A resource with no region is not priced.
+   `AWS_REGION`. A resource with no region isn't priced.
 3. With a region build, check that the resource is in that build's region.
 4. With the multi-region build, check that the machine can reach GitHub to
    download the region build.

@@ -23,7 +23,7 @@ changes resources.
   last 14 days.
 - **Forecasts**: Projected cost for `aws:account` and `aws:service` is the
   month-to-date amortized cost plus the Cost Explorer forecast. Cost Explorer
-  cannot forecast one resource, so a projected request for any other type
+  can't forecast one resource, so a projected request for any other type
   returns `InvalidArgument` and FinFocus falls back to the next plugin.
 - **Budgets**: Reads AWS Budgets and reports spend and health.
 - **Recommendations**: EC2 rightsizing, Savings Plans, reservation purchases,
@@ -43,13 +43,13 @@ up to 48 hours.
 finfocus plugin install aws-ce
 ```
 
-`finfocus setup` does not install this plugin by default.
+`finfocus setup` doesn't install this plugin by default.
 
 ## Configuration
 
 The plugin needs AWS credentials. Set a profile or the standard AWS environment
 variables, and set `AWS_REGION`. Cost Explorer uses a global endpoint, so the
-region does not choose a billing dataset.
+region doesn't choose a billing dataset.
 
 Grant only the IAM actions for the features you use:
 
@@ -73,7 +73,7 @@ Grant only the IAM actions for the features you use:
 | `FINFOCUS_AWS_CE_MAX_BATCH_SIZE` | Largest batch request, 1 to 1000 | 100 |
 | `FINFOCUS_AWS_CE_BATCH_WORKERS` | Concurrent batch workers, 1 to 50 | 50 |
 | `FINFOCUS_AWS_CE_SPOT_COMPARISON` | `true` answers EC2 instance projections with a Spot quote | `false` |
-| `FINFOCUS_AWS_ACCOUNT_ID` | Account for Budgets; empty uses STS `GetCallerIdentity` | Empty |
+| `FINFOCUS_AWS_ACCOUNT_ID` | Account for Budgets. Empty uses STS `GetCallerIdentity` | Empty |
 
 AWS charges $0.01 for each paginated Cost Explorer API request, and one
 FinFocus command can make several: a query with no cache hit needs at least two
@@ -117,5 +117,5 @@ See [Routing](../guides/routing.md) for the full configuration.
 - Rightsizing must be enabled in Cost Management preferences, and Savings Plans
   recommendations must already exist in AWS.
 - The caller supplies `billing_account_id` to get a FOCUS record.
-- `finfocus plugin inspect aws-ce` reports that capability discovery is not
-  implemented, because the plugin does not implement `DryRun`.
+- `finfocus plugin inspect aws-ce` reports that capability discovery isn't
+  implemented, because the plugin doesn't implement `DryRun`.

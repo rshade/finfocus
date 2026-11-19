@@ -75,7 +75,7 @@ Pulumi may also print a 404 while looking up a download named `pulumi-finfocus`
 (`could not find latest version`). Re-run `finfocus analyzer install` and keep
 `~/.finfocus/analyzer` on `PATH`.
 
-### "could not start policy pack"
+### `could not start policy pack`
 
 Ensure:
 
@@ -84,7 +84,7 @@ Ensure:
    (both binaries end in `.exe` on Windows).
 2. The directory is on your PATH: `export PATH="${HOME}/.finfocus/analyzer:${PATH}"`.
    Pulumi searches PATH for the entry it starts. Placing the files only in the
-   policy pack directory is not sufficient.
+   policy pack directory isn't sufficient.
 
 ### No cost diagnostics appear
 

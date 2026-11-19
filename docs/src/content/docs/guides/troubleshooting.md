@@ -112,7 +112,7 @@ finfocus --debug cost projected --pulumi-json plan.json
 
 **Explanation**:
 
-- **Taxes/Credits**: Actual costs include taxes and credits; projected do not.
+- **Taxes/Credits**: Actual costs include taxes and credits, but projected costs don't.
 - **Data Transfer**: Data transfer costs are hard to predict and are usually excluded from projections.
 - **Storage**: S3 API requests and tiered storage costs accumulate over time.
 
@@ -159,11 +159,11 @@ category. It never includes a variable value.
 | Category | Cause | Fix |
 | --- | --- | --- |
 | `not_logged_in` | No usable Pulumi Cloud token or organization. A keychain-encrypted login has no token finfocus can read. | Set `PULUMI_ACCESS_TOKEN`, or run `pulumi login`. Set `PULUMI_DEFAULT_ORGANIZATION` when the reference has no organization. |
-| `not_found` | The environment does not exist, or this identity cannot see it. The warning says `not found or no access`. | Check the reference and who can open that environment. |
+| `not_found` | The environment doesn't exist, or this identity can't see it. The warning says `not found or no access`. | Check the reference and who can open that environment. |
 | `access_denied` | Pulumi Cloud returned 403. | Ask for access to the environment, or sign in as an identity that has it. |
-| `unsupported_backend` | State is not on Pulumi Cloud. `file://`, `s3://`, `gs://`, `azblob://`, and non-loopback `http://` cannot host ESC. A `backend.url` in `Pulumi.yaml` also does not receive `PULUMI_ACCESS_TOKEN`. | Use Pulumi Cloud, or set `PULUMI_BACKEND_URL` to the Pulumi Cloud API and log in there. `http://127.0.0.1` is accepted for a local API. |
-| `unsupported_definition` | The stack's `environment:` block is not a list of imports. Inline `values:` and per-import merge options are not read. | Import an environment, or set `esc.environments` to a list of references. |
-| `timed_out` | The ESC service did not answer inside the five-second wait. | Retry when the network is available. The command already continued with shell and config values. |
+| `unsupported_backend` | State isn't on Pulumi Cloud. `file://`, `s3://`, `gs://`, `azblob://`, and non-loopback `http://` can't host ESC. A `backend.url` in `Pulumi.yaml` also doesn't receive `PULUMI_ACCESS_TOKEN`. | Use Pulumi Cloud, or set `PULUMI_BACKEND_URL` to the Pulumi Cloud API and log in there. `http://127.0.0.1` is accepted for a local API. |
+| `unsupported_definition` | The stack's `environment:` block isn't a list of imports. Inline `values:` and per-import merge options aren't read. | Import an environment, or set `esc.environments` to a list of references. |
+| `timed_out` | The ESC service didn't answer inside the five-second wait. | Retry when the network is available. The command already continued with shell and config values. |
 | `unavailable` | The service, the network, or the client failed in some other way. | Check connectivity to the Pulumi Cloud API and try again. |
 
 An empty `esc.environments` list turns ESC off and prints no warning. See

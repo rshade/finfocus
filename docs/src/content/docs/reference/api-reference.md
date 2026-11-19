@@ -128,10 +128,10 @@ message SupportsRequest {
 **Fields:**
 
 - `resource` (ResourceDescriptor) - Resource to check support for
-- `capability` (PluginCapability) - Operation the host is about to call;
-  `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability
+- `capability` (PluginCapability) - Operation the host is about to call.
+  `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability.
 
-FinFocus sets `capability` to the operation it is about to call:
+FinFocus sets `capability` to the operation it's about to call:
 `PLUGIN_CAPABILITY_PROJECTED_COSTS` for projected cost and projected batches,
 `PLUGIN_CAPABILITY_ACTUAL_COSTS` for actual cost and actual batches,
 `PLUGIN_CAPABILITY_CARBON`, or
@@ -502,7 +502,7 @@ grpcurl -plaintext -d '{
 
 ### BatchCost
 
-Calculates cost for multiple resources in a single RPC call. A plugin that does not
+Calculates cost for multiple resources in a single RPC call. A plugin that doesn't
 implement this optional capability returns `UNIMPLEMENTED`, and the core falls back to per-resource cost calls.
 
 **Method:** `BatchCost(BatchCostRequest) BatchCostResponse`
@@ -562,16 +562,16 @@ message CostData {
 - `results` (repeated ResourceCostResult) - Per-resource results in the
   same order as the request
 - `max_batch_size` (int32) - Optional hint for the maximum number of
-  resources the plugin can handle in a single batch; the core re-chunks
+  resources the plugin can handle in a single batch. The core re-chunks
   remaining resources when this is set
 
 **Fields (ResourceCostResult):**
 
 - `resource` (ResourceDescriptor) - The resource this result corresponds to
 - `cost_data` (CostData) - Cost data on success (projected or actual
-  depending on `query_type`); see [ActualCostData](#actualcostdata) for the
+  depending on `query_type`). See [ActualCostData](#actualcostdata) for the
   actual cost payload
-- `error` (ResourceError) - Per-resource error (e.g., unsupported type); see
+- `error` (ResourceError) - Per-resource error, such as an unsupported type. See
   [ResourceError](#resourceerror)
 
 **Example:**
@@ -707,7 +707,7 @@ message ResourceDescriptor {
 **Fields:**
 
 - `provider` (string) - Cloud provider (aws, azure, gcp, kubernetes)
-- `resource_type` (string) - Resource type (ec2, s3, vm, k8s-namespace)
+- `resource_type` (string) - Resource type (`ec2`, `s3`, `vm`, `k8s-namespace`)
 - `sku` (string) - SKU or instance size (t3.micro, Standard_D2s_v3)
 - `region` (string) - Geographic region (us-east-1, westus2)
 - `tags` (map) - Label/tag hints for identification
@@ -754,7 +754,7 @@ enum ErrorCode {
 **Categories:**
 
 - **Transient** (1-5) - Retry with backoff
-- **Permanent** (6-11) - Do not retry
+- **Permanent** (6-11) - Don't retry
 - **Configuration** (12-16) - Fix configuration
 
 ### Error Categories
@@ -818,7 +818,7 @@ message ActualCostData {
 ### ResourceError
 
 Structured error information for a single resource failure within a batch.
-Per-resource errors do not cause the entire batch RPC to fail; they appear in
+Per-resource errors don't cause the entire batch RPC to fail. They appear in
 the `error` field of `ResourceCostResult` (see [BatchCost](#batchcost)).
 
 ```protobuf

@@ -48,7 +48,7 @@ The script installs to `/usr/local/bin` when it can write there and to
 on macOS. The script prints the `export PATH=...` line to add.
 
 `FINFOCUS_VERSION` pins a release and `FINFOCUS_INSTALL_DIR` changes the
-install directory; [Quick Install](getting-started/installation.md#option-2-install-script-recommended)
+install directory. [Quick Install](getting-started/installation.md#option-2-install-script-recommended)
 lists the options. On Windows, use a release archive instead.
 
 ### 2. Download a Release Archive
@@ -106,7 +106,7 @@ Replace `v0.5.8` with the release you want.
 
 ### 3. Package Managers
 
-FinFocus is not published to Homebrew, Chocolatey, or APT. Use the install
+FinFocus isn't published to Homebrew, Chocolatey, or APT. Use the install
 script or a release archive.
 
 ## Platform-Specific Instructions

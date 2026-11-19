@@ -12,7 +12,7 @@ displays alongside its diff output.
 ## Overview
 
 The analyzer runs as a gRPC server that Pulumi launches as a subprocess. Pulumi
-sends individual resource definitions as they are evaluated, then sends the complete
+sends individual resource definitions as they're evaluated, then sends the complete
 stack state once evaluation finishes. FinFocus returns cost diagnostics at both
 levels. Enforcement is always ADVISORY: diagnostics are informational and never
 block a deployment.
@@ -29,12 +29,12 @@ RPCs.
 | RPC | Purpose |
 |-----|---------|
 | `Handshake` | Completes the Pulumi analyzer handshake |
-| `ConfigureStack` | Receives stack and project context; clears per-resource cost cache |
-| `Analyze` | Receives a single resource; calculates and caches its projected cost |
-| `AnalyzeStack` | Receives all resources; aggregates cached costs and emits summary diagnostics |
+| `ConfigureStack` | Receives stack and project context and clears the per-resource cost cache |
+| `Analyze` | Receives a single resource, then calculates and caches its projected cost |
+| `AnalyzeStack` | Receives all resources, then aggregates cached costs and emits summary diagnostics |
 | `GetAnalyzerInfo` | Returns analyzer identity and active policy list |
 | `GetPluginInfo` | Returns plugin version metadata |
-| `Cancel` | Accepts a cancellation request (no-op; Pulumi always continues) |
+| `Cancel` | Accepts a cancellation request (a no-op, since Pulumi always continues) |
 
 Note: `Analyze` is the per-resource RPC. `AnalyzeStack` fires once at the end of
 evaluation with the complete stack. Both are required by the protocol.
@@ -117,7 +117,7 @@ a Pulumi resource representation into the internal format the engine accepts.
 | `WarningDiagnostic(message)` | MEDIUM-severity warning for error conditions |
 
 All diagnostics carry `EnforcementLevel = ADVISORY`, which means Pulumi displays
-them but does not fail the operation.
+them but doesn't fail the operation.
 
 ### Cost Aggregation
 
@@ -166,7 +166,7 @@ skipped when:
 - All resources failed cost calculation (no valid total is available).
 
 The threshold is configured in `config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 analyzer:
@@ -194,7 +194,7 @@ list varies based on configuration.
 
 The server registers signal handlers for `SIGINT` and `SIGTERM`. On receipt, it
 closes cost plugin processes, including their process group on Linux and macOS,
-and then stops the gRPC server. It does not wait for Pulumi to hang up first:
+and then stops the gRPC server. It doesn't wait for Pulumi to hang up first:
 Pulumi waits for the analyzer process to exit, so that wait would never reach
 plugin cleanup. Pulumi treats a lost analyzer connection as non-fatal when the
 analyzer never served.
@@ -222,7 +222,7 @@ directory, reads the port from its output, and connects over gRPC for the
 preview or update. Pulumi before 3.270.0 still starts
 `pulumi-analyzer-policy-finfocus` from `PATH` and reads the port the same way.
 
-> **Note:** Adding `analyzers:` to `Pulumi.yaml` does not work for YAML-runtime
+> **Note:** Adding `analyzers:` to `Pulumi.yaml` doesn't work for YAML-runtime
 > projects. Use `--policy-pack` with the binary on PATH.
 
 ## Logging

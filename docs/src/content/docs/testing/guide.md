@@ -9,7 +9,7 @@ contributors working on FinFocus Core.
 ## Testing Philosophy
 
 1. **Test-Driven Development (TDD)**: Write tests before implementation.
-2. **High Coverage**: CI enforces a 60% minimum; aim for 80% overall and 95% on
+2. **High Coverage**: CI enforces a 60% minimum. Aim for 80% overall and 95% on
    critical paths.
 3. **Isolation**: Unit tests must not depend on external systems. Use mocks and
    table-driven patterns.
@@ -94,7 +94,7 @@ make lint
 ### Framework: testify
 
 All tests use `github.com/stretchr/testify/require` and
-`github.com/stretchr/testify/assert`. Do not write manual `if x != y { t.Errorf(...) }`
+`github.com/stretchr/testify/assert`. Don't write manual `if x != y { t.Errorf(...) }`
 checks.
 
 ```go
@@ -163,7 +163,7 @@ Every error return must have a test that triggers it. Priority paths:
 ### Expected-Failure Patterns
 
 Tests that intentionally create failing plugin scenarios must use `t.Logf()`
-rather than `t.Errorf()`, so CI does not flag expected errors as failures:
+rather than `t.Errorf()`, so CI doesn't flag expected errors as failures:
 
 ```go
 client, err := pluginhost.NewClient(ctx, launcher, mockPlugin)

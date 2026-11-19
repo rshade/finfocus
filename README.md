@@ -168,7 +168,7 @@ FinFocus starts a local server, prints its session URL, and opens your browser.
 Use `--no-browser` on SSH or CI, and `--port 8484` when you need a fixed port.
 The Overview, Cost, Recommendations, Estimate, and Config views use the same
 Go engine and plugins as the CLI and TUI. Config edits the project or global
-`config.hujson` and does not change cloud resources. Keyboard navigation,
+`config.hujson` and doesn't change cloud resources. Keyboard navigation,
 resource details, cluster expansion, and light/dark themes are available in
 the browser.
 
@@ -176,23 +176,23 @@ Sources follow `finfocus overview`: auto-detect the current Pulumi project and
 stack, or pass `--pulumi-json plan.json` / `--pulumi-state state.json`.
 `--stack`, `--from`, `--to`, `--adapter`, and `--filter` are also accepted.
 These source flags, `--port`, and `--no-browser` are root-local companions to
-`--web`; they are rejected without it. `--web` is mutually exclusive with `--mcp`.
+`--web`. They're rejected without it. `--web` is mutually exclusive with `--mcp`.
 Terraform inputs are outside the web UI's current scope.
 
 The Cost view's group selector and tag filter, and the Recommendations view's
 **Include dismissed** toggle, add browser controls for existing CLI flags.
 The TUI fixes grouping at launch and has no include-dismissed toggle.
-Estimate changes are temporary what-if calculations; the dashboard cannot
+Estimate changes are temporary what-if calculations. The dashboard can't
 change infrastructure or dismiss recommendations. What-If hides known non-billable
-resources by default; **Show all resources** restores them. Unknown billability
+resources by default. **Show all resources** restores them. Unknown billability
 and zero-spend resources remain available. Use **Run preview** for an
 on-demand Pulumi preview and restart the session to load fresh actual costs.
 
 Keep the printed URL private: its token opens an authenticated local session.
 The server binds to loopback, replaces the token in the address bar with an
 HTTP-only session cookie, and checks request origins. Encrypted stacks use a
-masked browser passphrase prompt with retries. Stop the server with Ctrl+C;
-closing a browser tab leaves it running.
+masked browser passphrase prompt with retries. Stop the server with Ctrl+C.
+Closing a browser tab leaves it running.
 
 See the [web UI guide](docs/src/content/docs/guides/web-ui.md) for launch options,
 storage behavior, and browser test commands.
@@ -352,10 +352,10 @@ export AWS_REGION="us-east-1"
 A plugin can advertise the settings it reads, each with its own environment
 variable, and its docs pages list them. For example,
 [aws-ce](docs/src/content/docs/plugins/aws-ce.md) reads `carbon_enabled` from
-`FINFOCUS_AWS_CARBON_ENABLED`; see
+`FINFOCUS_AWS_CARBON_ENABLED`. See
 [Historical AWS Carbon Reporting](docs/src/content/docs/plugins/historical-carbon.md).
 FinFocus takes each advertised value from that variable, or else from the plugin's section of the project or
-global config file. As a fallback, a config key the plugin does not advertise
+global config file. As a fallback, a config key the plugin doesn't advertise
 is passed to it as `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase,
 with hyphens as underscores.
 
@@ -370,7 +370,7 @@ tags**. This requires your Pulumi-managed resources to carry consistent tags.
 > only see costs for the *current* resource. With tags like `pulumi:project`
 > on both the old and new resources, billing APIs return the full month's costs.
 >
-> **Important**: Pulumi does **not** automatically tag cloud resources with
+> **Important**: Pulumi **doesn't** automatically tag cloud resources with
 > `pulumi:project` or `pulumi:stack`. These are stack-level metadata only.
 > You must explicitly configure resource tagging using one of the methods below.
 
@@ -509,7 +509,7 @@ provider = gcp.Provider("tagged", default_labels={
 <details>
 <summary><strong>Azure with Stack Transformations</strong></summary>
 
-Azure Native does not have a provider-level `defaultTags` option. Use a
+Azure Native doesn't have a provider-level `defaultTags` option. Use a
 stack transformation to inject tags into all taggable resources:
 
 TypeScript:
@@ -587,7 +587,7 @@ resources. Over time, this builds a timeline of all cloud IDs each logical resou
 has had. When you query actual costs for a full month, FinFocus queries billing APIs
 for *all* historical IDs instead of only the current one.
 
-> **Important**: Unlike the cache (`cache.db`), the history database is **not safe
+> **Important**: Unlike the cache (`cache.db`), the history database **isn't safe
 > to delete**. Deleting it loses the resource identity timeline, reducing cost
 > accuracy for past periods. Back up `~/.finfocus/history/` if you back up your
 > infrastructure configuration.
@@ -764,11 +764,11 @@ finfocus plugin validate
 | `cloudzero` | Available | Actual cost per resource from the CloudZero billing costs API |
 | `prometheus` | Available | Historical Kubernetes CPU and memory usage from Prometheus for `cost cluster --from/--to`. See the [Prometheus plugin page](docs/src/content/docs/plugins/prometheus.md). |
 | `carbon` | Build from source | Offline EC2 operational carbon estimates alongside monetary pricing. See the [carbon plugin guide](docs/src/content/docs/plugins/carbon.md). |
-| `scorer` | Source install; first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`; hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
+| `scorer` | Source install, first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`. Hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
 
-`jev` stays in the registry so an existing install can be updated, and it is
+`jev` stays in the registry so an existing install can be updated, and it's
 marked deprecated. `finfocus plugin install jev` warns and still installs that
-separate release. It does not migrate settings. Use `finfocus plugin install
+separate release. It doesn't migrate settings. Use `finfocus plugin install
 scorer` for a new setup. Until scorer release assets are published, build it
 with `make install-scorer`.
 
@@ -905,7 +905,7 @@ it, so the FinFocus side of the change is tracked as well.
 | `vantage` | [rshade/finfocus-plugin-vantage](https://github.com/rshade/finfocus-plugin-vantage/issues) |
 | `cloudzero` | [rshade/finfocus-plugin-cloudzero](https://github.com/rshade/finfocus-plugin-cloudzero/issues) |
 
-If you are not sure which repository a problem belongs to, open it here.
+If you aren't sure which repository a problem belongs to, open it here.
 
 ## Contributing
 
@@ -942,8 +942,8 @@ See [agent-skills/README.md](agent-skills/README.md) for the full list.
 - [finfocus-spec](https://github.com/rshade/finfocus-spec) - Protocol definitions and schemas
 - [finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public) - AWS public pricing plugin
 - [finfocus-action](https://github.com/rshade/finfocus-action) - GitHub Action that posts cost estimates on pull requests
-- [finfocus-demo](https://github.com/rshade/finfocus-demo) - Live demo of finfocus-action; see [PR #1](https://github.com/rshade/finfocus-demo/pull/1) for the output
-- [agent-skills](https://github.com/rshade/agent-skills) - Generic agent skills; holds stubs that point to the cost skills here
+- [finfocus-demo](https://github.com/rshade/finfocus-demo) - Live demo of finfocus-action. See [PR #1](https://github.com/rshade/finfocus-demo/pull/1) for the output
+- [agent-skills](https://github.com/rshade/agent-skills) - Generic agent skills, with stubs that point to the cost skills here
 
 ---
 

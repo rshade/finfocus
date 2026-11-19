@@ -10,15 +10,15 @@ routing, calculations, filtering, sorting, formatting, and recommendation
 scoring as the CLI and terminal UI, so the browser shows the same numbers.
 
 This guide covers the common tasks. For every flag, view, and status code, see
-the [Web UI reference](../reference/web-ui.md). For why the server is built the
-way it is, see [Web UI design](../architecture/web-ui.md).
+the [Web UI reference](../reference/web-ui.md). For the reasons behind the server's
+design, see [Web UI design](../architecture/web-ui.md).
 
 ## Before you begin
 
-- Install the plugins your resources need (`finfocus plugin list` shows what
-  is installed). The browser adds no pricing of its own.
+- Install the plugins your resources need (`finfocus plugin list` shows what's
+  installed). The browser adds no pricing of its own.
 - Have a Pulumi project, or exported Pulumi preview or state files. Terraform
-  state is not supported by the browser dashboard.
+  state isn't supported by the browser dashboard.
 - Use a browser on the same machine that runs `finfocus`. The server listens
   only on `127.0.0.1` and has no option to listen on another interface.
 
@@ -48,7 +48,7 @@ always starts from the working directory.
 ## Open several stacks
 
 With one stack, the page names it in the header and in a single tab, so you
-can always see which stack's costs are on screen. That is the stack `--stack`
+can always see which stack's costs are on screen. That's the stack `--stack`
 names, or the workspace's selected stack (`pulumi stack select`) when you leave
 `--stack` out. A plan or state file and Terraform show no tab.
 
@@ -64,18 +64,18 @@ looking at. Select a tab with the mouse, or focus the tab bar and use `Left`,
 `Right`, `Home`, and `End`. Each tab has its own Overview, Cost,
 Recommendations, and every other view, and nothing is added up across stacks.
 
-A stack loads when you first open its tab, so a list of five stacks does not
+A stack loads when you first open its tab, so a list of five stacks doesn't
 start five sets of plugins at once. Its tab says `loading` until the stack is
-priced, even after you move to another tab, and the word clears when it is
+priced, even after you move to another tab, and the word clears when it's
 done. Returning to a tab shows what it already loaded.
 
-If a stack cannot load, its tab says `failed` and its view shows the same
+If a stack fails to load, its tab says `failed` and its view shows the same
 message a single stack would. The other tabs keep working. Restart the
 dashboard to retry a failed stack.
 
 Every name must be a stack of the project in the working directory. An unknown
 name stops the command with exit code 2 and lists the stacks the project has. A
-list needs the project's own stacks, so it cannot be combined with
+list needs the project's own stacks, so it can't be combined with
 `--pulumi-json` or `--pulumi-state`.
 
 ## Run without opening a browser
@@ -88,7 +88,7 @@ finfocus --web --no-browser
 ```
 
 Open the printed `http://127.0.0.1:<port>/?token=<token>` URL yourself. If
-FinFocus cannot start a browser, it logs a warning and keeps serving, so the
+FinFocus can't start a browser, it logs a warning and keeps serving, so the
 printed URL still works.
 
 ## Pin the port
@@ -99,7 +99,7 @@ The operating system picks a free port unless you set one:
 finfocus --web --port 8484
 ```
 
-A port that is already in use stops the launch with an error naming the port.
+A port that's already in use stops the launch with an error naming the port.
 Pick another port, or omit `--port`.
 
 ## Use exported Pulumi files
@@ -140,7 +140,7 @@ finfocus --web --filter provider=aws
 ```
 
 These flags are valid only together with `--web`, and only on the root
-`finfocus` command. Sources and dates are fixed for the session and cannot be
+`finfocus` command. Sources and dates are fixed for the session and can't be
 changed from the page. Restart the session to change them. The only file the
 page reads is the optional spend CSV on the Forecast view.
 
@@ -151,7 +151,7 @@ If the stack uses a passphrase secrets provider, the overview opens an
 passphrase shows an inline error and lets you try again.
 
 With several stacks, each encrypted stack asks for its own passphrase in its
-own tab, marked `locked`. Unlocking one stack does not unlock another. If you
+own tab, marked `locked`. Unlocking one stack doesn't unlock another. If you
 switch to a locked stack from another view, such as Cost, a notice above the
 view links to that stack's Overview, where the prompt appears. A stack that
 failed to load shows the same kind of notice.
@@ -165,7 +165,7 @@ When the session starts from state only, choose **Run preview** in the overview
 to run `pulumi preview` on demand, like the `p` key in the terminal UI. The
 overview shows the elapsed time and updates pending changes when the preview
 finishes. Only one preview runs at a time. A resource's detail panel lists its
-dependents under **Blast radius**; after the preview it includes the
+dependents under **Blast radius**. After the preview it includes the
 dependents the plan creates, changes, or deletes. The terminal
 [overview](../commands/overview.md#blast-radius) shows the same section.
 
@@ -191,17 +191,17 @@ If a preview changes those properties during the toggle, What-If reloads the
 editor and baseline from the updated source. A failed resource-list refresh
 shows a separate error and preserves the current estimate.
 
-Zero baseline, zero rate, or zero actual spend does not establish non-billability.
+Zero baseline, zero rate, or zero actual spend doesn't establish non-billability.
 Unsupported resources, missing region or SKU, pricing errors, and unknown
 billability remain available for estimation. Metadata is used only when already
-available for the effective pricing providers; listing resources never triggers
+available for the effective pricing providers. Listing resources never triggers
 new pricing probes. A positive projected baseline helps choose the initial
 resource without affecting which resources are visible.
 
 If only known non-billable resources remain, the picker explains the empty list
 and offers **Show all resources**. Planned resources and existing launch filters
 still apply. Interactive plan estimation uses the same default eligibility
-policy; explicit `cost estimate --provider ... --resource-type ...` remains
+policy. An explicit `cost estimate --provider ... --resource-type ...` remains
 available for inspecting a specific type.
 
 ## Forecast from past spend
@@ -210,11 +210,11 @@ Open **Forecast** to project monthly cost. The default is the plugins' growth
 models, the same as `finfocus cost forecast`. To fit past spend instead,
 choose **Statistical (ARIMA)** and pick a CSV of `date,value` rows, one per
 consecutive day or month, exported from your billing console. The file stays
-on your machine; the page reads it and sends the text to the local server.
+on your machine. The page reads it and sends the text to the local server.
 
 Add a **Growth cap** such as `1.25` to keep every month within 25% of the
 current one, or **Steps** such as `2027-06-01=500` for a known change. For a
-spike that will not repeat, add an **Exclude range** such as
+spike that won't repeat, add an **Exclude range** such as
 `2025-12-01:2025-12-31`. The model order and confidence appear in the summary,
 and any warning the CLI would print appears under the table.
 
@@ -230,21 +230,21 @@ session for this server. Open the URL printed in the terminal.
 ## Edit configuration
 
 Open **Config** in the header. The page lists each known setting, the value
-that is in effect, and whether that value came from the built-in default, the
+that's in effect, and whether that value came from the built-in default, the
 global file, the project file, or the environment.
 
 Choose **Project** or **Global**, edit the values, and choose **Review
 changes**. The preview names each change and writes nothing. **Confirm**
 updates only that tier's `config.hujson`. **Cancel** leaves the file as it was.
-Comments and keys the page does not edit stay in the file.
+Comments and keys the page doesn't edit stay in the file.
 
 A secret is shown as set or not set. The field starts empty. Leave it blank to
-keep the stored value, or type a replacement. The page does not show the stored
-secret and does not write the masked placeholder back to the file.
+keep the stored value, or type a replacement. The page doesn't show the stored
+secret and doesn't write the masked placeholder back to the file.
 
 The running dashboard keeps the configuration it loaded at startup. The new
 values apply to the next launch and to command-line runs. Alert destinations,
-routing, and analyzer settings are visible and are not editable on this page.
+routing, and analyzer settings are visible and aren't editable on this page.
 
 ## Install and configure plugins
 
@@ -258,11 +258,11 @@ bytes received when the download reports a size. A second operation on the
 same plugin is refused until the first one finishes. Try it again afterward.
 
 A plugin installed from outside the catalog can be validated, configured, and
-removed. Install and update stay on the catalog entries. The page does not
+removed. Install and update stay on the catalog entries. The page doesn't
 accept a download URL. Custom registry addresses stay on the command line.
 
-**Validate** checks the installed files and that the plugin starts. It does
-not certify the plugin.
+**Validate** checks the installed files and that the plugin starts. It doesn't
+certify the plugin.
 
 Plugin settings use the same **Project** or **Global** choice as Config.
 Review the changes, then save. A secret field starts empty. Leave it blank to
@@ -272,9 +272,9 @@ plugins again after a successful install, update, remove, or settings save.
 A plugin process that was already running keeps the environment it started
 with until that reopen.
 
-An environment variable that is already set for the dashboard process takes
+An environment variable that's already set for the dashboard process takes
 precedence over the project file, the global file, and the plugin's default.
-Set a secret that way when you do not want it written to a file.
+Set a secret that way when you don't want it written to a file.
 
 When Pulumi ESC supplies a plugin setting, the Status cell reads
 `from ESC (<reference>)`. The help text names that environment and says it
@@ -314,7 +314,7 @@ To narrow what you see:
 - Press **Pause** to stop following the newest line while you read. The status
   line counts the lines that arrive meanwhile. Press **Resume** to follow
   again.
-- Press **Clear** to empty the view. This does not touch the log file.
+- Press **Clear** to empty the view. This doesn't touch the log file.
 - Press **Download NDJSON** to save the rows shown, after filters,
   as a file with one JSON object per line.
 
@@ -325,7 +325,7 @@ reads the log file once and applies the same filters and redaction.
 
 - Credential-like field names and Pulumi secret values in fields are replaced
   with `[redacted]`, in the page and in the downloaded file. The free-text
-  message is shown as written, because it cannot be inspected reliably.
+  message is shown as written, because it can't be inspected reliably.
   Plugins should never log credentials in a message.
 - Log lines can contain resource names and file paths. The view is served only
   on `127.0.0.1` behind the session token, like the rest of the dashboard.
@@ -351,7 +351,7 @@ printed URL. The session cookie is marked `Secure` because the proxy sends
 
 - `--allowed-host` is repeatable and matches the exact name. Wildcards, IP
   addresses, and values with a scheme or path are refused at startup. A port is
-  optional; without one, the HTTPS default (443) is assumed. Any other `Host` is
+  optional. Without one, the HTTPS default (443) is assumed. Any other `Host` is
   still refused with 403.
 - Each request must still carry the token cookie, so the proxy needs no
   special setup.
@@ -387,7 +387,7 @@ URL and the proxy URL on stdout.
 
 ## Stop the session
 
-Closing the browser tab does not stop FinFocus. Press `Ctrl+C` in the terminal
+Closing the browser tab doesn't stop FinFocus. Press `Ctrl+C` in the terminal
 that launched it to shut down the server and its plugins.
 
 ## Troubleshooting
@@ -406,17 +406,17 @@ that launched it to shut down the server and its plugins.
 
 ## Limitations
 
-- Pulumi only. `--terraform-state` is not a `--web` flag.
+- Pulumi only. `--terraform-state` isn't a `--web` flag.
 - A stack list needs a Pulumi project. There are no totals or comparisons across
-  stacks; each tab is independent.
+  stacks, and each tab is independent.
 - Loopback listener only. There is no option to listen on a non-loopback
   address and no built-in TLS. To reach the dashboard from other devices, put
   an HTTPS proxy on the same machine in front of it
   ([Serve behind a proxy](#serve-behind-a-proxy)).
-- The browser cannot dismiss, snooze, or undismiss recommendations. Use
+- The browser can't dismiss, snooze, or undismiss recommendations. Use
   `finfocus cost recommendations dismiss` and its siblings.
 - **Run preview** is offered even when the session already has preview data,
-  and state-only sessions do not show the terminal UI's `Projected*` marker
+  and state-only sessions don't show the terminal UI's `Projected*` marker
   ([#1751](https://github.com/rshade/finfocus/issues/1751)).
 
 ## Related

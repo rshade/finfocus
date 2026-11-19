@@ -52,9 +52,9 @@ and a cluster run-rate can pass a workload hint to plugins. Set it with
 `--profile` (`dev`, `prod`, `burst`, or `default`), with `FINFOCUS_PROFILE`,
 or with `cost.profile` in config. The flag wins, then the environment
 variable, then the config field. FinFocus sends the hint and shows the price
-the plugin returns. It does not invent a development discount. Measured
+the plugin returns. It doesn't invent a development discount. Measured
 commands (`cost actual`, `cost history collect`, and a historical cluster
-window) do not send the hint. Projected JSON names it as `finfocus.profile`.
+window) don't send the hint. Projected JSON names it as `finfocus.profile`.
 
 ### Resource Classification
 
@@ -74,12 +74,12 @@ Resources are classified by type and provider:
 1. **Plugin GetProjectedCost**: Live pricing from cloud provider APIs
 2. **Plugin GetPricingSpec**: A local estimate from the plugin's rate, unit, and
    billing mode. This step runs only when `cost projected --pricing-spec-fallback`
-   is set, or when `cost.pricing_spec_fallback` is true. It is off by default,
-   and a disabled run does not call the RPC. Notes start with
+   is set, or when `cost.pricing_spec_fallback` is true. It's off by default,
+   and a disabled run doesn't call the RPC. Notes start with
    `Calculated from plugin pricing spec`.
    `cost projected --explain` also calls `GetPricingSpec`, after the price
    is chosen, and only to display billing mode, unit, rate, source,
-   assumptions, and tiers. It does not change this order or the cost.
+   assumptions, and tiers. It doesn't change this order or the cost.
 3. **Local Specs**: YAML/JSON pricing specifications
 4. **Fallback Estimates**: Default values by resource category
 
@@ -270,11 +270,11 @@ Resources from Pulumi plans are matched to cost data using:
 
 #### OpenCost Plugin
 
-- **Source**: OpenCost or Kubecost allocation API (the `opencost` plugin; set
+- **Source**: OpenCost or Kubecost allocation API (the `opencost` plugin, with
   the `kubecost` profile for Kubecost)
 - **Coverage**: Kubernetes workloads, container costs
 - **Granularity**: Namespace, controller, pod, and node level
-- **Update Frequency**: Each query reads the allocation API; projected cost is
+- **Update Frequency**: Each query reads the allocation API. Projected cost is
   a 30-day trailing average
 
 #### AWS Cost Explorer Plugin

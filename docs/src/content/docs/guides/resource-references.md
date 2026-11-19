@@ -5,14 +5,14 @@ description: How FinFocus resolves Pulumi propertyDependencies and sends them to
 
 ## Overview
 
-Some cost-bearing resources do not carry their own region or SKU. They point at
+Some cost-bearing resources don't carry their own region or SKU. They point at
 another resource in the same stack. Pulumi preview JSON records that pointer on
 `propertyDependencies`, and often writes the unknown-value sentinel
 `04da6b54-80e4-46f7-96ec-b56ff0331ba9` into the input. Only core sees the whole
 plan, so core resolves the pointer before it calls a plugin.
 
 The Pulumi `parent` field is the stack component, not the referenced resource.
-Core does not use it for pricing.
+Core doesn't use it for pricing.
 
 ## Tag contract
 
@@ -28,11 +28,11 @@ these tags:
 | `ref.<property>.sku` | Referenced resource's own SKU, when it has one |
 
 `<property>` is the input name (`servicePlanId`, `serverId`, `serverFarmId`,
-`accountName`, and so on). Core does not decide which property is the pricing
+`accountName`, and so on). Core doesn't decide which property is the pricing
 parent. A plugin reads the key it knows.
 
 The tags are absent when the property maps to an empty list, to more than one
-URN, to a URN that is not in the plan, or to a resource that has neither a
+URN, to a URN that isn't in the plan, or to a resource that has neither a
 region nor a SKU. Nothing is guessed. The sentinel is never sent as a tag,
 region, or SKU.
 
@@ -51,13 +51,15 @@ explicit note and no monthly cost when the cost lives on the referenced
 resource. Strict validation still applies when the child has no `ref.*` tags.
 
 Classic Azure plans store size in `skuName`. That value is placed on
-`ref.<property>.sku` only. It is not treated as the plan resource's own SKU.
+`ref.<property>.sku` only. It isn't treated as the plan resource's own SKU.
 
-## What does not change
+<a id="what-does-not-change"></a>
+
+## What doesn't change
 
 A plan with no `propertyDependencies` produces the same tags, SKU, region, and
 cache key as before. When `ref.*` tags are present, the projected cache key
-gains a `/refs-<hash>` suffix so a changed reference does not reuse a stale
+gains a `/refs-<hash>` suffix so a changed reference doesn't reuse a stale
 price.
 
-Terraform state dependencies are not resolved by this path.
+Terraform state dependencies aren't resolved by this path.
