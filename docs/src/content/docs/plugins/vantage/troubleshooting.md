@@ -3,6 +3,12 @@ title: Vantage Plugin Troubleshooting
 description: Common issues, solutions, and support paths for the FinFocus Vantage plugin
 ---
 
+> **Note:** written before the plugin was released, this page describes
+> an earlier design. The released plugin has no `pull`, `backfill`, or
+> `forecast` command and reads no `config.yaml`. It is configured only by the
+> environment variables on the [Vantage plugin page](../vantage.md), which is
+> the reference when they disagree.
+
 This guide helps diagnose and resolve common issues with the Vantage plugin
 for FinFocus.
 
@@ -654,7 +660,7 @@ finfocus --debug cost actual --adapter vantage --pulumi-state state.json --from 
 finfocus plugin list
 
 # Validate plugin
-finfocus plugin validate vantage
+finfocus plugin validate --plugin vantage
 ```
 
 ### Test API Connectivity

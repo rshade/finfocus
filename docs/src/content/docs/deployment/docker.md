@@ -16,12 +16,12 @@ the GitHub Container Registry as `ghcr.io/rshade/finfocus`.
 # Pull the most recent release
 docker pull ghcr.io/rshade/finfocus:latest
 
-# Pull a specific version (tags have no leading "v")
-docker pull ghcr.io/rshade/finfocus:0.5.8
+# Pull a specific version: <version> without a leading "v", for example 0.5.8
+docker pull ghcr.io/rshade/finfocus:<version>
 ```
 
-Each release publishes the full version tag (`0.5.8`), the minor and major
-tags (`0.5`, `0`), and `latest`.
+Each release tag `vX.Y.Z` publishes the image tags `X.Y.Z`, `X.Y`, `X`, and
+`latest`.
 
 ### Build Locally
 
@@ -121,29 +121,24 @@ docker run --rm \
 
 ## Development
 
-### Build Arguments
+### Version Information
 
-The Dockerfile supports the following build-time variables:
-
-- Git version information is automatically embedded during build
-- Build date and commit information included in the binary
+The Dockerfile doesn't declare build arguments. The builder stage sets the
+version from `git describe`, the commit from `git rev-parse HEAD`, and the
+build date from `date`, and passes them to the binary through `-ldflags`.
+`.dockerignore` excludes `.git/`, so the build has no Git metadata: the
+binary reports version `docker` and commit `unknown`. Published images do
+the same (`finfocus --version` prints `finfocus version docker`); the image
+tag is the release version.
 
 ### Health Check
 
 The image includes a health check that runs `finfocus --help`:
 
-<!-- markdownlint-disable MD031 -->
-
-{% raw %}
-
 ```bash
 # Check container health
 docker inspect --format='{{.State.Health.Status}}' <container_id>
 ```
-
-{% endraw %}
-
-<!-- markdownlint-enable MD031 -->
 
 ## Troubleshooting
 
