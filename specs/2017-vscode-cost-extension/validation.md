@@ -84,7 +84,7 @@ record pending rather than marking support passed.
 | Go | Captured | `testdata/sourcepos/go`, `-trimpath` binary, no column |
 | Python | Captured | `testdata/sourcepos/python`, Python 3.14, no column |
 | YAML | Captured | `testdata/sourcepos/yaml`, no location by design |
-| .NET | Pending | No .NET SDK on the capture machine; blocks the extension's first release (T072), not the core release |
+| .NET | Recorded (2026-11-19, CI) | `testdata/sourcepos/dotnet/`: Pulumi v3.277.0 with the .NET SDK records no `sourcePosition` or `stackTrace`, so no resource has a location (like YAML). Checked by `.github/workflows/test-sourcepos-dotnet.yml` |
 
 ## Freshness and selection tests
 
@@ -747,7 +747,7 @@ by file because they do not carry requirement IDs. Everything was run on Linux
 
 | Requirement | Status | Evidence and what is open |
 | --- | --- | --- |
-| FR-001 to FR-004 (location in the JSON, omitted not guessed, no other field changes) | Partial | `internal/sourcepos/sourcepos_test.go` and `internal/cli/overview_json_contract_test.go` (location and additions tests). Node.js recorded; Go, Python and YAML fixtures per "Runtime fixture status"; the .NET fixture is open (no `dotnet` here, T072) |
+| FR-001 to FR-004 (location in the JSON, omitted not guessed, no other field changes) | Partial | `internal/sourcepos/sourcepos_test.go` and `internal/cli/overview_json_contract_test.go` (location and additions tests). Node.js recorded; Go, Python and YAML fixtures per "Runtime fixture status"; the .NET fixture is recorded and has no locations (see "Cross-OS process ownership and .NET") |
 | FR-005, FR-006 (display strings, budgets in the JSON) | Verified | the same contract test file; the `display` strings are compared with the CLI in `test/editor/annotations.test.js` (real CLI case) |
 | FR-010 (activate only in a Pulumi project, trusted) | Verified | `test/unit/projects.test.js`, `test/editor/readiness.test.js` |
 | FR-011 (figures come from the installed finfocus) | Verified | `test/unit/runner.test.js`, the real-CLI case in `test/editor/annotations.test.js`, "Real-CLI performance run" |
@@ -762,7 +762,7 @@ by file because they do not carry requirement IDs. Everything was run on Linux
 | FR-025 (supported editor API level) | Partial | The editor job runs both `minimum-api` (1.90.0) and `stable` through `pnpm run test:editor`, and passes on Linux, macOS and Windows in CI (PR #2244). Open: the other editors and the .NET fixture (T072, T073), and `minFinfocusVersion` against a released core |
 | FR-026 (renaming a JSON field fails a test) | Verified | `test/unit/result.test.js` mutates every path in `contract/overview-fields.json`; Go `RemovingAnyRequiredFieldIsDetected` and `RetypingAnyRequiredFieldIsDetected` |
 | FR-027 (keyboard and screen reader) | Partial | Labels and keyboard paths are tested in `test/unit/dashboard.test.js` and `test/editor/dashboard.test.js`. NVDA and VoiceOver, high contrast and zoom are open (T067, owner) |
-| FR-028 (stop owned processes, bounded shutdown) | Partial | `test/integration/shutdown.test.js`, `test/unit/{runner,scheduler,processTree}.test.js` and the real-CLI shutdown tests; the fixture-based tests pass on Linux, macOS and Windows in CI (ISS-003), and the real-CLI tests with a Pulumi child and a plugin pass on Linux. Open: the real-CLI case on macOS and Windows, and T016's Go tests on those OSes (T029, T058) |
+| FR-028 (stop owned processes, bounded shutdown) | Partial | `test/integration/shutdown.test.js`, `test/unit/{runner,scheduler,processTree}.test.js` and the real-CLI shutdown tests; the fixture-based tests pass on Linux, macOS and Windows in CI (ISS-003), and the real-CLI tests with a Pulumi child and a plugin pass on all three (2026-11-19, "Cross-OS process ownership and .NET"), as do T016's process tests on macOS and a Windows job-object kill test |
 | SC-001 (every priced resource annotated, Node.js demo) | Partial | Node.js recorded and rendered; other runtimes open (see FR-001) |
 | SC-002 (cache hit within 2 s, idle miss within 20 s) | Verified | "Result reuse and completeness (T099)": hit 0.43 to 0.67 s, miss 6.5 to 8.6 s; "Real-CLI performance run" |
 | SC-003 (stale marker within 1 s) | Verified | "Performance run (T082)": 63 to 129 ms, no process spawned |
@@ -770,10 +770,11 @@ by file because they do not carry requirement IDs. Everything was run on Linux
 | SC-005 (field rename fails the build) | Verified | see FR-026 |
 | SC-006 (typing stays responsive during a preview) | Verified, one run | "Real-CLI performance run": the extension added no pause over 100 ms; one run, stable only |
 
-Open gates, none checked off here: T029 (T016's Go tests on macOS and Windows) and T058 (real-CLI shutdown tests), T067
-(assistive technology), T072 (CI jobs, .NET fixture, `minFinfocusVersion`),
-T073 (four editors on three OSes), T074 (WSL, SSH, dev container), and T086
-(CI matrix jobs, `processTree.js` at 95%). The follow-up issue
+Open gates, none checked off here (2026-11-19): T067 (assistive technology),
+T072 (`minFinfocusVersion` against a released core), T073 (four editors on
+three OSes) and T074 (WSL, SSH, dev container), tracked in
+<https://github.com/rshade/finfocus/issues/2267>; T029, T058 and T086 are
+closed by "Cross-OS process ownership and .NET". The follow-up issue
 <https://github.com/rshade/finfocus/issues/2199> was checked on 2026-11-18: it
 is open, labeled `enhancement`, `web-ui`, `effort/small`, and holds layout
 only.
@@ -802,7 +803,7 @@ Run on GitHub-hosted runners with Node 22; the PR checks are the evidence.
   as gone and print `ps` for a survivor. The two real-CLI shutdown tests
   (plugin descendants) skipped on every OS: the job sets no `FINFOCUS_BINARY`,
   and that file skips on Windows even when it is set.
-- **T029 (T016's Go process tests)**: not run on macOS or Windows. `ci.yml`
+- **T029 (T016's Go process tests)** (superseded 2026-11-19): not run on macOS or Windows in this first run. `ci.yml`
   runs `./test/integration/...` on Linux only, and
   `test/integration/overview_process_test.go` is `//go:build unix`.
 - **Editor tests**: the job on each OS runs both the 1.90.0 and stable configurations (`pnpm run test:editor` with no `--label`), and passes on Linux, macOS and Windows. They pass on Linux and Windows after the on-save test waits for
@@ -828,6 +829,65 @@ Run on GitHub-hosted runners with Node 22; the PR checks are the evidence.
   from dynamic resources.
 - **Still open**: the real-CLI shutdown test on macOS (it reads `/proc`, so it
   is Linux only) and on Windows (it skips); T016 on macOS and Windows.
+
+## Cross-OS process ownership and .NET (T029, T058, T072, T086, PR #2244, 2026-11-19)
+
+Run on GitHub-hosted runners (`ci.yml` job "Process ownership",
+`test-vscode-extension-real-cli.yml`, `test-sourcepos-dotnet.yml`). The PR
+checks are the evidence; two reviewers (codex and grok) read the first version
+of these tests before the push and both found the two Windows defects fixed
+below.
+
+- **T029, T016's process tests on macOS and Windows**: the job
+  `Process ownership (macos-latest)` runs `TestOverviewCancel_*` and
+  `TestOverviewKill_*` (fake `pulumi`, a router-like plugin with a child, and
+  a bystander) and passes: SIGINT and SIGTERM leave no plugin, Pulumi or child
+  process, a Pulumi that ignores the interrupt is killed, and every descendant
+  stays in finfocus's session after a SIGKILL. `processAlive` now reads `ps`
+  where `/proc` is absent, so a zombie is not counted as alive. On Windows,
+  `TestOverviewKill_JobObjectEndsEveryDescendant` (new) ends a running
+  overview with `TerminateProcess`, which runs no cleanup, and passes: the
+  plugin, its child, the fake Pulumi and its child are gone, and a bystander
+  outside the job survives. That is the evidence that core's kill-on-close job
+  object ends the descendants. The fixture executables needed `.exe` names on
+  Windows (both reviewers found this before the first push).
+- **T058, real-CLI shutdown with a Pulumi child and a plugin**: the two real
+  cases pass on all three OSes against the deployed fixture and the recorder
+  plugin. Linux reads `/proc`, macOS reads `ps` with the runner's environment
+  token, and Windows walks parent pids (it saw `pulumi.exe`,
+  `finfocus-plugin-recorder.exe`, `pulumi-language-nodejs.exe` and `conhost.exe`
+  and found none running afterwards). Every stop confirmed in under 200 ms.
+  On Windows a stop of a process that already died used to report
+  `confirmed: false` because `taskkill` finds nothing; the exit now confirms it
+  (`test/unit/shutdown.test.js`). The editor-host preview scenarios
+  (saved edit, in-flight edit, preserved marks) run on all three OSes in the
+  editor matrix.
+- **Windows has no declaration locations in this run**: Pulumi v3.277.0 records
+  no `sourcePosition` for the Node.js fixture on Windows (the export shows
+  `null` for every resource), so `finfocus` resolves no location and the
+  annotation comparison against the real CLI is skipped there. Linux and macOS
+  pass it. Whether this is Pulumi's behavior on Windows or something in the
+  fixture is not known; it is in the follow-up issue.
+- **T072, .NET**: the `testdata/sourcepos/dotnet` program was deployed in CI
+  (Pulumi v3.277.0, .NET 8, `Pulumi.Command` 1.x). The recorded state has no
+  `sourcePosition` or `stackTrace` on any resource, so the .NET SDK gives
+  `finfocus` nothing to resolve. The extension draws no inline annotation in a
+  .NET project and still lists the resources. The job fails if a resource is
+  missing from the overview or a location, once Pulumi records one, names the
+  wrong line. `minFinfocusVersion` against a released core is still open: no
+  release holds `location` yet. The owner will release core first.
+- **T086, coverage**: unit and integration tests, 310 pass, 0 fail, 3 skipped:
+  96.85% lines, 92.25% branches. Critical paths: `processTree.js` 100% (the
+  Windows `taskkill` and unreadable-entry branches now have unit tests),
+  `shutdown.js` 100%, `completeness.js` 100%, `cache.js` 99.0%, `runner.js`
+  99.2%, `stale.js` 99.0%, `result.js` 97.0%, `scheduler.js` 95.5%. The editor
+  host (`vscode-test --label stable --coverage`, 70 pass, 3 pending): 91.53%
+  lines; `src/editor/annotations.js` 100%, `annotations.js` 98.6%. The two
+  figures are not merged (the host's report is its own coverage tree). Go
+  docstring coverage over the non-test Go files this branch adds or changes:
+  125 of 132 exported declarations, 94.7% (an AST count; the gaps are in
+  fixture programs under `testdata/`, two fixture-plugin methods and
+  `internal/pulumi.Run`).
 
 ## Completion gates
 

@@ -18,7 +18,8 @@ import (
 // cannot be opened is gone (or not ours to see), which is what a killed
 // descendant looks like.
 func windowsProcessAlive(pid int) bool {
-	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid)) //nolint:gosec // Pids are small positive integers.
+	//nolint:gosec // Pids are small positive integers.
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 	if err != nil {
 		return false
 	}
