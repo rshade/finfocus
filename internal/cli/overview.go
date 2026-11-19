@@ -122,14 +122,17 @@ for existing state without running a plan.`,
 	addIncludeWorkspaceFlag(cmd)
 	cmd.Flags().StringVarP(&params.stack, "stack", "s", "",
 		"Pulumi stack name for auto-detection (ignored with --pulumi-state/--pulumi-json)")
-	cmd.Flags().StringVar(&params.fromStr, "from", "", "start date (YYYY-MM-DD or RFC3339)")
+	cmd.Flags().StringVar(&params.fromStr, "from", "",
+		"start date (YYYY-MM-DD or RFC3339, defaults to the first day of the current month)")
 	cmd.Flags().StringVar(&params.toStr, "to", "", "end date (YYYY-MM-DD or RFC3339, defaults to now)")
 	cmd.Flags().StringVarP(&params.adapter, "adapter", "a", "", "restrict to a specific adapter plugin")
 	cmd.Flags().StringVar(&params.output, "output", "table", "output format (table, json, ndjson)")
 	cmd.Flags().StringSliceVarP(&params.filter, "filter", "f", nil, "resource filters")
 	cmd.Flags().BoolVar(&params.plain, "plain", false, "force non-interactive plain text output")
-	cmd.Flags().BoolVar(&params.forceColor, "force-color", false, "force styled output in non-TTY environments")
-	cmd.Flags().BoolVar(&params.noColor, "no-color", false, "disable all ANSI styling")
+	cmd.Flags().BoolVar(&params.forceColor, "force-color", false,
+		"style the plain table when stdout is not a terminal; same switch as --color")
+	cmd.Flags().BoolVar(&params.noColor, "no-color", false,
+		"disable all ANSI styling; wins over --color and --force-color")
 	cmd.Flags().BoolVarP(&params.yes, "yes", "y", false, "skip confirmation prompts")
 	cmd.Flags().BoolVar(&params.noPagination, "no-pagination", false, "disable pagination (plain mode only)")
 	cmd.Flags().BoolVar(&params.exitOnThreshold, "exit-on-threshold", false,
@@ -140,10 +143,13 @@ for existing state without running a plan.`,
 	cmd.Flags().StringVar(&params.budgetScope, "budget-scope", "",
 		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
 	cmd.Flags().BoolVar(&params.stateOnly, "state-only", false,
-		"skip pulumi preview (faster, but won't detect pending changes)")
+		"skip pulumi preview (faster, but won't detect pending changes); mutually exclusive with --pulumi-json")
 	cmd.Flags().String("profile", "", usageProfileFlagHelp)
 	cmd.MarkFlagsMutuallyExclusive("state-only", "pulumi-json")
 	addAccessibilityFlags(cmd)
+	cmd.Flags().Lookup("color").Usage = "style the plain table when stdout is not a terminal; same switch as --force-color"
+	cmd.Flags().Lookup("high-contrast").Usage = "accepted for consistency with the other output commands; " +
+		"overview has no budget box to recolor, so it has no effect"
 
 	// StackContext.GeneratedAt (embedded via OverviewMetadata) varies between
 	// otherwise-identical runs; tell __schema not to expect byte-identical output.

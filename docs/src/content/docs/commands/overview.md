@@ -36,7 +36,8 @@ the command auto-detects your Pulumi project and stack from the current director
 ## Options
 
 The flags, their defaults, and examples are in the generated reference for
-[`finfocus overview`](../reference/cli/finfocus_overview.md).
+[`finfocus overview`](../reference/cli/finfocus_overview.md). `--notify`
+sends [budget notifications](../guides/budgets.md#budget-notifications).
 
 ## Auto-Detection
 
