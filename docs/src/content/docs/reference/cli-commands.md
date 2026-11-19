@@ -32,7 +32,8 @@ include the commands and flags that ax-go adds when the CLI starts:
 `mcp-server`, `__schema`, Cobra's `completion`, and the persistent `--format`,
 `--dry-run`, `--yes`, `--strict`, and `--idempotency-key` flags. The
 [`finfocus`](./cli/finfocus.md) page lists those flags under "Options", and
-every other page under "Options inherited from parent commands". Hidden commands are left out.
+every other page under "Options inherited from parent commands". Hidden
+commands are left out.
 
 ## Root Command Entry Points
 
