@@ -280,7 +280,7 @@ should resolve against the nearest `Pulumi.yaml` is open for the owner.
   empty value, dismissal, retry text, abort). The full editor suite is 36
   tests per version, two runs.
 - **Not run**: macOS and Windows. The workflow now runs
-  `node --test test/integration/` in all three matrix jobs, but no result is
+  `node --test "test/integration/*.test.js"` in all three matrix jobs, but no result is
   recorded for macOS or Windows (the Windows `taskkill` path and the macOS
   `pgrep -s` path are untested), and neither is the minimal container without
   procps. The Windows Job Object also needs T029. CLI delta parity for preview
@@ -401,7 +401,7 @@ should resolve against the nearest `Pulumi.yaml` is open for the owner.
   once and not retried until then. Plugin guidance is added when the CLI's
   own message mentions plugins, because core gives plugin failures no
   separate category.
-- **Results**: unit suite 210 passing (`node --test test/unit/`); `tsc
+- **Results**: unit suite 210 passing (`node --test "test/unit/*.test.js"`); `tsc
   --noEmit` clean; editor suite on stable 1.146.0 under `xvfb-run`, 54
   passing, including all 11 readiness scenarios. The minimum-API 1.90 job has
   not been run locally.

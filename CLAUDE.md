@@ -86,7 +86,7 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
   corepack `pnpm.cjs`, run `node_modules/.bin/tsc --noEmit -p jsconfig.json` for
   the type check.
 - VS Code extension process ownership (`packages/vscode-finfocus/src/shutdown.js`,
-  `processTree.js`): `node --test test/integration/` runs real process trees
+  `processTree.js`): `node --test "test/integration/*.test.js"` runs real process trees
   (needs `bash` for job control, Linux or macOS); `real_cli_shutdown.test.js`
   also needs `FINFOCUS_BINARY` and `FINFOCUS_FIXTURE_PROJECT` with a plugin
   under `FINFOCUS_HOME/plugins`. `Runner` handles reap the session after every

@@ -237,7 +237,7 @@ test-zerolog-viewer:
 # The VS Code extension's pure-logic tests need no install.
 .PHONY: test-vscode-extension
 test-vscode-extension:
-	node --test packages/vscode-finfocus/test/unit/
+	node --test "packages/vscode-finfocus/test/unit/*.test.js"
 
 # Browser acceptance is credential-free and requires the real binary and Chromium.
 # Resolve the installer in the nested module, keeping its driver version matched.

@@ -71,7 +71,7 @@ jobs:
 
       - name: Run the unit tests and type check
         run: |
-          node --test test/unit/
+          node --test "test/unit/*.test.js"
           pnpm run typecheck
 
       - name: Package the VSIX

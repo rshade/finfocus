@@ -857,7 +857,11 @@ func TestWebUIThreeFixtureParityAndCluster(t *testing.T) {
 			for _, row := range page["rows"].([]any) {
 				sources = append(sources, row.(map[string]any)["source"])
 			}
-			assert.ElementsMatch(t, overview["resources"], sources)
+			cliRows := overview["resources"].([]any)
+			for _, row := range cliRows {
+				delete(row.(map[string]any), "display") // CLI-only strings; the web row carries its own
+			}
+			assert.ElementsMatch(t, cliRows, sources)
 			summary := overview["summary"].(map[string]any)
 			totals := page["totals"].(map[string]any)
 			for cliKey, webKey := range map[string]string{"totalActualMTD": "totalActual", "projectedMonthly": "totalProjected", "projectedDelta": "totalDelta", "potentialSavings": "totalSavings"} {

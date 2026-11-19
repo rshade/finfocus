@@ -70,7 +70,7 @@ jobs:
         run: pnpm run test:editor
 
       - name: Process shutdown tests
-        run: node --test test/integration/
+        run: node --test "test/integration/*.test.js"
 
   package:
     name: Package the VSIX

@@ -30,7 +30,7 @@
   "main": "./src/extension.js",
   "minFinfocusVersion": "0.5.8",
   "scripts": {
-    "test": "node --test test/unit/",
+    "test": "node --test \"test/unit/*.test.js\"",
     "test:editor": "vscode-test",
     "typecheck": "tsc --noEmit -p jsconfig.json",
     "package": "vsce package --no-dependencies"

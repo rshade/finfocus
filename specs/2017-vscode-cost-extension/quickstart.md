@@ -26,7 +26,7 @@ the same command with `--output table`.
 ## 2. Extension unit tests (no install)
 
 ```bash
-node --test packages/vscode-finfocus/test/unit/
+node --test "packages/vscode-finfocus/test/unit/*.test.js"
 ```
 
 ## 3. Extension in an editor
