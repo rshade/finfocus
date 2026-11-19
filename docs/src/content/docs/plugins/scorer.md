@@ -12,7 +12,7 @@ The `scorer` plugin rates cost recommendations that other plugins produce. It se
 [Jev](https://typesafe.ai/) (from TypeSafe AI) or
 [Clef](https://blog.cloudflare.com/clef-decision-models/) backend and returns a risk, false-positive,
 worth-acting, priority and thin-evidence score for each one, plus duplicate groups. Core uses the scores to
-sort, filter and flag recommendations for review. **A score never approves, dismisses or applies anything.**
+sort, filter, and flag recommendations for review. **A score never approves, dismisses, or applies anything.**
 
 This page walks through a run end to end. The configuration reference is the
 [Recommendation Scoring Guide](../guides/recommendation-scoring.md), and the data-handling details are in the
@@ -221,8 +221,8 @@ finfocus cost recommendations --pulumi-json examples/plans/aws-legacy-plan.json 
 
 Both backends report `ranking_only`. Use scores to order work for review;
 a risk of 0.3 is not a calibrated 30 percent chance. Scores are cached in the
-`scores` bucket, so the same recommendations can reuse prior results. No Clef
-accuracy, price or calibration claim is established by the recorded spike.
+`scores` bucket, so the same recommendations can reuse prior results. No claim
+about Clef accuracy, price, or calibration is established by the recorded spike.
 
 ## Backend Configuration and Migration
 

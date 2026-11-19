@@ -10,7 +10,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 **See what your Pulumi stack will cost before you deploy.** FinFocus is a Go CLI and GitHub Action that prices
-`pulumi preview` output through a plugin-based architecture, with budget enforcement and historical cost tracking.
+`pulumi preview` output through a plugin-based architecture. It also enforces budgets and tracks historical costs.
 Public AWS pricing needs no billing access and no changes to your Pulumi program.
 
 ## Cost on every pull request
@@ -38,7 +38,7 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 - **No code changes required**: works with any existing Pulumi project via JSON export
 - **Budget guardrails**: enforce spending limits in CI/CD pipelines with non-zero exit codes
 - **Plugin architecture**: swap pricing sources without changing your workflow
-- **Single dashboard**: one interactive TUI for actual spend and projected costs, plus drift analysis and recommendations
+- **Single dashboard**: one interactive TUI for actual spend and projected costs that also shows drift analysis and recommendations
 
 ## Key Features
 
@@ -926,7 +926,7 @@ FinFocus ships [agent skills](agent-skills/) for AI coding assistants
 
 | Skill | Description |
 |-------|-------------|
-| [finfocus-install](agent-skills/finfocus-install/) | Install CLI, detect providers, setup plugins and config |
+| [finfocus-install](agent-skills/finfocus-install/) | Install the CLI, detect providers, and set up plugins and config |
 | [finfocus-analyzer-setup](agent-skills/finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation |
 | [finfocus-routing](agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
 | [finfocus-budget](agent-skills/finfocus-budget/) | Configure budget thresholds, health, and CI exit codes |

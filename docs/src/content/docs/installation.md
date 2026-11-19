@@ -23,7 +23,7 @@ Complete installation instructions for FinFocus Core across different platforms 
 - **Operating System**: Linux, macOS, or Windows
 - **Architecture**: x86_64 (amd64) or ARM64
 - **Memory**: Minimum 256 MB RAM
-- **Storage**: 50 MB for binary, additional space for plugins and specs
+- **Storage**: 50 MB for the binary. Plugins and specs need more.
 
 ### Software Dependencies
 

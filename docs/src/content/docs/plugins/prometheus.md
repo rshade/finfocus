@@ -92,7 +92,7 @@ The report footer reads `historical (2026-09-28 to 2026-10-05, 7 days)`.
   the report is marked incomplete with a warning naming the time stored data
   starts. The missing part is not counted as zero usage.
 - **Gaps**: A pod whose samples miss more than one 60-second step marks the
-  report incomplete, with one warning per pod and metric.
+  report incomplete and adds one warning per pod and metric.
 - **Pod labels**: kube-state-metrics exports only the labels named in its
   `--metric-labels-allowlist` flag, and replaces characters other than
   letters, digits, and underscores with `_`. Group by the recorded key, for

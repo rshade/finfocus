@@ -166,7 +166,7 @@ to run `pulumi preview` on demand, like the `p` key in the terminal UI. The
 overview shows the elapsed time and updates pending changes when the preview
 finishes. Only one preview runs at a time. A resource's detail panel lists its
 dependents under **Blast radius**; after the preview it includes the
-dependents the plan creates, changes or deletes. The terminal
+dependents the plan creates, changes, or deletes. The terminal
 [overview](../commands/overview.md#blast-radius) shows the same section.
 
 The **Blast radius** table keeps its summary and column headings in view while
@@ -319,7 +319,7 @@ To narrow what you see:
   as a file with one JSON object per line.
 
 For the same data in a terminal, run [`finfocus logs`](../commands/logs.md). It
-reads the log file once, with the same filters and the same redaction.
+reads the log file once and applies the same filters and redaction.
 
 ### What the log view shows
 

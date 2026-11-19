@@ -142,5 +142,5 @@ The hook never reports a number it cannot trust:
 - For Terraform, a saved plan older than the changed `.tf` files is not
   priced; the hook asks for a new one.
 
-A missing tool, plugin, or login, or a failed preview, prints the reason and
-never blocks.
+The hook never blocks on a missing tool, plugin, or login, or on a failed
+preview. It prints the reason instead.
