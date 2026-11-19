@@ -1,0 +1,91 @@
+name: Test VS Code extension against finfocus
+
+# Runs the extension's real-CLI tests: the built finfocus, a deployed throwaway
+# Pulumi project on a local backend, and the recorder plugin. They skip in
+# test-vscode-extension.yml, which has no binary. Linux only: the shutdown test
+# reads /proc to see plugin and Pulumi descendants.
+
+on:
+  pull_request:
+    paths:
+      - 'packages/vscode-finfocus/**'
+      - 'internal/**'
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'plugins/recorder/**'
+      - 'testdata/sourcepos/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.github/workflows/test-vscode-extension-real-cli.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/vscode-finfocus/**'
+      - 'internal/**'
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'plugins/recorder/**'
+      - 'testdata/sourcepos/**'
+
+permissions:
+  contents: read
+
+jobs:
+  real-cli:
+    name: Real finfocus tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: '**/go.sum'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v7
+
+      - name: Build finfocus and install the recorder plugin
+        run: |
+          make build
+          version="$(jq -r .version plugins/recorder/plugin.manifest.json)"
+          make install-recorder RECORDER_INSTALL_DIR="$RUNNER_TEMP/finfocus-home/plugins/recorder/$version"
+
+      - name: Deploy the fixture project to a local backend
+        run: |
+          project="$(packages/vscode-finfocus/test/fixtures/real/deploy-fixture.sh "$RUNNER_TEMP/fixture")"
+          {
+            echo "FINFOCUS_BINARY=$PWD/bin/finfocus"
+            echo "FINFOCUS_HOME=$RUNNER_TEMP/finfocus-home"
+            echo "FINFOCUS_FIXTURE_PROJECT=$project"
+            echo "FINFOCUS_FIXTURE_STACK=dev"
+            echo "NODE_PATH=$project/node_modules"
+            echo "PULUMI_BACKEND_URL=file://$RUNNER_TEMP/fixture/backend"
+            echo "PULUMI_CONFIG_PASSPHRASE=fixture-passphrase"
+          } >> "$GITHUB_ENV"
+        env:
+          PULUMI_CONFIG_PASSPHRASE: fixture-passphrase
+
+      - name: Install extension dependencies
+        working-directory: packages/vscode-finfocus
+        run: pnpm install --frozen-lockfile
+
+      - name: Real finfocus shutdown tests
+        working-directory: packages/vscode-finfocus
+        run: node --test test/integration/real_cli_shutdown.test.js
+
+      - name: Annotations against the real CLI
+        working-directory: packages/vscode-finfocus
+        run: xvfb-run -a node_modules/.bin/vscode-test --label stable --grep 'annotations against the real CLI'
