@@ -63,7 +63,7 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
 		&skipChecksum,
 		"skip-checksum",
 		false,
-		"Skip SHA256 checksum verification during update",
+		"Skip SHA256 checksum verification during update (refused when FINFOCUS_SECURE_PLUGINS is on)",
 	)
 
 	return cmd
@@ -75,6 +75,10 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
 func runPluginUpdate(cmd *cobra.Command, name, version, pluginDir string, skipChecksum bool) error {
 	ctx := cmd.Context()
 	dryRun := ax.DryRunFromContext(ctx)
+
+	if secureErr := registry.CheckSecurePlugins(skipChecksum); secureErr != nil {
+		return toValidationError(ctx, secureErr)
+	}
 
 	installer := registry.NewInstaller(pluginDir)
 

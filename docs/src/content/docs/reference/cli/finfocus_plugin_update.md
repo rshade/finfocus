@@ -41,7 +41,7 @@ finfocus plugin update <plugin> [flags]
 ```text
   -h, --help[=true|false]            help for update
       --plugin-dir string            Custom plugin directory (default: configured)
-      --skip-checksum[=true|false]   Skip SHA256 checksum verification during update
+      --skip-checksum[=true|false]   Skip SHA256 checksum verification during update (refused when FINFOCUS_SECURE_PLUGINS is on)
       --version string               Specific version to update to (default: newest stable release)
 ```
 

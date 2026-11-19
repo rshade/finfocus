@@ -131,6 +131,17 @@ func (i *Installer) Install(
 		}
 	}
 
+	policy, err := applySecurePlugins(checksumPolicy{
+		skip:          opts.SkipChecksum,
+		requireFile:   opts.RequireChecksumFile,
+		acceptMissing: opts.AcceptMissingChecksum,
+	})
+	if err != nil {
+		return nil, err
+	}
+	opts.RequireChecksumFile = policy.requireFile
+	opts.AcceptMissingChecksum = policy.acceptMissing
+
 	report := newProgressReport(progress, opts.OnEvent)
 
 	// Acquire lock for this plugin
@@ -696,15 +707,24 @@ func (i *Installer) Update(
 	progress func(msg string),
 ) (*UpdateResult, error) {
 	report := newProgressReport(progress, opts.OnEvent)
+	if opts.CatalogOnly {
+		opts.SkipChecksum = false
+	}
+	checksums, err := applySecurePlugins(checksumPolicy{
+		skip:          opts.SkipChecksum,
+		requireFile:   opts.RequireChecksumFile,
+		acceptMissing: opts.AcceptMissingChecksum,
+	})
+	if err != nil {
+		return nil, err
+	}
+	opts.RequireChecksumFile = checksums.requireFile
+	opts.AcceptMissingChecksum = checksums.acceptMissing
 	policy := InstallOptions{
 		CatalogOnly:           opts.CatalogOnly,
 		RequireChecksumFile:   opts.RequireChecksumFile,
 		AcceptMissingChecksum: opts.AcceptMissingChecksum,
 		AcceptFallbackVersion: opts.AcceptFallbackVersion,
-	}
-	if opts.CatalogOnly {
-		opts.SkipChecksum = false
-		policy.SkipChecksum = false
 	}
 
 	// Acquire lock for this plugin

@@ -303,7 +303,7 @@ func NewPluginInstallCmd() *cobra.Command {
 		&skipChecksum,
 		"skip-checksum",
 		false,
-		"Skip SHA256 checksum verification during installation",
+		"Skip SHA256 checksum verification during installation (refused when FINFOCUS_SECURE_PLUGINS is on)",
 	)
 
 	// Mark flags as mutually exclusive
@@ -335,6 +335,10 @@ func runPluginInstall(cmd *cobra.Command, specifier string, p pluginInstallParam
 	spec, err := registry.ParsePluginSpecifier(specifier)
 	if err != nil {
 		return fmt.Errorf("parsing plugin specifier %q: %w", specifier, err)
+	}
+
+	if secureErr := registry.CheckSecurePlugins(p.skipChecksum); secureErr != nil {
+		return toValidationError(ctx, secureErr)
 	}
 
 	displaySecurityWarning(cmd, spec)

@@ -13,6 +13,7 @@ FinFocus supports configuration via environment variables.
 | `FINFOCUS_HOME`        | Directory that holds `config.hujson`, plugins, cache, and logs | `~/.finfocus` |
 | `FINFOCUS_PLUGIN_DIR`  | Directory for plugins                    | `~/.finfocus/plugins`     |
 | `FINFOCUS_WEB_LOGS`    | Show the Logs view in `finfocus --web` (`1`, `true`, `0`, `false`); overrides `web.logs.enabled` | off |
+| `FINFOCUS_SECURE_PLUGINS` | Require a verifiable `checksums.txt` for every plugin install and update (`1`, `true`, `0`, `false`). Any other value is a validation error (exit 2) | off |
 
 ## Plugins
 

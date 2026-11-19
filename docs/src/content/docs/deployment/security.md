@@ -47,6 +47,11 @@ Plugins are executable binaries that run as separate processes and communicate o
   cannot be parsed, the installer emits a warning and continues; only a confirmed hash
   mismatch aborts installation. Use `--skip-checksum` to bypass verification explicitly.
   Checksums are published alongside release artifacts.
+- **Secure plugin mode**: Set `FINFOCUS_SECURE_PLUGINS=true` to make verification
+  mandatory. An install or update then fails when the release has no `checksums.txt`
+  or it does not list the archive, the dashboard's accept-missing confirmation no longer
+  applies, and `--skip-checksum` is refused with exit 2. It is off by default, because
+  not every plugin release publishes `checksums.txt` yet.
 
 ## Network Security
 

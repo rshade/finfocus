@@ -80,7 +80,7 @@ finfocus plugin install <plugin> [flags]
       --no-fallback[=true|false]          Disable fallback behavior entirely (fail if requested version lacks assets)
       --no-save[=true|false]              Don't add plugin to config file
       --plugin-dir string                 Custom plugin directory (default: the configured plugin directory)
-      --skip-checksum[=true|false]        Skip SHA256 checksum verification during installation
+      --skip-checksum[=true|false]        Skip SHA256 checksum verification during installation (refused when FINFOCUS_SECURE_PLUGINS is on)
 ```
 
 ## Options inherited from parent commands
