@@ -278,7 +278,7 @@ cost:
 ### Cost Allocation
 
 Configure tag-based cost attribution for resources that lack direct billing
-identity. This is a Layer 2 feature — the configuration is validated and stored,
+identity. This is a Layer 2 feature: the configuration is validated and stored,
 but the tag-based query logic is deferred to a future milestone.
 
 | Option | Type | Default | Description |

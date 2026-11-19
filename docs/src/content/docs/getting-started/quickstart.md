@@ -44,7 +44,7 @@ finfocus
 ```
 
 FinFocus auto-detects your project and stack, exports the current state, and
-runs `pulumi preview --json` — then opens an interactive cost dashboard:
+runs `pulumi preview --json`, then opens an interactive cost dashboard:
 
 ```text
 Resource                          Type                    Status  Actual(MTD)  Projected   Recs
@@ -128,9 +128,9 @@ default. Recipes for GitHub Actions, GitLab CI, and the Automation API are in
 ## What's Next?
 
 - **Full overview docs:** [Overview Command](../commands/overview.md)
-- **Browser dashboard:** [Use the browser dashboard](../guides/web-ui.md) — run
+- **Browser dashboard:** [Use the browser dashboard](../guides/web-ui.md): run
   `finfocus --web` to explore the same data in your browser
-- **Analyzer setup:** [Pulumi Analyzer Setup](analyzer-setup.md) — see costs
+- **Analyzer setup:** [Pulumi Analyzer Setup](analyzer-setup.md): see costs
   inline during `pulumi preview`
 - **User Guide:** [User Guide](../guides/user-guide.md)
 - **CLI reference:** [CLI Commands](../reference/cli-commands.md)

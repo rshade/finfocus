@@ -675,12 +675,12 @@ The `finfocus overview` command shows budget status differently per output mode:
   the resource table. Press Enter on a resource for per-budget detail with forecasts
   and triggered alerts.
 - **JSON** (`--output json`): Full budget data in the top-level `budgets` array.
-- **NDJSON** (`--output ndjson`): Budgets are excluded — NDJSON is resource-scoped
+- **NDJSON** (`--output ndjson`): Budgets are excluded, because NDJSON is resource-scoped
   and budgets are stack-scoped.
 - **Plain** (`--plain`): Budget status is not rendered in the table. Use
   `--exit-on-threshold` for CI/CD enforcement.
 
-See [overview command — Budget Status](../commands/overview.md#budget-status) for
+See [Budget Status](../commands/overview.md#budget-status) in the overview command reference for
 the complete visibility matrix and flag reference.
 
 ---

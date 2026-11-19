@@ -65,7 +65,7 @@ The actual cost workflow retrieves historical spending data for resources that h
 
 For more details on the plugins referenced above (`aws-public`, `aws-costexplorer`) and related topics:
 
-- [Plugin ecosystem](../architecture/plugin-ecosystem.md) — Overview of FinFocus plugin architecture
-- [Compatibility matrix](../reference/plugin-compatibility.md) — Compare plugin capabilities
-- [Troubleshooting](./troubleshooting.md) — Common issues and solutions
-- [E2E tests](../testing/e2e-guide.md) — End-to-end testing with real cloud resources
+- [Plugin ecosystem](../architecture/plugin-ecosystem.md): overview of FinFocus plugin architecture
+- [Compatibility matrix](../reference/plugin-compatibility.md): compare plugin capabilities
+- [Troubleshooting](./troubleshooting.md): common issues and solutions
+- [E2E tests](../testing/e2e-guide.md): end-to-end testing with real cloud resources

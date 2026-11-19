@@ -31,7 +31,7 @@ All flags are optional. When `--pulumi-state` and `--pulumi-json` are omitted,
 the command auto-detects your Pulumi project and stack from the current directory.
 
 > **Tip:** Running `finfocus` with no arguments inside a Pulumi project directory
-> automatically launches the overview — no subcommand needed.
+> automatically launches the overview without a subcommand.
 
 ## Options
 
@@ -56,7 +56,7 @@ with `finfocus cost projected`, which plans that directory or reads
 4. Uses `--stack` to select a non-default stack (e.g., `--stack production`).
 
 Use `--pulumi-state` / `--pulumi-json` to skip these Pulumi CLI calls and provide
-pre-exported files directly — useful in CI/CD when you manage the export step yourself.
+pre-exported files directly. This is useful in CI/CD when you manage the export step yourself.
 
 ## Examples
 
