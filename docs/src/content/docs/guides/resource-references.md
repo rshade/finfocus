@@ -53,6 +53,8 @@ resource. Strict validation still applies when the child has no `ref.*` tags.
 Classic Azure plans store size in `skuName`. That value is placed on
 `ref.<property>.sku` only. It isn't treated as the plan resource's own SKU.
 
+<a id="what-does-not-change"></a>
+
 ## What doesn't change
 
 A plan with no `propertyDependencies` produces the same tags, SKU, region, and

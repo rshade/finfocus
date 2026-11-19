@@ -19,7 +19,7 @@ include:
 - Using welcoming and inclusive language
 - Being respectful of differing viewpoints and experiences
 - Gracefully accepting constructive criticism
-- Focusing on what's best for the community
+- Focusing on what is best for the community
 - Showing empathy towards other community members
 
 Examples of unacceptable behavior by participants include:
@@ -40,7 +40,7 @@ reported by
 [opening a GitHub Issue](https://github.com/rshade/finfocus/issues/new)
 or contacting the maintainers through
 [GitHub Discussions](https://github.com/rshade/finfocus/discussions). All
-complaints will be reviewed and investigated and will result in a response that's
-deemed necessary and appropriate to the circumstances. The project team is
+complaints will be reviewed and investigated and will result in a response that
+is deemed necessary and appropriate to the circumstances. The project team is
 obligated to maintain confidentiality with regard to the reporter of an
 incident.

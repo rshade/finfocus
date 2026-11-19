@@ -150,6 +150,8 @@ Two things stay silent by design:
 - **A stack that has never been collected.** With no stored daily file the
   output is exactly the drift list.
 
+<a id="what-is-not-an-anomaly"></a>
+
 ## What isn't an anomaly
 
 The overview already leaves drift unset for these, and so does this command:

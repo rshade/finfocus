@@ -24,6 +24,8 @@ infrastructure.
 
 ---
 
+<a id="what-is-finfocus"></a>
+
 ## What's FinFocus?
 
 FinFocus is a command-line tool that calculates cloud infrastructure costs from your Pulumi infrastructure definitions.

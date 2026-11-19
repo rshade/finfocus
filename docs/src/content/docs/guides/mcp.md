@@ -167,6 +167,8 @@ Every tool also accepts the agent-safety arguments:
 A failed call returns the finfocus error envelope as JSON, with `isError`
 set. For example: `{"error_code": "validation_error", "message": "..."}`.
 
+<a id="commands-that-are-not-tools"></a>
+
 ## Commands that aren't tools
 
 These commands are never exposed as tools:
