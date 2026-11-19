@@ -81,7 +81,7 @@ message NameResponse {
 
 **Fields:**
 
-- `name` (string) - Plugin display name (e.g., `opencost`, `vantage`)
+- `name` (string) - Plugin display name, such as `opencost` or `vantage`
 
 **Example:**
 
@@ -241,10 +241,10 @@ message GetProjectedCostResponse {
 **Fields:**
 
 - `unit_price` (double) - Price per unit (hourly rate for compute)
-- `currency` (string) - Currency code (e.g., `USD`, `EUR`)
+- `currency` (string) - Currency code, such as `USD` or `EUR`
 - `cost_per_month` (double) - Estimated monthly cost
-- `billing_detail` (string) - Billing context (e.g., `on-demand`,
-  `reserved`)
+- `billing_detail` (string) - Billing context, such as `on-demand` or
+  `reserved`
 
 **Example:**
 
@@ -337,8 +337,8 @@ message ActualCostResult {
 - `timestamp` (Timestamp) - Point-in-time or bucket start
 - `cost` (double) - Total cost for the period
 - `usage_amount` (double) - Optional usage amount
-- `usage_unit` (string) - Unit of usage (e.g., `hour`, `GB`)
-- `source` (string) - Data source (e.g., `kubecost`, `vantage`)
+- `usage_unit` (string) - Unit of usage, such as `hour` or `GB`
+- `source` (string) - Data source, such as `kubecost` or `vantage`
 
 **Example:**
 
