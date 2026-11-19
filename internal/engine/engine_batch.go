@@ -51,6 +51,10 @@ type batchResult struct {
 	err error
 	// skip is true when the resource type is unsupported.
 	skip bool
+	// unanswered is set when the batch did not answer the resource: its call
+	// failed, or its descriptor could not be sent. An actual batch gives such a
+	// resource no verdict, so it is priced alone.
+	unanswered bool
 	// rateLimited is set when ResourceExhausted survived a batch retry.
 	// The caller must not price that resource with a single-resource RPC
 	// against the same plugin.
@@ -285,7 +289,7 @@ func (e *Engine) executeBatchForPlugin(
 				Int("resource_count", len(built.validResources)).
 				Msg("batch cost rate limited, not retrying resources individually")
 			pending := slices.Concat(chunks[chunkIdx+1:]...)
-			allResults = append(allResults, rateLimitedBatchResults(pending, errBatchRateLimited)...)
+			allResults = append(allResults, rateLimitedBatchResults(pending, batchRateLimitError(out.limitErr))...)
 			return allResults, nil
 		}
 
@@ -323,6 +327,9 @@ type chunkOutcome struct {
 	rpcLimited bool
 	// retried is set when at least one attempt followed the first.
 	retried bool
+	// limitErr is the last rate-limit error the plugin returned, so a marked
+	// resource keeps the plugin's own message.
+	limitErr error
 }
 
 // priceChunk prices one chunk against a plugin. RPC-level and per-item rate
@@ -373,6 +380,7 @@ func (e *Engine) priceChunk(
 			if isRateLimited(err) {
 				again = append(again, group.validResources...)
 				limitErr = err
+				out.limitErr = err
 				out.rpcLimited = true
 				continue
 			}
@@ -381,17 +389,10 @@ func (e *Engine) priceChunk(
 					"batch cost RPC failed for plugin %s: %w", plugin.Name, err,
 				)
 			}
-			if len(resp.GetResults()) != len(group.validResources) {
-				return out, unfinishedGroups(again, groups[i:]), fmt.Errorf(
-					"batch response count mismatch from plugin %s: got %d, expected %d",
-					plugin.Name, len(resp.GetResults()), len(group.validResources),
-				)
+			limited, err := out.take(resp, group.validResources, opts, plugin.Name, from, to)
+			if err != nil {
+				return out, unfinishedGroups(again, groups[i:]), err
 			}
-			if hint := int(resp.GetMaxBatchSize()); hint > 0 && (out.maxBatchSize == 0 || hint < out.maxBatchSize) {
-				out.maxBatchSize = hint
-			}
-			kept, limited := splitMappedBatch(mapBatchResponse(resp, opts), group.validResources, plugin.Name, from, to)
-			out.results = append(out.results, kept...)
 			again = append(again, limited...)
 		}
 
@@ -419,8 +420,37 @@ func (e *Engine) priceChunk(
 			return out, pending, waitErr
 		}
 	}
-	out.results = append(out.results, rateLimitedBatchResults(pending, errBatchRateLimited)...)
+	out.results = append(out.results, rateLimitedBatchResults(pending, batchRateLimitError(out.limitErr))...)
 	return out, nil, nil
+}
+
+// take records one BatchCost response for the resources it was sent: the
+// finished rows, the smallest size hint, and the last per-item rate limit. It
+// returns the resources that were rate limited, or an error when the response
+// does not have one row per resource.
+func (out *chunkOutcome) take(
+	resp *pbc.BatchCostResponse,
+	valid []indexedResource,
+	opts batchOptions,
+	pluginName string,
+	from, to time.Time,
+) ([]indexedResource, error) {
+	if len(resp.GetResults()) != len(valid) {
+		return nil, fmt.Errorf(
+			"batch response count mismatch from plugin %s: got %d, expected %d",
+			pluginName, len(resp.GetResults()), len(valid),
+		)
+	}
+	if hint := int(resp.GetMaxBatchSize()); hint > 0 && (out.maxBatchSize == 0 || hint < out.maxBatchSize) {
+		out.maxBatchSize = hint
+	}
+	mapped := mapBatchResponse(resp, opts)
+	if i := slices.IndexFunc(mapped, func(m proto.BatchMappedResult) bool { return isRateLimited(m.Err) }); i >= 0 {
+		out.limitErr = mapped[i].Err
+	}
+	kept, limited := splitMappedBatch(mapped, valid, pluginName, from, to)
+	out.results = append(out.results, kept...)
+	return limited, nil
 }
 
 // sendBatchRPC makes one BatchCost call bounded by the chunk timeout. A call
@@ -467,13 +497,22 @@ func unfinishedGroups(again []indexedResource, groups []buildBatchResult) []inde
 func failedBatchResults(resources []indexedResource, err error) []batchResult {
 	out := make([]batchResult, len(resources))
 	for i, ir := range resources {
-		out[i] = batchResult{index: ir.index, err: err}
+		out[i] = batchResult{index: ir.index, err: err, unanswered: true}
 	}
 	return out
 }
 
 func hasRateLimitMarker(results []batchResult) bool {
 	return slices.ContainsFunc(results, func(r batchResult) bool { return r.rateLimited })
+}
+
+// batchRateLimitError is errBatchRateLimited carrying the plugin's own
+// rate-limit error, so the user still sees when to retry.
+func batchRateLimitError(cause error) error {
+	if cause == nil {
+		return errBatchRateLimited
+	}
+	return fmt.Errorf("%w: %w", errBatchRateLimited, cause)
 }
 
 // rateLimitedBatchResults marks resources that must not be sent to this plugin
@@ -560,6 +599,23 @@ func buildBatchCostRequest(
 			ConvertToProto(ir.resource.Properties),
 			BuildAttributes(ctx, ir.resource.Properties),
 		)
+		if opts.queryType == pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
+			descriptor.Arn = proto.ActualCostARN(ir.resource.Properties)
+			// The SDK server rejects a whole BatchCost for one descriptor over
+			// its limits. The unary path sends such a resource without the
+			// descriptor, so leave it to that path.
+			if err := pluginsdk.ValidateResourceDescriptor(descriptor); err != nil {
+				log.Debug().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("operation", "build_batch_cost_request").
+					Str("resource_type", ir.resource.Type).
+					Err(err).
+					Msg("descriptor exceeds plugin limits, pricing resource alone")
+				invalidResults = append(invalidResults, batchResult{index: ir.index, err: err, unanswered: true})
+				continue
+			}
+		}
 
 		// Pre-flight validation using the same pluginsdk validators as the non-batch path
 		if err := validateBatchResource(descriptor, opts); err != nil {
@@ -643,6 +699,7 @@ func validateBatchResource(descriptor *pbc.ResourceDescriptor, opts batchOptions
 			Start:      opts.start,
 			End:        opts.end,
 			Tags:       descriptor.GetTags(),
+			Arn:        descriptor.GetArn(),
 		})
 	}
 	return proto.ValidateProjectedDescriptor(descriptor)

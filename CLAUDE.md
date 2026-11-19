@@ -943,9 +943,36 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   (zero before the creation day), because `distributeDailyCosts` and
   `AggregateResultsInternal` index the series from `StartDate`. A resource
   created at or after `to` gets a local $0 result and no plugin call
-  (`Start == End` fails SDK validation). A batch has one start, so a
-  resource created inside the window skips the batch and goes to the
-  per-resource path.
+  (`Start == End` fails SDK validation). A batch has one start, so an
+  actual batch is sent per start (`actualBatchStart`): the window start, or
+  a creation time inside the window truncated to the hour, so one deploy's
+  resources share a batch. `keepRequestedWindow` then widens each row back
+  to the requested window, as the unary path does. The hour is safe only
+  because every `batch_cost` plugin (aws-ce, opencost, cloudzero) prices
+  from recorded billing; list-price plugins such as aws-public are unary
+  and get the exact time (`TestActualCostAndErrorsNonBatchPluginStaysUnary`).
+- Actual batch (`specs/2017-actual-cost-batch/`): `batchActualCosts`
+  (`actual_batch.go`) is the one batch step for actual cost. Both
+  `GetActualCostWithOptions` and `GetActualCostWithOptionsAndErrors` (which
+  backs `cost actual`, `cost history collect-daily`, web, and overview) call
+  it. It returns a verdict per resource index: a result, `ErrNoCostData` for
+  a row with no data, the item error, or `errBatchRateLimited`. The AndErrors
+  path hands the verdict to `getActualCostForResource`, which uses it in
+  place of that plugin's unary call, so fallback, state estimate,
+  placeholders, and `ErrorDetail`s match the unary path and the plugin is not
+  asked twice, except for an `Unavailable` item or one the batch never
+  answered (`batchResult.unanswered`: its call failed, or its descriptor is
+  over the SDK limits, which would fail the whole BatchCost); those get no
+  verdict and are priced alone. `actualBatchPlugins` picks each resource's
+  batch plugin from the ActualCosts route and the `--adapter` filter, the
+  same first plugin the per-resource chain asks, and batches only when that
+  plugin has `batch_cost`. Daily costs are rebuilt from the resource's own
+  start, not the hour. `resourceBatchError` keeps every item's gRPC code as a
+  status for that check. `GetActualCostWithOptions` keeps its older rule: only results
+  and rate limits count; other item errors retry unary. Overview asks one
+  resource per call, so it sends one-resource batches. An actual batch
+  descriptor carries `arn` (`proto.ActualCostARN`), which unary sends as the
+  request `arn`; without it an ARN-matched plugin cannot identify the row.
 - Projected diff (`cost projected`): replacement steps sharing a URN are
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`
