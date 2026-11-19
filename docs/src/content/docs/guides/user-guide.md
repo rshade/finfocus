@@ -321,11 +321,12 @@ was. Run it beside `collect` after a deploy when you want a baseline that is
 not tied to checkpoints. `--output json` prints the stored, skipped, and
 failed counts.
 
-Databases live under the FinFocus config directory in `history/`, one file per
-stack of each project: `<project>@<stack>.history.db`. Two projects that both
-have a stack named `dev` get separate histories. FinFocus takes the project from
-the `Pulumi.yaml` in the current directory, or from a fully qualified
-`--stack org/project/dev`. A database never accepts snapshots from another
+Each stack of each project has one database, `<project>@<stack>.history.db`,
+so projects that share a stack name such as `dev` get separate histories. The
+directory is `FINFOCUS_HISTORY_DIR`, then `cost.history.directory`, then
+`history/` under the FinFocus config directory. FinFocus takes the project from
+a fully qualified `--stack org/project/dev`, otherwise from the `Pulumi.yaml`
+in the current directory or its closest parent that has one. A database never accepts snapshots from another
 project, and `list` shows each one as `project/stack`.
 
 Databases written by earlier versions are named `<stack>.history.db`. They keep

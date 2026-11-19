@@ -69,7 +69,7 @@ finfocus overview [flags]
       --force-color[=true|false]         style the plain table when stdout is not a terminal; same switch as --color
       --from string                      start date (YYYY-MM-DD or RFC3339, defaults to the first day of the current month)
   -h, --help[=true|false]                help for overview
-      --high-contrast[=true|false]       accepted for consistency with the other output commands; overview has no budget box to recolor, so it has no effect
+      --high-contrast[=true|false]       no effect on overview; accepted for consistency with other commands
       --include-workspace[=true|false]   Include the Terraform workspace in history identity (ignored for Pulumi)
       --no-color[=true|false]            disable all ANSI styling; wins over --color and --force-color
       --no-pagination[=true|false]       disable pagination (plain mode only)

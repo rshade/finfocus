@@ -89,7 +89,7 @@
     {
       "name": "pulumi-json",
       "type": "string",
-      "usage": "path to Pulumi preview JSON; state is still read from the detected project unless --pulumi-state is set (only valid with --web)"
+      "usage": "path to Pulumi preview JSON; state is still read from the detected project, if available, unless --pulumi-state is set (only valid with --web)"
     },
     {
       "name": "pulumi-state",
