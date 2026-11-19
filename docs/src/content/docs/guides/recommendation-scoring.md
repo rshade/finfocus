@@ -22,7 +22,7 @@ snoozes, hides, or applies a recommendation because of a score.
 - A scorer plugin installed under `~/.finfocus/plugins/<name>/<version>/` that advertises the
   `recommendation_scoring` capability. Build the backend-neutral `scorer` from source with `make install-scorer`
   while its first public release is pending. It uses `SCORER_API_KEY` and supports Jev or Clef. Hosted Jev sends data
-  to [TypeSafe AI](https://typesafe.ai/); hosted Clef sends it to
+  to [TypeSafe AI](https://typesafe.ai/). Hosted Clef sends it to
   [Cloudflare](https://blog.cloudflare.com/clef-decision-models/) (identifiers are pseudonymized by default). See the
   [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer).
 - At least one cost-source plugin that returns recommendations
@@ -54,7 +54,7 @@ Opt in per scorer in `config.hujson`:
 | `scoring.enabled`                            | Turn the scoring step on                                      | `false`         |
 | `scoring.plugin`                             | Scorer plugin name (required when enabled)                    | none            |
 | `scoring.identifier_mode`                    | `pseudonymized`, `omitted` or `raw`                           | `pseudonymized` |
-| `scoring.field_allowlist`                    | Recommendation fields sent to the scorer; empty sends all     | all fields      |
+| `scoring.field_allowlist`                    | Recommendation fields sent to the scorer. Empty sends all     | all fields      |
 | `scoring.timeout_seconds`                    | Timeout for each scorer call                                  | `30`            |
 | `scoring.needs_review.risk`                  | Flag for review at or above this risk                         | `0.3`           |
 | `scoring.needs_review.false_positive`        | Flag for review at or above this false-positive score         | `0.3`           |
@@ -64,7 +64,7 @@ Opt in per scorer in `config.hujson`:
 Valid `field_allowlist` names are `category`, `action_type`, `resource`, `impact`, `priority`, `confidence_score`,
 `description`, `reasoning`, `source`, `created_at`, `metadata`, `action_detail`, `primary_reason`,
 `secondary_reasons`, `pricing_category` and `spot_interruption_risk_score`. The `resource` field carries tags and
-utilization; `action_detail` carries the provider-specific action detail (right-size targets, termination detail,
+utilization. The `action_detail` field carries the provider-specific action detail (right-size targets, termination detail,
 commitment terms, Kubernetes adjustments or config changes).
 The recommendation id is always sent, as an opaque value (see [Data handling](#data-handling)).
 
@@ -79,7 +79,7 @@ If a hosted scorer reports rate limits often, raise it.
 The `scorer` plugin defaults to TypeSafe AI's Jev model. Read the
 [data-handling notes](https://github.com/rshade/finfocus/tree/main/plugins/scorer#opt-in-and-data-handling) first.
 The catalog plugin named `jev` is deprecated. `SCORER_BACKEND=jev` selects the
-Jev model inside `scorer`; it does not install the old plugin.
+Jev model inside `scorer`. It does not install the old plugin.
 
 ```bash
 make install-scorer  # from the repository root; public scorer release pending
@@ -101,15 +101,15 @@ warning while the recommendations are listed unscored.
 For Clef set `SCORER_BACKEND=clef`, supply a Cloudflare token in `SCORER_API_KEY`, and set `SCORER_CLEF_ACCOUNT_ID`
 to a 32-character hexadecimal account id. The model defaults to `clef`, which is the only accepted Clef model id.
 Jev's model defaults to `jev-1.13.0`. Optional `SCORER_BASE_URL` defaults to `https://api.typesafe.ai` for Jev or
-`https://api.cloudflare.com` for Clef. For Clef it must be an origin without path, query, user info or fragment;
-the adapter adds the account path. `SCORER_TIMEOUT`, `SCORER_BATCH_SIZE` and `SCORER_DUPLICATE_THRESHOLD` default to
+`https://api.cloudflare.com` for Clef. For Clef it must be an origin without path, query, user info or fragment,
+and the adapter adds the account path. `SCORER_TIMEOUT`, `SCORER_BATCH_SIZE` and `SCORER_DUPLICATE_THRESHOLD` default to
 `60s`, `25` and `0.5`.
 
 Both hosted backends send recommendation data to third parties. A compatible local endpoint may avoid hosted calls,
 but Clef self-hosting and vLLM compatibility are untested and outside this change's scope. Both backends provide
-ranking signals, never approval; Jev evaluations do not establish Clef quality or calibration.
+ranking signals, never approval, and Jev evaluations do not establish Clef quality or calibration.
 
-The first public scorer release and registry entry are pending. Source install works now; once assets are published,
+The first public scorer release and registry entry are pending. Source install works now. Once assets are published,
 use `finfocus plugin install scorer`. The retained `finfocus plugin install jev` command installs the last legacy
 release separately and does not migrate configuration. Historical Jev tags remain available.
 
@@ -248,7 +248,7 @@ output, and shows the recommendations unscored. Errors for individual recommenda
 2. The scorer plugin is looked up by `scoring.plugin` and must advertise `recommendation_scoring`. Scorer-only plugins are
    not queried for recommendations.
 3. Scores found in the cache are applied. The rest are sent in batches. The first call is made alone with up to 20
-   recommendations to learn the scorer's `max_batch_size`; the remaining batches then run up to 8 at a time, each with the
+   recommendations to learn the scorer's `max_batch_size`. The remaining batches then run up to 8 at a time, each with the
    configured timeout.
 4. Every response is validated against the scorer contract before any score is used.
 

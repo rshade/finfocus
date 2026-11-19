@@ -106,7 +106,7 @@ finfocus plugin validate --plugin vantage
 ```
 
 `plugin install` puts the `finfocus-plugin-vantage` binary in the plugin
-directory, not on `PATH`. FinFocus starts it; the binary itself only answers
+directory, not on `PATH`. FinFocus starts it. The binary itself only answers
 `--version` and otherwise serves gRPC.
 
 ---

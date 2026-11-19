@@ -9,7 +9,7 @@ contributors working on FinFocus Core.
 ## Testing Philosophy
 
 1. **Test-Driven Development (TDD)**: Write tests before implementation.
-2. **High Coverage**: CI enforces a 60% minimum; aim for 80% overall and 95% on
+2. **High Coverage**: CI enforces a 60% minimum. Aim for 80% overall and 95% on
    critical paths.
 3. **Isolation**: Unit tests must not depend on external systems. Use mocks and
    table-driven patterns.

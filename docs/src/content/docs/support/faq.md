@@ -117,11 +117,11 @@ A: The main plugins today:
 | Plugin | Projected Costs | Actual Costs | Notes |
 |--------|----------------|--------------|-------|
 | `aws-public` | ✓ | ✓ | AWS public pricing API |
-| `aws-ce` | Account and service forecasts | ✓ | Billed AWS cost, AWS Budgets, and recommendations from Cost Explorer; needs AWS credentials |
+| `aws-ce` | Account and service forecasts | ✓ | Billed AWS cost, AWS Budgets, and recommendations from Cost Explorer (needs AWS credentials) |
 | `azure-public` | ✓ | ✓ | Azure Retail Prices API, no credentials |
-| `vantage` | — | ✓ | Imported billing from a Vantage Cost Report; needs a Vantage account |
-| `flexera` | ✓ | ✓ | Flexera One Bill Analysis for AWS, Azure, and GCP; needs a Flexera org and billing center |
-| `cloudzero` | — | ✓ | CloudZero billing costs per resource; needs a CloudZero API key and a resource dimension |
+| `vantage` | — | ✓ | Imported billing from a Vantage Cost Report (needs a Vantage account) |
+| `flexera` | ✓ | ✓ | Flexera One Bill Analysis for AWS, Azure, and GCP (needs a Flexera org and billing center) |
+| `cloudzero` | — | ✓ | CloudZero billing costs per resource (needs a CloudZero API key and a resource dimension) |
 | `opencost` | ✓ | ✓ | Kubernetes allocation from an OpenCost or Kubecost endpoint (set the `kubecost` profile for Kubecost) |
 
 <a id="q-do-i-need-a-plugin"></a>
@@ -246,7 +246,7 @@ Local specs and the cache are entirely on your machine. No telemetry is sent.
 ### Q: Is your infrastructure data secure?
 
 A: Pulumi state JSON contains resource details, so treat it as sensitive. FinFocus
-is a local CLI tool; all data stays on your machine unless explicitly sent to a
+is a local CLI tool. All data stays on your machine unless explicitly sent to a
 plugin's external API.
 
 ## Performance

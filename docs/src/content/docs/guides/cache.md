@@ -51,7 +51,7 @@ Enable the cache in under 2 minutes.
 
 Edit `~/.finfocus/config.hujson` (global) or your project's
 `.finfocus/config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 # yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
@@ -200,7 +200,7 @@ enabled. It holds extracted score values keyed on a hash of the recommendation c
 
 - Expiration is **lazy**: entries are checked on read and discarded if past their TTL.
 - A startup cleanup pass removes all expired entries when the cache is opened.
-- Setting `ttl_seconds: 0` or `enabled: false` disables the cache; no file is written.
+- Setting `ttl_seconds: 0` or `enabled: false` disables the cache, so the cache file is not written.
 
 ### Graceful Degradation
 

@@ -128,8 +128,8 @@ message SupportsRequest {
 **Fields:**
 
 - `resource` (ResourceDescriptor) - Resource to check support for
-- `capability` (PluginCapability) - Operation the host is about to call;
-  `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability
+- `capability` (PluginCapability) - Operation the host is about to call.
+  `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability.
 
 FinFocus sets `capability` to the operation it is about to call:
 `PLUGIN_CAPABILITY_PROJECTED_COSTS` for projected cost and projected batches,
@@ -562,16 +562,16 @@ message CostData {
 - `results` (repeated ResourceCostResult) - Per-resource results in the
   same order as the request
 - `max_batch_size` (int32) - Optional hint for the maximum number of
-  resources the plugin can handle in a single batch; the core re-chunks
+  resources the plugin can handle in a single batch. The core re-chunks
   remaining resources when this is set
 
 **Fields (ResourceCostResult):**
 
 - `resource` (ResourceDescriptor) - The resource this result corresponds to
 - `cost_data` (CostData) - Cost data on success (projected or actual
-  depending on `query_type`); see [ActualCostData](#actualcostdata) for the
+  depending on `query_type`). See [ActualCostData](#actualcostdata) for the
   actual cost payload
-- `error` (ResourceError) - Per-resource error (e.g., unsupported type); see
+- `error` (ResourceError) - Per-resource error, such as an unsupported type. See
   [ResourceError](#resourceerror)
 
 **Example:**
@@ -818,7 +818,7 @@ message ActualCostData {
 ### ResourceError
 
 Structured error information for a single resource failure within a batch.
-Per-resource errors do not cause the entire batch RPC to fail; they appear in
+Per-resource errors do not cause the entire batch RPC to fail. They appear in
 the `error` field of `ResourceCostResult` (see [BatchCost](#batchcost)).
 
 ```protobuf

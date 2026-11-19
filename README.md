@@ -176,23 +176,23 @@ Sources follow `finfocus overview`: auto-detect the current Pulumi project and
 stack, or pass `--pulumi-json plan.json` / `--pulumi-state state.json`.
 `--stack`, `--from`, `--to`, `--adapter`, and `--filter` are also accepted.
 These source flags, `--port`, and `--no-browser` are root-local companions to
-`--web`; they are rejected without it. `--web` is mutually exclusive with `--mcp`.
+`--web`. They are rejected without it. `--web` is mutually exclusive with `--mcp`.
 Terraform inputs are outside the web UI's current scope.
 
 The Cost view's group selector and tag filter, and the Recommendations view's
 **Include dismissed** toggle, add browser controls for existing CLI flags.
 The TUI fixes grouping at launch and has no include-dismissed toggle.
-Estimate changes are temporary what-if calculations; the dashboard cannot
+Estimate changes are temporary what-if calculations. The dashboard cannot
 change infrastructure or dismiss recommendations. What-If hides known non-billable
-resources by default; **Show all resources** restores them. Unknown billability
+resources by default. **Show all resources** restores them. Unknown billability
 and zero-spend resources remain available. Use **Run preview** for an
 on-demand Pulumi preview and restart the session to load fresh actual costs.
 
 Keep the printed URL private: its token opens an authenticated local session.
 The server binds to loopback, replaces the token in the address bar with an
 HTTP-only session cookie, and checks request origins. Encrypted stacks use a
-masked browser passphrase prompt with retries. Stop the server with Ctrl+C;
-closing a browser tab leaves it running.
+masked browser passphrase prompt with retries. Stop the server with Ctrl+C.
+Closing a browser tab leaves it running.
 
 See the [web UI guide](docs/src/content/docs/guides/web-ui.md) for launch options,
 storage behavior, and browser test commands.
@@ -352,7 +352,7 @@ export AWS_REGION="us-east-1"
 A plugin can advertise the settings it reads, each with its own environment
 variable, and its docs pages list them. For example,
 [aws-ce](docs/src/content/docs/plugins/aws-ce.md) reads `carbon_enabled` from
-`FINFOCUS_AWS_CARBON_ENABLED`; see
+`FINFOCUS_AWS_CARBON_ENABLED`. See
 [Historical AWS Carbon Reporting](docs/src/content/docs/plugins/historical-carbon.md).
 FinFocus takes each advertised value from that variable, or else from the plugin's section of the project or
 global config file. As a fallback, a config key the plugin does not advertise
@@ -764,7 +764,7 @@ finfocus plugin validate
 | `cloudzero` | Available | Actual cost per resource from the CloudZero billing costs API |
 | `prometheus` | Available | Historical Kubernetes CPU and memory usage from Prometheus for `cost cluster --from/--to`. See the [Prometheus plugin page](docs/src/content/docs/plugins/prometheus.md). |
 | `carbon` | Build from source | Offline EC2 operational carbon estimates alongside monetary pricing. See the [carbon plugin guide](docs/src/content/docs/plugins/carbon.md). |
-| `scorer` | Source install; first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`; hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
+| `scorer` | Source install, first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`. Hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
 
 `jev` stays in the registry so an existing install can be updated, and it is
 marked deprecated. `finfocus plugin install jev` warns and still installs that
@@ -942,8 +942,8 @@ See [agent-skills/README.md](agent-skills/README.md) for the full list.
 - [finfocus-spec](https://github.com/rshade/finfocus-spec) - Protocol definitions and schemas
 - [finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public) - AWS public pricing plugin
 - [finfocus-action](https://github.com/rshade/finfocus-action) - GitHub Action that posts cost estimates on pull requests
-- [finfocus-demo](https://github.com/rshade/finfocus-demo) - Live demo of finfocus-action; see [PR #1](https://github.com/rshade/finfocus-demo/pull/1) for the output
-- [agent-skills](https://github.com/rshade/agent-skills) - Generic agent skills; holds stubs that point to the cost skills here
+- [finfocus-demo](https://github.com/rshade/finfocus-demo) - Live demo of finfocus-action. See [PR #1](https://github.com/rshade/finfocus-demo/pull/1) for the output
+- [agent-skills](https://github.com/rshade/agent-skills) - Generic agent skills, with stubs that point to the cost skills here
 
 ---
 

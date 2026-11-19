@@ -108,13 +108,13 @@ unlabeled      1      10.00   10.0%   1.00
 ```
 
 Each allocated row, idle rows included, counts once, under the capacity type
-of its node (matched by cluster and node name; a usage source that sends no
-cluster tag still matches, as in the allocator), so the rows sum to the cluster
+of its node (matched by cluster and node name as the allocator matches them, so a usage
+source that sends no cluster tag still matches), so the rows sum to the cluster
 total and idle cost is never counted twice. Rows that match no node, such as
 the control plane, Fargate pods (which name a pod host that is not a priced
 node), and orphan rows (which name a node that no longer exists), go under
 `unlabeled`, as does
-any node whose usage source sends no `capacity_type`; they are not folded into
+any node whose usage source sends no `capacity_type`. They are not folded into
 on-demand. The kubernetes and prometheus plugins default a node with no spot
 label to `on-demand`, so with them `unlabeled` holds only rows that match no node. Tag
 values are shown as the plugin reports them. The section is omitted when no
@@ -132,8 +132,8 @@ window carries actual spend and adds no such note.
 - `controller`: `namespace/controller_kind/controller` (for example
   `payments/Deployment/api`)
 - `pod`: `namespace/pod`
-- `node`: node name; idle rows group under their node
-- `label:<key>`: the value of pod label `<key>`; pods without the label group
+- `node`: node name. Idle rows group under their node
+- `label:<key>`: the value of pod label `<key>`. Pods without the label group
   under `<none>` and are never dropped
 - `pulumi-stack`: `<stack>/<project>` parsed from the pod annotation
   `finfocus.dev/pulumi-urn`. A missing or malformed URN groups under `<none>`
@@ -202,7 +202,7 @@ cost is `max(cpu_request, cpu_usage)` over the node's allocatable CPU, and
 memory works the same way. Which of the two inputs exists depends on the
 usage source. The kubernetes source reports requests and no usage, so a
 run-rate report charges requests. A pod with zero effective CPU and memory
-requests (including pod overhead; Kubernetes copies a limit into a missing
+requests (including pod overhead and any limit that Kubernetes copies into a missing
 request) claims no share of its
 node. With the default policy it is charged `$0`, and the node cost it would
 have claimed stays in `__idle__`. `idle: "share"` alone does not change that,
@@ -215,7 +215,7 @@ system cost in each dimension where no other non-system workload on its node
 has cost. With `idle: "share"` as well, that part includes the idle the system
 workloads absorbed first. Beside a workload that has cost in a dimension, it
 still gets nothing in that dimension.
-The Prometheus source reports usage and no requests; see
+The Prometheus source reports usage and no requests. See
 [Historical window](#historical-window).
 
 Print the effective policy (defaults plus overrides) and its digest without
@@ -237,7 +237,7 @@ traced back to the exact policy that produced it.
 report is scoped when either flag is true. `capacity` is an array (empty when
 there are no rows) of `capacity_type`, `cpu_cost`, `mem_cost`, `total_cost`,
 `idle_cost` (omitted when scoped, like the top-level `idle`), `nodes`, `rows`,
-and `notes` (omitted when the group has none); the `total_cost` values sum to
+and `notes` (omitted when the group has none). The `total_cost` values sum to
 `total`. With `--namespace` or `--selector`, the table shows `-` in the IDLE
 column. In historical mode, `priced[].monthly` is the window total
 (`TotalCost`), not a 730-hour projection. Each group may include `pulumi_urns` when a workload in it
@@ -344,8 +344,8 @@ The footer mode is `historical` and the period is the window and its
 length, for example `historical (2026-09-28 to 2026-10-05, 7 days)`. A
 window whose bounds are not both UTC midnight prints RFC3339 bounds. A length
 that is not whole days prints its largest unit and the next one, for example
-`historical (2026-11-11T00:00:00Z to 2026-11-11T20:24:27Z, 20 hours 24 minutes)`;
-smaller remainders are dropped, and a window under a minute is
+`historical (2026-11-11T00:00:00Z to 2026-11-11T20:24:27Z, 20 hours 24 minutes)`.
+Smaller remainders are dropped, and a window under a minute is
 `under 1 minute`. A run with no window stays `run-rate (monthly, 730 h)`.
 When Prometheus holds no data for the start of the window, for example
 because its retention is shorter than the window, the report is marked
@@ -448,10 +448,10 @@ Pricing calls keep the engine's own per-resource limits.
   error. A window needs a source that reports historical mode.
 - On the no-window path, spot nodes are priced on-demand. Each EKS Fargate pod
   is priced on its own from its vCPU and memory request when the pricing
-  plugin returns a positive monthly cost; otherwise the pod is a $0 row with
+  plugin returns a positive monthly cost. Otherwise, the pod is a $0 row with
   a note. kind cannot simulate Fargate, so `make test-e2e-kind` does not
   cover that path. The rates live in
   [finfocus-plugin-aws-public#409](https://github.com/rshade/finfocus-plugin-aws-public/issues/409).
 - A node whose price resolves to `$0` (for example an unknown instance type in
-  aws-public) is treated as unpriced, never as free; if no node can be priced
-  at all the command fails.
+  aws-public) is treated as unpriced, never as free. If no node can be priced
+  at all, the command fails.

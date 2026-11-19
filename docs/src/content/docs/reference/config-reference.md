@@ -12,7 +12,7 @@ FinFocus is configured via a configuration file (default:
 The configuration file is HuJSON: JSON with comments and trailing commas.
 `config set` and the dashboard Config page write `config.hujson`. A legacy
 `config.yaml` is still read. The next save of that tier writes the HuJSON
-sibling and leaves the YAML file in place. Examples below show the keys; the
+sibling and leaves the YAML file in place. Examples below show the keys. The
 on-disk file uses JSON syntax.
 
 ```yaml
@@ -109,7 +109,7 @@ output:
 - `plugin_dir`: Top-level key that overrides the computed plugin installation directory.
   Equivalent to setting the `FINFOCUS_PLUGIN_DIR` environment variable (env var takes precedence).
   Example: `plugin_dir: /opt/finfocus/plugins`
-- It is read from the global `config.hujson` only; a project `config.hujson`
+- It is read from the global `config.hujson` only. A project `config.hujson`
   ignores it. `config set` and `config get` do not accept it, so edit the file.
 - It is not part of the `plugins` object. `plugins.<name>` holds settings for
   the plugin called `<name>`, so a `plugins.dir` key names a plugin `dir`. A
@@ -197,7 +197,7 @@ Configure the BoltDB-backed cost calculation cache.
 
 ### Scoring
 
-Configure the optional recommendation scoring step. It is off by default and adds no network activity of its own; the
+Configure the optional recommendation scoring step. It is off by default and adds no network activity of its own. The
 scorer is a plugin. See the [Recommendation Scoring Guide](../guides/recommendation-scoring.md) for behavior and data
 handling.
 
@@ -245,7 +245,7 @@ trusted.
 `cost.history.pulumi_cloud.enabled` accepts YAML/JSON booleans `false` and
 `true`, or strings `"false"`, `"auto"`, and `"true"`. Other values are rejected.
 Both global and project configuration may set it. `config get` and the Config
-page display string values; `config set` and the Config page save strings.
+page display string values, and `config set` and the Config page save strings.
 
 ```bash
 finfocus config set cost.history.pulumi_cloud.enabled auto
@@ -254,12 +254,12 @@ finfocus config get cost.history.pulumi_cloud.enabled
 
 The dashboard Config page provides an editable enum row for
 `cost.history.pulumi_cloud.enabled` with the three choices and default `false`.
-Overview and web cost views use stored history; they never import from Cloud.
+Overview and web cost views use stored history. They never import from Cloud.
 See the [Resource History Guide](../guides/resource-history.md#pulumi-cloud-update-history-opt-in)
 for import behavior and observation limits.
 
 Pulumi Cloud credentials come from the Pulumi CLI login or
-`PULUMI_ACCESS_TOKEN`; no token config key exists. An environment token override
+`PULUMI_ACCESS_TOKEN`. FinFocus has no token config key. An environment token override
 for a project's `backend.url` requires `PULUMI_BACKEND_URL` to explicitly select
 that backend. Without it, only the token saved for that URL is used.
 
@@ -283,7 +283,7 @@ but the tag-based query logic is deferred to a future milestone.
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `cost.allocation.enabled` | bool | `false` | Will enable tag-based cost attribution fallback. The configuration is validated and stored now; tag-based query logic will be applied in a future milestone. |
+| `cost.allocation.enabled` | bool | `false` | Will enable tag-based cost attribution fallback. The configuration is validated and stored now. Tag-based query logic will be applied in a future milestone. |
 | `cost.allocation.tags` | string list | `[]` | Tag keys that will be used for billing API queries (e.g., `pulumi:project`, `aws:createdBy`). Each key must be non-empty and at most 128 characters. Validated on load but not yet applied for attribution. |
 
 #### Example: Allocation Configuration
@@ -384,10 +384,10 @@ Each destination is sent only in runs with `--notify` or `FINFOCUS_NOTIFY=true`.
 | `url`     | string | -       | **Required**. `https://` URL with a host, or `${FINFOCUS_NOTIFY_*}` references.    |
 | `channel` | string | -       | Slack only. Channel override sent with the message.                                |
 | `method`  | string | `POST`  | Webhook only. `POST` or `PUT`.                                                     |
-| `headers` | object | -       | Webhook only. Extra request headers; values may use `${FINFOCUS_NOTIFY_*}`.        |
+| `headers` | object | -       | Webhook only. Extra request headers. Values may use `${FINFOCUS_NOTIFY_*}`.        |
 
 Only variables named `FINFOCUS_NOTIFY_*` expand, and only in the global config.
-A project config destination must use literal values; validation rejects any
+A project config destination must use literal values. Validation rejects any
 `${...}` there. `config get` and `config list` show `url` and header values as
 `[REDACTED]` unless the value is a single `${NAME}` reference. See
 [Budget Notifications](../guides/budgets.md#budget-notifications).

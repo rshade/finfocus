@@ -31,7 +31,7 @@ finfocus --web [--port N] [--no-browser] [--pulumi-json FILE] [--pulumi-state FI
   (the workspace's selected stack when `--stack` is absent) and addresses stay
   `#/<view>`. `--pulumi-json`, `--pulumi-state`, and Terraform show no tab bar.
 - `--allowed-host`, `--trusted-proxy`, and `--allowed-user` serve the dashboard
-  behind an HTTPS proxy on the same machine; see
+  behind an HTTPS proxy on the same machine. See
   [Serve behind a proxy](../guides/web-ui.md#serve-behind-a-proxy).
 
 The flag table, with defaults, is in the
@@ -46,7 +46,7 @@ The flag table, with defaults, is in the
 
 Unless `--no-browser` is set, FinFocus opens the URL with the platform opener
 (`open` on macOS, `rundll32` on Windows, `xdg-open` elsewhere). A failure to
-start the opener is logged as a warning; the server keeps running.
+start the opener is logged as a warning. The server keeps running.
 
 ## Exit codes
 
@@ -63,7 +63,7 @@ The header links to nine views, and a tenth, Logs, when you turn it on. Each has
 
 | View | Fragment | Shows |
 | --- | --- | --- |
-| Overview | `#/overview` | Loading checklist; resource table (Resource, Type, Status, Actual MTD, Projected, Delta, Drift%, Recs, Warn); totals; budget health; resource details |
+| Overview | `#/overview` | Loading checklist. Resource table (Resource, Type, Status, Actual MTD, Projected, Delta, Drift%, Recs, Warn). Totals, budget health, and resource details. |
 | Cost | `#/cost` | Actual costs, summary with provider shares and carbon equivalencies when plugins supply them, trends when history is available |
 | Anomalies | `#/anomalies` | Resources whose month-to-date run-rate has diverged from the projected month: resource, type, period, baseline, observed, deviation, drift %, and currency, with the count of resources considered |
 | Recommendations | `#/recommendations` | Recommendation counts, savings, actions, descriptions, and scorer signals when scoring is configured |
@@ -80,9 +80,9 @@ The header links to nine views, and a tenth, Logs, when you turn it on. Each has
 | --- | --- |
 | Filter | Filters resources by name or type. `Escape` in the box clears it. |
 | **Sort** | Cycles the sort field: Cost, Name, Type, Delta. |
-| **Run preview** | Runs `pulumi preview` on demand and applies pending changes. One preview runs at a time; elapsed time is shown while it runs. |
+| **Run preview** | Runs `pulumi preview` on demand and applies pending changes. One preview runs at a time. Elapsed time is shown while it runs. |
 | Cluster expand/collapse | Expands or collapses a Kubernetes cluster row. |
-| Resource row | Opens details: actual and projected breakdowns, current and after-change cost impact, cost drift, property changes, blast radius (dependents with count, monthly total and what the total leaves out; each dependent opens its own detail, with a **Back to** button), recommendations, budget status. |
+| Resource row | Opens details: actual and projected breakdowns, current and after-change cost impact, cost drift, property changes, blast radius (dependents with count, monthly total, and what the total leaves out), recommendations, and budget status. Each blast-radius dependent opens its own detail, with a **Back to** button. |
 | **Previous** / **Next** | Pages through large tables. |
 
 When a stack mixes currencies, resource rows stay visible and the totals show
@@ -132,14 +132,14 @@ report**, because each query launches the `aws-ce` plugin and calls AWS.
 | Control | Effect |
 | --- | --- |
 | Start, End | First-of-month UTC dates in `YYYY-MM-DD`. The end date is exclusive. |
-| Accounting method, Scope | Market-based or location-based; total, scope 1, 2, or 3. |
+| Accounting method, Scope | The method is market-based or location-based. The scope is total, scope 1, 2, or 3. |
 | Accounts, Regions, Services | Optional comma-separated filters. |
 
 The total is the sum of the returned available records, calculated by the
 server. A record with no value shows **Missing**, which differs from an
 explicit `0`. A report with no records keeps the query you ran and states that
 the total is unavailable, not zero. A failed query clears earlier results and
-shows a fixed message; a disabled provider names the setting that enables it.
+shows a fixed message. A disabled provider names the setting that enables it.
 
 ### Anomalies
 
@@ -165,8 +165,8 @@ forecast**.
 | Months ahead | 1 to 36. The table starts at the current month. |
 | Model | Plugin growth (`--model growth`) or Statistical (`--model arima`). |
 | Growth type, Growth rate | The same as `--growth-type` and `--growth-rate`. |
-| Growth cap, Steps | The same as `--growth-cap` and `--step`; steps are comma-separated `DATE=AMOUNT`. |
-| Spend CSV, Confidence, Exclude ranges | Shown for the statistical model. The browser reads the chosen file and sends its text; the server never opens a path from the page. Ranges are comma-separated `FROM:TO`. |
+| Growth cap, Steps | The same as `--growth-cap` and `--step`. Steps are comma-separated `DATE=AMOUNT`. |
+| Spend CSV, Confidence, Exclude ranges | Shown for the statistical model. The browser reads the chosen file and sends its text. The server never opens a path from the page. Ranges are comma-separated `FROM:TO`. |
 | Include cost history | Off is `--no-history`. |
 
 For the statistical model, the table has one column per monthly series: the
@@ -198,7 +198,7 @@ without those rows.
 | Control | Effect |
 | --- | --- |
 | Edit tier | Selects the project or global `config.hujson` to edit. Project is disabled when no project directory resolves. |
-| Setting editor | Changes one known setting. A secret field starts empty; leaving it blank keeps the stored secret. |
+| Setting editor | Changes one known setting. A secret field starts empty. Leaving it blank keeps the stored secret. |
 | Remove | Drops that key from the selected tier only. |
 | **Review changes** | Asks the server for a before/after preview. The preview writes nothing. |
 | **Confirm** | Writes the previewed changes to the selected file. |
@@ -220,7 +220,7 @@ running session keeps its startup configuration.
 | Progress | Shows the current phase and, while downloading, bytes received and the total when the host reports one. |
 | **Validate** | Checks the installed files and that the plugin process starts. A failure stays on the page with the reason. |
 | Settings tier | Selects the project or global `config.hujson`, the same files as Config. |
-| Setting editor | Edits one plugin setting. A secret field starts empty; leaving it blank keeps the stored secret. When ESC supplies the effective value, the Status cell reads `from ESC (<reference>)` and the help text names that environment. The page never shows the variable's value. |
+| Setting editor | Edits one plugin setting. A secret field starts empty. Leaving it blank keeps the stored secret. When ESC supplies the effective value, the Status cell reads `from ESC (<reference>)` and the help text names that environment. The page never shows the variable's value. |
 | **Review changes** / **Confirm** | Previews, then writes, through the same configuration writer as Config. |
 | Save notice | Saved settings apply the next time that plugin is launched. |
 
@@ -238,7 +238,7 @@ and nothing is captured. `GET /api/logs/status` still answers `200` with
 
 | Setting | Effect |
 | --- | --- |
-| `FINFOCUS_WEB_LOGS` | `1` or `true` turns the view on; `0` or `false` turns it off. Any other non-empty value is a validation error (exit 2) when the dashboard starts. |
+| `FINFOCUS_WEB_LOGS` | `1` or `true` turns the view on, and `0` or `false` turns it off. Any other non-empty value is a validation error (exit 2) when the dashboard starts. |
 | `web.logs.enabled` | `true` turns the view on in `config.hujson`. Set it with `finfocus config set web.logs.enabled true`. |
 
 The environment variable wins over the configuration key. With neither set,
@@ -255,7 +255,7 @@ the initial load are already there when you open the view.
 | **Regex** | Reads the filter as a regular expression. An invalid expression is reported next to the box and the previous result stays. |
 | **Pause** / **Resume** | Stops following the newest line. The status line counts lines that arrive while paused. |
 | **Clear** | Empties the view. The server buffer is not cleared. |
-| **Download NDJSON** | Saves the rows shown, after filters, as `logs-<timestamp>.ndjson`. The browser builds the file; there is no download endpoint. |
+| **Download NDJSON** | Saves the rows shown, after filters, as `logs-<timestamp>.ndjson`. The browser builds the file. There is no download endpoint. |
 
 The status line reads `Showing N of M lines`. While paused it adds
 `K new lines while paused`, with the singular when the count is one. When the
@@ -319,14 +319,14 @@ same engine code path as the CLI flags.
 With two or more stacks the header shows the active stack's name and a tab bar
 between the title and the view links. Each tab is one stack, in the order you
 gave. Every view (Overview, Cost, Recommendations, and the rest) shows only the
-selected stack's data; nothing is combined across stacks. The address is
-`#/s/<stack>/<view>`; an address with no stack, or an unknown one, opens the
+selected stack's data, with nothing combined across stacks. The address is
+`#/s/<stack>/<view>`. An address with no stack, or an unknown one, opens the
 first stack.
 
 A stack starts loading the first time its tab is selected, so only the stacks
 you open run plugins. Leaving a tab ends its live updates, and returning to it
 shows what it already loaded. A tab shows its state in text and in its
-accessible name; `failed` and `locked` also carry a warning sign:
+accessible name. The `failed` and `locked` states also carry a warning sign:
 
 | Marker | Meaning |
 | --- | --- |
@@ -352,7 +352,7 @@ failed to load says so above any view but Overview and links to Overview.
 | `Tab` / `Shift+Tab` | Move between controls |
 | `Enter` / `Space` | Activate the focused button |
 | `Enter` in an estimate value, or `Tab` out of an edited one | Recalculate |
-| `Escape` | Close the open detail panel or dialog; in the overview filter box, clear the filter |
+| `Escape` | Close the open detail panel or dialog. In the overview filter box, clear the filter |
 
 Closing a detail view returns focus to the control that opened it. Light and
 dark palettes follow the browser's `prefers-color-scheme` setting.
@@ -377,7 +377,7 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST` without `Origin` | 403 | `forbidden` | `origin header required` |
 | `POST` whose `Content-Type` is not `application/json` | 415 | `unsupported_media_type` | `Content-Type must be application/json` |
 | `GET /api/overview/resource?urn=<urn>` | 200 | - | Row details plus `blastRadius`: `available`, `dependents` (each with `depth`, `via`, `status`, `monthlyCost`, `priced`, `component`), `count`, `monthlyTotal` (omitted when `mixedCurrency`), `currency` and `leftOut` (`deleting`, `unpriced`, `unresolved`). Check `available` first. |
-| `GET /api/overview/anomalies` | 200 | - | The same list as `finfocus cost anomalies --output json`, read from the session's overview rows and the session stack's stored daily actuals with no new pricing run: `considered` and `anomalies` (`resource`, `type`, `period`, `baseline`, `observed`, `deviation`, `percentDrift`, `severity`, `method`, `currency`, and `baselineWindow` on `method: robust-median` rows). An `anomalies` item's `method` is `drift` (run-rate divergence) or `robust-median` (the most recent complete day against the median of the resource's own 14-or-more earlier days). An empty `anomalies` array with a nonzero `considered` means nothing qualified. Until enrichment finishes the answer is 503 `not_ready`. Each item also carries a `display` object (`baseline`, `observed`, `deviation`, `drift`, `period`) and the body a `summary` count line; the page shows those strings. |
+| `GET /api/overview/anomalies` | 200 | - | The same list as `finfocus cost anomalies --output json`, read from the session's overview rows and the session stack's stored daily actuals with no new pricing run: `considered` and `anomalies` (`resource`, `type`, `period`, `baseline`, `observed`, `deviation`, `percentDrift`, `severity`, `method`, `currency`, and `baselineWindow` on `method: robust-median` rows). An `anomalies` item's `method` is `drift` (run-rate divergence) or `robust-median` (the most recent complete day against the median of the resource's own 14-or-more earlier days). An empty `anomalies` array with a nonzero `considered` means nothing qualified. Until enrichment finishes the answer is 503 `not_ready`. Each item also carries a `display` object (`baseline`, `observed`, `deviation`, `drift`, `period`) and the body a `summary` count line. The page shows those strings. |
 | `GET /api/stacks` | 200 | - | The registered stacks in order, `{"stacks":[{"name","state"}]}`. `state` is `idle`, `loading`, `locked`, `ready`, or `failed`. An empty list with no stacks registered. Root only: it does not exist under `/s/<stack>/`. |
 | `POST /api/stacks/{name}/activate` | 202 | - | Starts that stack the first time and answers `{"name","state"}`. Repeating it changes nothing. Root only. |
 | `POST /api/stacks/{name}/activate` for a name that is not registered | 404 | `not_found` | `unknown stack` |
@@ -405,19 +405,19 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `GET /api/recommendations/history` with no id | 400 | `invalid_query` | `recommendation id required` |
 | `GET /api/recommendations/history` for an id that is not in the most recent list | 404 | `not_found` | `recommendation not found` |
 | Recommendation history lookup failed | 502 | `history_unavailable` | `recommendation history unavailable` |
-| `POST /api/forecast/query` | 200 | - | The `cost forecast --output json` document for the session stack, plus `display` strings. The body takes `months`, `growthType`, `growthRate` (text), `noHistory`, `model`, `spendHistory` (the CSV text, not a path), `confidence`, `growthCap`, `steps`, and `exclude` (each in the flag's syntax); omitted fields use the CLI defaults. |
+| `POST /api/forecast/query` | 200 | - | The `cost forecast --output json` document for the session stack, plus `display` strings. The body takes `months`, `growthType`, `growthRate` (text), `noHistory`, `model`, `spendHistory` (the CSV text, not a path), `confidence`, `growthCap`, `steps`, and `exclude` (each in the flag's syntax). Omitted fields use the CLI defaults. |
 | `POST /api/forecast/query` with invalid months, growth, model, spend CSV, or driver | 400 | `invalid_forecast` | The message `cost forecast` prints for the same flags. |
 | `POST /api/forecast/query` when no resource was priced, or priced resources use two currencies | 422 | `no_forecast` | The message `cost forecast` prints, such as `no cost data available`. |
 | `POST /api/forecast/query` before the session has loaded | 503 | `not_ready` | `forecast data is loading` |
 | `POST /api/forecast/query` whose pricing fails | 502 | `forecast_unavailable` | `forecast data unavailable` |
 | `GET /api/logs/status` | 200 | - | `enabled`, `capacity`, `retained`, `dropped`, and `sources` (each with `name` and `kind`, `core` or `plugin`). |
 | `GET /api/logs/status` while web logs are off | 200 | - | `enabled` is false. `capacity`, `retained`, and `dropped` are 0. `sources` is an empty list. |
-| `GET /api/logs/stream` | 200 | - | Server-sent events: `snapshot` (`entries`, `sources`, `dropped`, `capacity`), then `log` for each new entry, and `gap` (`missed`) when entries were lost between a reconnect and its replay. Each frame's `id` is the entry's `seq`; send `Last-Event-ID` to resume. A comment line is sent every 15 seconds. |
+| `GET /api/logs/stream` | 200 | - | Server-sent events: `snapshot` (`entries`, `sources`, `dropped`, `capacity`), then `log` for each new entry, and `gap` (`missed`) when entries were lost between a reconnect and its replay. Each frame's `id` is the entry's `seq`. Send `Last-Event-ID` to resume. A comment line is sent every 15 seconds. |
 | `GET /api/logs/stream` while web logs are off | 404 | `not_found` | `unknown path` |
 | `/api/logs/status` with a method other than `GET` | 405 | `method_not_allowed` | `GET only`. This applies whether or not web logs are on. |
 | `/api/logs/stream` with a method other than `GET`, while web logs are on | 405 | `method_not_allowed` | `GET only`. While web logs are off the route is not registered, so the response is `404` `not_found`. |
 | `GET /api/history/view` | 200 | - | The `cost history view --output json` document for the session stack (`stack`, `snapshots`, `annotations`, `currency_warning`), plus `status: "ok"`, `budget` when a global budget is set, and `display` strings. Optional `from` and `to` (`YYYY-MM-DD` or RFC 3339), `currency`, and `strict` (`true` or `false`) work like the flags. |
-| `GET /api/history/diff?from=<selector>` | 200 | - | The `cost history diff --output json` document, plus `status: "ok"` and `display` strings. `from` and `to` take `v35` or `YYYY-MM-DD`; an empty `to` is the newest snapshot. `threshold` hides changes at or below that monthly amount. |
+| `GET /api/history/diff?from=<selector>` | 200 | - | The `cost history diff --output json` document, plus `status: "ok"` and `display` strings. `from` and `to` take `v35` or `YYYY-MM-DD`. An empty `to` is the newest snapshot. `threshold` hides changes at or below that monthly amount. |
 | `GET /api/history/resource?id=<id>` | 200 | - | One resource's stored series, the points the terminal detail view loads: `status: "ok"`, `id`, `points` (`timestamp`, `amount`, `currency`), and `display.points`. |
 | A history request for a stack that was never collected, a session with no stack, or a diff over a database with no snapshots | 200 | - | `{"status": "no_history"}`, plus `id` for `/api/history/resource`. Run `finfocus cost history collect` to record history. |
 | A history request with a bad date, reversed range, missing `from`, negative threshold, unknown or malformed selector, or `strict=true` over mixed currencies | 400 | `invalid_history_query` | The message `cost history view` or `diff` prints for the same flags. |
@@ -449,7 +449,7 @@ until the server stops.
   update, remove, or settings save.
 - The existing dismissal store is read so earlier decisions are honored.
 - The cost history store is read only. The dashboard does not collect,
-  prune, or export history; run `finfocus cost history collect` for that.
+  prune, or export history. Run `finfocus cost history collect` for that.
 - No browser-specific store is added. Missing local stores do not prevent
   launch.
-- Pages load only from the local server; nothing comes from a CDN.
+- Pages load only from the local server, never from a CDN.

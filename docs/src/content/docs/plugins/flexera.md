@@ -98,7 +98,7 @@ Any other type is declined with `unsupported resource type`.
 - **Billing Centers Required**: Every call sends the configured billing centers.
   The plugin does not take a billing center as a per-request filter.
 - **Forecast Source**: A projected cost can come from a linear extrapolation
-  instead of the Flexera forecast report; check `billing_detail`.
+  instead of the Flexera forecast report. Check `billing_detail`.
 
 See the
 [plugin README](https://github.com/rshade/finfocus-plugin-flexera#readme)

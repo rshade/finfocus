@@ -29,12 +29,12 @@ RPCs.
 | RPC | Purpose |
 |-----|---------|
 | `Handshake` | Completes the Pulumi analyzer handshake |
-| `ConfigureStack` | Receives stack and project context; clears per-resource cost cache |
-| `Analyze` | Receives a single resource; calculates and caches its projected cost |
-| `AnalyzeStack` | Receives all resources; aggregates cached costs and emits summary diagnostics |
+| `ConfigureStack` | Receives stack and project context and clears the per-resource cost cache |
+| `Analyze` | Receives a single resource, then calculates and caches its projected cost |
+| `AnalyzeStack` | Receives all resources, then aggregates cached costs and emits summary diagnostics |
 | `GetAnalyzerInfo` | Returns analyzer identity and active policy list |
 | `GetPluginInfo` | Returns plugin version metadata |
-| `Cancel` | Accepts a cancellation request (no-op; Pulumi always continues) |
+| `Cancel` | Accepts a cancellation request (a no-op, since Pulumi always continues) |
 
 Note: `Analyze` is the per-resource RPC. `AnalyzeStack` fires once at the end of
 evaluation with the complete stack. Both are required by the protocol.
@@ -166,7 +166,7 @@ skipped when:
 - All resources failed cost calculation (no valid total is available).
 
 The threshold is configured in `config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 analyzer:

@@ -46,10 +46,10 @@ They are defined on the root command only: no subcommand inherits them, so
 `--web` serves the browser-based cost dashboard on localhost (127.0.0.1) and
 prints a session URL of the form `http://127.0.0.1:<port>/?token=<hex>`. Run
 it from a Pulumi or Terraform-compatible project directory. With no source
-flags, Pulumi projects load their stack and state; Terraform projects generate
+flags, Pulumi projects load their stack and state. Terraform projects generate
 a plan using OpenTofu (`tofu`). Both use the same overview and pricing engine.
 Saved `--terraform-state` and `--terraform-plan` inputs are available on the
-`overview` CLI command; see [overview](#overview).
+`overview` CLI command. See [overview](#overview).
 `--project-dir` keeps its existing meaning (config resolution) and does not
 change where project detection looks.
 
@@ -64,7 +64,7 @@ opens one tab per stack (Pulumi projects only).
 
 For tasks, see [Use the browser dashboard](../guides/web-ui.md). Views,
 controls, exit codes, and HTTP behavior are in the
-[Web UI reference](web-ui.md); the security model is explained in
+[Web UI reference](web-ui.md). The security model is explained in
 [Web UI design](../architecture/web-ui.md).
 
 For `--mcp`, see the [MCP guide](../guides/mcp.md).
@@ -118,19 +118,19 @@ breakdowns continue to describe the plan total.
 
 | JSON path | Meaning |
 | --- | --- |
-| `finfocus.summary.totalMonthly`, `finfocus.diff.totalAfter` | Plan total; budget evaluation uses this value. |
+| `finfocus.summary.totalMonthly`, `finfocus.diff.totalAfter` | Plan total. Budget evaluation uses this value. |
 | `finfocus.emptyPlan` | True when the plan contains no priceable resources. |
 | `finfocus.stack.totalMonthly`, `finfocus.stack.currency` | Stack total and currency. |
 | `finfocus.stack.resources` | Number of resources covered by the stack total. |
 | `finfocus.stack.complete` | Whether stack state was read successfully. |
 | `finfocus.stack.incompleteReason` | When incomplete: `not_requested`, `backend_unreachable`, `passphrase_required`, or `read_failed`. Omitted when complete. |
 | `finfocus.stack.omittedUnchanged` | Number of unchanged resources omitted by the preview's change summary. Omitted when zero. |
-| `finfocus.stack.unchanged[]` | State-added resources, with `resourceType`, `resourceId`, `monthly`, and `currency`; an unpriced resource can carry `error`. Omitted when empty. |
+| `finfocus.stack.unchanged[]` | State-added resources, with `resourceType`, `resourceId`, `monthly`, and `currency`. An unpriced resource can carry `error`. Omitted when empty. |
 
 When state is unavailable, the stack total equals the plan total,
 `stack.complete` is false, and `stack.unchanged` is omitted. Notices on stderr
 report safe reason categories without backend details. For a saved preview
-without state, a notice reports any known omitted count; use
+without state, a notice reports any known omitted count. Use
 `pulumi preview --json --show-sames` or `finfocus overview` to see those resources.
 A preview that disagrees with state produces a warning and takes precedence.
 A saved preview of a different stack or project than the surrounding project is
@@ -144,7 +144,7 @@ complete, stderr also carries the same "No changes" summary the table prints.
 
 FinFocus invokes only the MPL-2.0 OpenTofu `tofu` executable. The
 `--terraform-plan` and `--terraform-state` names describe compatible input
-formats; FinFocus does not bundle or invoke Terraform core.
+formats. FinFocus does not bundle or invoke Terraform core.
 
 In a directory whose nearer marker is a `.tf` or `.tf.json` file, `cost projected`
 runs `tofu plan` and prices
@@ -160,7 +160,7 @@ changes, whether it was planned automatically or read with `--terraform-plan`.
 
 | Command | JSON on stdout | NDJSON on stdout |
 | --- | --- | --- |
-| `cost projected` | `finfocus` document with `emptyPlan: true`, `resources: []`, and zero `summary` and `diff` totals; no `stack` object | No lines |
+| `cost projected` | `finfocus` document with `emptyPlan: true`, `resources: []`, and zero `summary` and `diff` totals, with no `stack` object | No lines |
 | `cost recommendations` | Zero `summary`, `recommendations: []` | One `summary` line |
 | `cost forecast` | `currency`, `months`, and `series: []` | One `meta` line |
 | `cost estimate` | `results: []`, `totalChange: 0` | No lines |
@@ -199,7 +199,7 @@ Caveats:
   state file, not globally across state files.
 - Type resolution to Pulumi tokens requires a plugin advertising the
   `resolve_resource_types` capability. Without it, FinFocus falls back to raw
-  Terraform types and mechanical property conversion; resources that cannot be
+  Terraform types and mechanical property conversion. Resources that cannot be
   priced show `$0.00 / no cost data`. When no loaded plugin advertises the
   capability (it requires a plugin built on finfocus-spec v0.6.1 or later),
   FinFocus prints one warning to stderr and still exits 0.
@@ -219,7 +219,7 @@ This root flag imports historical resource identities without calculating costs
 or starting plugins. It requires `cost.history.pulumi_cloud.enabled` set to
 `auto` or `true` and an enabled resource history store. It cannot be combined
 with `--web`, `--mcp`, or a subcommand. Root `--from` and `--to` require the
-import flag; dates accept `YYYY-MM-DD` or RFC3339. `--to` defaults to now.
+import flag. Dates accept `YYYY-MM-DD` or RFC3339. `--to` defaults to now.
 `--from` defaults to the resolved retention cutoff and earlier dates are
 clamped to it. Retention uses `FINFOCUS_HISTORY_RETENTION_DAYS`, then
 `cost.history.retention_days`, then 90 days.
@@ -241,7 +241,7 @@ imported, and makes no request or history write.
 
 `cost actual --verbose` prints the same import counters to stderr. It does not
 change stdout. The default `false` mode makes no requests. `auto` falls back
-when Cloud history is unavailable; a partial import emits a warning and
+when Cloud history is unavailable. A partial import emits a warning and
 incomplete status. `true` exits 1 before totals if import fails, or exits 2
 for a backend that is not Pulumi Cloud or disabled resource history.
 
@@ -298,10 +298,10 @@ missing daily series stores nothing for that resource. The command stores only
 what plugins report: it never estimates a day from state, so a reported $0 day
 is stored as $0 and a day the plugin did not send stays empty. A resource that
 every plugin declines counts as skipped. A bucket with no currency is stored as
-USD; a named currency is its own series. With `--dry-run` the command prices the
+USD. A named currency is its own series. With `--dry-run` the command prices the
 stack and reports what it would store, but writes and prunes nothing. A bucket
 whose stated charge period spans more than one UTC day, or starts on another day
-than its timestamp, is not a daily amount and is left out; resources sharing a
+than its timestamp, is not a daily amount and is left out. Resources sharing a
 URN are summed per day. An input whose URNs name another stack or project than
 the target exits 2 before anything is priced or written. The command is not an
 MCP tool. With `cost.history.retention.auto_prune` and `max_age_days` set,
@@ -310,7 +310,7 @@ points older than that many days are deleted.
 
 ### cost history export
 
-`--format` is the root `--format` flag; `export` also accepts `csv` and
+`--format` is the root `--format` flag. `export` also accepts `csv` and
 `ndjson` there. `json` is one document with snapshots and annotations. `csv`
 has a header and one row per snapshot. `ndjson` is one snapshot per line.
 `cost projected` and `cost actual` add a Trend column when that stack's history
@@ -326,8 +326,8 @@ In a detected Terraform directory, omit input flags to run a plan. In a Pulumi
 project, omit input flags to load the live inventory from state and preview,
 including unchanged deployed resources and preview-only creates. Use `--stack`
 to select a Pulumi stack. The four infrastructure input flags are mutually
-exclusive. Saved plan files must use format version 1 and be at most 32 MiB;
-invalid or missing files exit 2. Planning failures exit 1 with an actionable hint.
+exclusive. Saved plan files must use format version 1 and be at most 32 MiB.
+Invalid or missing files exit 2. Planning failures exit 1 with an actionable hint.
 FinFocus does not run init, log in, or store credentials.
 
 `dismiss` and `snooze` never plan, and both reject `--terraform-plan`. Their
@@ -338,7 +338,7 @@ resource, action, description, savings, and the spot label.
 the plugin stops returning it, and the overview counts it in the Recs column
 (`3(-1)`). The lookup is best effort. Without `--pulumi-json`, or when no plugin
 returns the id, the recommendation is still dismissed and records no new
-details; details saved by an earlier dismissal of the same id are kept.
+details. Details saved by an earlier dismissal of the same id are kept.
 
 `--filter` also accepts score expressions such as `risk<=0.3`, and `--sort` accepts `risk`, `false_positive`,
 `worth_acting`, `priority` and `insufficient_evidence`. These require the optional scoring step, which is off by default.
@@ -355,7 +355,7 @@ output names the failed plugin:
   instead of a bare `No recommendations available.`
 - The interactive view lists failed plugins under `PLUGIN ERRORS`, below the
   summary.
-- JSON carries `errors`; NDJSON carries `errors` on its first (`summary`) line.
+- JSON carries `errors`, and NDJSON carries `errors` on its first (`summary`) line.
   Both are absent when every plugin answered.
 
 The exit code stays 0, as it does for `cost projected` with plugin errors. A
@@ -451,15 +451,15 @@ The command supports two mutually exclusive modes:
   `tofu show -json` output
 - In a Terraform directory, omit input flags to run a plan
 - In a Pulumi project, omit input flags to load the live inventory from state
-  and preview; use `--stack` to select a stack. Unchanged deployed resources
+  and preview. Use `--stack` to select a stack. Unchanged deployed resources
   and preview-only creates are available to `--modify` selectors
 - Use `--modify selector:key=value` to select a resource by ID, logical name,
   or type. A Terraform address, such as `aws_instance.web`, is its resource ID
 
 The four infrastructure input flags are mutually exclusive. Saved plan input
-must use format version 1 and be at most 32 MiB; invalid or missing files exit 2.
+must use format version 1 and be at most 32 MiB. Invalid or missing files exit 2.
 Planning failures exit 1. Initialize the directory and configure Terraform access
-before planning; FinFocus does not perform those steps.
+before planning. FinFocus does not perform those steps.
 
 ```bash
 finfocus cost estimate --terraform-plan tfplan.json \
@@ -516,10 +516,10 @@ global initialization even inside a project. Flags and examples:
 Set a configuration value using dot notation. Flags and examples:
 [`finfocus config set`](./cli/finfocus_config_set.md). Writes the global
 `config.hujson` (`~/.finfocus/` unless `FINFOCUS_HOME` or `PULUMI_HOME` is
-set), even inside a Pulumi project; edit a project's `.finfocus/config.hujson`
+set), even inside a Pulumi project. Edit a project's `.finfocus/config.hujson`
 to set a value for that project only. A key that `config set` does not
 support, such as `cost.history.enabled`, is rejected with the settable keys in
-its section; edit `config.hujson` directly for it.
+its section. Edit `config.hujson` directly for it.
 
 A project `config.hujson` replaces a whole global section, so a value written
 for a key in a section the project defines does not apply in that project. For
@@ -537,7 +537,7 @@ A `plugins.<name>.<key>` value reaches the plugin through the variable the
 plugin advertises for that key. A key the plugin does not advertise is passed
 as `FINFOCUS_PLUGIN_<NAME>_<KEY>`, in uppercase with hyphens as underscores:
 for example, `plugins.aws-ce.<key>` becomes `FINFOCUS_PLUGIN_AWS_CE_<KEY>`.
-The dashboard Plugins page edits the same `plugins.<name>.<key>` settings; see
+The dashboard Plugins page edits the same `plugins.<name>.<key>` settings. See
 the [Web UI guide](../guides/web-ui.md).
 
 ## config get
@@ -597,7 +597,7 @@ After generating the project, `plugin init` installs the
 `finfocus-plugin-dev` and `finfocus-plugin-upgrade` agent skills into
 `.agents/skills/` and `.claude/skills/` with `npx skills add`, and records
 them in `skills-lock.json`. A release build installs the skills from its own
-tag, so they match the SDK version it scaffolds; a development build uses
+tag, so they match the SDK version it scaffolds. A development build uses
 `main`. The step is best-effort: without Node or network access, init still
 succeeds and prints the command to run later. `--offline` and `--no-skill`
 skip it.
@@ -606,7 +606,7 @@ skip it.
 
 Install a FinFocus plugin from a registry or URL. Flags and examples:
 [`finfocus plugin install`](./cli/finfocus_plugin_install.md). Pin a version
-with `<plugin-name>@<version>`; there is no `--version` flag.
+with `<plugin-name>@<version>`. There is no `--version` flag.
 
 Plugins install into `plugins/` under the FinFocus home: `$FINFOCUS_HOME`,
 then `$PULUMI_HOME/finfocus`, then `~/.finfocus`. `plugin update` and
@@ -628,7 +628,7 @@ and the usual version fallback applies: an interactive prompt, or
 
 Update an installed FinFocus plugin. Flags and examples:
 [`finfocus plugin update`](./cli/finfocus_plugin_update.md).
-`plugin update` takes one plugin name; there is no option to update every
+`plugin update` takes one plugin name. There is no option to update every
 installed plugin at once.
 
 ## plugin upgrade
@@ -851,8 +851,8 @@ finfocus carbon actual --start 2026-01-01 --end 2026-03-01 \
 ```
 
 `--start` is an inclusive and `--end` an exclusive UTC month boundary. The
-total covers returned records only. Missing reports have no numeric total;
-explicit zero values remain zero. See [historical AWS carbon reporting](../plugins/historical-carbon.md)
+total covers returned records only. Missing reports have no numeric total.
+Explicit zero values remain zero. See [historical AWS carbon reporting](../plugins/historical-carbon.md)
 for provenance, permissions, pagination behavior, and authenticated web parity.
 
 ---

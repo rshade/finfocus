@@ -270,11 +270,11 @@ Resources from Pulumi plans are matched to cost data using:
 
 #### OpenCost Plugin
 
-- **Source**: OpenCost or Kubecost allocation API (the `opencost` plugin; set
+- **Source**: OpenCost or Kubecost allocation API (the `opencost` plugin, with
   the `kubecost` profile for Kubecost)
 - **Coverage**: Kubernetes workloads, container costs
 - **Granularity**: Namespace, controller, pod, and node level
-- **Update Frequency**: Each query reads the allocation API; projected cost is
+- **Update Frequency**: Each query reads the allocation API. Projected cost is
   a 30-day trailing average
 
 #### AWS Cost Explorer Plugin

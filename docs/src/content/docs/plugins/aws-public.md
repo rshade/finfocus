@@ -19,8 +19,8 @@ for billed spend.
 
 ## What it prices
 
-- **Compute**: EC2 instances (on-demand; Linux, Windows, RHEL or SUSE; shared,
-  dedicated or host tenancy), Auto Scaling groups, Lambda, and ECS services on
+- **Compute**: EC2 instances (on-demand pricing for Linux, Windows, RHEL or SUSE, with
+  shared, dedicated or host tenancy), Auto Scaling groups, Lambda, and ECS services on
   Fargate. It also prices EKS pods on Fargate that the `kubernetes` plugin
   reports.
 - **Storage and data**: EBS, S3, EFS, RDS, DynamoDB, and ElastiCache.
@@ -42,10 +42,14 @@ $0. Gateway Load Balancers are reported as unsupported.
   or from `--from` and `--to`. This is not billed spend.
 - **Carbon**: Estimates gCO2e for compute, storage, and database resources: EC2,
   Auto Scaling groups, EBS, S3, EFS, Lambda, RDS, DynamoDB, and ElastiCache.
-- **Recommendations**: Newer instance generations and Graviton for EC2 (not for
-  Windows), RDS and ElastiCache; Redis to Valkey for ElastiCache; gp3 instead of
-  gp2 for EBS; arm64 for Lambda; and S3 and DynamoDB gateway endpoints for NAT
-  Gateways when a data-volume tag is set.
+- **Recommendations**:
+  - Newer instance generations and Graviton for EC2 (not for Windows), RDS,
+    and ElastiCache
+  - Redis to Valkey for ElastiCache
+  - gp3 instead of gp2 for EBS
+  - arm64 for Lambda
+  - S3 and DynamoDB gateway endpoints for NAT Gateways when a data-volume tag
+    is set
 - **No credentials**: Safe to use in CI/CD without secrets.
 
 ## Installation
