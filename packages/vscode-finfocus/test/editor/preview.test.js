@@ -122,6 +122,7 @@ suite('preview', () => {
     const editor = await vscode.window.showTextDocument(scratch());
     await editor.edit((e) => e.insert(new vscode.Position(0, 0), '// s\n'));
     await editor.document.save();
+    await settle(1000); // the file watcher reports the save late on Windows; a run that already started would treat it as a new edit
     await parts.preview.runOnSave(editor.document);
     assert.equal(asked, false, 'on-save never offers to save');
     assert.equal(parts.runner.calls.overview, 2);
