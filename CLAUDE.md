@@ -651,9 +651,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - Budget notifications (`specs/625-budget-alert-notifications/`): stderr only,
   never change stdout or the exit code. Only `${FINFOCUS_NOTIFY_*}` expands,
   and a project-sourced destination with `${` is skipped without a lookup.
-  Sends are HTTPS only, follow no redirects, and time out after 10s. Failure
-  reasons redact every variable value, URL, and secret-looking header, and
-  never include a response body.
+  Slack and webhook deliveries require HTTPS and follow no redirects. Email
+  uses verified STARTTLS or implicit TLS, with plaintext for loopback relays.
+  Deliveries time out after 10s. Failure reasons redact variable values, URLs,
+  secret-looking headers, and SMTP credentials. HTTP bodies and SMTP reply
+  text are discarded.
   `ThresholdStatus.Notifications` is `json:"-"`; masking is display-only
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.

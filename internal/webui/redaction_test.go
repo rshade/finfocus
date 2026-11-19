@@ -205,6 +205,18 @@ func TestBudgetHealthPayloadOmitsNotificationDestinations(t *testing.T) {
 							"Authorization": "Bearer notify-secret-header",
 						},
 					},
+					{
+						Type: config.NotificationTypeEmail,
+						EmailConfig: config.EmailConfig{
+							SMTP: &config.SMTPConfig{
+								Host:     "smtp.internal.example",
+								Username: "smtp-secret-user",
+								Password: "smtp-secret-password",
+							},
+							From: "alerts@example.com",
+							To:   []string{"private-recipient@example.com"},
+						},
+					},
 				},
 			}},
 		},
@@ -220,12 +232,16 @@ func TestBudgetHealthPayloadOmitsNotificationDestinations(t *testing.T) {
 	require.NoError(t, err)
 	out := string(data)
 
-	// No notification destination (webhook URL, Slack channel, header) leaks.
+	// The web budget payload omits notification destinations.
 	assert.NotContains(t, out, "hooks.slack.com")
 	assert.NotContains(t, out, "T0SECRET")
 	assert.NotContains(t, out, "#fin-alerts")
 	assert.NotContains(t, out, "notify.internal.example")
 	assert.NotContains(t, out, "notify-secret-header")
+	assert.NotContains(t, out, "smtp.internal.example")
+	assert.NotContains(t, out, "smtp-secret-user")
+	assert.NotContains(t, out, "smtp-secret-password")
+	assert.NotContains(t, out, "private-recipient@example.com")
 	assert.NotContains(t, out, "notifications")
 
 	// The payload is no wider than the budget shape of

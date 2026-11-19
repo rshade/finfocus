@@ -1,12 +1,15 @@
 package config
 
-import "maps"
+import (
+	"maps"
+	"strings"
+)
 
 // RedactedValue replaces a secret notification value in displayed configuration.
 const RedactedValue = "[REDACTED]"
 
-// MaskedForDisplay returns a copy of c whose notification destination URLs and
-// header values are replaced by RedactedValue, except a value that is exactly
+// MaskedForDisplay returns a copy of c whose notification destination URLs,
+// SMTP credentials, and header values are replaced by RedactedValue, except a value that is exactly
 // one ${NAME} reference, which holds no secret and is shown as written.
 //
 // Use it only for display (config get, config list). Config.Save marshals the
@@ -17,6 +20,9 @@ func (c *Config) MaskedForDisplay() *Config {
 	masked.Cost.Budgets = cloneBudgets(c.Cost.Budgets)
 	forEachDestination(masked.Cost.Budgets, func(_ string, dest *NotificationDestination) {
 		dest.URL = maskNotificationValue(dest.URL)
+		if dest.SMTP != nil {
+			dest.EmailConfig = maskEmailCredentials(&dest.EmailConfig)
+		}
 		if dest.Headers == nil {
 			return
 		}
@@ -28,6 +34,35 @@ func (c *Config) MaskedForDisplay() *Config {
 	})
 	masked.Plugins = maskPlugins(c.Plugins)
 	return &masked
+}
+
+// maskEmailCredentials also masks literal credentials reused in another
+// email field, such as a login that doubles as the From address.
+func maskEmailCredentials(email *EmailConfig) EmailConfig {
+	username, password := email.SMTP.Username, email.SMTP.Password
+	shorter, longer := username, password
+	if len(shorter) > len(longer) {
+		shorter, longer = longer, shorter
+	}
+	var pairs []string
+	for _, credential := range []string{longer, shorter} {
+		if maskNotificationValue(credential) == RedactedValue {
+			pairs = append(pairs, credential, RedactedValue)
+		}
+	}
+	replacer := strings.NewReplacer(pairs...)
+	masked := email.copyValues()
+	for field, value := range masked.values {
+		switch field {
+		case "smtp.username", "smtp.password":
+			*value = maskNotificationValue(*value)
+		default:
+			if !IsSingleNotificationReference(*value) {
+				*value = replacer.Replace(*value)
+			}
+		}
+	}
+	return masked
 }
 
 // maskPlugins copies plugin settings and replaces a non-empty credential value

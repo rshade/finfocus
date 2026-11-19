@@ -172,7 +172,7 @@ func deliveriesFor(alerts []exceededAlert) []notification.Delivery {
 }
 
 // reportDeliveryResults prints one stderr line per dry-run, failed, or skipped
-// delivery and logs failures at WARN. Reasons are already redacted.
+// delivery. HTTP destination failures also go to the structured logger.
 func reportDeliveryResults(cmd *cobra.Command, results []notification.DeliveryResult) {
 	log := logging.FromContext(commandContext(cmd))
 	for _, result := range results {
@@ -187,11 +187,19 @@ func reportDeliveryResults(cmd *cobra.Command, results []notification.DeliveryRe
 				Str("scope", label).
 				Msg("budget notification sent")
 		case notification.OutcomeDryRun:
-			cmd.PrintErrf("dry-run: would notify %s for %s budget, %s%% %s threshold\n",
-				result.Type, label, threshold, result.AlertType)
+			summary := result.RecipientSummary
+			if summary != "" {
+				summary = " (" + summary + ")"
+			}
+			cmd.PrintErrf("dry-run: would notify %s for %s budget, %s%% %s threshold%s\n",
+				result.Type, label, threshold, result.AlertType, summary)
 		case notification.OutcomeFailed, notification.OutcomeSkipped:
 			cmd.PrintErrf("warning: %s notification for %s budget (%s%% %s) %s: %s\n",
 				result.Type, label, threshold, result.AlertType, result.Outcome, result.Reason)
+			// A CLI logger can also write to stderr. Email reports one warning.
+			if result.Type == config.NotificationTypeEmail {
+				continue
+			}
 			log.Warn().
 				Str("component", "cli").
 				Str("operation", "budget_notify").

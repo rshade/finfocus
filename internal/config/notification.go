@@ -17,6 +17,8 @@ const (
 	NotificationTypeSlack NotificationType = "slack"
 	// NotificationTypeWebhook sends the budget.threshold.exceeded JSON event to an HTTPS endpoint.
 	NotificationTypeWebhook NotificationType = "webhook"
+	// NotificationTypeEmail delivers a budget alert through an SMTP relay.
+	NotificationTypeEmail NotificationType = "email"
 )
 
 // NotificationVariablePrefix is the only environment variable prefix that a
@@ -36,7 +38,7 @@ const (
 
 // Notification validation errors.
 var (
-	ErrNotificationTypeInvalid     = errors.New("notification type must be one of: slack, webhook")
+	ErrNotificationTypeInvalid     = errors.New("notification type must be one of: slack, webhook, email")
 	ErrNotificationURLRequired     = errors.New("notification url is required")
 	ErrNotificationHTTPSRequired   = errors.New("HTTPS is required: the url must start with https:// and name a host")
 	ErrNotificationMethodInvalid   = errors.New("notification method must be POST or PUT")
@@ -83,10 +85,12 @@ const (
 // URL and every header value are secrets: they are never logged and are
 // masked by config get and config list.
 type NotificationDestination struct {
-	// Type is "slack" or "webhook".
+	EmailConfig `yaml:",inline"`
+
+	// Type is "slack", "webhook", or "email".
 	Type NotificationType `yaml:"type" json:"type"`
 	// URL is the HTTPS endpoint. It may contain ${FINFOCUS_NOTIFY_*} references.
-	URL string `yaml:"url" json:"url"`
+	URL string `yaml:"url,omitempty" json:"url,omitempty"`
 	// Channel optionally overrides the Slack channel. Slack destinations only.
 	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
 	// Method is POST (default) or PUT. Webhook destinations only.
@@ -131,11 +135,26 @@ func (d NotificationDestination) Validate() error {
 		if err := validateNotificationMethod(d.Method); err != nil {
 			return err
 		}
+	case NotificationTypeEmail:
+		switch {
+		case d.URL != "":
+			return &NotificationFieldError{Field: notificationFieldURL, Err: ErrNotificationFieldNotAllowed}
+		case d.Channel != "":
+			return fieldNotAllowed(notificationFieldChannel, NotificationTypeSlack)
+		case d.Method != "":
+			return fieldNotAllowed(notificationFieldMethod, NotificationTypeWebhook)
+		case len(d.Headers) != 0:
+			return fieldNotAllowed(notificationFieldHeaders, NotificationTypeWebhook)
+		}
+		return d.EmailConfig.validate(true)
 	default:
 		return &NotificationFieldError{
 			Field: notificationFieldType,
 			Err:   fmt.Errorf("%w (got %q)", ErrNotificationTypeInvalid, d.Type),
 		}
+	}
+	if field := d.EmailConfig.firstSetField(); field != "" {
+		return fieldNotAllowed(field, NotificationTypeEmail)
 	}
 	if err := validateNotificationURL(d.URL); err != nil {
 		return err
@@ -281,14 +300,18 @@ func HasNotificationReference(value string) bool {
 	return strings.Contains(value, referenceOpen)
 }
 
-// DestinationHasReference reports whether the URL or any header value of d
-// contains a "${" reference.
+// DestinationHasReference reports whether an expandable field contains a "${" reference.
 func DestinationHasReference(d NotificationDestination) bool {
 	if HasNotificationReference(d.URL) {
 		return true
 	}
 	for _, value := range d.Headers {
 		if HasNotificationReference(value) {
+			return true
+		}
+	}
+	for _, value := range d.EmailConfig.values {
+		if HasNotificationReference(*value) {
 			return true
 		}
 	}
@@ -360,6 +383,11 @@ func projectDestinationErrors(budgets *BudgetsConfig) []ValidationError {
 		for _, name := range names {
 			if HasNotificationReference(dest.Headers[name]) {
 				fields = append(fields, notificationFieldHeaders+"."+name)
+			}
+		}
+		for field, value := range dest.EmailConfig.values {
+			if HasNotificationReference(*value) {
+				fields = append(fields, field)
 			}
 		}
 		for _, field := range fields {
