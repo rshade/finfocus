@@ -316,6 +316,14 @@ finfocus cost history export --stack dev --format json
 finfocus cost history prune --stack dev --older-than 365d --dry-run
 ```
 
+On an interactive terminal, `cost history view` opens a chart of projected
+monthly costs. Use the arrow keys to pan, plus and minus to zoom, and Home or
+End to jump to the first or last checkpoint. Press `s` to split by provider,
+Tab to highlight a provider, and `b` to toggle applicable monthly budget
+thresholds. Triangles mark deployments. Press `d` for the nearest deployment's
+details, `1` through `9` to jump to a deployment, and `q` to quit. Use `--plain`
+to print the chart. Redirected output also prints the chart by default.
+
 `collect-daily` stores one actual-cost amount per resource, per UTC day, and
 per currency in `<project>@<stack>.daily.db`. It doesn't change the projected
 timeline. With no dates, the window is the last 30 complete UTC days. A plugin

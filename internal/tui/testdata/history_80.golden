@@ -1,0 +1,24 @@
+Monthly Cost (USD) — Stack: dev
+2025-03-01  v3  $260/mo
+  277│
+     │                                             ⢀⡠⠒⠉⠒⠤⢄⡀
+239.9│                                          ⢀⠤⠒⠁      ⠈⠑⠒⠤⣀⡀
+     │                                       ⢀⠤⠊⠁              ⠈⠑⠒⠤⣀
+     ├─────────────────────────────────────────────────────────────────────────╴
+184.3│                                 ⣀⠔⠊                               ⠉⠑⠢⢄⣀
+     │                              ⣀⠔⠊                                       ⠉⠒
+     │                           ⡠⠔⠉
+128.6│               ⣀⣀⣀⣀⡠⠤⠤⠤⠔⠒⠒⠉
+     │⣀⣀⡠⠤⠤⠤⠔⠒⠒⠒⠒⠉⠉⠉⠉
+     │
+   73└──────────────────────────────────────────────────────────────────────────
+     Jan 01          Jan 20          Feb 08          Feb 28          Mar 19
+      ▲                                               ▲                        ▲
+Total  Budget $210
+Deployment v3 — 2025-03-01
+Scale database
+Resources  1 update
+Cost  $120 → $260/mo (+$140)
+  aws:rds:Instance  +$140/mo
+←/→ Pan  +/- Zoom  s Providers  Tab Focus  d Detail  b Budget
+1–9 Deployments  Home/End First/Last  q Quit

@@ -467,6 +467,35 @@ func (b *BudgetsConfig) validateProviderBudgets(globalCurrency string) error {
 	return nil
 }
 
+// ProviderBudgetIndex indexes provider budgets by normalized cloud, skipping nil
+// and disabled budgets. When several keys name the same cloud, the cloud's own
+// key ("aws") wins over a package-named one ("aws-native"); otherwise the
+// alphabetically first key wins so the choice does not depend on map order.
+func ProviderBudgetIndex(providers map[string]*ScopedBudget) map[string]*ScopedBudget {
+	names := make([]string, 0, len(providers))
+	for name := range providers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	index := make(map[string]*ScopedBudget, len(providers))
+	canonical := make(map[string]bool, len(providers))
+	for _, name := range names {
+		budget := providers[name]
+		if budget == nil || budget.IsDisabled() {
+			continue
+		}
+		key := resourcetype.NormalizeProvider(name)
+		isCanonical := key == strings.ToLower(strings.TrimSpace(name))
+		if _, exists := index[key]; exists && (canonical[key] || !isCanonical) {
+			continue
+		}
+		index[key] = budget
+		canonical[key] = isCanonical
+	}
+	return index
+}
+
 // providerAliasWarnings warns about provider budget keys that name the same
 // cloud once normalized, such as "aws" and "aws-native". Only one of them is
 // used, so the others would silently never apply.

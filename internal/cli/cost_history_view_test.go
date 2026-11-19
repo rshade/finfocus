@@ -9,6 +9,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/history"
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 func TestView_RendersChart(t *testing.T) {
@@ -227,5 +228,29 @@ func viewSnap(version int, month time.Month, total float64, by map[string]float6
 		ByProvider:   by,
 		ByType:       map[string]float64{},
 		Resources:    []history.CostResource{},
+	}
+}
+
+func TestHistoryInteractiveMode(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		args          []string
+		mode          tui.OutputMode
+		terminalInput bool
+		want          bool
+	}{
+		{name: "terminal", mode: tui.OutputModeInteractive, terminalInput: true, want: true},
+		{name: "redirected input", mode: tui.OutputModeInteractive},
+		{name: "redirected output", mode: tui.OutputModePlain, terminalInput: true},
+		{name: "explicit plain output", mode: tui.OutputModeInteractive, terminalInput: true, args: []string{"--output", "plain"}},
+		{name: "explicit JSON output", mode: tui.OutputModeInteractive, terminalInput: true, args: []string{"--output", "json"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cmd := NewCostHistoryViewCmd()
+			require.NoError(t, cmd.ParseFlags(tc.args))
+			assert.Equal(t, tc.want, historyInteractiveMode(cmd, tc.mode, tc.terminalInput))
+		})
 	}
 }
