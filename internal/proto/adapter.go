@@ -1229,12 +1229,13 @@ func growthTypeLabel(growth pbc.GrowthType) string {
 	}
 }
 
-// resourceBatchError preserves a rate-limit code as a gRPC status so the
-// engine can retry those resources together. Other codes stay plain errors.
+// resourceBatchError keeps a valid gRPC code as a status, so the engine can
+// retry rate-limited resources together and retry an Unavailable resource
+// alone. A code outside the gRPC range stays a plain error.
 func resourceBatchError(resourceType string, resErr *pbc.ResourceError) error {
 	msg := fmt.Sprintf("resource %s: %s (code %d)", resourceType, resErr.GetMessage(), resErr.GetCode())
-	if resErr.GetCode() == int32(codes.ResourceExhausted) {
-		return status.Error(codes.ResourceExhausted, msg)
+	if code := resErr.GetCode(); code > int32(codes.OK) && code <= int32(codes.Unauthenticated) {
+		return status.Error(codes.Code(code), msg)
 	}
 	return errors.New(msg)
 }
@@ -1402,13 +1403,19 @@ func resolveActualCostIdentifiers(
 		cloudID = s
 	}
 
-	// Extract ARN from properties
-	arn = firstNonEmptyProperty(properties, propARNPulumi, propARNTerraform)
+	arn = ActualCostARN(properties)
 
 	// Extract tags from properties (prefer tagsAll for AWS completeness)
 	tags = extractResourceTags(properties)
 
 	return cloudID, arn, tags
+}
+
+// ActualCostARN returns the resource ARN from Pulumi or Terraform properties,
+// or "" when there is none. Unary actual cost sends it as the request arn and
+// an actual batch as the descriptor arn.
+func ActualCostARN(properties map[string]any) string {
+	return firstNonEmptyProperty(properties, propARNPulumi, propARNTerraform)
 }
 
 // firstNonEmptyProperty returns the first non-empty string value among

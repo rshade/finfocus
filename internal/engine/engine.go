@@ -20,7 +20,6 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -1304,97 +1303,15 @@ func (e *Engine) GetActualCostWithOptions(
 
 	batchHandled := make(map[int]*CostResult) // index → result for batch-handled resources
 	// rateLimitedPlugins records a plugin that rate-limited a batch for a
-	// resource. The unary worker must not call that plugin again.
+	// resource. The unary worker must not call that plugin again. Any other
+	// batch failure leaves the resource to the per-resource worker pool.
 	rateLimitedPlugins := make(map[int]string)
-
-	if e.hasBatchCapableClient() {
-		batchGroups := e.groupResourcesByPlugin(ctx, request.Resources, pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL)
-		for _, pb := range batchGroups {
-			if !pb.hasBatch {
-				continue // Non-batch plugins go through per-resource worker pool
-			}
-
-			// Apply adapter filter: skip plugins not matching explicit adapter selection
-			if request.Adapter != "" && pb.plugin.Name != request.Adapter {
-				continue
-			}
-
-			// A batch carries one start, so a resource created inside the
-			// window goes to the per-resource pool, which starts it at its
-			// creation time. The tag filter applies here too.
-			var batchResources []indexedResource
-			for _, ir := range pb.resources {
-				if len(request.Tags) > 0 && !MatchesTags(ir.resource, request.Tags) {
-					continue
-				}
-				if billedFrom, existed := resourceActualStart(ir.resource, request.From, request.To); !existed ||
-					!billedFrom.Equal(request.From) {
-					continue
-				}
-				batchResources = append(batchResources, ir)
-			}
-			if len(batchResources) == 0 {
-				continue
-			}
-
-			log.Debug().
-				Ctx(ctx).
-				Str("component", "engine").
-				Str("operation", "batch_actual_cost").
-				Str("plugin", pb.plugin.Name).
-				Int("resource_count", len(batchResources)).
-				Msg("executing batch actual cost")
-
-			batchResults, batchErr := e.executeBatchForPlugin(
-				ctx, pb.plugin, batchResources,
-				batchOptions{
-					queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL,
-					start:     timestamppb.New(request.From),
-					end:       timestamppb.New(request.To),
-				},
-			)
-			if batchErr != nil && ctx.Err() != nil {
-				break
-			}
-			if batchErr != nil {
-				// Batch-level error: fall back to per-resource worker pool
-				log.Warn().
-					Ctx(ctx).
-					Str("component", "engine").
-					Str("plugin", pb.plugin.Name).
-					Err(batchErr).
-					Int("resource_count", len(pb.resources)).
-					Msg("batch actual cost failed, falling back to per-resource queries")
-				continue
-			}
-
-			for _, br := range batchResults {
-				if br.rateLimited {
-					rateLimitedPlugins[br.index] = pb.plugin.Name
-					continue
-				}
-				if br.skip {
-					log.Warn().
-						Ctx(ctx).
-						Str("component", "engine").
-						Str("resource_type", request.Resources[br.index].Type).
-						Msg("resource type unsupported in batch actual cost, skipping")
-					// Leave unhandled — falls through to per-resource worker pool
-					continue
-				}
-				if br.err != nil {
-					log.Warn().
-						Ctx(ctx).
-						Str("component", "engine").
-						Str("resource_type", request.Resources[br.index].Type).
-						Err(br.err).
-						Msg("per-resource error in batch actual cost result")
-					continue // Leave unhandled for per-resource fallback
-				}
-				if br.actualResult != nil {
-					batchHandled[br.index] = br.actualResult
-				}
-			}
+	for idx, verdict := range e.batchActualCosts(ctx, request) {
+		switch {
+		case verdict.result != nil:
+			batchHandled[idx] = verdict.result
+		case errors.Is(verdict.err, errBatchRateLimited):
+			rateLimitedPlugins[idx] = verdict.plugin
 		}
 	}
 
@@ -1696,6 +1613,9 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 		return &CostResultWithErrors{Results: cached, Errors: []ErrorDetail{}}, nil
 	}
 
+	// A batch verdict stands in for that plugin's unary call in the pool.
+	verdicts := e.batchActualCosts(ctx, request)
+
 	numWorkers := e.getWorkerCount(len(request.Resources))
 	if numWorkers == 0 {
 		return &CostResultWithErrors{}, nil
@@ -1712,15 +1632,11 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 				return
 			}
 
-			resource := j.resource
-
-			// Filter by tags if specified
-			if len(request.Tags) > 0 && !MatchesTags(resource, request.Tags) {
-				resultsChan <- workerResult{index: j.index, result: nil, errors: nil}
+			if len(request.Tags) > 0 && !MatchesTags(j.resource, request.Tags) {
+				resultsChan <- workerResult{index: j.index}
 				continue
 			}
-
-			resourceResult, errors := e.getActualCostForResource(ctx, resource, request)
+			resourceResult, errors := e.getActualCostForResource(ctx, j.resource, request, verdicts[j.index])
 			resultsChan <- workerResult{index: j.index, result: resourceResult, errors: errors}
 		}
 	}
@@ -1792,12 +1708,14 @@ func dropDailyObservations(results []CostResult, retain bool) {
 }
 
 // getActualCostForResource processes a single resource for actual cost with error tracking.
+// When batch answers a plugin, its verdict replaces that plugin's unary call.
 //
 //nolint:gocognit,funlen // Cost calculation with fallback chain requires multiple nested conditions.
 func (e *Engine) getActualCostForResource(
 	ctx context.Context,
 	resource ResourceDescriptor,
 	request ActualCostRequest,
+	batch actualBatchVerdict,
 ) (*CostResult, []ErrorDetail) {
 	var errors []ErrorDetail
 	var resourceResult *CostResult
@@ -1822,14 +1740,13 @@ func (e *Engine) getActualCostForResource(
 			continue
 		}
 
-		costResult, err := e.actualFromPlugin(
-			ctx,
-			client,
-			resource,
-			request.From,
-			request.To,
-			0,
-		)
+		var costResult *CostResult
+		var err error
+		if batch.answers(client.Name) {
+			costResult, err = batch.outcome()
+		} else {
+			costResult, err = e.actualFromPlugin(ctx, client, resource, request.From, request.To, 0)
+		}
 		if err != nil {
 			if ctx.Err() != nil {
 				break
