@@ -591,12 +591,12 @@ gcp-public  1.0.0    gcp          ProjectedCosts, ActualCosts      healthy
 
 Routing decisions are designed to be fast:
 
-- **Provider extraction**: ~10ns per resource (simple string split)
-- **Glob pattern match**: ~100ns per resource (filepath.Match)
-- **Regex pattern match**: ~200ns per resource (compiled regex cache)
+- **Provider extraction**: ~10 nanoseconds per resource (simple string split)
+- **Glob pattern match**: ~100 nanoseconds per resource (filepath.Match)
+- **Regex pattern match**: ~200 nanoseconds per resource (compiled regex cache)
 - **Priority sorting**: ~O(n log n) where n = matching plugins
 
-**Target**: <10ms routing overhead per request (SC-002)
+**Target**: < 10 milliseconds of routing overhead per request (SC-002)
 
 **Typical**: 100-200 microseconds for 10 patterns × 100 resources
 
@@ -718,7 +718,7 @@ Results include which plugin provided the data:
 
 6. **Pattern Specificity**: Make patterns as specific as needed - general patterns can cause unexpected routing.
 
-7. **Monitor Performance**: Ensure routing overhead stays <10ms per request.
+7. **Monitor Performance**: Ensure routing overhead stays under 10 milliseconds per request.
 
 ## Related Documentation
 

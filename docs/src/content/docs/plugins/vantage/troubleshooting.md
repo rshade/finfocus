@@ -258,9 +258,9 @@ Rate limit exceeded
 
 The plugin automatically retries 429 responses with exponential backoff:
 
-- Attempt 1 → Wait 1s → Retry
-- Attempt 2 → Wait 2s → Retry
-- Attempt 3 → Wait 4s → Retry
+- Attempt 1 → Wait 1 s → Retry
+- Attempt 2 → Wait 2 s → Retry
+- Attempt 3 → Wait 4 s → Retry
 - Continues up to `max_retries` (default: 5)
 
 **Solutions:**

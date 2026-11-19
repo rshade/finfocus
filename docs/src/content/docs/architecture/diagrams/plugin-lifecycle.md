@@ -120,7 +120,7 @@ The Plugin Host attempts to establish a gRPC connection to the plugin.
 
 **Connection Protocol:**
 
-- Retry connection with 100ms delays
+- Retry connection with 100 ms delays
 - 10-second timeout limit
 - Validate gRPC service availability
 

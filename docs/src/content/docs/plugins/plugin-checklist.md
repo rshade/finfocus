@@ -307,12 +307,12 @@ releasing your plugin.
 ### Performance
 
 - [ ] Response times
-  - [ ] `GetProjectedCost()` < 100ms for cached data
-  - [ ] `GetProjectedCost()` < 1s for API calls
-  - [ ] `GetActualCost()` < 5s for typical queries
+  - [ ] `GetProjectedCost()` < 100 ms for cached data
+  - [ ] `GetProjectedCost()` < 1 s for API calls
+  - [ ] `GetActualCost()` < 5 s for typical queries
 
 - [ ] Resource usage
-  - [ ] Memory usage reasonable (<100MB typical)
+  - [ ] Memory usage reasonable (<100 MB typical)
   - [ ] No memory leaks
   - [ ] Goroutine leaks prevented
 
