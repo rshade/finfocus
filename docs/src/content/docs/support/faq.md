@@ -12,6 +12,8 @@ section. Jump to: [Installation](#installation--setup) |
 
 ## Installation & Setup
 
+<a id="q-how-do-i-install-finfocus"></a>
+
 ### Q: How do you install FinFocus?
 
 A: The fastest way is the install script:
@@ -26,6 +28,8 @@ For full options see the [Installation Guide](../getting-started/installation.md
 
 A: FinFocus works with Pulumi 3.0+. We recommend the newest Pulumi release.
 
+<a id="q-can-i-use-finfocus-with-my-cloud-provider"></a>
+
 ### Q: Can you use FinFocus with your cloud provider?
 
 A: For projected costs, yes, when a pricing plugin or a local pricing spec covers
@@ -35,6 +39,8 @@ For actual costs, a plugin with billing API access is required (e.g., Vantage,
 AWS Cost Explorer).
 
 ## Usage
+
+<a id="q-what-is-the-simplest-way-to-see-my-costs"></a>
 
 ### Q: What is the simplest way to see your costs?
 
@@ -48,11 +54,15 @@ FinFocus auto-detects your project and stack, exports the current state, runs
 `pulumi preview --json`, and opens an interactive cost dashboard. No flags needed.
 `finfocus overview` and `finfocus ov` are aliases for the same command.
 
+<a id="q-do-i-need-to-export-the-pulumi-state-and-plan-manually"></a>
+
 ### Q: Do you need to export the Pulumi state and plan manually?
 
 A: No. Auto-detection handles this when you run `finfocus` from inside a Pulumi
 project directory. Use `--pulumi-state` and `--pulumi-json` only when you want
 to provide pre-exported files (e.g., in CI/CD where you control the export step).
+
+<a id="q-how-do-i-select-a-specific-pulumi-stack"></a>
 
 ### Q: How do you select a specific Pulumi stack?
 
@@ -76,6 +86,8 @@ A: Accuracy depends on the plugin or spec used. The `aws-public` plugin uses
 AWS public pricing and is accurate for on-demand instance types. Actual costs
 may vary based on reserved instances, savings plans, and data transfer.
 
+<a id="q-can-i-filter-by-custom-tags"></a>
+
 ### Q: Can you filter by custom tags?
 
 A: Yes. Use `--filter "tag:key=value"` with any cost command:
@@ -84,6 +96,8 @@ A: Yes. Use `--filter "tag:key=value"` with any cost command:
 finfocus overview --filter tag:env=production --plain --yes
 finfocus cost projected --filter tag:team=platform
 ```
+
+<a id="q-how-do-i-reset-configuration"></a>
 
 ### Q: How do you reset configuration?
 
@@ -110,10 +124,14 @@ A: The main plugins today:
 | `cloudzero` | — | ✓ | CloudZero billing costs per resource (needs a CloudZero API key and a resource dimension) |
 | `opencost` | ✓ | ✓ | Kubernetes allocation from an OpenCost or Kubecost endpoint (set the `kubecost` profile for Kubecost) |
 
+<a id="q-do-i-need-a-plugin"></a>
+
 ### Q: Do you need a plugin?
 
 A: For projected costs, no. Local pricing specs work without plugins.
 For actual costs, yes. A plugin with billing API access is required.
+
+<a id="q-how-do-i-install-a-plugin"></a>
 
 ### Q: How do you install a plugin?
 
@@ -133,6 +151,8 @@ See [Plugin Documentation](../plugin-system.md#available-plugins) for per-plugin
 A: The analyzer is a FinFocus mode that shows cost estimates directly inside
 `pulumi preview` output, with no separate command needed. It runs as a Pulumi
 Policy Pack.
+
+<a id="q-how-do-i-set-up-the-analyzer"></a>
 
 ### Q: How do you set up the analyzer?
 
@@ -214,10 +234,14 @@ finfocus overview --plain --yes
 
 ## Data & Privacy
 
+<a id="q-does-finfocus-send-my-data-anywhere"></a>
+
 ### Q: Does FinFocus send your data anywhere?
 
 A: Only to the plugins you configure (e.g., a Vantage or OpenCost endpoint).
 Local specs and the cache are entirely on your machine. No telemetry is sent.
+
+<a id="q-is-my-infrastructure-data-secure"></a>
 
 ### Q: Is your infrastructure data secure?
 
@@ -232,6 +256,8 @@ plugin's external API.
 A: First run: 1–10 seconds depending on stack size and plugin API latency.
 Subsequent runs: sub-second for cached results.
 
+<a id="q-can-i-use-finfocus-with-large-infrastructure-1000-resources"></a>
+
 ### Q: Can you use FinFocus with large infrastructure (1000+ resources)?
 
 A: Yes. The overview enriches resources concurrently and paginates the TUI
@@ -239,6 +265,8 @@ automatically. For very large stacks, use `--output ndjson` for streaming output
 or `--filter` to narrow scope.
 
 ## Support
+
+<a id="q-where-can-i-get-help"></a>
 
 ### Q: Where can you get help?
 
@@ -248,9 +276,13 @@ A: See these resources:
 - [GitHub Issues](https://github.com/rshade/finfocus/issues)
 - [GitHub Discussions](https://github.com/rshade/finfocus/discussions)
 
+<a id="q-how-do-i-report-a-bug"></a>
+
 ### Q: How do you report a bug?
 
 A: [Open a GitHub Issue](https://github.com/rshade/finfocus/issues/new)
+
+<a id="q-can-i-contribute"></a>
 
 ### Q: Can you contribute?
 
