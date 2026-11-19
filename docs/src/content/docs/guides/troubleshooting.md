@@ -112,7 +112,7 @@ finfocus --debug cost projected --pulumi-json plan.json
 
 **Explanation**:
 
-- **Taxes/Credits**: Actual costs include taxes and credits; projected do not.
+- **Taxes/Credits**: Actual costs include taxes and credits, but projected costs do not.
 - **Data Transfer**: Data transfer costs are hard to predict and are usually excluded from projections.
 - **Storage**: S3 API requests and tiered storage costs accumulate over time.
 

@@ -191,7 +191,7 @@ export AWS_REGION="us-east-1"
 A plugin can advertise the settings it reads, each with its own environment
 variable, and its docs pages list them. For example,
 [aws-ce](plugins/aws-ce.md) reads `carbon_enabled` from
-`FINFOCUS_AWS_CARBON_ENABLED`; see
+`FINFOCUS_AWS_CARBON_ENABLED`. See
 [Historical AWS Carbon Reporting](plugins/historical-carbon.md). FinFocus takes each advertised value from that
 variable, or else from the plugin's section of the project or global config
 file. As a fallback, a config key the plugin does not advertise is passed to it
@@ -561,7 +561,7 @@ Optional `plugin.manifest.json` file provides metadata:
 }
 ```
 
-> **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
+> **Note:** `batch_cost` is optional. When it is not implemented, the core falls back to per-resource cost calls.
 >
 > A `ResourceExhausted` status is a rate limit. Core retries that plugin before
 > it asks the next one, and waits for `ErrorDetail.retry_after_seconds` when

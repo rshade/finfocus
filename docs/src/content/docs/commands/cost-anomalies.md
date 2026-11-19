@@ -14,7 +14,7 @@ The command runs the same pricing pipeline as `finfocus overview`, so it is as
 slow as `overview --output json`. It does not change the overview or the drift
 calculation, and the drift path adds no threshold of its own. The web dashboard
 has an **Anomalies** page that shows the same list from the rows it already
-holds, served at `GET /api/overview/anomalies`; see the
+holds, served at `GET /api/overview/anomalies`. See the
 [web UI reference](../reference/web-ui.md).
 
 ## Usage
@@ -100,7 +100,7 @@ Rows are ordered by absolute deviation, largest first, then by URN. NDJSON
 prints one anomaly per line and nothing when the list is empty. The table
 prints a `N of M resources` line and never a total, because rows can be in
 different currencies. Its `DRIFT %` column shows `n/a` for a robust-median row
-whose median is 0, because that percentage is undefined; the web page marks the
+whose median is 0, because that percentage is undefined. The web page marks the
 same rows `n/a`.
 
 ## The robust-median method
@@ -108,7 +108,7 @@ same rows `n/a`.
 A resource whose stored daily actuals cover at least 14 earlier days in one
 currency is scored. Its drift row is replaced only when the most recent
 complete UTC day crosses the cutoff below. The most recent complete UTC day of the
-series is the observation; the current partial day is not an observation.
+series is the observation. The current partial day is not an observation.
 The baseline is the median of those earlier points, and the observation day is
 not part of the median, so the day under test cannot pull the median toward
 itself.
@@ -118,7 +118,7 @@ MAD is the median of `|point - median|` over the same baseline points. A day
 is reported when the absolute score is at least 3.5, with severity `warning`.
 Both the 14-day minimum and the 3.5 cutoff are fixed in the code, not config
 keys. The 0.6745 factor exists to put the score on the standard z-score's
-scale for a normal sample; cost days are not normal, and 3.5 is a cutoff, not
+scale for a normal sample. Cost days are not normal, and 3.5 is a cutoff, not
 a probability.
 
 A missing day is a gap. It is never stored as zero, never interpolated, and it
@@ -133,7 +133,7 @@ used: the daily store is already a rolling history, and the default cost
 window (the current month, which the drift comparison needs) never truncates
 it. The method therefore works once the store holds fifteen complete UTC days
 of one currency for a resource (fourteen baseline days plus the observation
-day; the current partial day does not count), instead of only in the second
+day, not counting the current partial day), instead of only in the second
 half of a month.
 
 The series belongs to one stack, and the command reads the stack it just

@@ -92,7 +92,7 @@ timeline without running a plan.
 By default, the identity combines the normalized Git `origin` with the Terraform
 root's path relative to the Git root, and uses the stack name `unscoped`. Without
 Git or `origin`, it uses the cleaned absolute path. The database filename contains
-a hash; the stored display label contains the path, without the raw remote URL.
+a hash. The stored display label contains the path, without the raw remote URL.
 
 To keep separate histories for Terraform workspaces:
 
@@ -102,14 +102,14 @@ finfocus cost history list --include-workspace
 ```
 
 Use the same setting when recording and reading snapshots. The flag overrides
-`cost.terraform.include_workspace` for one run; `--include-workspace=false`
+`cost.terraform.include_workspace` for one run, and `--include-workspace=false`
 overrides a configured `true`. The workspace command runs only when enabled.
 The workspace name `unscoped` is reserved. Pulumi history identities ignore this
 flag.
 
 `cost history collect` reads Pulumi checkpoints. In a Terraform directory it exits
 2 without running a plan because Terraform plans contain no checkpoint list.
-For actual costs, pass `--terraform-state`; FinFocus does not plan for actual costs.
+For actual costs, pass `--terraform-state`. FinFocus does not plan for actual costs.
 
 ## Configuration
 
@@ -152,7 +152,7 @@ configuration.
 Pulumi Cloud history fills observation gaps by reading state snapshots from past
 `update`, `refresh`, `destroy`, and `import` operations. Imported observations
 have source `pulumi_cloud`. FinFocus extracts only URN, cloud ID, resource type,
-and provider; it caches those identities in `history.db`. It never stores
+and provider. It caches those identities in `history.db`. It never stores
 snapshot properties or secrets.
 
 `config set` writes the global `config.hujson` (`~/.finfocus/` by default), so
@@ -183,13 +183,13 @@ unavailable instead of waiting.
 
 FinFocus reuses the Pulumi CLI login. There is no config token key. To override
 the saved token, use `PULUMI_ACCESS_TOKEN`. For a backend selected in a project's
-`backend.url`, an override also requires explicitly setting `PULUMI_BACKEND_URL`;
-otherwise FinFocus uses only credentials saved for that project backend URL.
+`backend.url`, an override also requires explicitly setting `PULUMI_BACKEND_URL`.
+Otherwise, FinFocus uses only credentials saved for that project backend URL.
 
 The import range is clamped to the retention cutoff. Retention resolves from
 `FINFOCUS_HISTORY_RETENTION_DAYS`, then `cost.history.retention_days`, then 90
 days, matching history cleanup. Without `--from`, the import command starts at
-that cutoff; `--to` defaults to now. Repeated runs reuse cached identities.
+that cutoff, and `--to` defaults to now. Repeated runs reuse cached identities.
 
 **Known limit:** Only snapshots observed within the requested period add
 identities. A resource created before the period and destroyed inside it may

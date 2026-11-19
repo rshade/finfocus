@@ -64,7 +64,7 @@ A surface owns only how it takes input and how it shows the result:
 
 - **Terminal UI:** the interactive views, key bindings, and terminal capability detection.
 - **Browser dashboard:** the local HTTP server, its session and security model, and the page rendering. The browser
-  computes nothing; it displays what the engine returned.
+  computes nothing. It displays what the engine returned.
 - **GitHub Action:** the TypeScript in `finfocus-action` that installs FinFocus and plugins, runs the CLI, reads its
   JSON output, and writes the pull request comment.
 - **MCP server:** the tool list and the transport: stdio for `finfocus --mcp`, or streamable HTTP on loopback with

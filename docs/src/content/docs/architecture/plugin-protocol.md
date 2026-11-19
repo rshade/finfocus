@@ -46,13 +46,13 @@ Plugins that do not implement `BatchCost` are queried per-resource as before.
 Actual cost (`cost actual`, `cost history collect-daily`, and the web Cost
 page) batches too. A per-resource error in a batch response is reported for
 that resource and core does not ask the same plugin again with
-`GetActualCost`; it moves on to the next fallback plugin. The exception is
+`GetActualCost`. It moves on to the next fallback plugin. The exception is
 `Unavailable`, a transient error: core asks the same plugin for that
 resource alone once. A batch has one start, so resources created inside the
 requested window are batched by creation hour, and each descriptor carries
 the resource `arn`. A plugin that prices actual cost by elapsed time, rather
 than from recorded billing, would see up to an hour more window for such a
-resource; it should not declare `PLUGIN_CAPABILITY_BATCH_COST` until it
+resource. It should not declare `PLUGIN_CAPABILITY_BATCH_COST` until it
 handles that. A type the
 plugin marks unsupported in the batch is still queried per resource.
 

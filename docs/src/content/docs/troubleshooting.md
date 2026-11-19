@@ -134,7 +134,7 @@ bash: ./finfocus: Permission denied
 2. **Download correct binary**: re-run the install script, which reads
    `uname` and picks the archive for your OS and architecture. For a manual
    download, use the `finfocus-<version>-<os>-<arch>` archive from the
-   [release](https://github.com/rshade/finfocus/releases); on a Mac, Intel is
+   [release](https://github.com/rshade/finfocus/releases). On a Mac, Intel is
    `macos-amd64` and Apple Silicon is `macos-arm64`.
 
    ```bash
@@ -444,7 +444,7 @@ Failed: plugin failed to bind to port within 20s: timeout waiting for plugin to 
    for a plugin to start and answer. Cost commands wait up to 65 seconds for
    the plugin to open its port (125 seconds when `CI=true`), then up to 10
    seconds to connect to it. These limits are fixed. Apart from the longer
-   bind wait under `CI=true`, no environment variable changes them;
+   bind wait under `CI=true`, no environment variable changes them, and
    FinFocus does not read `PLUGIN_TIMEOUT`.
 3. A plugin that never opens its port within those limits is stuck, not slow.
    FinFocus does not start it a second time. Run the command with `--debug`
@@ -529,7 +529,7 @@ order core checks them:
    has no `region` input. A secret or unknown `region` input gives no provider
    region. Core finds the provider through the resource's provider reference in
    the stack state or the preview. The price after a change uses the provider
-   the preview assigns; the price before it, actual costs, and a delete use the
+   the preview assigns. The price before it, actual costs, and a delete use the
    deployed provider. A `--pulumi-json` run inside a Pulumi project also reads the stack
    state. Without state, the provider is seen only when the preview creates or
    updates it.
@@ -991,7 +991,7 @@ Error: context deadline exceeded
 ```
 
 **Solution**: A plugin did not answer in time. If it was starting, see
-[Plugin Is Slow to Start](#plugin-is-slow-to-start); those limits are fixed.
+[Plugin Is Slow to Start](#plugin-is-slow-to-start). Those limits are fixed.
 Otherwise, check network connectivity to the plugin's external API, then run
 the command with `--debug` and find the call that timed out:
 

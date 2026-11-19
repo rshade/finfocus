@@ -73,7 +73,7 @@ Grant only the IAM actions for the features you use:
 | `FINFOCUS_AWS_CE_MAX_BATCH_SIZE` | Largest batch request, 1 to 1000 | 100 |
 | `FINFOCUS_AWS_CE_BATCH_WORKERS` | Concurrent batch workers, 1 to 50 | 50 |
 | `FINFOCUS_AWS_CE_SPOT_COMPARISON` | `true` answers EC2 instance projections with a Spot quote | `false` |
-| `FINFOCUS_AWS_ACCOUNT_ID` | Account for Budgets; empty uses STS `GetCallerIdentity` | Empty |
+| `FINFOCUS_AWS_ACCOUNT_ID` | Account for Budgets. Empty uses STS `GetCallerIdentity` | Empty |
 
 AWS charges $0.01 for each paginated Cost Explorer API request, and one
 FinFocus command can make several: a query with no cache hit needs at least two

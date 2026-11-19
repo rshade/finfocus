@@ -51,7 +51,7 @@ diagnostics go to stderr.
 > **Note**: `finfocus --web` is not an MCP entry point. It is a separate
 > root-local flag that serves the browser-based cost dashboard on localhost,
 > and it is mutually exclusive with `--mcp`. The web UI adds no MCP tools and
-> is not reachable through the MCP server; see
+> is not reachable through the MCP server. See
 > [CLI Commands Reference](../reference/cli-commands.md#root-command-entry-points).
 
 ## Claude Code
@@ -173,11 +173,11 @@ These commands are never exposed as tools:
 
 | Command            | Reason                                                              |
 | ------------------ | ------------------------------------------------------------------- |
-| `finfocus` (root)  | Opens the interactive overview dashboard; use `finfocus-overview`   |
+| `finfocus` (root)  | Opens the interactive overview dashboard. Use `finfocus-overview`   |
 | `analyzer serve`   | Long-running Pulumi handshake that would block the server           |
 | `setup`            | Interactive first-run wizard                                        |
-| `plugin init`      | Scaffolds a plugin project; a developer action, not a query         |
-| `plugin upgrade`   | Rewrites a plugin project's source; a developer action, not a query |
+| `plugin init`      | Scaffolds a plugin project: a developer action, not a query         |
+| `plugin upgrade`   | Rewrites a plugin project's source: a developer action, not a query |
 | `help` and command groups | `help`, `cost`, `plugin`, `config`, and other groups only print usage |
 | Positional-arg commands | For example `plugin install <name>`, `config set <key> <value>`, and `cost recommendations dismiss <id>`. MCP tool calls can pass flags only |
 
@@ -205,7 +205,7 @@ tools map to built-in tools as follows:
 | `get_plugin_info`                    | `finfocus plugin inspect` (CLI only: it takes positional arguments)               |
 | `validate_plugin` / `health_check`   | `finfocus-plugin-validate`                                                        |
 | `get_recommendations`                | `finfocus-cost-recommendations`                                                   |
-| `track_budget`                       | `budgets` in `finfocus-overview` JSON; `finfocus-cost-projected` with `exit-on-threshold` |
+| `track_budget`                       | `budgets` in `finfocus-overview` JSON, or `finfocus-cost-projected` with `exit-on-threshold` |
 | `detect_anomalies`                   | `finfocus-cost-anomalies` (`method: drift` rows, or `method: robust-median` day-spike rows when a stored daily series qualifies)               |
 | `forecast_costs`                     | Partial: `ExtrapolatedMonthly` in `finfocus-overview` JSON                        |
 

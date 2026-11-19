@@ -16,7 +16,7 @@ separately as the stack total. The terminal and web views use the same snapshot.
 When a saved preview is supplied with `--pulumi-json` and the project's state
 cannot be read, overview continues with preview resources only. A warning
 identifies the state-availability reason and the number of unchanged resources
-omitted by the preview. Plain output writes the warning to stderr; the terminal
+omitted by the preview. Plain output writes the warning to stderr. The terminal
 dashboard and web overview keep it visible alongside the results. Totals in this
 fallback cover only the preview resources. Supply a readable `--pulumi-state`
 export with the preview to include deployed resources.
@@ -165,7 +165,7 @@ interactive dashboard built with Bubble Tea.
 
 To explore the same data in a browser instead, run `finfocus --web` from the
 project directory. It takes the overview's source, date, adapter, and filter
-flags; see [Use the browser dashboard](../guides/web-ui.md).
+flags. See [Use the browser dashboard](../guides/web-ui.md).
 
 ### Keyboard shortcuts
 
@@ -219,7 +219,7 @@ Press Enter on a resource to see a detailed breakdown including:
 - Stored cost history for this resource, loaded when the detail view opens.
   The series comes from `cost history collect` for the stack named by the
   resource, not the state-file name. A missing history database leaves this
-  section out. A read failure stays in the detail view; press `r` to try
+  section out. A read failure stays in the detail view. Press `r` to try
   again. On a short terminal, Up and Down scroll the detail view so the
   history section and the retry hint stay reachable.
 - Blast radius: the resources that depend on this one directly or through
@@ -248,8 +248,8 @@ needs no network.
   are not counted. A note under the total says how many were left out. When
   dependents use different currencies, the total is withheld.
 - **Markers**: `[new]`, `[updating]`, `[replacing]`, `[deleting]` and
-  `[component]` follow the cost. `no price` means the plugin returned none;
-  `$0.00` is a price.
+  `[component]` follow the cost. `no price` means the plugin returned none,
+  while `$0.00` is a price.
 - **Empty and unavailable**: "nothing depends on this resource" means the
   resource is a leaf. "dependency information is not available" appears for
   Terraform and OpenTofu sources and for an empty state, which carry no
@@ -264,7 +264,7 @@ same computation.
 
 Rows for Kubernetes cluster resources (EKS, GKE, AKS) expand into workload
 rows. The cluster row shows a `▸` marker when collapsed and `▾` when
-expanded; children render indented beneath it.
+expanded. Children render indented beneath it.
 
 Two data sources feed the expansion:
 
@@ -330,7 +330,7 @@ the output mode.
 | Interactive TUI | Footer bar + detail view | Color-coded health badge, spend/limit, utilization %. Press Enter for per-budget breakdown with forecasts and triggered alerts |
 | Plain (`--plain`) | Not rendered | Budget enforcement available via `--exit-on-threshold` |
 | JSON (`--output json`) | `budgets` array in output | Full budget health objects with utilization, forecasted spend, triggered thresholds |
-| NDJSON (`--output ndjson`) | Not included | NDJSON is resource-scoped; budgets are stack-scoped |
+| NDJSON (`--output ndjson`) | Not included | NDJSON is resource-scoped, and budgets are stack-scoped |
 
 ### Budget Flags
 
@@ -360,7 +360,7 @@ ASCII table with the following columns:
 | `Resource` | Resource URN, truncated to the column width. The detail view shows the full URN |
 | `Type` | Pulumi resource type (for example `aws:ec2/instance:Instance`). The plain table shortens a value longer than 24 characters |
 | `Status` | Lifecycle state with an icon prefix (see below) |
-| `Actual(MTD)` | Month-to-date spend from the actual-cost plugin. Plain header is `ACTUAL(MTD)`; the TUI header is `Actual`. `-` when the resource has no billing history |
+| `Actual(MTD)` | Month-to-date spend from the actual-cost plugin. Plain header is `ACTUAL(MTD)`. The TUI header is `Actual`. `-` when the resource has no billing history |
 | `Projected` | Full-month estimate (730 hours) from the projected-cost plugin. Plain header is `PROJECTED`, or `PROJECTED*` in state-only mode. The TUI uses `Projected` and `Projected*`. `-` when there is no projection |
 | `Delta` | How this row changes the monthly bill. The plain table prints a positive amount as `+$` and a negative amount as `-$`. Updating or replacing: new projected monthly cost minus the current projected cost, or minus the extrapolated actual when there is no baseline. Creating: the new projected cost. Deleting: minus the extrapolated actual being removed. Active: the drift delta when drift is shown, otherwise `-` |
 | `Drift%` | Calendar-month extrapolation of month-to-date spend compared with the projected monthly cost, scaled to the month's length. It is the drift `Delta` divided by that scaled projection, so it is not the `Delta` column divided by the `Projected` column. `-` when drift is not shown (fewer than two days have elapsed, at or under 10%, or nothing to compare). A shown value is above 10% and ends with a warning mark |

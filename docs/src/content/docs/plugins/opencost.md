@@ -36,7 +36,7 @@ export KUBECOST_API_TOKEN=...
 
 The `kubecost` profile calls `GET /model/allocation` and sends the token as a
 bearer token when one is set. It has not been verified against a live Kubecost
-yet; its responses are contract fixtures. Prefer the default `opencost` profile
+yet. Its responses are contract fixtures. Prefer the default `opencost` profile
 when you can run OpenCost.
 
 ## Features

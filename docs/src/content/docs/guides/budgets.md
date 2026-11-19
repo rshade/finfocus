@@ -56,7 +56,7 @@ Get started with budgets in under 5 minutes.
 ### Step 1: Configure Budget
 
 Create or edit your `~/.finfocus/config.hujson` to define a budget.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 # yaml-language-server: $schema=https://finfocus.dev/schemas/config.json
@@ -112,7 +112,7 @@ Complete reference for all budget configuration options.
 ### File Location
 
 Configuration is stored in `~/.finfocus/config.hujson`. Examples on this page
-show the keys in YAML form; the file uses JSON syntax.
+show the keys in YAML form. The file uses JSON syntax.
 
 ### Schema Reference
 
@@ -278,7 +278,7 @@ See [complete example](https://github.com/rshade/finfocus/blob/main/docs/src/con
 ## Scoped Budgets
 
 > **Note:** Every budget lives under a scope. The [Quick Start](#quick-start) examples
-> above set only `cost.budgets.global`; the sections below add `providers`, `tags`, and
+> above set only `cost.budgets.global`. The sections below add `providers`, `tags`, and
 > `types` beside it. FinFocus does not apply `amount`, `currency`, `period`, or `alerts`
 > placed directly under `cost.budgets`, and `finfocus config validate` warns about them.
 
@@ -541,7 +541,7 @@ Add `notifications` to any alert, in any scope (`global`, `providers.<name>`,
 | `url`     | all        | Yes      | `https://` URL with a host, or a `${FINFOCUS_NOTIFY_*}` reference |
 | `channel` | `slack`    | No       | Channel override sent with the message                            |
 | `method`  | `webhook`  | No       | `POST` (default) or `PUT`                                         |
-| `headers` | `webhook`  | No       | Extra request headers; values may use `${FINFOCUS_NOTIFY_*}`      |
+| `headers` | `webhook`  | No       | Extra request headers. Values may use `${FINFOCUS_NOTIFY_*}`      |
 
 Check the file with `finfocus config validate`. Validation rejects unknown
 types, `http://` URLs, `channel` on a webhook, `method` or `headers` on a Slack
@@ -621,7 +621,7 @@ JSON event:
 
 - Destinations are sent concurrently, each with a 10-second time limit.
 - URLs must use HTTPS. A URL built from a variable is checked after
-  expansion. Redirects are never followed; a 3xx response is a failure.
+  expansion. Redirects are never followed. A 3xx response is a failure.
 - A failure (error status, timeout, unset variable) prints a warning on
   stderr and never changes the command's output or exit code:
 
@@ -699,7 +699,7 @@ Common issues and solutions for budget configuration.
 **Cause:**
 
 - `amount`, `currency`, or `alerts` placed directly under `cost.budgets` instead
-  of `cost.budgets.global`; run `finfocus config validate` to find them
+  of `cost.budgets.global` (run `finfocus config validate` to find them)
 - Mismatch between `currency` in config and cost data
 - Using `actual` alert type for projected costs (or vice versa)
 

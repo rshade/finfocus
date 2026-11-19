@@ -45,14 +45,14 @@ The kubernetes plugin also needs a reachable cluster via kubeconfig
 `scoring.enabled`, because FinFocus validates each config change, and scoring
 cannot be enabled without a plugin.
 
-The first public scorer release and registry entry are pending; source install
+The first public scorer release and registry entry are pending. Source install
 is available now. Once assets are published, `finfocus plugin install scorer`
 will install it. `finfocus plugin install jev` still installs the last legacy
 Jev release separately and does not migrate settings.
 
 Hosted Jev sends recommendation data to TypeSafe AI. To select hosted Clef,
 use `SCORER_BACKEND=clef`, a Cloudflare token in `SCORER_API_KEY`, and your
-32-hex-character `SCORER_CLEF_ACCOUNT_ID`; its default model is `clef`. Hosted
+32-hex-character `SCORER_CLEF_ACCOUNT_ID`. Its default model is `clef`. Hosted
 Clef sends the data to Cloudflare. Inspect `--scoring-dry-run` and narrow data
 with `scoring.field_allowlist` before enabling either. See the
 [scorer README](https://github.com/rshade/finfocus/tree/main/plugins/scorer)
@@ -100,7 +100,7 @@ the cost of this pull request: $109.61 a month. aws-public priced the EC2
 instance, EBS volume, and RDS instance from its embedded pricing data. The
 kubernetes plugin priced the Deployment from its declared requests, and its
 note shows the arithmetic. The S3 bucket has no price from any installed
-plugin; it is listed under `ERRORS` and counted as $0, which means "unknown,"
+plugin. It is listed under `ERRORS` and counted as $0, which means "unknown,"
 not "free."
 
 Neither plugin needed AWS credentials or a live cluster for this step, so it
@@ -140,14 +140,14 @@ workload requested, not a pricing gap. A namespace whose pods request nothing,
 such as `local-path-storage` here, gets $0.
 
 The `search` row is the same `search-indexer` Deployment from Step 1. In Step
-1 it cost $54.75 at the configured plan-time rates; here it costs $13.59 as
+1 it cost $54.75 at the configured plan-time rates. Here it costs $13.59 as
 its share of real node prices. Plan-time rates are configuration, so set them
 close to your nodes' per-vCPU and per-GiB cost if you want the two to agree.
 
 On EKS, the plugin also reports the control plane as a priceable resource
 when the configured API server host matches the EKS endpoint pattern
 (`<id>.<region>.eks.amazonaws.com`). A `__cluster__` row is added only when FinFocus
-returns a price for it; if no installed plugin prices the control plane, no
+returns a price for it. If no installed plugin prices the control plane, no
 row appears.
 
 ## Step 3: Score the Recommendations
@@ -196,7 +196,7 @@ and more worth doing, so it sorts first. It flagged the instance upgrade for
 `review`, which the summary line counts as `1 need review`. `GROUP` is empty
 because Jev found no duplicates. Scores can shift slightly between runs.
 
-A score never approves, dismisses, or applies anything; that decision stays
+A score never approves, dismisses, or applies anything. That decision stays
 with the reviewer.
 
 ## How They Fit Together

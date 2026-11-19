@@ -36,7 +36,7 @@ one. Only the unchanged resources are the same with or without `--pulumi-json`.
 A saved preview given with no stack state, such as `--pulumi-json plan.json`
 outside a Pulumi project, forecasts only what that file lists, because nothing
 else is known. Earlier releases forecast only the resources a default preview
-lists; the total now includes the unchanged ones.
+lists. The total now includes the unchanged ones.
 `cost projected` and its budgets keep the plan total and are not affected.
 
 ## Growth
@@ -105,11 +105,11 @@ Drivers apply known changes on top of the forecast.
 | --- | --- | --- |
 | `--exclude FROM:TO` | Replace spend in the range with a straight line between its neighbors before fitting. Points at either end of the CSV are dropped instead. Recorded days still count at their real value in the month they fall in. Repeatable | arima |
 | `--step DATE=AMOUNT` | Add AMOUNT to every month from DATE's month on. AMOUNT may be negative. A step before the current month applies from the current month. Repeatable | both |
-| `--growth-cap FACTOR` | Limit every month, and each bound, to FACTOR times the current month. `1.25` is +25%. Applied after steps; ignored, with a warning, when the current month is zero | both |
+| `--growth-cap FACTOR` | Limit every month, and each bound, to FACTOR times the current month. `1.25` is +25%. Applied after steps. Ignored, with a warning, when the current month is zero | both |
 
 Values and bounds below zero are shown as zero. The output names the months a
-cap limited. With the growth model, drivers change the `forecast` total only;
-provider lines stay the undriven projection.
+cap limited. With the growth model, drivers change the `forecast` total only.
+Provider lines stay the undriven projection.
 
 ## Output
 

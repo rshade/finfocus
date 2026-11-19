@@ -77,17 +77,21 @@ Terraform provider name:
 | `google_compute_instance` (Terraform)         | `gcp`        |
 | `kubernetes:core/v1:Pod`                      | `kubernetes` |
 
-These names map to a cloud: `aws-native` to `aws`; `azure-native` and
-`azurerm` to `azure`; `google-native` and `google` to `gcp`. Any other prefix
-is used as written, lowercased. The resource type itself is never changed, so
+These names map to a cloud:
+
+- `aws-native` to `aws`
+- `azure-native` and `azurerm` to `azure`
+- `google-native` and `google` to `gcp`
+
+Any other prefix is used as written, lowercased. The resource type itself is never changed, so
 a plugin can still read the package from the type token, and a routing pattern
 such as `aws-native:*` still matches it. `finfocus config routes test` shows
 both, for example `provider: aws (package: aws-native)`.
 
 A plugin that reports `aws` receives `aws-native` resources. A plugin that
 still lists a package name, such as `azure-native`, keeps matching, and now
-also receives resources of the same cloud under another package name; it can
-decline them through `Supports`.
+also receives resources of the same cloud under another package name, which it can
+decline through `Supports`.
 
 Cost reports, provider budgets, the `provider=` filter and history charts use
 the same cloud name, so `aws` and `aws-native` spend appears under one `aws`
@@ -126,7 +130,7 @@ If no region binary is found, the standard binary is used as a fallback.
 ### Layer 2: Declarative Configuration (Advanced Control)
 
 For advanced scenarios, add routing rules to `~/.finfocus/config.hujson`.
-The example shows the keys in YAML form; the file uses JSON syntax.
+The example shows the keys in YAML form. The file uses JSON syntax.
 
 ```yaml
 routing:
@@ -378,7 +382,7 @@ routing:
 > When finfocus runs as a Pulumi policy pack (`pulumi preview --policy-pack`),
 > routing configuration is **not consulted**. All plugins discovered in the plugin
 > directory are loaded and queried for every resource. Pulumi 3.270.0 and later
-> starts that pack through `pulumi-language-finfocus`; earlier releases start
+> starts that pack through `pulumi-language-finfocus`. Earlier releases start
 > `pulumi-analyzer-policy-finfocus`. `finfocus analyzer install` writes both.
 >
 > Additionally, global plugins (those with `supported_providers: ["*"]`) cannot be

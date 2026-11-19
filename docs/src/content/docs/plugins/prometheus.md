@@ -102,7 +102,7 @@ The report footer reads `historical (2026-09-28 to 2026-10-05, 7 days)`.
   Group by Pulumi stack in a run-rate report instead.
 - **Query time**: The plugin sends its queries one after another, and
   Prometheus stops each one at its `--query.timeout` (2 minutes by default).
-  FinFocus gives the whole call a deadline that grows with the window; see
+  FinFocus gives the whole call a deadline that grows with the window. See
   [Plugin call deadlines](../guides/cluster-costs.md#plugin-call-deadlines).
 
 See the [cluster cost guide](../guides/cluster-costs.md#historical-window) for

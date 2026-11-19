@@ -67,7 +67,7 @@ a reason, and cost calls return `FailedPrecondition`.
 
 - **Rate Limit**: CloudZero allows 60 cost requests in a rolling 24 hours, and
   other callers on the same key count toward it. A 429 becomes
-  `ResourceExhausted`; the plugin does not retry it.
+  `ResourceExhausted`, and the plugin does not retry it.
 - **Costs Outside the Stack**: CloudZero records root EBS volumes and the
   public IPv4 charge of an Elastic IP as their own resources (`volume` and
   `network-interface`). They are not part of the instance or the EIP result.

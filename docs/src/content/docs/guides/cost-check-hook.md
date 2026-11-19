@@ -140,7 +140,7 @@ The hook never reports a number it cannot trust:
   reads `change unavailable` and the increase checks are skipped, so a pricing
   failure never blocks.
 - For Terraform, a saved plan older than the changed `.tf` files is not
-  priced; the hook asks for a new one.
+  priced. The hook asks for a new one.
 
 The hook never blocks on a missing tool, plugin, or login, or on a failed
 preview. It prints the reason instead.
