@@ -230,8 +230,8 @@ The Context7 library ID is `/rshade/finfocus`. An assistant that has the
 Context7 MCP server configured can fetch current FinFocus docs by that ID
 instead of answering from its training data.
 
-The file covers the pages on this site, except the testing guides and the
-navigation and contributor pages.
+The file covers the pages on this site except the testing guides, the
+navigation pages, and the contributor pages.
 
 ## Troubleshooting
 

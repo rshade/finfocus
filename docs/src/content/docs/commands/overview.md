@@ -222,9 +222,9 @@ Press Enter on a resource to see a detailed breakdown including:
   section out. A read failure stays in the detail view; press `r` to try
   again. On a short terminal, Up and Down scroll the detail view so the
   history section and the retry hint stay reachable.
-- Blast radius: the resources that depend on this one, directly or through
-  other resources, as an indented tree with a count and a monthly total at the
-  top. See [Blast radius](#blast-radius).
+- Blast radius: the resources that depend on this one directly or through
+  other resources, shown as an indented tree with a count and a monthly total
+  at the top. See [Blast radius](#blast-radius).
 
 ### Blast radius
 

@@ -62,9 +62,9 @@ Idle:    $7.00 (4.8%)
 Policy:  built-in defaults · 3f2a9c1b4d5e
 ```
 
-The footer reports the mode and period, the priced total, idle cost and its
-share, the policy source with a short digest, and any resources that could not
-be priced.
+The footer reports the mode and period, the priced total, the idle cost with
+its share of the total, the policy source with a short digest, and any
+resources that could not be priced.
 
 ## Several usage sources
 
@@ -178,8 +178,8 @@ Files are HuJSON (comments and trailing commas allowed), standardized before
 being passed to the allocator. A discovered file that fails to parse is a
 fatal error. FinFocus never silently falls back to defaults. A policy file
 that cannot be read or is not valid HuJSON exits 2 before any plugin starts,
-and the message names the file and, for a syntax error, the line and column
-(error code `config_invalid`), for example:
+with error code `config_invalid`. The message gives the file. For a syntax
+error it also gives the line and column, for example:
 
 ```text
 allocation policy $PROJECT/.finfocus/allocation.hujson is not valid HuJSON: line 1, column 11: parsing value: unexpected EOF
@@ -351,7 +351,7 @@ When Prometheus holds no data for the start of the window, for example
 because its retention is shorter than the window, the report is marked
 incomplete with a warning naming the time stored data starts. The missing
 part is not counted as zero usage. Pods with gaps in their samples are
-reported the same way, one warning per pod and metric.
+reported the same way: one warning per pod and metric.
 
 The footer says why a report is incomplete: what the usage source reported
 missing, and, only when there are any, the resources that could not be

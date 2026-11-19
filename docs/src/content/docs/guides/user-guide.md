@@ -341,9 +341,9 @@ when several match. `view --output json` prints the snapshots and annotations.
 
 ## Automatic Pulumi Integration
 
-When you run `finfocus cost projected` or `finfocus cost actual` inside a Pulumi
-project directory, FinFocus automatically detects the project and runs the appropriate
-Pulumi CLI command. No flags required.
+FinFocus detects the Pulumi project and runs the appropriate Pulumi CLI command
+when you run `finfocus cost projected` or `finfocus cost actual` inside a Pulumi
+project directory. No flags required.
 
 ### Simplified Workflow
 

@@ -5,8 +5,9 @@ parent: Guides
 nav_order: 5
 ---
 
-FinFocus displays human-readable carbon emission equivalencies alongside sustainability
-metrics, making environmental impact more tangible and understandable.
+FinFocus displays human-readable carbon emission equivalencies alongside
+sustainability metrics. The equivalencies make environmental impact more
+tangible and understandable.
 
 ## Table of Contents
 

@@ -62,8 +62,8 @@ finfocus cost projected --pulumi-json multi-cloud-plan.json
 
 **Provider Extraction**: FinFocus takes the first segment of the resource type
 and maps it to the cloud that bills the resource. The provider is the cloud
-(`aws`, `azure`, `gcp`, `kubernetes`), not the Pulumi package or Terraform
-provider name:
+(`aws`, `azure`, `gcp`, `kubernetes`) rather than the Pulumi package or
+Terraform provider name:
 
 | Resource Type                                 | Provider     |
 | --------------------------------------------- | ------------ |
@@ -102,8 +102,8 @@ descriptor provider that differs from the type prefix also counts: Terraform
 labels an unmapped type `custom`. Plugins with an empty list or `*` are
 still asked.
 
-Core also asks a plugin only for the features its capabilities list, with or
-without a routing configuration. Projected cost needs `projected_costs`, actual
+Whether or not routing is configured, core also asks a plugin only for the
+features its capabilities list. Projected cost needs `projected_costs`, actual
 cost `actual_costs`, recommendations `recommendations`, and carbon `carbon`.
 `--pricing-spec-fallback` and `--explain` ask for a pricing spec only from
 plugins on the projected route that list `pricing_spec`, in the same priority

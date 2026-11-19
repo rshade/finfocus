@@ -23,9 +23,9 @@ for billed spend.
   dedicated or host tenancy), Auto Scaling groups, Lambda, and ECS services on
   Fargate. It also prices EKS pods on Fargate that the `kubernetes` plugin
   reports.
-- **Storage and data**: EBS, S3, EFS, RDS, DynamoDB and ElastiCache.
-- **Networking and the rest**: NAT Gateways, Application and Network Load
-  Balancers, EKS clusters, and CloudWatch log groups and alarms.
+- **Storage and data**: EBS, S3, EFS, RDS, DynamoDB, and ElastiCache.
+- **Networking and the rest**: NAT Gateways, Application Load Balancers,
+  Network Load Balancers, EKS clusters, and CloudWatch log groups and alarms.
 
 Free resources such as VPCs, subnets, security groups and IAM are reported at
 $0. Gateway Load Balancers are reported as unsupported.
@@ -40,8 +40,8 @@ $0. Gateway Load Balancers are reported as unsupported.
   resource has run, from its creation time in
   [Pulumi state](https://www.pulumi.com/docs/iac/concepts/state-and-backends/)
   or from `--from` and `--to`. This is not billed spend.
-- **Carbon**: Estimates gCO2e for compute, storage and database resources: EC2,
-  Auto Scaling groups, EBS, S3, EFS, Lambda, RDS, DynamoDB and ElastiCache.
+- **Carbon**: Estimates gCO2e for compute, storage, and database resources: EC2,
+  Auto Scaling groups, EBS, S3, EFS, Lambda, RDS, DynamoDB, and ElastiCache.
 - **Recommendations**: Newer instance generations and Graviton for EC2 (not for
   Windows), RDS and ElastiCache; Redis to Valkey for ElastiCache; gp3 instead of
   gp2 for EBS; arm64 for Lambda; and S3 and DynamoDB gateway endpoints for NAT

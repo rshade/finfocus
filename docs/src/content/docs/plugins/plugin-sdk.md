@@ -743,9 +743,10 @@ A scalar at six segments is kept. A seventh segment is not. A new key longer
 than 128 characters, or a new value longer than 256 characters, is skipped.
 Collapsed values that are already longer than 256 characters are left as they
 are. The tag map stops at 50 entries. Collapsed keys are kept even when they
-already pass 50. Remaining room is filled by dotted keys, shallower paths
-first and then by name. One debug log line records `dotted_kept` and
-`dotted_dropped` for a truncated resource. The line has counts only.
+already pass 50. Remaining room is filled by dotted keys in order of path
+depth, shallowest first, then by name. One debug log line records
+`dotted_kept` and `dotted_dropped` for a truncated resource. The line has
+counts only.
 
 The projected cache key is
 `projected/{provider}/{type}/{region}/{sku}/tags-{digest}`. The digest is the

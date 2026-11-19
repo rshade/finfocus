@@ -12,10 +12,10 @@ duplicate each other. Core then sorts, filters and flags the list with those rat
 
 Scoring is **off by default**. With it off, behavior and network activity are unchanged. Core never calls a model or
 external API itself: the scorer is a plugin that implements `RecommendationScorerService` from
-[finfocus-spec](https://github.com/rshade/finfocus-spec), and the plugin owns any model, key or network access.
+[finfocus-spec](https://github.com/rshade/finfocus-spec), and the plugin owns any model, key, or network access.
 
-**Scores route work to review. They never approve, dismiss or apply a recommendation.** Nothing in FinFocus dismisses,
-snoozes, hides or applies a recommendation because of a score.
+**Scores route work to review. They never approve, dismiss, or apply a recommendation.** Nothing in FinFocus dismisses,
+snoozes, hides, or applies a recommendation because of a score.
 
 **Prerequisites**:
 
@@ -162,9 +162,9 @@ finfocus cost recommendations --pulumi-json plan.json --no-scoring
   error.
 - Sorting or filtering by a score without scoring enabled is an error, not a silent no-op.
 
-The table gains `RISK`, `FALSE POS`, `WORTH`, `PRIORITY`, `REVIEW` and `GROUP` columns when scores exist, JSON and NDJSON
-gain a `scores` object per recommendation and a `scoring` summary, and the interactive view shows the risk score, a
-`REVIEW` marker and the duplicate group.
+The table gains `RISK`, `FALSE POS`, `WORTH`, `PRIORITY`, `REVIEW`, and `GROUP` columns when scores exist. JSON and
+NDJSON gain a `scores` object per recommendation and a `scoring` summary. The interactive view shows the risk score, a
+`REVIEW` marker, and the duplicate group.
 
 ### The needs-review marker
 
@@ -216,13 +216,13 @@ In `pseudonymized` and `omitted` modes core also:
 - Derives tokens with HMAC-SHA256 over the normalized (trimmed, lower-case) resource id, using a random key generated for
   each request and never stored. Tokens are not comparable across requests.
 
-**What is not protected.** Tags, metadata and free text can still contain sensitive values that are not the resource id
-or name, such as team names, account names or hostnames. Identifier handling alone does not make a request safe to send.
+**What is not protected.** Tags, metadata, and free text can still contain sensitive values that are not the resource id
+or name, such as team names, account names, or hostnames. Identifier handling alone does not make a request safe to send.
 Use `field_allowlist` to drop fields you do not want a scorer to see, and read the scorer plugin's own data-handling
 documentation, which must say what leaves the host.
 
-**Dry run.** `--scoring-dry-run` prints exactly the requests that would be sent, after identifier handling and the
-allowlist, and sends nothing:
+**Dry run.** `--scoring-dry-run` sends nothing. It prints exactly the requests that would be sent after identifier
+handling and the allowlist:
 
 ```bash
 finfocus cost recommendations --pulumi-json plan.json --scoring-dry-run
@@ -231,8 +231,8 @@ finfocus cost recommendations --pulumi-json plan.json --scoring-dry-run
 Recommendations already in the score cache are not part of the output, because they would not be sent.
 
 **Score cache.** Scores are cached in the `scores` bucket of the existing BoltDB cache (`~/.finfocus/cache/cache.db`),
-keyed on a hash of the recommendation content plus the scorer name, plugin version and model. Only the extracted score
-values are stored. Raw scorer requests, responses and provider request ids are never persisted, and the resource id and
+keyed on a hash of the recommendation content plus the scorer name, plugin version, and model. Only the extracted score
+values are stored. Raw scorer requests, responses, and provider request ids are never persisted, and the resource id and
 name are not part of the hashed content in `pseudonymized` and `omitted` modes. Deleting the cache is always safe. The cache
 follows the normal `cost.cache` settings, so with the cache disabled, nothing is stored.
 

@@ -169,11 +169,12 @@ forecast**.
 | Spend CSV, Confidence, Exclude ranges | Shown for the statistical model. The browser reads the chosen file and sends its text; the server never opens a path from the page. Ranges are comma-separated `FROM:TO`. |
 | Include cost history | Off is `--no-history`. |
 
-The table has one column per monthly series: the forecast, its lower and upper
-bounds and the plan baseline for the statistical model, or one column per
-provider for the growth model. Stored cost history and the spend CSV are
-summarized below it, with their date range. A failed query clears earlier
-results and shows the message `cost forecast` prints for the same settings.
+For the statistical model, the table has one column per monthly series: the
+forecast, its lower bound, its upper bound, and the plan baseline. For the
+growth model, it has one column per provider. Stored cost history and the
+spend CSV are summarized below it, with their date range. A failed query
+clears earlier results and shows the message `cost forecast` prints for the
+same settings.
 
 ### Estimate controls
 
@@ -338,9 +339,9 @@ With one stack from a Pulumi project, the header names it and the tab bar
 shows it as a single selected tab with the same `loading`, `failed`, and
 `locked` markers.
 Nothing else changes: the address stays `#/<view>`, and there is nothing to
-switch to. A plan file, a state file, or Terraform shows no tab bar. On any view
-but Overview, a stack that is waiting for its passphrase or failed to load says
-so above the view and links to Overview, with or without a tab.
+switch to. A plan file, a state file, or Terraform shows no tab bar. Whether
+or not there is a tab bar, a stack that is waiting for its passphrase or
+failed to load says so above any view but Overview and links to Overview.
 
 ## Keyboard and display
 

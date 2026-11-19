@@ -188,7 +188,7 @@ directory to drop them. That file is `~/.finfocus/cache/cache.db` unless
 `FINFOCUS_CACHE_DIR` or `cost.cache.directory` selects another directory.
 Actual cost queries are cached as a whole (the full query including time
 range and filters forms the key). Recommendation queries are also cached as a
-whole: `inputs-hash` covers the identity, provider, type and flattened
+whole: `inputs-hash` covers the identity, provider, type, and flattened
 properties of every requested resource plus the dismissed recommendation IDs.
 Dotted keys change that hash, so recommendation entries miss once too. A
 different resource set or a new dismissal never reuses an older entry.

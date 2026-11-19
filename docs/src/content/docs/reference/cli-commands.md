@@ -189,7 +189,8 @@ not plan either: checkpoint collection is for a Pulumi project, and it exits 2.
 `--terraform-state` parses a Terraform state v4 file (`terraform.tfstate`) and
 prices every managed resource as-is. The state represents current
 infrastructure, so there are no create/update/delete deltas. The cost diff
-reports every resource as unchanged, with the same price before and after.
+reports every resource as unchanged. Each one has the same price before and
+after.
 
 Caveats:
 
@@ -653,7 +654,7 @@ After applying, and also when the plugin is already up to date, the command
 reinstalls the `finfocus-plugin-dev` and `finfocus-plugin-upgrade` agent
 skills at this finfocus release with `npx skills add`. The skill files are
 listed under changed files and in the JSON `skill` object. The step is
-best-effort: if it fails, the command prints a warning and the command to run
+best-effort. If it fails, the command prints a warning with the command to run
 later. `--dry-run` shows that command, and `--no-skill` skips the step.
 
 ## plugin remove

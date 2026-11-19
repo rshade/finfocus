@@ -53,9 +53,9 @@ claim or duplicates resource rows.
 
 There are 34 supported sizes and 38 regions in the pinned snapshot. Unknown
 sizes/regions are declined explicitly. These are operational compute and memory
-estimates, not measurements or total lifecycle emissions. They exclude storage,
-networking, embodied emissions, actual billing data, other clouds, and Kubernetes
-workload allocation.
+estimates. They are not measurements or total lifecycle emissions. They
+exclude storage, networking, embodied emissions, actual billing data, other
+clouds, and Kubernetes workload allocation.
 
 See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/carbon)
 for exact supported sizes, installation paths, and development commands, and
