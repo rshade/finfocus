@@ -89,9 +89,11 @@ function createShutdown(options) {
     async stop({ pid, exited, terminate, owner = null }) {
       if (pid === undefined) return { confirmed: true, forced: false, survivors: [] };
       if (platform === 'win32') {
+        const alreadyGone = await within(exited, 0);
         const killed = await tree.taskkill(pid);
         const gone = await within(exited, confirmMs);
-        return { confirmed: killed && gone, forced: true, survivors: killed && gone ? [] : [pid] };
+        const confirmed = gone && (killed || alreadyGone);
+        return { confirmed, forced: true, survivors: confirmed ? [] : [pid] };
       }
       terminate();
       const graceful = await within(exited, graceMs);

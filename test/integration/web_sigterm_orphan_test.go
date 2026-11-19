@@ -23,16 +23,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// processAlive reports a running process. A zombie awaiting its parent counts
+// as gone: /proc says so on Linux, and `ps` on systems without it (macOS).
 func processAlive(t *testing.T, pid int) bool {
 	t.Helper()
 	if err := syscall.Kill(pid, 0); err != nil {
 		return false
 	}
 	stat, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
-	if err == nil && bytes.Contains(stat, []byte(") Z ")) {
+	if err == nil {
+		return !bytes.Contains(stat, []byte(") Z "))
+	}
+	out, err := exec.Command("ps", "-o", "stat=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
 		return false
 	}
-	return true
+	return !strings.HasPrefix(strings.TrimSpace(string(out)), "Z")
 }
 
 type orphanWeb struct {

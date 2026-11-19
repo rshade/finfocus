@@ -60,3 +60,53 @@ test('the process listing is read with a buffer far above the 1 MiB default', as
   assert.ok(MAX_LISTING_BYTES >= 64 * 1024 * 1024);
   assert.equal(seenOptions.at(-1).maxBuffer, MAX_LISTING_BYTES);
 });
+
+function execResult(code, stdout = '') {
+  const calls = [];
+  const execFile = (command, args, options, callback) => {
+    calls.push([command, args]);
+    callback(code === 0 ? null : Object.assign(new Error('failed'), { code }), stdout);
+  };
+  return { execFile, calls };
+}
+
+test('Windows has no session to list, so its members are always empty', async () => {
+  const { execFile, calls } = execResult(0, 'ignored');
+  const tree = createTree({ platform: 'win32', execFile });
+  assert.deepEqual(await tree.members(4242), []);
+  assert.deepEqual(calls, []);
+});
+
+test('taskkill ends the whole tree by pid and reports whether it succeeded', async () => {
+  const ok = execResult(0);
+  assert.equal(await createTree({ platform: 'win32', execFile: ok.execFile }).taskkill(4242), true);
+  assert.deepEqual(ok.calls, [['taskkill', ['/PID', '4242', '/T', '/F']]]);
+  assert.equal(await createTree({ platform: 'win32', execFile: execResult(128).execFile }).taskkill(4242), false);
+});
+
+test('a failed command with no numeric exit code still reads as a failure', async () => {
+  const execFile = (command, args, options, callback) => callback(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }), '');
+  assert.equal(await createTree({ platform: 'win32', execFile }).taskkill(1), false);
+});
+
+test('killAll signals every pid and keeps going past one that already exited', () => {
+  const killed = [];
+  const kill = (pid, signal) => {
+    if (pid === 2) throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' });
+    killed.push([pid, signal]);
+  };
+  createTree({ platform: 'linux', kill }).killAll([1, 2, 3]);
+  assert.deepEqual(killed, [[1, 'SIGKILL'], [3, 'SIGKILL']]);
+});
+
+test('on Linux an entry that vanishes or is unreadable while scanning is skipped', async () => {
+  const stat = (session) => `5 (cmd) S 1 ${session} ${session} 0 -1`;
+  const fsApi = {
+    readdir: async () => ['self', '10', '11', '12'],
+    readFile: async (file) => {
+      if (file === '/proc/11/stat') throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      return file === '/proc/10/stat' ? stat(77) : stat(5);
+    },
+  };
+  assert.deepEqual(await createTree({ platform: 'linux', fsApi }).members(77), [10]);
+});

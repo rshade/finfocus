@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,14 +40,18 @@ func newOrphanFixture(t *testing.T) orphanFixture {
 	require.NoError(t, os.MkdirAll(pluginDir, 0o750))
 	require.NoError(t, os.MkdirAll(project, 0o750))
 
-	binary := filepath.Join(work, "finfocus")
+	exe := ""
+	if runtime.GOOS == "windows" {
+		exe = ".exe"
+	}
+	binary := filepath.Join(work, "finfocus"+exe)
 	out, err := exec.Command("go", "build",
 		"-ldflags", "-X github.com/rshade/finfocus/pkg/version.version="+orphanTestVersion,
 		"-o", binary, "../../cmd/finfocus").CombinedOutput()
 	require.NoError(t, err, "build finfocus: %s", out)
 
 	pluginBinary := "finfocus-plugin-orphanfixture"
-	pluginPath := filepath.Join(pluginDir, pluginBinary)
+	pluginPath := filepath.Join(pluginDir, pluginBinary+exe)
 	out, err = exec.Command("go", "build", "-o", pluginPath, "./testdata/orphanplugin").CombinedOutput()
 	require.NoError(t, err, "build fixture plugin: %s", out)
 	manifest, err := json.Marshal(map[string]any{

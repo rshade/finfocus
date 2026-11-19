@@ -209,6 +209,28 @@ jobs:
       - name: Run analyzer policy pack check
         run: FINFOCUS_TEST_PULUMI="$(command -v pulumi)" go test -v -count=1 -run TestAnalyzerPolicyPack ./test/integration/
 
+  process-ownership:
+    name: Process ownership (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: '**/go.sum'
+
+      - name: Run the process ownership tests
+        run: go test -v -count=1 -run 'TestOverview(Cancel|Kill)' ./test/integration/
+
   validate:
     name: Validation
     runs-on: ubuntu-latest
