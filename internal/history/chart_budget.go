@@ -30,7 +30,7 @@ func ChartBudgets(budgets *config.BudgetsConfig, snapshots []CostSnapshot) []Cha
 		actual := cmp.Or(budget.Currency, fallback, defaultCurrency)
 		return strings.EqualFold(actual, currency)
 	}
-	out := make([]ChartBudget, 0, len(budgets.Providers)+1)
+	out := []ChartBudget{}
 	add := func(provider string, amount float64) {
 		out = append(out, ChartBudget{Provider: provider, Amount: amount, Display: FormatChartMoney(currency, amount)})
 	}
