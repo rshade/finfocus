@@ -99,6 +99,13 @@ jobs:
         env:
           PULUMI_CONFIG_PASSPHRASE: fixture-passphrase
 
+      - name: Show the recorded positions and the locations finfocus resolves
+        if: always()
+        run: |
+          cd "$FINFOCUS_FIXTURE_PROJECT"
+          pulumi stack export --stack dev | jq -c '.deployment.resources[] | {urn: (.urn | split("::") | last), sourcePosition, stackTrace}' | head -8
+          "$FINFOCUS_BINARY" overview --output json --format json --yes --state-only --stack dev | jq -c '.resources[] | {urn: (.urn | split("::") | last), location}'
+
       - name: Install extension dependencies
         working-directory: packages/vscode-finfocus
         run: pnpm install --frozen-lockfile
