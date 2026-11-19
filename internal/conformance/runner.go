@@ -13,6 +13,7 @@ import (
 type Runner struct {
 	logger    zerolog.Logger
 	verbosity Verbosity
+	probe     probePlan
 }
 
 // NewRunner creates a new test runner with the given logger and verbosity.
@@ -20,6 +21,18 @@ func NewRunner(logger zerolog.Logger, verbosity Verbosity) *Runner {
 	return &Runner{
 		logger:    logger,
 		verbosity: verbosity,
+		probe:     defaultProbePlan(),
+	}
+}
+
+// skippedResult reports a case that cannot run against the chosen probe.
+func skippedResult(tc TestCase, reason string) *TestResult {
+	return &TestResult{
+		TestName:  tc.Name,
+		Category:  tc.Category,
+		Status:    StatusSkip,
+		Error:     reason,
+		Timestamp: time.Now(),
 	}
 }
 
@@ -39,6 +52,12 @@ func (r *Runner) RunTest(ctx context.Context, tc TestCase, client any) *TestResu
 		return result
 	}
 
+	if reason := r.probe.skipReason(tc.Probe); reason != "" {
+		result = skippedResult(tc, reason)
+		r.logResult(tc, result)
+		return result
+	}
+
 	// Set up timeout
 	timeout := tc.Timeout
 	if timeout <= 0 {
@@ -54,6 +73,7 @@ func (r *Runner) RunTest(ctx context.Context, tc TestCase, client any) *TestResu
 		Logger:       r.logger,
 		Verbosity:    r.verbosity,
 		Timeout:      timeout,
+		Probe:        r.probe.resource,
 	}
 
 	// Record start time
