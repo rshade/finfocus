@@ -20,7 +20,7 @@ configuration, and limits.
 
 The files below were written before the plugin was released and describe an
 earlier design (for example a `finfocus-vantage pull` command and a YAML config
-file). They do not match the released plugin. Use the
+file). They don't match the released plugin. Use the
 [plugin README](https://github.com/rshade/finfocus-plugin-vantage#readme) when
 they disagree.
 

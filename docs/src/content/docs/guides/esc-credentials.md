@@ -12,11 +12,11 @@ name environments in `config.hujson`. A plugin receives a variable only when
 it advertises that name, or when you list the name for that plugin.
 
 ESC is the highest-precedence source. An allowed ESC value wins over the
-shell, the project file, the global file, and the plugin's default. That is
-a change from earlier releases: exporting a variable in the shell does not
+shell, the project file, the global file, and the plugin's default. That's
+a change from earlier releases: exporting a variable in the shell doesn't
 hide the value ESC supplies.
 
-FinFocus opens Pulumi Cloud only. It does not write Pulumi's credential
+FinFocus opens Pulumi Cloud only. It doesn't write Pulumi's credential
 files, and a value from ESC is never printed, logged, or written into the
 cost cache.
 
@@ -63,7 +63,7 @@ for that plugin only:
 finfocus config set esc.plugins.vantage.variables 'VANTAGE_TOKEN'
 ```
 
-Another plugin that opens the same environment does not receive
+Another plugin that opens the same environment doesn't receive
 `VANTAGE_TOKEN`. Names reserved for plugin startup (`FINFOCUS_PLUGIN_PORT`,
 the log-file variable, and the trace id) are rejected and are never taken
 from ESC.
@@ -72,10 +72,10 @@ from ESC.
 
 `PULUMI_ACCESS_TOKEN` is sent only to a backend selected by
 `PULUMI_BACKEND_URL` or by `pulumi login`. A `backend.url` in `Pulumi.yaml`
-does not receive that token. For a self-hosted Pulumi Cloud API, set
+doesn't receive that token. For a self-hosted Pulumi Cloud API, set
 `PULUMI_BACKEND_URL` to that API or run `pulumi login` against it. DIY
 backends (`file://`, `s3://`, `gs://`, `azblob://`) and non-loopback
-`http://` cannot host ESC.
+`http://` can't host ESC.
 
 References look like `[[org/]project/]name[@version]`. One segment is read as
 `default/<name>`. When the reference has no organization, finfocus uses the
@@ -90,7 +90,7 @@ names the reference and the category, never a value. The categories, causes,
 and fixes are in
 [ESC environment skipped](troubleshooting.md#esc-environment-skipped).
 
-Inline `environment:` definitions, including a `values:` block, are not read.
+Inline `environment:` definitions, including a `values:` block, aren't read.
 Import an environment, or set `esc.environments`.
 
 ## Cache
@@ -99,15 +99,15 @@ Cost answers are cached by the environment reference and its revision, not by
 the variable values. A rotated credential at the same revision still hits the
 cache. Editing the environment changes the revision and misses the cache.
 
-A value edited in an environment that your environment imports does not
+A value edited in an environment that your environment imports doesn't
 change your environment's revision. That answer can be reused until the cache
 TTL expires.
 
 ## Analyzer
 
-`finfocus analyzer serve` does not open the stack's ESC imports. Pulumi has
-already placed those variables in the process environment, and the stack is
-not known when the analyzer starts. Explicit `esc` configuration is still
+`finfocus analyzer serve` doesn't open the stack's ESC imports. Pulumi has
+already placed those variables in the process environment, and the stack isn't
+known when the analyzer starts. Explicit `esc` configuration is still
 opened.
 
 ## Dashboard

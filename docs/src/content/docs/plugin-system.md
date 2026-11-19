@@ -161,8 +161,8 @@ settings. The confirmation names the plugin, version, repository, and
 security level before anything is downloaded. Settings are written to the
 project or global `config.hujson` and apply the next time that plugin is
 launched. An environment variable already set for the process takes
-precedence over the file and over the plugin's default. Secret values are
-not shown again after they are saved.
+precedence over the file and over the plugin's default. Secret values aren't
+shown again after they're saved.
 
 Command-line `plugin install` can also install from a URL. The dashboard
 accepts catalog names only.
@@ -194,7 +194,7 @@ variable, and its docs pages list them. For example,
 `FINFOCUS_AWS_CARBON_ENABLED`. See
 [Historical AWS Carbon Reporting](plugins/historical-carbon.md). FinFocus takes each advertised value from that
 variable, or else from the plugin's section of the project or global config
-file. As a fallback, a config key the plugin does not advertise is passed to it
+file. As a fallback, a config key the plugin doesn't advertise is passed to it
 as `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase, with hyphens as
 underscores.
 
@@ -561,12 +561,12 @@ Optional `plugin.manifest.json` file provides metadata:
 }
 ```
 
-> **Note:** `batch_cost` is optional. When it is not implemented, the core falls back to per-resource cost calls.
+> **Note:** `batch_cost` is optional. When it isn't implemented, the core falls back to per-resource cost calls.
 >
 > A `ResourceExhausted` status is a rate limit. Core retries that plugin before
 > it asks the next one, and waits for `ErrorDetail.retry_after_seconds` when
 > the plugin sets it. A batch that returns `ResourceExhausted` is retried as a
-> batch. Core does not split that batch into one call per resource on the
+> batch. Core doesn't split that batch into one call per resource on the
 > rate-limited plugin.
 
 ### Authentication

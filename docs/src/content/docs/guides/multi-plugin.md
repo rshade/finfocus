@@ -43,12 +43,12 @@ finfocus config set scoring.enabled true
 The kubernetes plugin also needs a reachable cluster via kubeconfig
 (`KUBECONFIG` or `~/.kube/config`) for Step 2. Set `scoring.plugin` before
 `scoring.enabled`, because FinFocus validates each config change, and scoring
-cannot be enabled without a plugin.
+can't be enabled without a plugin.
 
 The first public scorer release and registry entry are pending. Source install
 is available now. Once assets are published, `finfocus plugin install scorer`
 will install it. `finfocus plugin install jev` still installs the last legacy
-Jev release separately and does not migrate settings.
+Jev release separately and doesn't migrate settings.
 
 Hosted Jev sends recommendation data to TypeSafe AI. To select hosted Clef,
 use `SCORER_BACKEND=clef`, a Cloudflare token in `SCORER_API_KEY`, and your
@@ -100,7 +100,7 @@ the cost of this pull request: $109.61 a month. aws-public priced the EC2
 instance, EBS volume, and RDS instance from its embedded pricing data. The
 kubernetes plugin priced the Deployment from its declared requests, and its
 note shows the arithmetic. The S3 bucket has no price from any installed
-plugin. It is listed under `ERRORS` and counted as $0, which means "unknown,"
+plugin. It's listed under `ERRORS` and counted as $0, which means "unknown,"
 not "free."
 
 Neither plugin needed AWS credentials or a live cluster for this step, so it
@@ -181,7 +181,7 @@ urn:pulumi:prod::shop::aws:ec2/instance:Instance::api-server  RECOMMENDATION_ACT
 ```
 
 This is illustrative output from the original Jev walkthrough, with the plugin
-name updated to `scorer`. It is not a Clef run or evidence of Clef quality.
+name updated to `scorer`. It isn't a Clef run or evidence of Clef quality.
 The score columns sit at the right of the table. For that Jev run they were:
 
 | Recommendation      | Savings  | Risk | False pos | Worth | Priority | Review |
@@ -189,7 +189,7 @@ The score columns sit at the right of the table. For that Jev run they were:
 | gp2 → gp3 volume    | 4.00 USD | 0.21 | 0.12      | 0.76  | 2.35     |        |
 | m4.large → m5.large | 2.92 USD | 0.26 | 0.12      | 0.46  | 2.12     | review |
 
-The Jev backend's scores are `ranking_only`: they order the list, and they are not
+The Jev backend's scores are `ranking_only`: they order the list, and they aren't
 probabilities. Priority is a relative score, so read it only against the
 other rows in the same run. Jev rated the gp2→gp3 change as both lower risk
 and more worth doing, so it sorts first. It flagged the instance upgrade for

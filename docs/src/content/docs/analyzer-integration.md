@@ -9,7 +9,7 @@ estimates during `pulumi preview` operations.
 ## Architecture
 
 The analyzer is a gRPC server that the Pulumi engine invokes during the resource
-lifecycle. It provides "advisory" diagnostics that do not block deployment but
+lifecycle. It provides "advisory" diagnostics that don't block deployment but
 inform the user of potential costs.
 
 For setup instructions, see the [Analyzer Setup Guide](getting-started/analyzer-setup.md).
@@ -87,17 +87,17 @@ Pulumi internal resources (Stack, providers) are handled specially:
 
 ## Isolating Plugins in Analyzer Mode
 
-When finfocus runs as a Pulumi policy pack, routing configuration is not applied.
+When finfocus runs as a Pulumi policy pack, routing configuration isn't applied.
 The only supported mechanism for controlling which plugins are loaded is `FINFOCUS_HOME`.
 
 When `FINFOCUS_HOME` is set, finfocus uses `$FINFOCUS_HOME/plugins/` as its entire
 plugin root. Any plugin absent from that directory is never loaded.
 
-> **Warning: Directory-level symlinks are not supported**
+> **Warning: Directory-level symlinks aren't supported**
 > (issue [#750](https://github.com/rshade/finfocus/issues/750))
 >
 > The registry silently skips directory-level symlinks. If you symlink the entire
-> plugin version directory, the plugin will not be found. Use file-level symlinks
+> plugin version directory, the plugin won't be found. Use file-level symlinks
 > (symlink the binary itself) until issue #750 is resolved.
 
 ### Step-by-step: create an isolated plugin home
@@ -125,7 +125,7 @@ FINFOCUS_HOME=~/.finfocus/demo \
 ```
 
 Only the plugins present in `~/.finfocus/demo/plugins/` will be loaded. If the
-directory contains no plugins, finfocus returns zero cost data (it does **not**
+directory contains no plugins, finfocus returns zero cost data (it **doesn't**
 fall back to `~/.finfocus`).
 
 ### Environment variable precedence

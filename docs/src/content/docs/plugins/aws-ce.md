@@ -23,7 +23,7 @@ changes resources.
   last 14 days.
 - **Forecasts**: Projected cost for `aws:account` and `aws:service` is the
   month-to-date amortized cost plus the Cost Explorer forecast. Cost Explorer
-  cannot forecast one resource, so a projected request for any other type
+  can't forecast one resource, so a projected request for any other type
   returns `InvalidArgument` and FinFocus falls back to the next plugin.
 - **Budgets**: Reads AWS Budgets and reports spend and health.
 - **Recommendations**: EC2 rightsizing, Savings Plans, reservation purchases,
@@ -43,13 +43,13 @@ up to 48 hours.
 finfocus plugin install aws-ce
 ```
 
-`finfocus setup` does not install this plugin by default.
+`finfocus setup` doesn't install this plugin by default.
 
 ## Configuration
 
 The plugin needs AWS credentials. Set a profile or the standard AWS environment
 variables, and set `AWS_REGION`. Cost Explorer uses a global endpoint, so the
-region does not choose a billing dataset.
+region doesn't choose a billing dataset.
 
 Grant only the IAM actions for the features you use:
 
@@ -117,5 +117,5 @@ See [Routing](../guides/routing.md) for the full configuration.
 - Rightsizing must be enabled in Cost Management preferences, and Savings Plans
   recommendations must already exist in AWS.
 - The caller supplies `billing_account_id` to get a FOCUS record.
-- `finfocus plugin inspect aws-ce` reports that capability discovery is not
-  implemented, because the plugin does not implement `DryRun`.
+- `finfocus plugin inspect aws-ce` reports that capability discovery isn't
+  implemented, because the plugin doesn't implement `DryRun`.

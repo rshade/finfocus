@@ -55,7 +55,7 @@ The table has one line per entry:
 ```
 
 Each line shows the local time, the level, the source in brackets, the
-message, and the remaining fields as `key=value`. A line that is not a log
+message, and the remaining fields as `key=value`. A line that isn't a log
 record, such as plain text a plugin printed, is shown at level `INFO` with the
 source `unknown`.
 
@@ -72,7 +72,7 @@ format. Log lines can still contain resource names and file paths.
 | Code | Meaning |
 |------|---------|
 | `0` | Success, including no matching entries |
-| `1` | The default log file does not exist or cannot be read. The message names the path |
+| `1` | The default log file doesn't exist or can't be read. The message names the path |
 | `2` | A bad flag or value, an unknown `--output`, or a missing or unreadable `--file` |
 
 ## Examples

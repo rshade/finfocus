@@ -106,7 +106,7 @@ Replace `v0.5.8` with the release you want.
 
 ### 3. Package Managers
 
-FinFocus is not published to Homebrew, Chocolatey, or APT. Use the install
+FinFocus isn't published to Homebrew, Chocolatey, or APT. Use the install
 script or a release archive.
 
 ## Platform-Specific Instructions

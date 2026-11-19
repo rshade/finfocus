@@ -9,7 +9,7 @@ nav_order: 11
 
 The `azure-public` plugin estimates Azure costs from the public
 [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices).
-It needs no Azure credentials, so it is safe to run in CI/CD pipelines.
+It needs no Azure credentials, so it's safe to run in CI/CD pipelines.
 
 **About Azure pricing:** [Azure pricing](https://azure.microsoft.com/en-us/pricing/)
 and [Microsoft Cost Management](https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/overview-cost-management)
@@ -37,7 +37,7 @@ finfocus plugin install azure-public
 finfocus plugin install github.com/rshade/finfocus-plugin-azure-public
 ```
 
-`finfocus setup` does not install this plugin by default.
+`finfocus setup` doesn't install this plugin by default.
 
 ## Supported Providers
 
@@ -86,12 +86,12 @@ finfocus cost actual --pulumi-state state.json
 ## Limitations
 
 - **List Prices Only**: Reservations, savings plans, and negotiated discounts
-  are not applied to the monthly cost. VM quotes list them as advisory price
+  aren't applied to the monthly cost. VM quotes list them as advisory price
   options.
 - **Actual Cost Is an Estimate**: `cost actual` returns list price times
   runtime, not your Azure bill.
 - **Partial Coverage**: NAT Gateway, Cache for Redis, and PostgreSQL and MySQL
-  servers are not priced. SQL Database supports General Purpose Gen5
+  servers aren't priced. SQL Database supports General Purpose Gen5
   provisioned compute only.
 - **Network Access**: The plugin calls `prices.azure.com`, so it needs outbound
   HTTPS.

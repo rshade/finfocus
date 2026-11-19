@@ -94,7 +94,7 @@ make lint
 ### Framework: testify
 
 All tests use `github.com/stretchr/testify/require` and
-`github.com/stretchr/testify/assert`. Do not write manual `if x != y { t.Errorf(...) }`
+`github.com/stretchr/testify/assert`. Don't write manual `if x != y { t.Errorf(...) }`
 checks.
 
 ```go
@@ -163,7 +163,7 @@ Every error return must have a test that triggers it. Priority paths:
 ### Expected-Failure Patterns
 
 Tests that intentionally create failing plugin scenarios must use `t.Logf()`
-rather than `t.Errorf()`, so CI does not flag expected errors as failures:
+rather than `t.Errorf()`, so CI doesn't flag expected errors as failures:
 
 ```go
 client, err := pluginhost.NewClient(ctx, launcher, mockPlugin)

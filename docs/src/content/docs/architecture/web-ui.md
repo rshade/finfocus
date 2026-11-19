@@ -40,10 +40,10 @@ budget health) is pushed to the browser over Server-Sent Events. SSE fits
 because data flows one way, from server to page, and it needs nothing beyond
 Go's standard library.
 
-Every new event stream starts with a snapshot of everything loaded so far. That
-is why a reload or a second tab picks up the current state instead of starting
-the load again. Per-view choices, such as expanded clusters, stay in the page
-that made them, so two tabs do not interfere with each other.
+Every new event stream starts with a snapshot of everything loaded so far, so a
+reload or a second tab picks up the current state instead of starting the
+load again. Per-view choices, such as expanded clusters, stay in the page
+that made them, so two tabs don't interfere with each other.
 
 The dashboard refreshes only where the terminal UI does: an on-demand
 `pulumi preview` and estimate recalculation. There is no timed refresh. You
@@ -63,7 +63,7 @@ request logging run once, in the outer layer, before dispatch. Three
 consequences follow:
 
 - An unregistered stack is a `404` only for an authenticated client. An
-  unauthenticated one gets `401` either way, so stack names cannot be probed.
+  unauthenticated one gets `401` either way, so stack names can't be probed.
 - One session cookie, `finfocus_session_<port>` with `Path=/`, signs a browser
   into every stack. The `?token=` bootstrap works at `/` and at a registered
   stack's root, and redirects back to the URL it was opened at.
@@ -78,8 +78,8 @@ The page is prefix-safe. The server writes the prefix into
 `<meta name="finfocus-base">` (the CSP forbids an inline script), empty at the
 root. `app.js` reads it once through `base()` and builds every network URL with
 `withBase(path)`: `fetch`, both `EventSource` sites, the session-expiry check,
-and the log viewer's dynamic `import()`. `<base href>` is not enough, because it
-does not rewrite root-relative `/api` or `/static` URLs or `import()` calls. New
+and the log viewer's dynamic `import()`. `<base href>` isn't enough, because it
+doesn't rewrite root-relative `/api` or `/static` URLs or `import()` calls. New
 frontend code must not pass an absolute `/api` or `/static` literal to a network
 call. The `frontendtest/base.test.mjs` test fails if it does.
 
@@ -105,7 +105,7 @@ One name, or none, builds exactly one.
   keeps the command's source.
 - **Passphrase per stack.** A stack's pipeline reads its own channel, and its
   session's `/api/passphrase` handler writes to that channel only. A prompt and
-  its answer cannot cross stacks.
+  its answer can't cross stacks.
 - **Still shared.** The log hub, audit context, and dismissals are process-wide.
   The config editor and plugin catalog callbacks are stateless, but a plugin
   install or removal reloads only the plugin set of the stack whose session made
@@ -118,16 +118,16 @@ One name, or none, builds exactly one.
   binary and the exact environment the process receives match. The pool learns
   each binary's advertised settings from its first launch, so a later request
   can resolve that environment before launching. ESC values the plugin never
-  receives do not prevent sharing. Until the settings are known the key also
+  receives don't prevent sharing. Until the settings are known the key also
   covers everything the stack's ESC environments offer, because a value for an
   advertised setting is allowed only after `GetPluginInfo`, and a request with
   another offer waits for that first launch rather than starting its own.
   Each stack holds its own
   `Client` copy. Closing it releases one hold, and the last release stops the
   process. The pool, not a stack, owns each process's launch context, so
-  stopping or cancelling one stack cannot kill a process another holds. A
-  running process is checked with a `Name` call before it is handed out, and
-  one that does not answer is replaced. Stopping the stacks closes the pool,
+  stopping or cancelling one stack can't kill a process another holds. A
+  running process is checked with a `Name` call before it's handed out, and
+  one that doesn't answer is replaced. Stopping the stacks closes the pool,
   which stops anything still running. Plugin probes run under an HTTP request
   context and launch their own process, and a single stack uses no pool
   (`specs/2016-shared-plugin-pool/`).
@@ -142,11 +142,11 @@ or a Terraform project, since a list names stacks of a Pulumi project.
 `runWebStacks` builds every stack's runtime up front, which starts nothing, and
 registers each under `/s/<name>/`. It then serves with an empty root session.
 The browser, not the server, decides which stack runs: a stack's pipeline starts
-the first time the page activates it, once, however often that is asked. Opening
+the first time the page activates it, once, however often that's asked. Opening
 a stack's own page (`GET /s/<name>/`) activates it through the same once-only
-path, so that page never streams from a stack that does not run. Requests under
+path, so that page never streams from a stack that doesn't run. Requests under
 `/s/<name>/api/` never activate.
-Building a runtime cannot fail and starts no plugin, so every failure, at start
+Building a runtime can't fail and starts no plugin, so every failure, at start
 or later, reaches that stack's own session as a pipeline error and never aborts
 the server or another stack. A stack nobody opened stops without error, and the
 audit row total counts only the stacks that started.
@@ -159,7 +159,7 @@ The root server adds two routes, and a stack's own tree never has them:
   because a rejected passphrase records a failure and then asks again. A stack
   that finished loading stays `ready`, even if a later on-demand preview fails.
   `failed` needs the pipeline to have ended (`Session.SetPipelineEnded`, called
-  when `webStack.start`'s goroutine sees `Run` return), so a retry that is still
+  when `webStack.start`'s goroutine sees `Run` return), so a retry that's still
   loading reads `loading`. Ending with a recorded failure also sends a snapshot,
   because the `error` event arrives while the pipeline still runs and a refresh
   at that moment would read `loading`.
@@ -178,18 +178,18 @@ A single-stack root page instead names its Pulumi stack in
 stack `checkWebProjectSource` resolved, which is `--stack` or the workspace's
 selected stack, so the name is known before the server listens. It also pins
 the pipeline's stack to that name, so a `pulumi stack select` during a
-passphrase wait cannot load another stack under the same label. Plan files, state
+passphrase wait can't load another stack under the same label. Plan files, state
 files, and Terraform pass none. The tag shows a lone selected tab and the header
-label and changes nothing else: it is display text, may be org-qualified, and
+label and changes nothing else: it's display text, may be org-qualified, and
 never becomes a request prefix. That tab follows its own session from the
 overview stream, with no stack list request, in the same order as `stackState`:
 a pending prompt (`passphraseRequired`), then `ready`, then `failed`. The
 snapshot's `failed` is `Session.Failed`, true only once the pipeline ended with
-a failure, so a rejected passphrase that is asking again reads `locked`.
+a failure, so a rejected passphrase that's asking again reads `locked`.
 Only Overview shows the passphrase prompt and a load failure, so while the active
 stack is `locked` or `failed` on any other view, `#stack-notice` (above `#view`,
-`role="status"`) says so and links to that stack's Overview. It is rewritten only
-when the stack or state changes, so a refresh does not announce it again.
+`role="status"`) says so and links to that stack's Overview. It's rewritten only
+when the stack or state changes, so a refresh doesn't announce it again.
 `app.js` keeps one stack state: `base()` returns `/s/<active>` while the page
 lists stacks, and the two root-only routes pass `{ root: true }`.
 
@@ -205,7 +205,7 @@ and selection, and `#view` is the tab panel.
 
 ## Security model
 
-A server on `127.0.0.1` is unreachable from other machines, but it is still
+A server on `127.0.0.1` is unreachable from other machines, but it's still
 reachable from other local processes and, through the browser, from any web
 page you have open. A page on the internet can send requests to
 `http://127.0.0.1:<port>`, and a page served from another localhost port counts
@@ -215,12 +215,12 @@ plugin calls and `pulumi preview`, so it defends against each of those paths.
 | Threat | Control | Why this control |
 | --- | --- | --- |
 | Access from another machine | Binds `127.0.0.1` only, with no flag to change it | A local, single-user tool has no reason to accept remote connections. Unlike `finfocus mcp-server --transport=http`, there is no opt-in. |
-| Another local process or user guessing the port | 128-bit random token in the printed URL | The port is easy to find. A 128-bit token cannot be guessed. Treat the printed URL as a secret. |
-| Token leaking through history, logs, or referrers | The token is exchanged once for an `HttpOnly` cookie, followed by a redirect to `/`. Request logs omit query strings. `Referrer-Policy: no-referrer` is set. | A token in every URL would end up in browser history and logs on each reconnect. `EventSource` cannot send custom headers, so the cookie carries authentication for the event stream. |
+| Another local process or user guessing the port | 128-bit random token in the printed URL | The port is easy to find. A 128-bit token can't be guessed. Treat the printed URL as a secret. |
+| Token leaking through history, logs, or referrers | The token is exchanged once for an `HttpOnly` cookie, followed by a redirect to `/`. Request logs omit query strings. `Referrer-Policy: no-referrer` is set. | A token in every URL would end up in browser history and logs on each reconnect. `EventSource` can't send custom headers, so the cookie carries authentication for the event stream. |
 | DNS rebinding (a hostile domain resolving to `127.0.0.1`) | The `Host` header must be `127.0.0.1:<port>` or `localhost:<port>`, or an exact `--allowed-host` | A rebinding page sends its own domain as `Host`, so the check rejects it. An allowed host is an exact, normalized name: no wildcards, no IP literals, no suffix matching. |
-| A web page submitting forms or `fetch` calls | `POST` requires the server's own `Origin` and `Content-Type: application/json` | Browsers do not let a cross-origin page send JSON without a preflight, and they always attach `Origin` to such requests. |
-| A page on another localhost port | `SameSite=Strict`, plus refusal of any request whose `Sec-Fetch-Site` is not `same-origin` or `none` | `SameSite` treats all localhost ports as one site, so it does not help here. Some read requests call plugins and record history, and an `<img>` tag on another port could send one with the cookie and no `Origin`. `Sec-Fetch-Site` tells the server where the request really came from. |
-| Two `finfocus --web` sessions overwriting each other | The cookie name includes the port: `finfocus_session_<port>` | Cookies are not isolated by port. |
+| A web page submitting forms or `fetch` calls | `POST` requires the server's own `Origin` and `Content-Type: application/json` | Browsers don't let a cross-origin page send JSON without a preflight, and they always attach `Origin` to such requests. |
+| A page on another localhost port | `SameSite=Strict`, plus refusal of any request whose `Sec-Fetch-Site` isn't `same-origin` or `none` | `SameSite` treats all localhost ports as one site, so it doesn't help here. Some read requests call plugins and record history, and an `<img>` tag on another port could send one with the cookie and no `Origin`. `Sec-Fetch-Site` tells the server where the request really came from. |
+| Two `finfocus --web` sessions overwriting each other | The cookie name includes the port: `finfocus_session_<port>` | Cookies aren't isolated by port. |
 | Injected or third-party script | `Content-Security-Policy: default-src 'self'` and no CDN assets | The page runs only the scripts the binary ships. |
 
 The cookie has no `Secure` attribute on loopback. The server speaks plain HTTP
@@ -251,7 +251,7 @@ terminal view already does:
   Pulumi internals such as `__defaults` are removed with the engine's shared
   rules, the same ones that filter plugin attributes and nested tags
   (`engine.IsHiddenPropertyKey` and `history.IsPulumiSecret`). The web layer keeps
-  no rule list of its own, so the rules cannot drift apart. Redaction covers
+  no rule list of its own, so the rules can't drift apart. Redaction covers
   resource details, property diffs, and the estimate view's editable
   properties.
 - Budget health uses the CLI's JSON shape, which has no notification
@@ -267,7 +267,7 @@ provider, or adapter label) keep their keys. Pulumi secret values inside
 those maps are still removed. Property maps, property diffs, and estimate
 overrides still drop credential-like names.
 
-The Config page does not use that payload redactor. Its JSON is already masked:
+The Config page doesn't use that payload redactor. Its JSON is already masked:
 the values of secret settings and notification destinations are omitted, while
 each setting and its set or source status stay in the response, and the handler
 writes that document directly. A redactor that drops credential-looking keys
@@ -284,7 +284,7 @@ the project keeps one copy of each. Redacting in JavaScript would need a second
 list that could drift. So the `internal/weblog` package turns each raw line
 into an entry, redacts its fields, and sets its display strings before the line
 is stored. The browser receives entries and never a raw line. The free-text
-`message` is not redacted, because it cannot be inspected reliably. Plugins are
+`message` isn't redacted, because it can't be inspected reliably. Plugins are
 told never to log credentials. `finfocus logs` uses the same package, so the
 terminal and the page show one pipeline's output.
 
@@ -311,19 +311,19 @@ payloads with the engine's data-keyed rules and drops slow subscribers, which
 suits neither raw log entries nor a replayable buffer. The log stream sends a snapshot of
 the buffer first, then each new entry with its sequence number as the event id,
 so a reconnect resumes without duplicates. The hub keeps a bounded in-memory
-ring (5000 entries) and drops the oldest entry when it is full. A `gap` event
+ring (5000 entries) and drops the oldest entry when it's full. A `gap` event
 counts entries already dropped from that ring. The page says they were dropped
 from the buffer.
 
 When the setting is off, the server still registers `GET /api/logs/status`
-and answers `200` with `enabled` false, so the dashboard's startup probe is
-not a failed request. It does not register `/api/logs/stream`, so that path
+and answers `200` with `enabled` false, so the dashboard's startup probe isn't
+a failed request. It doesn't register `/api/logs/stream`, so that path
 answers 404 like any unknown path. The header link stays hidden, and no log
 hub exists to capture anything. Requests under `/api/logs/` are left out of
-the request log, so watching the logs does not add lines to them.
+the request log, so watching the logs doesn't add lines to them.
 
 `internal/webui` reaches the hub only through a small `LogSource` interface, so
-it does not import `cli`, `registry`, or `pluginhost`.
+it doesn't import `cli`, `registry`, or `pluginhost`.
 
 ## Layout and adding a feature
 
@@ -362,19 +362,19 @@ section before the CLI feature is called complete.
 
 ## Boundaries
 
-- **Read-only toward cloud infrastructure.** The dashboard cannot run
-  `pulumi up` or `pulumi destroy`, and it cannot dismiss recommendations. Its
+- **Read-only toward cloud infrastructure.** The dashboard can't run
+  `pulumi up` or `pulumi destroy`, and it can't dismiss recommendations. Its
   cloud side effects are those the terminal UI already has: plugin queries,
   `pulumi preview`, and the optional cost cache and history.
 - **Configuration files are user settings.** The Config page and the Plugins
-  page can write the resolved project or global `config.hujson`. That file is
-  not cloud infrastructure. Alert, routing, and analyzer settings stay
+  page can write the resolved project or global `config.hujson`. That file isn't
+  cloud infrastructure. Alert, routing, and analyzer settings stay
   read-only on the Config page.
 - **Plugin files are local user state.** The Plugins page can install, update,
   and remove catalog plugins in the directory `plugin list` already reads.
-  Those files are not cloud infrastructure. Install, update, and remove are
-  not agent tools.
-- **No other new store.** Deleting the local stores does not stop `--web`
+  Those files aren't cloud infrastructure. Install, update, and remove aren't
+  agent tools.
+- **No other new store.** Deleting the local stores doesn't stop `--web`
   from launching.
 - **Not an MCP surface.** `--web` and `--mcp` are mutually exclusive, and the
   dashboard adds no MCP tools.

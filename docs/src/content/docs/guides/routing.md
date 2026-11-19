@@ -100,8 +100,8 @@ entry. Group by type to see packages separately.
 **Global Plugins**: Plugins reporting `["*"]` or empty providers match ALL resources (e.g., debugging plugins).
 
 That rule also applies when there is no routing configuration, and when a
-configured router returns no plugin. Core does not ask a plugin whose
-provider list is non-empty and does not name the resource's cloud. A
+configured router returns no plugin. Core doesn't ask a plugin whose
+provider list is non-empty and doesn't name the resource's cloud. A
 descriptor provider that differs from the type prefix also counts: Terraform
 labels an unmapped type `custom`. Plugins with an empty list or `*` are
 still asked.
@@ -113,9 +113,9 @@ cost `actual_costs`, recommendations `recommendations`, and carbon `carbon`.
 plugins on the projected route that list `pricing_spec`, in the same priority
 order, so a plugin that lists only `pricing_spec` can still price a resource
 through the fallback. A usage source such as the `prometheus` plugin, which lists only usage stats, is
-never asked to price a resource, so its decline does not appear in a cost note.
+never asked to price a resource, so its decline doesn't appear in a cost note.
 A plugin that lists no capabilities is still asked, except for carbon. A plugin
-that lists only capabilities core does not act on, such as `cost_parse`, is not
+that lists only capabilities core doesn't act on, such as `cost_parse`, isn't
 asked to price. Batch pricing needs `batch_cost` listed: a plugin with no
 capability list gets per-resource calls and never a batch. An actual-cost batch
 also needs `actual_costs`, and a projected batch needs `projected_costs`.
@@ -377,16 +377,16 @@ routing:
 3. If fails and `fallback: true` → try local specs (built-in)
 4. If no specs → return "no cost data available"
 
-> **Note: Routing does not apply in analyzer/policy-pack mode**
+> **Note: Routing doesn't apply in analyzer/policy-pack mode**
 >
 > When finfocus runs as a Pulumi policy pack (`pulumi preview --policy-pack`),
-> routing configuration is **not consulted**. All plugins discovered in the plugin
+> routing configuration **isn't consulted**. All plugins discovered in the plugin
 > directory are loaded and queried for every resource. Pulumi 3.270.0 and later
 > starts that pack through `pulumi-language-finfocus`. Earlier releases start
 > `pulumi-analyzer-policy-finfocus`. `finfocus analyzer install` writes both.
 >
-> Additionally, global plugins (those with `supported_providers: ["*"]`) cannot be
-> excluded via routing even in standard CLI mode. They are always included for all
+> Additionally, global plugins (those with `supported_providers: ["*"]`) can't be
+> excluded via routing even in standard CLI mode. They're always included for all
 > resources.
 >
 > To exclude specific plugins when running as a policy pack, use `FINFOCUS_HOME`
@@ -734,8 +734,8 @@ Results include which plugin provided the data:
 ## Changelog
 
 - **v0.3.1**: Documented analyzer/policy-pack mode limitations
-  - Routing configuration is not applied when running as a Pulumi policy pack
-  - Global plugins (`supported_providers: ["*"]`) cannot be excluded via routing
+  - Routing configuration isn't applied when running as a Pulumi policy pack
+  - Global plugins (`supported_providers: ["*"]`) can't be excluded via routing
   - Added `FINFOCUS_HOME` isolation procedure in Analyzer Integration docs
 - **v0.3.0**: Initial multi-plugin routing release
   - Automatic provider-based routing

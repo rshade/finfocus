@@ -456,7 +456,7 @@ Standard error constructors for common scenarios.
 **Functions:**
 
 - **`NotSupportedError(resource *ResourceDescriptor) error`**
-  - Returns error indicating resource is not supported
+  - Returns error indicating resource isn't supported
   - Includes resource type and provider in message
 
 - **`NoDataError(resourceID string) error`**
@@ -692,8 +692,8 @@ func (p *CustomPricingPlugin) GetProjectedCost(
 From finfocus-spec v0.7.4, core sets `GetActualCostRequest.resource` to the
 same descriptor it sends for projected cost: `provider`, `resource_type`,
 `sku`, `region`, flattened `tags`, and redacted `attributes`. Read pricing
-dimensions from it, and fall back to `tags`, `resource_id`, and `arn` when it
-is unset:
+dimensions from it, and fall back to `tags`, `resource_id`, and `arn` when it's
+unset:
 
 ```go
 if resource := req.GetResource(); resource != nil {
@@ -724,10 +724,10 @@ Existing keys and values stay the same, including keys that start with `__`,
 except that a top-level input with a credential-like name (the list below) or
 a Pulumi secret value is never sent, and collapsed map text leaves those out.
 If a dotted key collides with an existing key, the existing value wins.
-`EstimateCost` attributes stay nested `Struct` values and do not gain dotted
+`EstimateCost` attributes stay nested `Struct` values and don't gain dotted
 keys.
 
-The flattener does not emit:
+The flattener doesn't emit:
 
 - nil leaves, empty maps, empty arrays, or a leaf equal to the Pulumi unknown
   sentinel `04da6b54-80e4-46f7-96ec-b56ff0331ba9`
@@ -739,10 +739,10 @@ The flattener does not emit:
 - a Pulumi secret value
 - anything inside `tags`, `tagsAll`, `labels`, or `annotations`
 
-A scalar at six segments is kept. A seventh segment is not. A new key longer
+A scalar at six segments is kept. A seventh segment isn't. A new key longer
 than 128 characters, or a new value longer than 256 characters, is skipped.
-Collapsed values that are already longer than 256 characters are left as they
-are. The tag map stops at 50 entries. Collapsed keys are kept even when they
+Collapsed values that are already longer than 256 characters are left
+unchanged. The tag map stops at 50 entries. Collapsed keys are kept even when they
 already pass 50. Remaining room is filled by dotted keys in order of path
 depth, shallowest first, then by name. One debug log line records
 `dotted_kept` and `dotted_dropped` for a truncated resource. The line has

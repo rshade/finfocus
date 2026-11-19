@@ -242,7 +242,7 @@ For each grouping dimension (provider, type, date):
 - Retry a rate limit (`ResourceExhausted`) up to twice against the same plugin.
 - Wait for the plugin's `retry_after_seconds` when it sets one, otherwise
   100-200 ms before the first retry and 200-400 ms before the second.
-- Do not retry other errors, such as a network timeout or an unavailable
+- Don't retry other errors, such as a network timeout or an unavailable
   service.
 - When the retries run out, or a call fails with any other error, try the
   next matching plugin if fallback is enabled for the failed plugin.

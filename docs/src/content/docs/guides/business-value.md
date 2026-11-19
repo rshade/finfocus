@@ -64,7 +64,7 @@ by **15-25%** while cutting cost analysis time by **80%**.
 
 - No way to estimate costs before deployment
 - Unexpected billing surprises
-- Cannot compare configuration options
+- Can't compare configuration options
 
 **With FinFocus:**
 
@@ -119,7 +119,7 @@ TOTAL                     $133.00   USD
 
 **Without FinFocus:**
 
-- Cannot track costs by team/project/environment
+- Can't track costs by team/project/environment
 - No way to implement chargeback models
 - Finance doesn't understand technical costs
 
