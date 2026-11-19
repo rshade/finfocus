@@ -614,7 +614,7 @@ asks you to confirm the plugin, version, repository, and security level
 first. URL installs stay on this command.
 
 A release can be published a few minutes before its archives are uploaded.
-When you do not request a version and the newest release has no assets yet,
+When you do not request a version and the newest stable release has no assets yet,
 the installer prints a warning naming both versions and installs the newest
 earlier stable release that has assets. When you request that version
 explicitly, the installer does not swap versions on its own. The error says

@@ -38,11 +38,11 @@ func NewPluginUpdateCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "update <plugin>",
-		Short: "Update an installed plugin to the newest release",
-		Long: `Update an installed plugin to the newest release or a specific version.
+		Short: "Update an installed plugin to the newest stable release",
+		Long: `Update an installed plugin to the newest stable release or a specific version.
 
 The plugin must already be installed. Use 'plugin install' to install new plugins.`,
-		Example: `  # Update to latest version
+		Example: `  # Update to the newest stable release
   finfocus plugin update opencost
 
   # Update to specific version
@@ -57,7 +57,7 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
 	}
 
 	cmd.Flags().
-		StringVar(&version, "version", "", "Specific version to update to (default: latest)")
+		StringVar(&version, "version", "", "Specific version to update to (default: newest stable release)")
 	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Custom plugin directory (default: configured)")
 	cmd.Flags().BoolVar(
 		&skipChecksum,

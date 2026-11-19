@@ -82,7 +82,10 @@ When performing cost analysis or other operations, the system automatically sele
 the **highest version** of each installed plugin based on Semantic Versioning (SemVer)
 rules.
 
-- **Pre-release versions** (e.g., `v1.0.0-alpha`) are ignored if a stable version (e.g., `v1.0.0`) is present.
+- **Pre-release versions** rank below the stable release of the same version,
+  so `v1.0.0` is selected over `v1.0.0-alpha`. A pre-release of a higher
+  version is still selected over a lower stable release, so `v1.1.0-alpha`
+  is selected over `v1.0.0`.
 - **Invalid versions** are skipped with a warning.
 - **Corrupted directories** are skipped with a warning.
 
@@ -148,12 +151,14 @@ unpacking for you.
 > batch. Core does not split that batch into one call per resource on the
 > rate-limited plugin.
 
-#### Package Manager Installation (Future)
+#### Registry Installation
 
 ```bash
-# Coming soon
+# Install the newest stable release from the plugin registry
+finfocus plugin install opencost
+
+# Pin a specific version
 finfocus plugin install opencost@v0.1.2
-finfocus plugin install aws-plugin@latest
 ```
 
 ### Plugin Configuration
