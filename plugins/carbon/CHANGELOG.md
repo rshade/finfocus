@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/rshade/finfocus/compare/carbon-v0.1.4...carbon-v0.1.5) (2026-11-19)
+
+
+### Dependencies
+
+* update go dependencies ([#2178](https://github.com/rshade/finfocus/issues/2178)) ([25cbdcf](https://github.com/rshade/finfocus/commit/25cbdcfe3f11bc65677071832f710484d3620dc4))
+
 ## [0.1.4](https://github.com/rshade/finfocus/compare/carbon-v0.1.3...carbon-v0.1.4) (2026-11-16)
 
 

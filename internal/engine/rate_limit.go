@@ -113,16 +113,22 @@ func (e *Engine) actualFromPlugin(
 	result, err := retryRateLimited(ctx, perAttempt, func(attemptCtx context.Context) (*CostResult, error) {
 		return e.getActualCostFromPlugin(attemptCtx, client, resource, billedFrom, to)
 	})
-	// The result keeps the requested window, so rows and groups share one
-	// period even when a resource was billed from its creation time. The daily
-	// series is rebuilt over that window so its indices still start at from.
-	// DailyObservations stay the plugin buckets; this does not fill gaps with zero.
-	if result != nil && !billedFrom.Equal(from) {
-		result.StartDate = from
-		result.CostPeriod = FormatPeriod(from, to)
-		result.DailyCosts = windowDailyCosts(result.TotalCost, from, billedFrom, to)
-	}
+	keepRequestedWindow(result, from, billedFrom, to)
 	return result, err
+}
+
+// keepRequestedWindow gives a result billed from billedFrom the requested
+// window, so rows and groups share one period even when a resource was billed
+// from its creation time. The daily series is rebuilt over that window so its
+// indices still start at from. DailyObservations stay the plugin buckets; this
+// does not fill gaps with zero.
+func keepRequestedWindow(result *CostResult, from, billedFrom, to time.Time) {
+	if result == nil || billedFrom.Equal(from) {
+		return
+	}
+	result.StartDate = from
+	result.CostPeriod = FormatPeriod(from, to)
+	result.DailyCosts = windowDailyCosts(result.TotalCost, from, billedFrom, to)
 }
 
 // isRateLimited reports whether err is a gRPC ResourceExhausted status.

@@ -506,7 +506,7 @@ Total (10 instances): 10 × 7.592 = 75.92 USD/month
 
 - 5x EC2 t3.micro ($7.592/mo each)
 - 3x RDS db.t3.micro ($24.82/mo each)
-- 1x S3 bucket (100GB at $0.023/GB/mo)
+- 1x S3 bucket (100 GB at $0.023/GB/mo)
 
 **Calculation:**
 
@@ -548,8 +548,8 @@ Total        | 2,287.64
 
 Plugins are kept alive between requests to reduce startup overhead:
 
-- First request: 100-500ms (plugin startup + API call)
-- Subsequent requests: 10-50ms (API call only)
+- First request: 100-500 ms (plugin startup + API call)
+- Subsequent requests: 10-50 ms (API call only)
 
 ### Parallel Processing
 

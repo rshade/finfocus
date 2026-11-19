@@ -3,6 +3,13 @@ title: Vantage Plugin Features
 description: Supported cloud providers, cost types, limitations, and roadmap for the FinFocus Vantage plugin
 ---
 
+> **Earlier design.** This page was written before the plugin was released.
+> Install the plugin with `finfocus plugin install vantage`. The released
+> plugin has no `pull`, `backfill`, or `forecast` command and reads no
+> `config.yaml`. It is configured by the environment variables and the
+> per-request credential on the [Vantage plugin page](../vantage.md), which is
+> the reference when they disagree.
+
 This document describes the features, capabilities, and limitations of the
 Vantage plugin for FinFocus.
 
@@ -369,21 +376,21 @@ Future breaking changes will be announced with:
 
 ### Vantage Plugin vs. Other Plugins
 
-| Feature              | Vantage       | Kubecost          | AWS Cost Explorer |
-| :------------------- | :------------ | :---------------- | :---------------- |
-| **Multi-Cloud**      | ✅ Full       | ❌ K8s only       | ❌ AWS only       |
-| **FOCUS Compliance** | ✅ Yes        | ⚠️ Partial        | ❌ No             |
-| **Tag Filtering**    | ✅ Advanced   | ✅ Basic          | ✅ Basic          |
-| **Forecasting**      | ✅ Snapshot   | ❌ No             | ✅ ML-based       |
-| **Real-Time**        | ❌ 12-48h lag | ✅ Near real-time | ❌ 24h lag        |
-| **Optimization**     | ❌ No         | ✅ Yes            | ✅ Yes            |
+| Feature              | Vantage        | Kubecost          | AWS Cost Explorer |
+| :------------------- | :------------- | :---------------- | :---------------- |
+| **Multi-Cloud**      | ✅ Full        | ❌ K8s only       | ❌ AWS only       |
+| **FOCUS Compliance** | ✅ Yes         | ⚠️ Partial        | ❌ No             |
+| **Tag Filtering**    | ✅ Advanced    | ✅ Basic          | ✅ Basic          |
+| **Forecasting**      | ✅ Snapshot    | ❌ No             | ✅ ML-based       |
+| **Real-Time**        | ❌ 12-48 h lag | ✅ Near real-time | ❌ 24 h lag       |
+| **Optimization**     | ❌ No          | ✅ Yes            | ✅ Yes            |
 
 ---
 
 ## Additional Resources
 
 - [Vantage API Documentation](https://docs.vantage.sh/api)
-- [Vantage Feature Matrix](https://docs.vantage.sh/features)
+- [Vantage Cost Reports](https://docs.vantage.sh/cost_reports)
 - [FinOps FOCUS Specification](https://focus.finops.org/)
 - [Setup Guide](setup.md) - Installation and configuration
 - [Authentication Guide](authentication.md) - API key management

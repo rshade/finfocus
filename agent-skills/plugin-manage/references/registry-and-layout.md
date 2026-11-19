@@ -59,7 +59,9 @@ GitHub repository. Fields: `name`, `description`, `repository`,
 | `opencost` | `rshade/finfocus-plugin-opencost` | kubernetes |
 | `flexera` | `rshade/finfocus-plugin-flexera` | aws, azure, gcp |
 | `vantage` | `rshade/finfocus-plugin-vantage` | aws, azure, gcp, kubernetes |
+| `cloudzero` | `rshade/finfocus-plugin-cloudzero` | aws, azure, gcp |
 | `kubernetes` | `rshade/finfocus` (tag prefix `kubernetes-`) | kubernetes |
+| `prometheus` | `rshade/finfocus` (tag prefix `prometheus-`) | kubernetes |
 | `scorer` | `rshade/finfocus` (tag prefix `scorer-`) | any |
 | `jev` | `rshade/finfocus` (tag prefix `jev-`, deprecated; use `scorer`) | any |
 | `carbon` | `rshade/finfocus` (tag prefix `carbon-`) | aws |

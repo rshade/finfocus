@@ -16,12 +16,14 @@ FinFocus supports configuration via environment variables.
 
 ## Plugins
 
-| Variable                         | Description                   |
-| -------------------------------- | ----------------------------- |
-| `AWS_ACCESS_KEY_ID`              | AWS Access Key for AWS plugin |
-| `AWS_SECRET_ACCESS_KEY`          | AWS Secret Key for AWS plugin |
-| `AZURE_CLIENT_ID`                | Azure Client ID               |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP credentials       |
+Plugin processes inherit the environment FinFocus runs in. Each plugin reads
+its own variables, listed on its docs page. The public pricing plugins
+(`aws-public`, `azure-public`) need no credentials.
+
+| Variable | Description |
+| --- | --- |
+| `AWS_PROFILE`, `AWS_REGION` | AWS credentials and region for [aws-ce](../plugins/aws-ce.md), through the AWS SDK default credential chain. Other standard AWS SDK variables also work. |
+| `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` | Fallback for a `plugins.<name>.<key>` config key the plugin does not advertise, in uppercase with hyphens as underscores. An advertised key uses the variable the plugin names for it: aws-ce reads `carbon_enabled` from `FINFOCUS_AWS_CARBON_ENABLED` (see [Historical AWS Carbon Reporting](../plugins/historical-carbon.md)). |
 
 ## Pulumi
 

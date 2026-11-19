@@ -113,14 +113,16 @@ func registerWebFlags(cmd *cobra.Command, flags *webFlagValues) {
 	cmd.Flags().BoolVar(&flags.noBrowser, "no-browser", false,
 		"do not open a browser; print the web UI URL only (only valid with --web)")
 	cmd.Flags().StringVar(&flags.pulumiJSON, "pulumi-json", "",
-		"path to Pulumi preview JSON (only valid with --web)")
+		"path to Pulumi preview JSON; state is still read from the detected project, if available, "+
+			"unless --pulumi-state is set (only valid with --web)")
 	cmd.Flags().StringVar(&flags.pulumiState, flagPulumiState, "",
 		"path to Pulumi state JSON (only valid with --web)")
 	cmd.Flags().StringArrayVar(&flags.stack, "stack", nil,
 		"Pulumi stack name for auto-detection; with --web, comma-separated or repeated names open one tab per stack "+
 			"(only valid with --web)")
 	cmd.Flags().StringVar(&flags.from, "from", "",
-		"start date (YYYY-MM-DD or RFC3339) (only valid with --web)")
+		"start date (YYYY-MM-DD or RFC3339; with --web, defaults to the first day of the current month) "+
+			"(only valid with --web)")
 	cmd.Flags().StringVar(&flags.to, "to", "",
 		"end date (YYYY-MM-DD or RFC3339, defaults to now) (only valid with --web)")
 	cmd.Flags().StringVar(&flags.adapter, "adapter", "",

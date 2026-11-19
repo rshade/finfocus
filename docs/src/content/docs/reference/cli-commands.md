@@ -1,52 +1,39 @@
 ---
 title: CLI Commands Reference
-description: Complete reference for all FinFocus CLI commands
+description: FinFocus CLI commands, behavior notes, and links to the generated reference for every command
 layout: docs
 ---
 
-Complete command reference for FinFocus.
+Every command has a reference page generated from its help text: usage,
+flags, inherited flags, and examples. Start at [`finfocus`](./cli/finfocus.md).
+This page lists the commands and keeps the behavior notes that the help text
+does not cover. Task guides are under Commands, for example the
+[overview command](../commands/overview.md).
 
 ## Commands Overview
 
-```bash
-finfocus                    # Auto-detects Pulumi project; opens overview if found, otherwise shows help
-finfocus --web              # Browser-based cost dashboard (localhost web UI)
-finfocus --mcp              # Serve as an MCP server over stdio (alias: mcp-server)
-finfocus overview           # Unified cost dashboard (alias: ov)
-finfocus cost               # Cost commands
-finfocus cost projected     # Estimate costs from plan
-finfocus cost actual        # Get actual historical costs
-finfocus cost estimate      # What-if cost analysis
-finfocus cost recommendations          # Get cost optimization recommendations
-finfocus cost recommendations dismiss  # Dismiss a recommendation
-finfocus cost recommendations snooze   # Snooze a recommendation
-finfocus cost recommendations undismiss # Re-enable a dismissed recommendation
-finfocus cost recommendations history  # View recommendation lifecycle history
-finfocus config             # Configuration commands
-finfocus config init        # Initialize configuration file with defaults
-finfocus config set         # Set a configuration value
-finfocus config get         # Get a configuration value
-finfocus config list        # List all configuration values
-finfocus config validate    # Validate routing configuration
-finfocus config routes      # Routing inspection commands
-finfocus config routes list # Show effective routing rules
-finfocus config routes test # Simulate plugin selection for a resource type
-finfocus plugin             # Plugin commands
-finfocus plugin init        # Initialize a new plugin
-finfocus plugin install     # Install a plugin
-finfocus plugin update      # Update a plugin
-finfocus plugin upgrade     # Upgrade a plugin project to a newer finfocus-spec
-finfocus plugin remove      # Remove a plugin
-finfocus plugin list        # List the latest version of each installed plugin
-finfocus plugin inspect     # Inspect plugin capabilities
-finfocus plugin validate    # Validate plugin setup
-finfocus plugin conformance # Run conformance tests
-finfocus plugin certify     # Run certification tests
-finfocus analyzer           # Analyzer commands
-finfocus analyzer install   # Install the Pulumi analyzer plugin
-finfocus analyzer uninstall # Uninstall the Pulumi analyzer plugin
-finfocus analyzer serve     # Start the analyzer gRPC server
-```
+| Group | Commands |
+| --- | --- |
+| Root | [`finfocus`](./cli/finfocus.md) (`--web`, `--mcp`, `--import-cloud-history`) |
+| Overview | [`overview`](./cli/finfocus_overview.md) |
+| Cost | [`cost`](./cli/finfocus_cost.md): [`projected`](./cli/finfocus_cost_projected.md), [`actual`](./cli/finfocus_cost_actual.md), [`estimate`](./cli/finfocus_cost_estimate.md), [`forecast`](./cli/finfocus_cost_forecast.md), [`anomalies`](./cli/finfocus_cost_anomalies.md), [`cluster`](./cli/finfocus_cost_cluster.md) |
+| Recommendations | [`cost recommendations`](./cli/finfocus_cost_recommendations.md): [`dismiss`](./cli/finfocus_cost_recommendations_dismiss.md), [`snooze`](./cli/finfocus_cost_recommendations_snooze.md), [`undismiss`](./cli/finfocus_cost_recommendations_undismiss.md), [`history`](./cli/finfocus_cost_recommendations_history.md) |
+| Cost history | [`cost history`](./cli/finfocus_cost_history.md): [`collect`](./cli/finfocus_cost_history_collect.md), [`collect-daily`](./cli/finfocus_cost_history_collect-daily.md), [`view`](./cli/finfocus_cost_history_view.md), [`list`](./cli/finfocus_cost_history_list.md), [`diff`](./cli/finfocus_cost_history_diff.md), [`export`](./cli/finfocus_cost_history_export.md), [`prune`](./cli/finfocus_cost_history_prune.md) |
+| Carbon | [`carbon`](./cli/finfocus_carbon.md): [`actual`](./cli/finfocus_carbon_actual.md) |
+| Configuration | [`config`](./cli/finfocus_config.md): [`init`](./cli/finfocus_config_init.md), [`set`](./cli/finfocus_config_set.md), [`get`](./cli/finfocus_config_get.md), [`list`](./cli/finfocus_config_list.md), [`validate`](./cli/finfocus_config_validate.md), [`routes`](./cli/finfocus_config_routes.md), [`routes list`](./cli/finfocus_config_routes_list.md), [`routes test`](./cli/finfocus_config_routes_test.md) |
+| Plugins | [`plugin`](./cli/finfocus_plugin.md): [`init`](./cli/finfocus_plugin_init.md), [`install`](./cli/finfocus_plugin_install.md), [`update`](./cli/finfocus_plugin_update.md), [`upgrade`](./cli/finfocus_plugin_upgrade.md), [`remove`](./cli/finfocus_plugin_remove.md), [`list`](./cli/finfocus_plugin_list.md), [`inspect`](./cli/finfocus_plugin_inspect.md), [`validate`](./cli/finfocus_plugin_validate.md), [`conformance`](./cli/finfocus_plugin_conformance.md), [`certify`](./cli/finfocus_plugin_certify.md) |
+| Analyzer | [`analyzer`](./cli/finfocus_analyzer.md): [`install`](./cli/finfocus_analyzer_install.md), [`uninstall`](./cli/finfocus_analyzer_uninstall.md), [`check`](./cli/finfocus_analyzer_check.md), [`serve`](./cli/finfocus_analyzer_serve.md) |
+| Other | [`logs`](./cli/finfocus_logs.md), [`setup`](./cli/finfocus_setup.md) |
+| Agents | [`mcp-server`](./cli/finfocus_mcp-server.md), [`__schema`](./cli/finfocus___schema.md) |
+| Shell completion | [`completion`](./cli/finfocus_completion.md): [`bash`](./cli/finfocus_completion_bash.md), [`fish`](./cli/finfocus_completion_fish.md), [`powershell`](./cli/finfocus_completion_powershell.md), [`zsh`](./cli/finfocus_completion_zsh.md) |
+
+The generated pages cover every command that `finfocus --help` lists. They
+include the commands and flags that ax-go adds when the CLI starts:
+`mcp-server`, `__schema`, Cobra's `completion`, and the persistent `--format`,
+`--dry-run`, `--yes`, `--strict`, and `--idempotency-key` flags. The
+[`finfocus`](./cli/finfocus.md) page lists those flags under "Options", and
+every other page under "Options inherited from parent commands". Hidden
+commands are left out.
 
 ## Root Command Entry Points
 
@@ -54,7 +41,7 @@ finfocus analyzer serve     # Start the analyzer gRPC server
 `--import-cloud-history`. These modes are mutually exclusive.
 They are defined on the root command only: no subcommand inherits them, so
 `finfocus cost actual --web` or `finfocus overview --web` fail with
-`unknown flag`. `--web` and `--mcp` are mutually exclusive.
+`unknown flag`.
 
 `--web` serves the browser-based cost dashboard on localhost (127.0.0.1) and
 prints a session URL of the form `http://127.0.0.1:<port>/?token=<hex>`. Run
@@ -66,49 +53,14 @@ Saved `--terraform-state` and `--terraform-plan` inputs are available on the
 `--project-dir` keeps its existing meaning (config resolution) and does not
 change where project detection looks.
 
-### Usage (--web)
-
-```bash
-finfocus --web [options]
-```
-
 ### Options (--web)
 
-All of these are root-local and only valid together with `--web`; used alone
-they fail with an error naming `--web` and exit code 2. Combining `--web` with
-`--mcp` also exits 2.
-
-| Flag             | Description                                                        | Default           |
-| ---------------- | ------------------------------------------------------------------ | ----------------- |
-| `--web`          | Serve the web UI on localhost and open it in a browser             | Off               |
-| `--port`         | Pin the web UI port (0 = kernel-assigned, actual port printed)     | `0`               |
-| `--no-browser`   | Do not open a browser; print the URL only                          | Off               |
-| `--pulumi-state` | Path to Pulumi state JSON (skips auto-detection)                   | Auto-detected     |
-| `--pulumi-json`  | Preview JSON; state is auto-detected unless `--pulumi-state` is set | Auto-detected     |
-| `--stack`        | Pulumi stack name for auto-detection. Comma-separated or repeated names open one tab per stack (Pulumi projects only) | Current stack     |
-| `--from`         | Start date (YYYY-MM-DD or RFC3339)                                 | 1st of current month |
-| `--to`           | End date (YYYY-MM-DD or RFC3339)                                   | Now               |
-| `--adapter`      | Restrict to a specific adapter plugin                              | All plugins       |
-| `--filter`       | Resource filters (`type=`, `status=`, `provider=`), repeatable     | None              |
-| `--allowed-host` | Public host name accepted behind an HTTPS proxy on this machine, repeatable | None     |
-| `--trusted-proxy` | Admit an allowed `Tailscale-User-Login` without the token (needs `--allowed-host` and `--allowed-user`) | Off |
-| `--allowed-user` | Tailnet login admitted by `--trusted-proxy`, repeatable            | None              |
-
-### Examples (--web)
-
-```bash
-# Auto-detect the current Pulumi project and open the dashboard
-finfocus --web
-
-# Serve on a pinned port without opening a browser (e.g. in SSH sessions)
-finfocus --web --port 8484 --no-browser
-
-# Use pre-exported files instead of running Pulumi CLI commands
-finfocus --web --pulumi-state state.json --pulumi-json plan.json
-
-# Open two stacks as tabs in one dashboard
-finfocus --web --stack dev,prod
-```
+The `--web` flags are listed on the [`finfocus`](./cli/finfocus.md) page,
+where their help says `only valid with --web`. They are root-local. Used
+without `--web` (or `--import-cloud-history`, for `--from`, `--to`, and
+`--stack`), they fail with an error and exit code 2. Combining `--web` with
+`--mcp` also exits 2. A `--stack` value with commas, or a repeated `--stack`,
+opens one tab per stack (Pulumi projects only).
 
 For tasks, see [Use the browser dashboard](../guides/web-ui.md). Views,
 controls, exit codes, and HTTP behavior are in the
@@ -120,7 +72,9 @@ For `--mcp`, see the [MCP guide](../guides/mcp.md).
 ## overview
 
 Display a unified cost dashboard combining Pulumi state and plan data with actual
-costs, projected costs, drift analysis, and recommendations.
+costs, projected costs, drift analysis, and recommendations. Flags and
+examples: [`finfocus overview`](./cli/finfocus_overview.md). Task guide:
+[overview command](../commands/overview.md).
 
 When run inside a Pulumi project directory without explicit file flags, `finfocus overview`
 auto-detects the project and current stack, then runs `pulumi stack export` and
@@ -134,65 +88,13 @@ changes, and the plugin count. On a terminal, without `--yes`, overview then
 asks `Continue? [Y/n]` before pricing. Enter continues. `n` or `no` prints
 `Cancelled.` and exits successfully. Piped input and `--yes` skip the question.
 
-### Usage (overview)
-
-```bash
-finfocus overview [options]
-finfocus ov [options]
-finfocus                    # same as overview when inside a Pulumi project
-```
-
-### Options (overview)
-
-| Flag               | Description                                                             | Default               |
-| ------------------ | ----------------------------------------------------------------------- | --------------------- |
-| `--pulumi-state`   | Path to Pulumi state JSON (skips auto-detection)                        | Auto-detected         |
-| `--pulumi-json`    | Path to Pulumi preview JSON (skips auto-detection)                      | Auto-detected         |
-| `--stack`          | Pulumi stack name for auto-detection (ignored with `--pulumi-state`/`--pulumi-json`) | Current stack |
-| `--from`           | Start date (YYYY-MM-DD or RFC3339)                                      | 1st of current month  |
-| `--to`             | End date (YYYY-MM-DD or RFC3339)                                        | Now                   |
-| `--adapter`        | Restrict to a specific adapter plugin                                   | All plugins           |
-| `--output`         | Output format: `table`, `json`, `ndjson`                                | `table`               |
-| `--filter`         | Resource filters, repeatable                                            | -                     |
-| `--plain`          | Force non-interactive plain text output                                 | false                 |
-| `--force-color`    | Force styled output when stdout is not a terminal                       | false                 |
-| `--no-color`       | Plain output. Wins over `--force-color` and `--high-contrast`           | false                 |
-| `--color`          | Force colored output. Same switch as `--force-color`                    | false                 |
-| `--high-contrast`  | Brighter budget colors (ANSI 46, 226, 196, and 231)                     | false                 |
-| `--yes`, `-y`      | Skip confirmation prompts                                               | false                 |
-| `--no-pagination`  | Disable pagination (plain mode only)                                    | false                 |
-
-### Examples (overview)
-
-```bash
-# Auto-detect from current Pulumi project (recommended)
-finfocus overview
-
-# Same — bare invocation inside a Pulumi project
-finfocus
-
-# Select a non-default stack
-finfocus overview --stack production
-
-# Use pre-exported files
-finfocus overview --pulumi-state state.json --pulumi-json plan.json
-
-# CI/CD: non-interactive JSON output
-finfocus overview --output json --yes
-
-# Filter to a single provider
-finfocus overview --filter provider=aws --plain --yes
-
-# Custom date range
-finfocus overview --from 2026-01-01 --to 2026-01-31 --plain --yes
-```
-
 ## cost projected
 
-Calculate estimated costs from a Pulumi plan. When `--pulumi-json` is omitted,
-FinFocus auto-detects the Pulumi project and loads its state and preview together.
-A saved preview can also use the state from a detected project or an explicit
-`--pulumi-state` file.
+Calculate estimated costs from a Pulumi plan. Flags and examples:
+[`finfocus cost projected`](./cli/finfocus_cost_projected.md). When
+`--pulumi-json` is omitted, FinFocus auto-detects the Pulumi project and loads
+its state and preview together. A saved preview can also use the state from a
+detected project or an explicit `--pulumi-state` file.
 
 The **plan total** prices resources listed in the preview. It remains the value
 used for budgets, exit codes, `finfocus.summary.totalMonthly`, and
@@ -237,49 +139,6 @@ priced on its own, as it would be outside a project, with `not_requested`.
 NDJSON keeps one line per plan resource and adds no stack lines. Stack notices
 remain on stderr. When the plan has nothing to price and the stack total is
 complete, stderr also carries the same "No changes" summary the table prints.
-
-### Usage (cost projected)
-
-```bash
-finfocus cost projected [options]
-```
-
-### Options (cost projected)
-
-| Flag            | Description                                                       | Default  |
-| --------------- | ----------------------------------------------------------------- | -------- |
-| `--pulumi-json` | Path to Pulumi preview JSON (optional; auto-detected if omitted)  |          |
-| `--pulumi-state` | Path to Pulumi state JSON; combines with `--pulumi-json` or loads deployed resources alone | |
-| `--terraform-plan` | Path to `tofu show -json` output. Does not run a binary. Mutually exclusive with `--pulumi-json` and `--terraform-state` | |
-| `--terraform-state` | Path to a Terraform state file (mutually exclusive with `--pulumi-json` and `--terraform-plan`) |          |
-| `--stack`       | Pulumi stack name for detected project state and preview |          |
-| `--filter`      | Filter resources (tag:key=value, type=\*)                         | None     |
-| `--output`      | Output format: table, json, ndjson                                | table    |
-| `--utilization` | Assumed resource utilization (0.0-1.0)                            | 1.0      |
-| `--show-breakdown` | Per-component cost sub-rows in table output. Ignored for json and ndjson | false |
-| `--help`        | Show help                                                         |          |
-
-### Examples (cost projected)
-
-```bash
-# Auto-detect from Pulumi project
-finfocus cost projected
-
-# Specific stack
-finfocus cost projected --stack production
-
-# Explicit file (existing behavior)
-finfocus cost projected --pulumi-json plan.json
-
-# JSON output
-finfocus cost projected --pulumi-json plan.json --output json
-
-# Filter by type
-finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2*"
-
-# NDJSON for pipelines
-finfocus cost projected --pulumi-json plan.json --output ndjson
-```
 
 ### Terraform plan
 
@@ -405,6 +264,8 @@ views read stored history without fetching Cloud snapshots.
 ## cost history
 
 Store and read projected-cost snapshots for a Pulumi stack or Terraform project.
+Flags and examples: [`finfocus cost history`](./cli/finfocus_cost_history.md)
+and its subcommands.
 `collect` needs the Pulumi CLI and a cost plugin. In Terraform directories it exits
 2 without planning because Terraform plans have no checkpoint list. `view`, `list`,
 `diff`, `prune`, and `export` open the detected project's database without planning.
@@ -416,47 +277,19 @@ name is `unscoped`. Pass `--include-workspace` to include the workspace, overrid
 and history queries. This flag is ignored for Pulumi. See the
 [Resource History Guide](../guides/resource-history.md#terraform-projected-cost-history).
 
-### Usage (cost history collect)
-
-```bash
-finfocus cost history collect --stack <name> [options]
-```
-
-### Options (cost history collect)
-
-| Flag | Description | Default |
-| --- | --- | --- |
-| `--stack` | Pulumi stack name. This is the parent `cost` flag | required |
-| `--from` | Only checkpoints on or after this date (`YYYY-MM-DD`) | none |
-| `--versions` | Keep the newest N successful checkpoints. `0` is no limit | `0` |
-| `--parallel` | Concurrent `pulumi stack export` calls | `4` |
-| `--skip-destroy` | Skip destroy checkpoints instead of storing `$0` | `false` |
+### cost history collect
 
 `--versions 1` is the post-deploy pattern. It stores the newest successful
 checkpoint and skips a version that is already in the database. The
 default `0` backfills every successful checkpoint that is missing.
 
-The database is `~/.finfocus/history/<stack>.history.db`. Slashes in the
-stack name become dashes. `FINFOCUS_HOME` changes the root. CI recipes are
-in [CI/CD cost tracking](../guides/ci-cd-cost-tracking.md).
+The database is `<project>@<stack>.history.db`. Its directory is
+`FINFOCUS_HISTORY_DIR`, then `cost.history.directory`, then `history/` under
+the FinFocus home (`$FINFOCUS_HOME`, then `$PULUMI_HOME/finfocus`, then
+`~/.finfocus`). CI recipes are in
+[CI/CD cost tracking](../guides/ci-cd-cost-tracking.md).
 
-### Usage (cost history collect-daily)
-
-```bash
-finfocus cost history collect-daily --stack <name> [options]
-```
-
-### Options (cost history collect-daily)
-
-| Flag | Description | Default |
-| --- | --- | --- |
-| `--stack` | Pulumi stack name. This is the parent `cost` flag | required |
-| `--from` | Window start (`YYYY-MM-DD` or RFC3339) | 30 complete UTC days ago |
-| `--to` | Window end (`YYYY-MM-DD` or RFC3339) | start of the current UTC day; now when only `--from` is set |
-| `--pulumi-json` | Pulumi preview JSON. Mutually exclusive with the state flags | none |
-| `--pulumi-state` | Pulumi state JSON | none |
-| `--terraform-state` | Terraform state JSON. Requires `--from` | none |
-| `--output` | `table` or `json` | `table` |
+### cost history collect-daily
 
 The file is `<project>@<stack>.daily.db` in the same history directory. A
 re-run replaces days the plugin sent and leaves every other day in place. A
@@ -474,37 +307,19 @@ MCP tool. With `cost.history.retention.auto_prune` and `max_age_days` set,
 points older than that many days are deleted.
 `max_snapshots` does not apply to this file.
 
-### Usage (cost history export)
+### cost history export
 
-```bash
-finfocus cost history export --stack <name> --format <json|csv|ndjson>
-```
-
-### Options (cost history export)
-
-| Flag | Description | Default |
-| --- | --- | --- |
-| `--stack` | Pulumi stack name. This is the parent `cost` flag | required |
-| `--format` | `json`, `csv`, or `ndjson`. This is the root `--format` flag | required |
-| `--from` | Include snapshots on or after this date (`YYYY-MM-DD`) | none |
-| `--to` | Include snapshots on or before this date | none |
-| `--provider` | Keep one provider's monthly cost | none |
-
-`json` is one document with snapshots and annotations. `csv` has a header
-and one row per snapshot. `ndjson` is one snapshot per line. `cost projected`
-and `cost actual` add a Trend column when that stack's history file exists.
-The interactive detail view in `finfocus overview` and `cost actual` reads
-that same file when you open a resource.
+`--format` is the root `--format` flag; `export` also accepts `csv` and
+`ndjson` there. `json` is one document with snapshots and annotations. `csv`
+has a header and one row per snapshot. `ndjson` is one snapshot per line.
+`cost projected` and `cost actual` add a Trend column when that stack's history
+file exists. The interactive detail view in `finfocus overview` and
+`cost actual` reads that same file when you open a resource.
 
 ## cost recommendations
 
-Display cost optimization recommendations from cloud providers.
-
-### Usage (cost recommendations)
-
-```bash
-finfocus cost recommendations [--pulumi-json <file> | --terraform-plan <file>] [options]
-```
+Display cost optimization recommendations from cloud providers. Flags and
+examples: [`finfocus cost recommendations`](./cli/finfocus_cost_recommendations.md).
 
 In a detected Terraform directory, omit input flags to run a plan. In a Pulumi
 project, omit input flags to load the live inventory from state and preview,
@@ -523,25 +338,6 @@ the plugin stops returning it, and the overview counts it in the Recs column
 (`3(-1)`). The lookup is best effort. Without `--pulumi-json`, or when no plugin
 returns the id, the recommendation is still dismissed and records no new
 details; details saved by an earlier dismissal of the same id are kept.
-
-### Options (cost recommendations)
-
-| Flag                  | Description                                                      | Default  |
-| --------------------- | ---------------------------------------------------------------- | -------- |
-| `--pulumi-json`       | Path to Pulumi preview JSON; optional in a detected Pulumi project | |
-| `--terraform-plan`    | Path to saved `tofu show -json` output; runs no binary | |
-| `--pulumi-state`      | Path to a Pulumi stack export JSON file | |
-| `--terraform-state`   | Path to a Terraform state JSON file; runs no plan | |
-| `--include-workspace` | Include the Terraform workspace in history identity for this run; ignored for Pulumi | false |
-| `--filter`            | Filter expression (e.g., `action=RIGHTSIZE,TERMINATE`)           | None     |
-| `--output`            | Output format: table, json, ndjson                               | table    |
-| `--limit`             | Limit number of recommendations                                  | 0 (all)  |
-| `--verbose`           | Show all recommendations with full details                       | false    |
-| `--include-dismissed` | Show local dismissed and snoozed rows, and ask plugins to include ones they dismissed | false    |
-| `--sort`              | Sort expression (e.g., `savings:desc`, or `risk` with scoring)   | None     |
-| `--scoring-dry-run`   | Print what would be sent to the scorer plugin and send nothing   | false    |
-| `--no-scoring`        | Skip the scoring step for this run                               | false    |
-| `--help`              | Show help                                                        |          |
 
 `--filter` also accepts score expressions such as `risk<=0.3`, and `--sort` accepts `risk`, `false_positive`,
 `worth_acting`, `priority` and `insufficient_evidence`. These require the optional scoring step, which is off by default.
@@ -565,50 +361,10 @@ The exit code stays 0, as it does for `cost projected` with plugin errors. A
 script that must notice a failed plugin should read `errors` from JSON or NDJSON
 output.
 
-### Subcommands (cost recommendations)
-
-| Subcommand  | Description                                 |
-| ----------- | ------------------------------------------- |
-| `dismiss`   | Permanently dismiss a recommendation        |
-| `snooze`    | Snooze a recommendation until a date        |
-| `undismiss` | Re-enable a dismissed recommendation        |
-| `history`   | View lifecycle history for a recommendation |
-
-### Examples (cost recommendations)
-
-```bash
-# Interactive mode (default)
-finfocus cost recommendations --pulumi-json plan.json
-
-# Filter by action type
-finfocus cost recommendations --pulumi-json plan.json --filter "action=RIGHTSIZE,TERMINATE"
-
-# JSON output
-finfocus cost recommendations --pulumi-json plan.json --output json
-
-# Include dismissed and snoozed recommendations
-finfocus cost recommendations --pulumi-json plan.json --include-dismissed
-```
-
 ## cost recommendations dismiss
 
-Permanently dismiss a recommendation with a reason.
-
-### Usage (cost recommendations dismiss)
-
-```bash
-finfocus cost recommendations dismiss <recommendation-id> [options]
-```
-
-### Options (cost recommendations dismiss)
-
-| Flag            | Description                                                                  | Default  |
-| --------------- | ---------------------------------------------------------------------------- | -------- |
-| `-r, --reason`  | Dismissal reason (required)                                                  | Required |
-| `-n, --note`    | Free-text explanation (required for `other` reason)                          | None     |
-| `-f, --force`   | Skip confirmation prompt                                                     | false    |
-| `--pulumi-json` | Path to Pulumi preview JSON (connects plugins and records the recommendation's details) | None     |
-| `--adapter`     | Use specific adapter plugin                                                  | None     |
+Permanently dismiss a recommendation with a reason. Flags and examples:
+[`finfocus cost recommendations dismiss`](./cli/finfocus_cost_recommendations_dismiss.md).
 
 ### Valid Reasons
 
@@ -622,78 +378,17 @@ finfocus cost recommendations dismiss <recommendation-id> [options]
 | `inaccurate`           | Recommendation data is wrong         |
 | `other`                | Custom reason (requires `--note`)    |
 
-### Examples (cost recommendations dismiss)
-
-```bash
-# Dismiss with a reason
-finfocus cost recommendations dismiss rec-123abc \
-  --reason business-constraint --pulumi-json plan.json
-
-# Dismiss with a custom note
-finfocus cost recommendations dismiss rec-123abc \
-  --reason other --note "Intentional oversizing" --pulumi-json plan.json
-
-# Skip confirmation prompt
-finfocus cost recommendations dismiss rec-123abc \
-  --reason not-applicable --force --pulumi-json plan.json
-```
-
 ## cost recommendations snooze
 
-Temporarily dismiss a recommendation until a future date.
-
-### Usage (cost recommendations snooze)
-
-```bash
-finfocus cost recommendations snooze <recommendation-id> [options]
-```
-
-### Options (cost recommendations snooze)
-
-| Flag            | Description                                                                | Default    |
-| --------------- | -------------------------------------------------------------------------- | ---------- |
-| `--until`       | Snooze until date (required, YYYY-MM-DD or RFC3339; must be in the future) | Required   |
-| `-r, --reason`  | Dismissal reason                                                           | `deferred` |
-| `-n, --note`    | Free-text explanation                                                      | None       |
-| `-f, --force`   | Skip confirmation prompt                                                   | false      |
-| `--pulumi-json` | Path to Pulumi preview JSON (connects plugins and records the recommendation's details) | None       |
-| `--adapter`     | Use specific adapter plugin                                                | None       |
-
-### Examples (cost recommendations snooze)
-
-```bash
-# Snooze until a specific date (replace with a future date)
-finfocus cost recommendations snooze rec-456def \
-  --until YYYY-MM-DD --pulumi-json plan.json
-
-# Snooze with reason and note (replace with a future date)
-finfocus cost recommendations snooze rec-456def \
-  --until YYYY-MM-DD --reason deferred \
-  --note "Scheduled for Q2 review" --pulumi-json plan.json
-```
+Temporarily dismiss a recommendation until a future date. `--until` takes
+`YYYY-MM-DD` or RFC3339 and must be in the future. The reasons are the same as
+for `dismiss`. Flags and examples:
+[`finfocus cost recommendations snooze`](./cli/finfocus_cost_recommendations_snooze.md).
 
 ## cost recommendations undismiss
 
-Re-enable a previously dismissed or snoozed recommendation.
-
-### Usage (cost recommendations undismiss)
-
-```bash
-finfocus cost recommendations undismiss <recommendation-id> [options]
-```
-
-### Options (cost recommendations undismiss)
-
-| Flag          | Description              | Default |
-| ------------- | ------------------------ | ------- |
-| `-f, --force` | Skip confirmation prompt | false   |
-
-### Examples (cost recommendations undismiss)
-
-```bash
-# Re-enable a dismissed recommendation
-finfocus cost recommendations undismiss rec-123abc
-```
+Re-enable a previously dismissed or snoozed recommendation. Flags and examples:
+[`finfocus cost recommendations undismiss`](./cli/finfocus_cost_recommendations_undismiss.md).
 
 ## cost recommendations history
 
@@ -701,66 +396,19 @@ View the lifecycle history of one recommendation. The list combines the local
 dismissal record with lifecycle events from installed plugins. When no plugins
 are installed, or a plugin does not provide history, the local record is shown
 on its own. The command does not read a Pulumi plan and does not change the
-local dismissal file.
-
-### Usage (cost recommendations history)
-
-```bash
-finfocus cost recommendations history <recommendation-id> [options]
-```
-
-### Options (cost recommendations history)
-
-| Flag       | Description                        | Default |
-| ---------- | ---------------------------------- | ------- |
-| `--output` | Output format: table, json, ndjson | table   |
+local dismissal file. Flags and examples:
+[`finfocus cost recommendations history`](./cli/finfocus_cost_recommendations_history.md).
 
 The table columns are timestamp, action, reason, note, expires, and actor.
 Actor is blank when the event has none. JSON and NDJSON include `actor` only
 when it is set.
 
-### Examples (cost recommendations history)
-
-```bash
-# View history in table format
-finfocus cost recommendations history rec-123abc
-
-# View history as JSON
-finfocus cost recommendations history rec-123abc --output json
-
-# View history as NDJSON (one JSON object per line)
-finfocus cost recommendations history rec-123abc --output ndjson
-```
-
 ## cost actual
 
-Get actual historical costs from plugins. When `--pulumi-json` and `--pulumi-state`
-are both omitted, FinFocus auto-detects the Pulumi project and runs
-`pulumi stack export`.
-
-### Usage (cost actual)
-
-```bash
-finfocus cost actual [options]
-```
-
-### Options (cost actual)
-
-| Flag                    | Description                                                                 | Default |
-| ----------------------- | --------------------------------------------------------------------------- | ------- |
-| `--pulumi-json`         | Path to Pulumi preview JSON (mutually exclusive with --pulumi-state)        |         |
-| `--pulumi-state`        | Path to Pulumi state JSON from `pulumi stack export`                        |         |
-| `--terraform-state`     | Path to a Terraform state file (requires `--from`; mutually exclusive with `--pulumi-json`/`--pulumi-state`) |         |
-| `--stack`               | Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state) |         |
-| `--from`                | Start date (YYYY-MM-DD or RFC3339; auto-detected from state if omitted)     |         |
-| `--to`                  | End date (YYYY-MM-DD or RFC3339)                                            | Now     |
-| `--filter`              | Filter resources (tag:key=value, type=\*)                                   | None    |
-| `--group-by`            | Group results (resource, type, provider, daily, monthly)                    |         |
-| `--output`              | Output format: table, json, ndjson                                          | table   |
-| `--estimate-confidence` | Request confidence and include it in JSON and NDJSON. Also adds the table column | false   |
-| `--show-confidence`     | Add a confidence column to table output. Does not change JSON or NDJSON     | false   |
-| `--show-breakdown`      | Per-component cost sub-rows in table output. Ignored for json and ndjson    | false   |
-| `--help`                | Show help                                                                   |         |
+Get actual historical costs from plugins. Flags and examples:
+[`finfocus cost actual`](./cli/finfocus_cost_actual.md). When `--pulumi-json`
+and `--pulumi-state` are both omitted, FinFocus auto-detects the Pulumi project
+and runs `pulumi stack export`.
 
 ### Confidence Levels
 
@@ -781,49 +429,11 @@ resource. That detail view loads the resource's stored cost history for
 `--stack` when you open it. The list does not load it. A failure stays on
 the detail view and `r` tries again.
 
-### Examples (cost actual)
-
-```bash
-# Auto-detect from Pulumi project (dates auto-detected from state)
-finfocus cost actual
-
-# Auto-detect with specific stack
-finfocus cost actual --stack production
-
-# Estimate costs from Pulumi state (--from auto-detected from timestamps)
-finfocus cost actual --pulumi-state state.json
-
-# Estimate costs from state with explicit date range
-finfocus cost actual --pulumi-state state.json --from 2025-01-01 --to 2025-01-31
-
-# Get costs from Pulumi plan
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01
-
-# Group by day
-finfocus cost actual --pulumi-json plan.json --group-by daily --from 2025-01-01 --to 2025-01-31
-
-# Group by provider
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by provider
-
-# Filter by tag
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --filter "tag:env=prod"
-
-# JSON output
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --output json
-
-# Show estimate confidence levels (useful for imported resources)
-finfocus cost actual --pulumi-state state.json --estimate-confidence
-```
-
 ## cost estimate
 
-Perform what-if cost analysis on resources without modifying infrastructure code.
-
-### Usage (cost estimate)
-
-```bash
-finfocus cost estimate [options]
-```
+Perform what-if cost analysis on resources without modifying infrastructure
+code. Flags and examples:
+[`finfocus cost estimate`](./cli/finfocus_cost_estimate.md).
 
 ### Modes
 
@@ -845,25 +455,6 @@ The command supports two mutually exclusive modes:
 - Use `--modify selector:key=value` to select a resource by ID, logical name,
   or type. A Terraform address, such as `aws_instance.web`, is its resource ID
 
-### Options (cost estimate)
-
-| Flag              | Description                              | Default |
-| ----------------- | ---------------------------------------- | ------- |
-| `--provider`      | Cloud provider (aws, gcp, azure)         |         |
-| `--resource-type` | Full type token (e.g., aws:ec2/instance:Instance) |         |
-| `--property`      | Property override key=value (repeatable) |         |
-| `--pulumi-json`   | Path to Pulumi preview JSON              |         |
-| `--terraform-plan` | Path to saved `tofu show -json` output; runs no binary | |
-| `--pulumi-state` | Path to a Pulumi stack export JSON file | |
-| `--terraform-state` | Path to a Terraform state JSON file; runs no plan | |
-| `--include-workspace` | Include the Terraform workspace in history identity for this run; ignored for Pulumi | false |
-| `--modify`        | Resource modification resource:key=value |         |
-| `--region`        | Region for cost calculation              |         |
-| `--interactive`   | Launch interactive TUI mode              | false   |
-| `--output`        | Output format: table, json, ndjson       | table   |
-| `--adapter`       | Specific plugin adapter to use           |         |
-| `--help`          | Show help                                |         |
-
 The four infrastructure input flags are mutually exclusive. Saved plan input
 must use format version 1 and be at most 32 MiB; invalid or missing files exit 2.
 Planning failures exit 1. Initialize the directory and configure Terraform access
@@ -872,43 +463,6 @@ before planning; FinFocus does not perform those steps.
 ```bash
 finfocus cost estimate --terraform-plan tfplan.json \
   --modify 'aws_instance.web:instanceType=m5.large'
-```
-
-### Examples (cost estimate)
-
-```bash
-# Auto-detect a Pulumi project and select a live resource
-finfocus cost estimate --stack dev --modify 'web-server:instanceType=m5.large'
-
-# Single resource estimation - estimate cost of changing instance type
-finfocus cost estimate --provider aws \
-  --resource-type aws:ec2/instance:Instance \
-  --property instanceType=m5.large
-
-# Single resource with region
-finfocus cost estimate --provider aws \
-  --resource-type aws:ec2/instance:Instance \
-  --property instanceType=m5.large --region us-west-2
-
-# Plan-based estimation - modify a specific resource in existing plan
-finfocus cost estimate --pulumi-json plan.json \
-  --modify "web-server:instanceType=m5.large"
-
-# Plan-based with multiple modifications
-finfocus cost estimate --pulumi-json plan.json \
-  --modify "web-server:instanceType=m5.large" \
-  --modify "api-server:instanceType=c5.xlarge"
-
-# Interactive TUI mode
-finfocus cost estimate --interactive
-
-# Interactive mode with plan
-finfocus cost estimate --pulumi-json plan.json --interactive
-
-# JSON output for scripting
-finfocus cost estimate --provider aws \
-  --resource-type aws:ec2/instance:Instance \
-  --property instanceType=m5.large --output json
 ```
 
 ### Interactive pricing spec
@@ -953,37 +507,13 @@ The interactive TUI mode allows you to:
 Initialize a configuration file with default values. When run inside a Pulumi
 project, creates project-local configuration at `$PROJECT/.finfocus/config.hujson`
 along with a `.gitignore` to protect user-specific data. Use `--global` to force
-global initialization even inside a project.
-
-### Usage (config init)
-
-```bash
-finfocus config init [options]
-```
-
-### Options (config init)
-
-| Flag       | Description                                              | Default |
-| ---------- | -------------------------------------------------------- | ------- |
-| `--global` | Force global config init even inside a Pulumi project   | false   |
-| `--force`  | Overwrite existing configuration file                    | false   |
-
-### Examples (config init)
-
-```bash
-# Create project-local config (inside a Pulumi project)
-finfocus config init
-
-# Create global config
-finfocus config init --global
-
-# Overwrite existing config
-finfocus config init --force
-```
+global initialization even inside a project. Flags and examples:
+[`finfocus config init`](./cli/finfocus_config_init.md).
 
 ## config set
 
-Set a configuration value using dot notation. Writes the global
+Set a configuration value using dot notation. Flags and examples:
+[`finfocus config set`](./cli/finfocus_config_set.md). Writes the global
 `config.hujson` (`~/.finfocus/` unless `FINFOCUS_HOME` or `PULUMI_HOME` is
 set), even inside a Pulumi project; edit a project's `.finfocus/config.hujson`
 to set a value for that project only. A key that `config set` does not
@@ -999,88 +529,30 @@ it when it cannot find the key. See
 [Config Merge Behavior](config-reference.md#config-merge-behavior).
 
 For sensitive values such as API keys, use environment variables instead of
-storing them in config files.
+storing them in config files. Plugin processes inherit the environment FinFocus
+runs in, and each plugin's docs page lists the variables it reads.
 
-### Usage (config set)
-
-```bash
-finfocus config set <key> <value>
-```
-
-### Examples (config set)
-
-```bash
-# Set output format
-finfocus config set output.default_format json
-
-# Set plugin configuration
-finfocus config set plugins.aws.region us-west-2
-
-# The dashboard Plugins page edits the same plugins.<name>.<key> settings
-# and installs catalog plugins. See the Web UI guide.
-
-# Set logging level
-finfocus config set logging.level debug
-
-# For sensitive values, prefer environment variables
-export FINFOCUS_PLUGIN_AWS_SECRET_KEY="mysecret"
-```
+A `plugins.<name>.<key>` value reaches the plugin through the variable the
+plugin advertises for that key. A key the plugin does not advertise is passed
+as `FINFOCUS_PLUGIN_<NAME>_<KEY>`, in uppercase with hyphens as underscores:
+for example, `plugins.aws-ce.<key>` becomes `FINFOCUS_PLUGIN_AWS_CE_<KEY>`.
+The dashboard Plugins page edits the same `plugins.<name>.<key>` settings; see
+the [Web UI guide](../guides/web-ui.md).
 
 ## config get
 
 Get a configuration value using dot notation from `~/.finfocus/config.hujson`.
-
-### Usage (config get)
-
-```bash
-finfocus config get <key>
-```
-
-### Examples (config get)
-
-```bash
-# Get output format
-finfocus config get output.default_format
-
-# Get a plugin section
-finfocus config get plugins.aws
-
-# Get all plugins
-finfocus config get plugins
-
-# Get logging level
-finfocus config get logging.level
-```
+Flags and examples: [`finfocus config get`](./cli/finfocus_config_get.md).
 
 ## config list
 
-List all configuration values from `~/.finfocus/config.hujson`.
-
-### Usage (config list)
-
-```bash
-finfocus config list [options]
-```
-
-### Options (config list)
-
-| Flag         | Description                      | Default |
-| ------------ | -------------------------------- | ------- |
-| `--as`, `-f` | Output style: `yaml` or `json`   | `yaml`  |
-
-### Examples (config list)
-
-```bash
-# List all configuration in YAML format (default)
-finfocus config list
-
-# List all configuration in JSON format
-finfocus config list --as json
-```
+List all configuration values from `~/.finfocus/config.hujson`. Flags and
+examples: [`finfocus config list`](./cli/finfocus_config_list.md).
 
 ## config validate
 
-Validate the active configuration file, or the file given by `--file`.
+Validate the active configuration file, or the file given by `--file`. Flags
+and examples: [`finfocus config validate`](./cli/finfocus_config_validate.md).
 
 The report covers syntax, budget amount, currency, period, alerts, and exit
 codes, plus unknown fields. A close name includes a suggestion. Routing plugin
@@ -1088,103 +560,32 @@ checks run only after the file itself is valid. Warnings do not fail the
 command. `--output json` prints the same report for CI. Cost commands read the
 active file in their pre-run and stop before plugin work when it is invalid.
 
-### Usage (config validate)
+A text error looks like this:
 
-```bash
-finfocus config validate [--file path] [--output text|json] [--verbose]
-```
-
-### Options (config validate)
-
-| Flag         | Description                                      | Default |
-| ------------ | ------------------------------------------------ | ------- |
-| `--file`     | Configuration file to validate                   | active config |
-| `--output`   | Report format: `text` or `json`                  | `text`  |
-| `--verbose`  | Print loaded settings after a valid text report  | `false` |
-| `--help`     | Show help                                        |         |
-
-### Examples (config validate)
-
-```bash
-# Validate the active configuration
-finfocus config validate
-
-# Validate one file and emit JSON
-finfocus config validate --file ./config.hujson --output json
-
-# Text error (plain):
-# Configuration Error: config.hujson
-# Errors:
-#   Error at line 2: budget period must be 'monthly': got "weekly"
-#   Path: cost.budgets.global.period
-#   Hint: The only supported period is monthly (period: monthly).
+```text
+Configuration Error: config.hujson
+Errors:
+  Error at line 2: budget period must be 'monthly': got "weekly"
+  Path: cost.budgets.global.period
+  Hint: The only supported period is monthly (period: monthly).
 ```
 
 ## config routes list
 
-Display effective plugin routing rules.
-
-### Usage (config routes list)
-
-```bash
-finfocus config routes list [--output table|json]
-```
-
-### Options (config routes list)
-
-| Flag | Description | Default |
-| ---- | ----------- | ------- |
-| `--output` | Output format: `table` or `json` | `table` |
-
-### Examples (config routes list)
-
-```bash
-# Show routing as a table
-finfocus config routes list
-
-# Show routing in JSON
-finfocus config routes list --output json
-```
+Display effective plugin routing rules. Flags and examples:
+[`finfocus config routes list`](./cli/finfocus_config_routes_list.md).
 
 ## config routes test
 
-Simulate plugin selection for a resource type and view match reasons.
-
-### Usage (config routes test)
-
-```bash
-finfocus config routes test <resource-type> [region] [--output table|json]
-```
-
-### Arguments (config routes test)
-
-| Argument | Required | Description |
-| -------- | -------- | ----------- |
-| `resource-type` | Yes | Pulumi type token (for example `aws:ec2:Instance`) |
-| `region` | No | Region hint (for example `us-east-1`) |
-
-### Options (config routes test)
-
-| Flag | Description | Default |
-| ---- | ----------- | ------- |
-| `--output` | Output format: `table` or `json` | `table` |
-
-### Examples (config routes test)
-
-```bash
-# Test routing for a type
-finfocus config routes test aws:ec2:Instance
-
-# Include region in match context
-finfocus config routes test aws:ec2:Instance us-east-1
-
-# JSON output for scripts
-finfocus config routes test aws:ec2:Instance --output json
-```
+Simulate plugin selection for a resource type and view match reasons. The
+arguments are a Pulumi type token, such as `aws:ec2/instance:Instance`, and an
+optional region hint, such as `us-east-1`. Flags and examples:
+[`finfocus config routes test`](./cli/finfocus_config_routes_test.md).
 
 ## plugin init
 
-Initialize a new FinFocus plugin project.
+Initialize a new FinFocus plugin project. Flags and examples:
+[`finfocus plugin init`](./cli/finfocus_plugin_init.md).
 
 The scaffold includes a golangci-lint v2 config at `.golangci-lint.yml`.
 `make lint` and the generated CI workflow pass `--config .golangci-lint.yml`,
@@ -1200,93 +601,11 @@ tag, so they match the SDK version it scaffolds; a development build uses
 succeeds and prints the command to run later. `--offline` and `--no-skill`
 skip it.
 
-### Usage (plugin init)
-
-```bash
-finfocus plugin init <plugin-name> --author <name> --providers <list> [options]
-```
-
-### Options (plugin init)
-
-| Flag            | Description                                                  | Default    |
-| --------------- | ------------------------------------------------------------ | ---------- |
-| `--author`      | Author name for the plugin                                   | (required) |
-| `--providers`   | Comma-separated list of cloud providers                      | (required) |
-| `--output-dir`  | Output directory for the plugin project                      | `.`        |
-| `--force`       | Overwrite existing files if the directory exists             | `false`    |
-| `--with-docker` | Generate Docker support files                                | `true`     |
-| `--with-docs`   | Generate documentation templates                             | `true`     |
-| `--with-health` | Include health endpoint code                                 | `true`     |
-| `--minimal`     | Generate minimal scaffold only (overrides `--with-*` flags)  | `false`    |
-| `--no-docker`   | Skip Docker files (alias for `--with-docker=false`)          | `false`    |
-| `--no-docs`     | Skip documentation (alias for `--with-docs=false`)           | `false`    |
-| `--no-health`   | Skip health endpoint (alias for `--with-health=false`)       | `false`    |
-| `--docker-only` | Generate only Docker files (for existing projects)           | `false`    |
-| `--with-claude-review` | Generate a Claude Code review workflow                | `false`    |
-| `--no-skill`    | Do not install the FinFocus plugin agent skills              | `false`    |
-| `--help`        | Show help                                                    |            |
-
-### Examples (plugin init)
-
-```bash
-# Initialize a new AWS plugin
-finfocus plugin init my-aws-plugin --author "Your Name" --providers aws
-
-# Minimal scaffold without Docker, docs, or health endpoint
-finfocus plugin init my-plugin --author "Your Name" --providers aws --minimal
-
-# Without Docker support
-finfocus plugin init my-plugin --author "Your Name" --providers aws --no-docker
-```
-
 ## plugin install
 
-Install a FinFocus plugin from a registry or URL.
-
-### Usage (plugin install)
-
-```bash
-finfocus plugin install <plugin-name>[@<version>] [options]
-finfocus plugin install github.com/<owner>/<repo>[@<version>] [options]
-```
-
-### Options (plugin install)
-
-| Flag                   | Description                                                  | Default    |
-| ---------------------- | ------------------------------------------------------------ | ---------- |
-| `--force`, `-f`        | Reinstall even if the version already exists                 | false      |
-| `--clean`              | Remove all other versions after successful install           | false      |
-| `--metadata`           | Key=value metadata pairs (e.g., `region=us-west-2`)          | (none)     |
-| `--no-save`            | Don't add plugin to config file                              | false      |
-| `--fallback-to-latest` | Install the latest stable release when the requested one has no assets | false |
-| `--no-fallback`        | Fail when the requested version has no assets                | false      |
-| `--skip-checksum`      | Skip SHA256 checksum verification                            | false      |
-| `--plugin-dir`         | Custom plugin directory                                      | configured |
-| `--help`               | Show help                                                    |            |
-
-Pin a version with `<plugin-name>@<version>`; there is no `--version` flag.
-
-### Examples (plugin install)
-
-```bash
-# Install the latest Vantage plugin
-finfocus plugin install vantage
-
-# Install a specific version of a plugin
-finfocus plugin install opencost@v0.1.2
-
-# Install and remove all other versions (cleanup disk space)
-finfocus plugin install opencost --clean
-
-# Install from a GitHub repository
-finfocus plugin install github.com/rshade/finfocus-plugin-aws-public
-
-# Install with region metadata (selects region-specific binary)
-finfocus plugin install aws-public --metadata="region=us-west-2"
-
-# Pin a version with name@version
-finfocus plugin install aws-public@v0.2.0
-```
+Install a FinFocus plugin from a registry or URL. Flags and examples:
+[`finfocus plugin install`](./cli/finfocus_plugin_install.md). Pin a version
+with `<plugin-name>@<version>`; there is no `--version` flag.
 
 Plugins install into `plugins/` under the FinFocus home: `$FINFOCUS_HOME`,
 then `$PULUMI_HOME/finfocus`, then `~/.finfocus`. `plugin update` and
@@ -1296,7 +615,7 @@ asks you to confirm the plugin, version, repository, and security level
 first. URL installs stay on this command.
 
 A release can be published a few minutes before its archives are uploaded.
-When you do not request a version and the latest release has no assets yet,
+When you do not request a version and the newest stable release has no assets yet,
 the installer prints a warning naming both versions and installs the newest
 earlier stable release that has assets. When you request that version
 explicitly, the installer does not swap versions on its own. The error says
@@ -1306,40 +625,16 @@ and the usual version fallback applies: an interactive prompt, or
 
 ## plugin update
 
-Update an installed FinFocus plugin.
-
-### Usage (plugin update)
-
-```bash
-finfocus plugin update <plugin-name> [options]
-```
-
-### Options (plugin update)
-
-| Flag              | Description                                 | Default    |
-| ----------------- | ------------------------------------------- | ---------- |
-| `--version`       | Specify target version (defaults to latest) | latest     |
-| `--skip-checksum` | Skip SHA256 checksum verification           | false      |
-| `--plugin-dir`    | Custom plugin directory                     | configured |
-| `--help`          | Show help                                   |            |
-
+Update an installed FinFocus plugin. Flags and examples:
+[`finfocus plugin update`](./cli/finfocus_plugin_update.md).
 `plugin update` takes one plugin name; there is no option to update every
 installed plugin at once.
-
-### Examples (plugin update)
-
-```bash
-# Update the Vantage plugin to the latest version
-finfocus plugin update vantage
-
-# Update to a specific version
-finfocus plugin update vantage --version v0.2.0
-```
 
 ## plugin upgrade
 
 Upgrade the source of a plugin project to a newer finfocus-spec version. To
-update an installed plugin binary, use `plugin update`.
+update an installed plugin binary, use `plugin update`. Flags and examples:
+[`finfocus plugin upgrade`](./cli/finfocus_plugin_upgrade.md).
 
 The command reads the finfocus-spec requirement from `go.mod`. It then plans
 a hop for each release that needs action from plugin authors, up to the
@@ -1361,71 +656,18 @@ listed under changed files and in the JSON `skill` object. The step is
 best-effort: if it fails, the command prints a warning and the command to run
 later. `--dry-run` shows that command, and `--no-skill` skips the step.
 
-### Usage (plugin upgrade)
-
-```bash
-finfocus plugin upgrade [options]
-```
-
-### Options (plugin upgrade)
-
-| Flag            | Description                                       | Default           |
-| --------------- | ------------------------------------------------- | ----------------- |
-| `--dir`         | Plugin project directory (containing `go.mod`)    | `.`               |
-| `--to`          | Target release: a hop version or finfocus's own   | finfocus's own    |
-| `--allow-dirty` | Apply even without a clean git working tree       | false             |
-| `--no-skill`    | Do not reinstall the plugin agent skills          | false             |
-| `--output`      | Output format: `table` or `json`                  | table             |
-| `--dry-run`     | Print the plan without changing files (global)    | false             |
-
-### Examples (plugin upgrade)
-
-```bash
-# Show the plan for the plugin in the current directory
-finfocus plugin upgrade --dry-run
-
-# Apply the automatic edits, then refresh go.sum
-finfocus plugin upgrade
-go mod tidy
-
-# Stop at a specific version
-finfocus plugin upgrade --dir ../my-plugin --to v0.6.0
-```
-
 ## plugin remove
 
-Remove an installed FinFocus plugin.
-
-### Usage (plugin remove)
-
-```bash
-finfocus plugin remove <plugin-name> [options]
-```
-
-### Options (plugin remove)
-
-| Flag            | Description                       | Default    |
-| --------------- | --------------------------------- | ---------- |
-| `--keep-config` | Keep the plugin entry in config   | false      |
-| `--plugin-dir`  | Custom plugin directory           | configured |
-| `--help`        | Show help                         |            |
-
+Remove an installed FinFocus plugin. Flags and examples:
+[`finfocus plugin remove`](./cli/finfocus_plugin_remove.md).
 `plugin remove` takes one plugin name. It is also available as
 `plugin uninstall` and `plugin rm`.
 
-### Examples (plugin remove)
-
-```bash
-# Remove the Vantage plugin
-finfocus plugin remove vantage
-
-# Remove but keep the config entry for a later reinstall
-finfocus plugin remove vantage --keep-config
-```
-
 ## plugin list
 
-List installed plugins. The default is one row per plugin: the highest semver,
+List installed plugins. Flags and examples:
+[`finfocus plugin list`](./cli/finfocus_plugin_list.md). The default is one
+row per plugin: the highest semver,
 which is the version core opens. `--all` lists every installed version and
 adds an Active column (`yes` for the version core opens). Older versions are
 not started unless `--verbose` is also set, so their Providers cell is `-`.
@@ -1436,177 +678,46 @@ Providers and capabilities are `null` for a version that was not started.
 A version directory that is not semver prints a warning and stays out of the
 default listing.
 
-### Usage (plugin list)
-
-```bash
-finfocus plugin list [options]
-```
-
-### Options (plugin list)
-
-| Flag        | Description                                                | Default |
-| ----------- | ---------------------------------------------------------- | ------- |
-| `--all`     | List every installed version and mark the one core uses   | false   |
-| `--verbose` | Show detailed plugin capabilities and providers            | false   |
-| `--output`  | Output format: `table` or `json`                           | `table` |
-| `--help`    | Show help                                                  |         |
-
-### Examples (plugin list)
-
-```bash
-# List the latest version of each plugin
-finfocus plugin list
-
-# Output:
-# Name        Version  Providers
-# ----        -------  ---------
-# aws-public  0.2.0    aws
-# recorder    0.1.0    test
-
-# List every installed version. Older rows are not started.
-finfocus plugin list --all
-
-# Output:
-# Name        Version  Active  Providers
-# ----        -------  ------  ---------
-# aws-public  0.2.0    yes     aws
-# aws-public  0.1.9    no      -
-# aws-public  0.1.5    no      -
-# recorder    0.1.0    yes     test
-
-# Same selection as JSON
-finfocus plugin list --all --output json
-
-# List with detailed capabilities (starts every version when combined with --all)
-finfocus plugin list --verbose
+```text
+$ finfocus plugin list --all
+Name        Version  Active  Providers
+----        -------  ------  ---------
+aws-public  0.2.0    yes     aws
+aws-public  0.1.9    no      -
+aws-public  0.1.5    no      -
+recorder    0.1.0    yes     test
 ```
 
 ## plugin inspect
 
-Inspect a plugin's capabilities and field mappings.
+Inspect a plugin's capabilities and field mappings. Flags and examples:
+[`finfocus plugin inspect`](./cli/finfocus_plugin_inspect.md).
 
-### Usage (plugin inspect)
-
-```bash
-finfocus plugin inspect <plugin-name> <resource-type> [options]
-```
-
-### Options (plugin inspect)
-
-| Flag        | Description                       | Default |
-| ----------- | --------------------------------- | ------- |
-| `--version` | Specify plugin version to inspect | latest  |
-| `--json`    | Output in JSON format             | false   |
-| `--help`    | Show help                         |         |
-
-### Examples (plugin inspect)
-
-```bash
-# Inspect field mappings for AWS EC2 Instance
-finfocus plugin inspect aws-public aws:ec2/instance:Instance
-
-# Output:
-# Field Mappings:
-# FIELD                STATUS     CONDITION
-# -------------------- ---------- ------------------------------
-# instanceType         MAPPED
-# region               MAPPED
-# tags                 IGNORED    Not used for pricing
-
-# Inspect specific version
-finfocus plugin inspect aws-public aws:ec2/instance:Instance --version v0.1.0
-
-# Output as JSON
-finfocus plugin inspect aws-public aws:ec2/instance:Instance --json
+```text
+$ finfocus plugin inspect aws-public aws:ec2/instance:Instance
+Field Mappings:
+FIELD                STATUS     CONDITION
+-------------------- ---------- ------------------------------
+instanceType         MAPPED
+region               MAPPED
+tags                 IGNORED    Not used for pricing
 ```
 
 ## plugin validate
 
-Validate plugin installations.
-
-### Usage (plugin validate)
-
-```bash
-finfocus plugin validate [options]
-```
-
-### Options (plugin validate)
-
-| Flag     | Description |
-| -------- | ----------- |
-| `--help` | Show help   |
-
-### Examples (plugin validate)
-
-```bash
-# Validate all plugins
-finfocus plugin validate
-
-# Output:
-# vantage (0.1.0): OK
-# opencost (0.1.2): OK
-```
+Validate plugin installations. Flags and examples:
+[`finfocus plugin validate`](./cli/finfocus_plugin_validate.md).
 
 ## plugin conformance
 
 Run conformance tests against a plugin binary to verify protocol compliance.
-
-### Usage (plugin conformance)
-
-```bash
-finfocus plugin conformance <plugin-path> [options]
-```
-
-### Options (plugin conformance)
-
-| Flag            | Description                                                            | Default |
-| --------------- | ---------------------------------------------------------------------- | ------- |
-| `--mode`        | Communication mode: tcp, stdio                                         | tcp     |
-| `--verbosity`   | Output detail: quiet, normal, verbose, debug                           | normal  |
-| `--output`      | Output format: table, json, junit                                      | table   |
-| `--output-file` | Write output to file                                                   | stdout  |
-| `--timeout`     | Global suite timeout                                                   | 5m      |
-| `--category`    | Filter by category (repeatable): protocol, error, performance, context | all     |
-| `--filter`      | Regex filter for test names                                            |         |
-| `--help`        | Show help                                                              |         |
-
-### Examples (plugin conformance)
-
-```bash
-# Basic conformance check
-finfocus plugin conformance ./plugins/aws-cost
-
-# Verbose output with JSON
-finfocus plugin conformance --verbosity verbose --output json ./plugins/aws-cost
-
-# Filter to protocol tests only
-finfocus plugin conformance --category protocol ./plugins/aws-cost
-
-# JUnit XML for CI
-finfocus plugin conformance --output junit --output-file report.xml ./plugins/aws-cost
-
-# Use stdio mode
-finfocus plugin conformance --mode stdio ./plugins/aws-cost
-```
+Flags and examples:
+[`finfocus plugin conformance`](./cli/finfocus_plugin_conformance.md).
 
 ## plugin certify
 
-Run full certification tests and generate a certification report.
-
-### Usage (plugin certify)
-
-```bash
-finfocus plugin certify <plugin-path> [options]
-```
-
-### Options (plugin certify)
-
-| Flag           | Description                          | Default |
-| -------------- | ------------------------------------ | ------- |
-| `-o, --output` | Output file for certification report | stdout  |
-| `--mode`       | Communication mode: tcp, stdio       | tcp     |
-| `--timeout`    | Global certification timeout         | 10m     |
-| `--help`       | Show help                            |         |
+Run full certification tests and generate a certification report. Flags and
+examples: [`finfocus plugin certify`](./cli/finfocus_plugin_certify.md).
 
 ### Certification Requirements
 
@@ -1616,24 +727,6 @@ A plugin is certified if all conformance tests pass:
 - All error handling tests
 - All context/timeout tests
 - All performance tests
-
-### Examples (plugin certify)
-
-```bash
-# Basic certification
-finfocus plugin certify ./plugins/aws-cost
-
-# Save report to file
-finfocus plugin certify --output certification.md ./plugins/aws-cost
-
-# Use stdio mode
-finfocus plugin certify --mode stdio ./plugins/aws-cost
-
-# Output:
-# 🔍 Certifying plugin at ./plugins/aws-cost...
-# Running conformance tests...
-# ✅ CERTIFIED - Plugin passed all conformance tests
-```
 
 ### Certification Report
 
@@ -1648,40 +741,17 @@ The command generates a markdown report containing:
 
 Starts the FinFocus analyzer gRPC server. This command is intended to be run by
 the Pulumi CLI as part of the `pulumi preview` workflow, typically configured in
-`Pulumi.yaml`.
-
-### Usage (analyzer serve)
-
-```bash
-finfocus analyzer serve [options]
-```
-
-### Options (analyzer serve)
-
-| Flag      | Description                    | Default |
-| --------- | ------------------------------ | ------- |
-| `--debug` | Enable debug logging (global)  | false   |
-| `--help`  | Show help                      |         |
+`Pulumi.yaml`. Flags: [`finfocus analyzer serve`](./cli/finfocus_analyzer_serve.md).
 
 When Pulumi starts the binary as `pulumi-analyzer-finfocus`, the arguments it
 passes are ignored.
-
-### Examples (analyzer serve)
-
-```bash
-# This command is typically not run directly by users.
-# It's configured in Pulumi.yaml for zero-click cost estimation:
-#
-# plugins:
-#   - path: finfocus
-#     args: ["analyzer", "serve"]
-```
 
 ## analyzer install
 
 Install the finfocus binary as a Pulumi Analyzer plugin. This replaces the
 manual process of creating the plugin directory, copying the binary, and
-setting permissions.
+setting permissions. Flags and examples:
+[`finfocus analyzer install`](./cli/finfocus_analyzer_install.md).
 
 After installation, the binary on PATH is required for Pulumi to find it:
 
@@ -1689,76 +759,22 @@ After installation, the binary on PATH is required for Pulumi to find it:
 export PATH="${HOME}/.pulumi/plugins/analyzer-finfocus-v<version>:${PATH}"
 ```
 
-### Usage (analyzer install)
-
-```bash
-finfocus analyzer install [options]
-```
-
-### Options (analyzer install)
-
-| Flag            | Description                          | Default                   |
-| --------------- | ------------------------------------ | ------------------------- |
-| `--force`       | Overwrite existing installation      | false                     |
-| `--target-dir`  | Override Pulumi plugin directory     | `~/.pulumi/plugins/`      |
-
-### Examples (analyzer install)
-
-```bash
-# Install the analyzer
-finfocus analyzer install
-
-# Force reinstall after upgrading finfocus
-finfocus analyzer install --force
-
-# Install to a custom directory
-finfocus analyzer install --target-dir /opt/pulumi/plugins
-```
-
 ## analyzer uninstall
 
 Remove all installed versions of the finfocus Pulumi Analyzer plugin.
 All `analyzer-finfocus-v*` directories are deleted from the plugin directory.
-
-### Usage (analyzer uninstall)
-
-```bash
-finfocus analyzer uninstall [options]
-```
-
-### Options (analyzer uninstall)
-
-| Flag            | Description                       | Default              |
-| --------------- | --------------------------------- | -------------------- |
-| `--target-dir`  | Override Pulumi plugin directory  | `~/.pulumi/plugins/` |
-
-### Examples (analyzer uninstall)
-
-```bash
-# Uninstall the analyzer
-finfocus analyzer uninstall
-
-# Uninstall from a custom directory
-finfocus analyzer uninstall --target-dir /opt/pulumi/plugins
-```
+Flags and examples:
+[`finfocus analyzer uninstall`](./cli/finfocus_analyzer_uninstall.md).
 
 ## Global Options
 
-```bash
-finfocus [global options] command [command options]
-```
-
-| Option                 | Description                                  |
-| ---------------------- | -------------------------------------------- |
-| `--help`               | Show help                                    |
-| `--version`            | Show version                                 |
-| `--debug`              | Enable debug logging                         |
-| `--verbose`            | Enable verbose output                        |
-| `--no-color`           | Plain text on overview and cost output commands |
-| `--plain`              | Plain text on overview and cost output commands |
-| `--color`              | Force color on overview and cost output commands |
-| `--high-contrast`      | Brighter budget colors on styled output      |
-| `--skip-version-check` | Skip plugin spec version compatibility check |
+The persistent flags on the root command apply to every command. They are
+listed under "Options" on the [`finfocus`](./cli/finfocus.md) page and under
+"Options inherited from parent commands" on every other page. The `cost`
+group adds its own persistent flags, such as `--stack`, `--exit-on-threshold`,
+and `--profile`, to its subcommands. Output flags such as `--no-color`,
+`--plain`, and `--high-contrast` belong to the commands that render styled
+output.
 
 ## Date Formats
 
@@ -1770,9 +786,6 @@ finfocus cost actual --from 2024-01-01
 
 # RFC3339 (full timestamp)
 finfocus cost actual --from 2024-01-01T00:00:00Z
-
-# Relative (future)
-finfocus cost actual --from "7 days ago"
 ```
 
 ## Output Formats
@@ -1824,32 +837,23 @@ filters, and unparseable date ranges for `cost projected` and `cost actual`.
 Earlier releases reported these as exit code 1 with
 `error_code: internal_error`.
 
----
-
-See [User Guide](../guides/user-guide.md) for workflow examples.
-
 ## Historical carbon reports
 
 `finfocus carbon actual` queries available monthly aggregate emissions from
 `aws-ce`. Enable `plugins.aws-ce.carbon_enabled` in configuration or set
-`FINFOCUS_AWS_CARBON_ENABLED=true`, then restart the plugin.
+`FINFOCUS_AWS_CARBON_ENABLED=true`, then restart the plugin. Flags:
+[`finfocus carbon actual`](./cli/finfocus_carbon_actual.md).
 
 ```sh
 finfocus carbon actual --start 2026-01-01 --end 2026-03-01 \
   --method market-based --scope total --output json
 ```
 
-| Flag | Values |
-| --- | --- |
-| `--start` | Required inclusive UTC month boundary, `YYYY-MM-DD` |
-| `--end` | Required exclusive UTC month boundary, `YYYY-MM-DD` |
-| `--method` | `market-based` (default), `location-based` |
-| `--scope` | `total` (default), `1`, `2`, `3` |
-| `--account` | Account IDs, comma-separated or repeated |
-| `--region` | AWS regions, comma-separated or repeated |
-| `--service` | AWS service names, comma-separated or repeated |
-| `--output` | `table` (default), `json` |
-
-The total covers returned records only. Missing reports have no numeric total;
-explicit zero values remain zero. See [historical AWS carbon reporting](../../plugins/historical-carbon/)
+`--start` is an inclusive and `--end` an exclusive UTC month boundary. The
+total covers returned records only. Missing reports have no numeric total;
+explicit zero values remain zero. See [historical AWS carbon reporting](../plugins/historical-carbon.md)
 for provenance, permissions, pagination behavior, and authenticated web parity.
+
+---
+
+See [User Guide](../guides/user-guide.md) for workflow examples.

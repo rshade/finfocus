@@ -49,7 +49,8 @@ FinFocus is a command-line tool that calculates cloud infrastructure costs from 
 
 ### Option 1: Download Binary (Recommended)
 
-Coming soon - prebuilt binaries for Linux, macOS, and Windows.
+Download a prebuilt binary for Linux, macOS, or Windows from
+[GitHub Releases](https://github.com/rshade/finfocus/releases).
 
 ### Option 2: Build from Source
 
@@ -225,11 +226,11 @@ Full page: [cost forecast](../commands/forecast.md)
 
 `cost anomalies` lists resources whose costs broke from their reference by
 more than a documented cutoff. A resource with 15 or more stored daily actuals
-in one currency (14 earlier days plus the day under test) is scored: its latest complete UTC day is compared with the
+in one currency (14 earlier days plus the day under test) is scored: its most recent complete UTC day is compared with the
 median of the days before it. The resource gets `method: robust-median` only
 when the median absolute deviation of those days is not zero and the day's
 robust z-score reaches 3.5; that row replaces the resource's drift row. A
-resource without that much daily history, or whose latest day does not
+resource without that much daily history, or whose most recent day does not
 qualify, keeps `method: drift`, the overview's own calculation:
 its month-to-date run-rate has diverged from the projected month by more than
 10%. Each row has a baseline and an observed figure, the deviation, and the
@@ -284,7 +285,7 @@ currency with the most snapshots. `--currency USD` keeps one currency.
 
 `diff` compares two stored snapshots by resource URN and prints the
 monthly cost impact. `--from` and `--to` take a version such as `v35` or
-a date such as `2025-03-15`. `--to` defaults to the latest snapshot.
+a date such as `2025-03-15`. `--to` defaults to the most recent snapshot.
 `--threshold` hides smaller changes. `--output json` prints the delta.
 
 `prune` deletes old snapshots for one stack. `--keep` retains the newest
@@ -321,11 +322,12 @@ was. Run it beside `collect` after a deploy when you want a baseline that is
 not tied to checkpoints. `--output json` prints the stored, skipped, and
 failed counts.
 
-Databases live under the FinFocus config directory in `history/`, one file per
-stack of each project: `<project>@<stack>.history.db`. Two projects that both
-have a stack named `dev` get separate histories. FinFocus takes the project from
-the `Pulumi.yaml` in the current directory, or from a fully qualified
-`--stack org/project/dev`. A database never accepts snapshots from another
+Each stack of each project has one database, `<project>@<stack>.history.db`,
+so projects that share a stack name such as `dev` get separate histories. The
+directory is `FINFOCUS_HISTORY_DIR`, then `cost.history.directory`, then
+`history/` under the FinFocus config directory. FinFocus takes the project from
+a fully qualified `--stack org/project/dev`, otherwise from the `Pulumi.yaml`
+in the current directory or its closest parent that has one. A database never accepts snapshots from another
 project, and `list` shows each one as `project/stack`.
 
 Databases written by earlier versions are named `<stack>.history.db`. They keep

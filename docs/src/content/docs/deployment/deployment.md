@@ -197,8 +197,8 @@ See [Configuration](configuration.md) and [Troubleshooting](troubleshooting.md).
 
 ## Enterprise Deployment
 
-Enterprise deployment guides are coming soon. Today, you can still build a
-secure rollout with the current capabilities below.
+There is no dedicated enterprise deployment guide. You can build a secure
+rollout with the capabilities below.
 
 ### Current Capabilities
 

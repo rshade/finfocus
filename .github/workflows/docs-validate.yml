@@ -12,6 +12,9 @@ on:
       - 'docs/**'
       - 'README.md'
       - 'CONTRIBUTING.md'
+      - '.github/workflows/docs-validate.yml'
+      - 'scripts/check-vale-ai-tells.sh'
+      - 'mise.toml'
 
 permissions:
   contents: read
@@ -55,6 +58,39 @@ jobs:
           npx prettier --check 'docs/**/*.md' 'docs/**/*.mdx' \
             --ignore-path docs/.gitignore
         continue-on-error: true
+
+  vale:
+    runs-on: ubuntu-latest
+    name: Lint Prose with Vale
+    # filter_mode added needs a pull request diff.
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Read the Vale version from mise.toml
+        id: vale-version
+        run: echo "version=$(sed -n 's/^vale = "\(.*\)"/\1/p' mise.toml)" >> "$GITHUB_OUTPUT"
+
+      # Reports only lines the pull request adds. Error-level findings fail
+      # the job; warnings and the ai-tells suggestions never do.
+      - name: Run Vale through reviewdog
+        uses: vale-cli/vale-action@518a9136acc6e6668ce7c00d367051e0941e87ff # v3.0.0
+        with:
+          version: ${{ steps.vale-version.outputs.version }}
+          config: docs/.vale.ini
+          files: docs/src/content/docs
+          reporter: github-pr-review
+          filter_mode: added
+          fail_on_error: true
+
+      - name: Check ai-tells rules are suggestions
+        if: ${{ !cancelled() }}
+        run: bash scripts/check-vale-ai-tells.sh
 
   link-check:
     runs-on: ubuntu-latest
@@ -221,7 +257,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Documentation Validation Summary
     if: always()
-    needs: [lint, link-check, frontmatter, structure, llms-txt]
+    needs: [lint, vale, link-check, frontmatter, structure, llms-txt]
 
     steps:
       - name: Check results
@@ -231,6 +267,7 @@ jobs:
             echo ""
 
             echo "- Markdown Linting: ${{ needs.lint.result }}"
+            echo "- Vale Prose Linting: ${{ needs.vale.result }}"
             echo "- Link Checking: ${{ needs.link-check.result }}"
             echo "- Frontmatter Validation: ${{ needs.frontmatter.result }}"
             echo "- Structure Validation: ${{ needs.structure.result }}"

@@ -127,18 +127,20 @@ func TestActualCostStartsAtCreationTime(t *testing.T) {
 	assert.InDelta(t, 1.0/13, created[16], 1e-9, "spend starts on the creation day")
 }
 
-func TestBatchActualCostSendsCreatedResourcesUnary(t *testing.T) {
+func TestBatchActualCostGroupsResourcesByStart(t *testing.T) {
 	t.Parallel()
 	actualWindowStart, actualWindowEnd, createdMidWindow := actualWindow()
 
 	rec := &startRecorder{starts: map[string]time.Time{}}
 	var batchMu sync.Mutex
 	var batched []string
+	var batchStarts []time.Time
 	api := &mockBatchCostSourceClient{
 		getActualCostFunc: rec.getActualCost,
 		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
 			batchMu.Lock()
 			defer batchMu.Unlock()
+			batchStarts = append(batchStarts, in.GetStart().AsTime())
 			results := make([]*pbc.ResourceCostResult, 0, len(in.GetResources()))
 			for _, res := range in.GetResources() {
 				batched = append(batched, res.GetId())
@@ -166,10 +168,14 @@ func TestBatchActualCostSendsCreatedResourcesUnary(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 
-	assert.Equal(t, []string{"i-old"}, batched)
-	assert.True(t, createdMidWindow.Equal(rec.starts["i-new"]), "got %s", rec.starts["i-new"])
-	_, unaryOld := rec.starts["i-old"]
-	assert.False(t, unaryOld, "a resource that existed all window stays in the batch")
+	assert.Equal(t, []string{"i-old", "i-new"}, batched, "each start is its own batch, earliest first")
+	require.Len(t, batchStarts, 2)
+	assert.True(t, actualWindowStart.Equal(batchStarts[0]), "got %s", batchStarts[0])
+	assert.True(t, createdMidWindow.Truncate(time.Hour).Equal(batchStarts[1]), "got %s", batchStarts[1])
+	assert.Empty(t, rec.starts, "no resource is priced alone")
+	for _, r := range results {
+		assert.True(t, actualWindowStart.Equal(r.StartDate), "the display window is unchanged")
+	}
 }
 
 func sum(values []float64) float64 {

@@ -3,8 +3,12 @@ title: Vantage Plugin Setup Guide
 description: Step-by-step installation and configuration guide for the FinFocus Vantage plugin
 ---
 
-> **Note:** The Vantage plugin is currently **in development** and not yet available for installation.
-> This documentation is provided for reference and will be updated when the plugin is released.
+> **Earlier design.** This page was written before the plugin was released.
+> Install the plugin with `finfocus plugin install vantage`. The released
+> plugin has no `pull`, `backfill`, or `forecast` command and reads no
+> `config.yaml`. It is configured by the environment variables and the
+> per-request credential on the [Vantage plugin page](../vantage.md), which is
+> the reference when they disagree.
 
 This guide walks you through installing and configuring the Vantage plugin for
 FinFocus. Follow these steps to enable multi-cloud cost aggregation using
@@ -48,41 +52,30 @@ Before installing the Vantage plugin, ensure you have:
 
 ## Installation
 
-### Option 1: Install Pre-Built Binary (Recommended)
+### Option 1: Install via FinFocus Plugin Manager (Recommended)
 
-Download the latest release for your platform:
-
-```bash
-# Linux (amd64)
-curl -Lo finfocus-vantage https://github.com/rshade/finfocus-plugin-vantage/releases/latest/download/finfocus-vantage-linux-amd64
-chmod +x finfocus-vantage
-sudo mv finfocus-vantage /usr/local/bin/
-
-# Linux (arm64)
-curl -Lo finfocus-vantage https://github.com/rshade/finfocus-plugin-vantage/releases/latest/download/finfocus-vantage-linux-arm64
-chmod +x finfocus-vantage
-sudo mv finfocus-vantage /usr/local/bin/
-
-# macOS (amd64)
-curl -Lo finfocus-vantage https://github.com/rshade/finfocus-plugin-vantage/releases/latest/download/finfocus-vantage-darwin-amd64
-chmod +x finfocus-vantage
-sudo mv finfocus-vantage /usr/local/bin/
-```
-
-### Option 2: Install via FinFocus Plugin Manager
-
-Install through FinFocus's plugin system:
+Install through FinFocus's plugin system. It downloads the archive for your
+platform and checks it against the release's `checksums.txt` before it unpacks
+the plugin into the plugin directory:
 
 ```bash
-# Install plugin (coming soon)
+# Install plugin
 finfocus plugin install vantage
 
 # List installed plugins
 finfocus plugin list
 
 # Verify installation
-finfocus plugin validate vantage
+finfocus plugin validate --plugin vantage
 ```
+
+### Option 2: Download a Release Archive
+
+Each [release](https://github.com/rshade/finfocus-plugin-vantage/releases)
+publishes `finfocus-plugin-vantage_<version>_<OS>_<arch>` archives for Linux,
+macOS (`Darwin`), and Windows on `x86_64` and `arm64`, plus `checksums.txt`.
+Unpack the archive into `~/.finfocus/plugins/vantage/v<version>/`, the
+directory `plugin install` uses (`vantage/v0.1.1/` for release v0.1.1).
 
 ### Option 3: Build from Source
 
@@ -96,8 +89,8 @@ cd finfocus-plugin-vantage
 # Build binary
 make build
 
-# Binary created at: bin/finfocus-vantage
-./bin/finfocus-vantage --version
+# Binary created at: bin/finfocus-plugin-vantage
+./bin/finfocus-plugin-vantage --version
 ```
 
 ### Verify Installation
@@ -105,13 +98,16 @@ make build
 Confirm the plugin is installed correctly:
 
 ```bash
-# Check version
-finfocus-vantage --version
-# Expected output: finfocus-vantage version 0.1.0
+# The plugin is listed with its version
+finfocus plugin list
 
-# View help
-finfocus-vantage --help
+# The plugin starts and answers FinFocus
+finfocus plugin validate --plugin vantage
 ```
+
+`plugin install` puts the `finfocus-plugin-vantage` binary in the plugin
+directory, not on `PATH`. FinFocus starts it; the binary itself only answers
+`--version` and otherwise serves gRPC.
 
 ---
 

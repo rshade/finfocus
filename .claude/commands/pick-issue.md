@@ -224,6 +224,14 @@ acceptance criteria. Use the available `code-review` skill (or the local
 is available, report its improvement opportunities without expanding this
 issue's scope. Spec analysis does not replace review of the implemented diff.
 
+Then review the same change with the `local-cli-review` skill, which runs the
+codex and grok CLI tools read-only and swaps to the other tool when one is out
+of tokens. Use `--uncommitted` while the work is not committed, and
+`--base origin/main` once it is. Check each of its findings against the code
+(the `verify-fix` skill where available) and fix only the ones that hold up. If
+the skill is not installed or both tools are unavailable, say so in the report
+rather than substituting a paid review.
+
 For a user-facing feature whose Web UI Fit is not an accepted
 `Not applicable`, render the nearest existing web view against a
 populated stack, such as `initial-30` or `../finfocus-demo`, with Playwright.
@@ -264,6 +272,11 @@ Set `PR_BODY_FILE` to the prepared file and replace the title before execution.
 Check for an existing PR before creating one. Leave the issue open for the
 closing reference to resolve on merge. Stop at the PR; merging requires the
 user's instruction.
+
+Do not request a GitHub Copilot review (`gh pr edit --add-reviewer @copilot`
+or the web button): each one is billed, and asking again after every fix commit
+multiplies the cost. Before pushing commits that address review comments, run
+`local-cli-review` with `--base origin/main` on the new HEAD instead.
 
 ## Phase 5 — Release or retain the claim
 
@@ -309,7 +322,8 @@ run removal from the original checkout and never force it.
 ## Phase 6 — Report and stop
 
 Report the issue and selection reason, route and spec directory if any,
-validation and review results, branch and worktree, PR URL or prepared handoff,
+validation and review results (including which local CLI reviewers ran),
+branch and worktree, PR URL or prepared handoff,
 and the web parity result (follow-up issue number, or `Not applicable` and why),
 and whether the claim is released or retained. Mention selection outside
 `roadmap/current` explicitly. Do not pick another issue.

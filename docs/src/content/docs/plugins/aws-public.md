@@ -121,7 +121,8 @@ the [cost calculation guide](../guides/cost-calculation.md).
 If a resource shows a message such as `EC2 instance type "t3.micro" not found
 in pricing data`:
 
-1. Ensure you are using the latest version of the plugin.
+1. Ensure you run the newest stable release of the plugin
+   (`finfocus plugin update aws-public`).
 2. The instance type might be new and not yet in the plugin's prices.
 3. Check that the resource type is in [What it prices](#what-it-prices).
 

@@ -24,7 +24,7 @@ For full options see the [Installation Guide](../getting-started/installation.md
 
 ### Q: Does FinFocus require a specific version of Pulumi?
 
-A: FinFocus works with Pulumi 3.0+. We recommend the latest version.
+A: FinFocus works with Pulumi 3.0+. We recommend the newest Pulumi release.
 
 ### Q: Can I use FinFocus with my cloud provider?
 
@@ -106,6 +106,7 @@ A: The main plugins today:
 | `azure-public` | ✓ | ✓ | Azure Retail Prices API, no credentials |
 | `vantage` | — | ✓ | Imported billing from a Vantage Cost Report; needs a Vantage account |
 | `flexera` | ✓ | ✓ | Flexera One Bill Analysis for AWS, Azure, and GCP; needs a Flexera org and billing center |
+| `cloudzero` | — | ✓ | CloudZero billing costs per resource; needs a CloudZero API key and a resource dimension |
 | `opencost` | ✓ | ✓ | Kubernetes allocation from an OpenCost or Kubecost endpoint (set the `kubecost` profile for Kubecost) |
 
 ### Q: Do I need a plugin?

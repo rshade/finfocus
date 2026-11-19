@@ -211,7 +211,7 @@ tools map to built-in tools as follows:
 
 `finfocus-cost-anomalies` returns the same rows as the command. A `method`
 value is either `drift` (the overview's monthly run-rate comparison) or
-`robust-median` (the resource's latest complete UTC day against the median of
+`robust-median` (the resource's most recent complete UTC day against the median of
 its own earlier days). The statistical method needs at least 14 earlier daily
 points in one currency, excludes the observation day from the median, and
 emits a row when the absolute robust z-score, `0.6745 * (observed - median) /
@@ -220,6 +220,18 @@ the 3.5 cutoff is a config key. A flat series (MAD of 0) emits no statistical
 row, so the drift row remains: that hole is documented rather than covered by a
 second threshold. Missing days are gaps, never zeros, and currencies are never
 pooled into one median.
+
+## Documentation from Context7
+
+The finfocus MCP server runs commands. It does not serve the FinFocus
+documentation. The finfocus repository has a `context7.json` file at its root
+that sets how [Context7](https://context7.com) indexes these docs.
+The Context7 library ID is `/rshade/finfocus`. An assistant that has the
+Context7 MCP server configured can fetch current FinFocus docs by that ID
+instead of answering from its training data.
+
+The file covers the pages on this site, except the testing guides and the
+navigation and contributor pages.
 
 ## Troubleshooting
 

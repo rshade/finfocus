@@ -593,9 +593,9 @@ go test -bench=BenchmarkScale1K -benchtime=10x -benchmem ./test/benchmarks/...
 
 | Scale | Target Time  | Actual (baseline) |
 | ----- | ------------ | ----------------- |
-| 1K    | < 1 second   | ~13ms             |
-| 10K   | < 30 seconds | ~167ms            |
-| 100K  | < 5 minutes  | ~2.3s             |
+| 1K    | < 1 second   | ~13 ms            |
+| 10K   | < 30 seconds | ~167 ms           |
+| 100K  | < 5 minutes  | ~2.3 s            |
 
 ### Synthetic Data Generator
 

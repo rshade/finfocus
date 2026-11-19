@@ -4,7 +4,7 @@ description: List resources whose month-to-date run-rate has diverged from the p
 ---
 
 `finfocus cost anomalies` lists rows by two methods. When a resource has
-enough daily actuals stored, its latest complete day is scored against its own
+enough daily actuals stored, its most recent complete day is scored against its own
 recent days (`method: robust-median`). When it does not, the overview's drift
 warnings stand (`method: drift`): a row appears when a resource's extrapolated
 monthly run-rate differs from its projected monthly cost by more than 10%. An
@@ -28,15 +28,8 @@ finfocus cost anomalies --from 2026-10-01 --to 2026-10-15 --output ndjson
 
 ## Options
 
-| Flag | Description | Default |
-| --- | --- | --- |
-| `--stack` | Pulumi stack for auto-detection (inherited from `cost`) | Current stack |
-| `--pulumi-state` | Path to Pulumi state JSON | Auto-detected |
-| `--pulumi-json` | Path to Pulumi preview JSON; also runs with the plan | None |
-| `--from`, `--to` | Window start and end, `2006-01-02` or RFC3339. They also bound the days the daily series is read from | Start of the month to now |
-| `--adapter`, `-a` | Restrict to one adapter plugin | All |
-| `--filter`, `-f` | `key=value`, repeatable. Keys: `type`, `status`, `provider` | None |
-| `--output` | `table`, `json`, or `ndjson` | `table` |
+The flags, their defaults, and examples are in the generated reference for
+[`finfocus cost anomalies`](../reference/cli/finfocus_cost_anomalies.md).
 
 The command takes no positional arguments. Without `--pulumi-json` it reads the
 deployed state and does not run `pulumi preview`, because drift compares actual
@@ -95,7 +88,7 @@ A robust-median row carries the baseline window instead of a projected month:
 | --- | --- |
 | `resource` | Resource URN |
 | `baseline` | `drift`: projected monthly cost, normalized to the calendar month. `robust-median`: the median daily cost of the days before the observation |
-| `observed` | `drift`: run-rate extrapolated to a full month, not the month-to-date spend. `robust-median`: the latest complete UTC day's amount |
+| `observed` | `drift`: run-rate extrapolated to a full month, not the month-to-date spend. `robust-median`: the most recent complete UTC day's amount |
 | `deviation` | `observed` minus `baseline` |
 | `percentDrift` | `deviation` as a percentage of `baseline`. Omitted when a robust-median row's median is 0, because the percentage is undefined then |
 | `severity` | Always `warning`: a row exists only past a documented cutoff |
@@ -113,8 +106,8 @@ same rows `n/a`.
 ## The robust-median method
 
 A resource whose stored daily actuals cover at least 14 earlier days in one
-currency is scored. Its drift row is replaced only when the latest complete
-UTC day crosses the cutoff below. The latest complete UTC day of the
+currency is scored. Its drift row is replaced only when the most recent
+complete UTC day crosses the cutoff below. The most recent complete UTC day of the
 series is the observation; the current partial day is not an observation.
 The baseline is the median of those earlier points, and the observation day is
 not part of the median, so the day under test cannot pull the median toward
@@ -138,8 +131,10 @@ The daily series follows the dates you ask for. `--from` and `--to` bound the
 days it reads, and without them the whole stored history of the stack is
 used: the daily store is already a rolling history, and the default cost
 window (the current month, which the drift comparison needs) never truncates
-it. The method therefore works as soon as the store holds fifteen days of one
-currency, instead of only in the second half of a month.
+it. The method therefore works once the store holds fifteen complete UTC days
+of one currency for a resource (fourteen baseline days plus the observation
+day; the current partial day does not count), instead of only in the second
+half of a month.
 
 The series belongs to one stack, and the command reads the stack it just
 priced: `--stack` names it when given, and the stack named in the loaded

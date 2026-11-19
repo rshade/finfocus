@@ -49,7 +49,7 @@ graph TD
 ### Plugin Lifecycle
 
 1. **Discovery**: Registry scans `~/.finfocus/plugins/` directory and selects the
-   latest version of each plugin (using Semantic Versioning).
+   highest version of each plugin (using Semantic Versioning).
 2. **Launch**: Process launcher starts plugin binary
 3. **Connection**: gRPC connection establishment
 4. **Authentication**: Plugin authenticates with data source
@@ -79,14 +79,17 @@ graph TD
 
 FinFocus Core supports side-by-side installation of multiple plugin versions.
 When performing cost analysis or other operations, the system automatically selects
-the **latest version** of each installed plugin based on Semantic Versioning (SemVer)
+the **highest version** of each installed plugin based on Semantic Versioning (SemVer)
 rules.
 
-- **Pre-release versions** (e.g., `v1.0.0-alpha`) are ignored if a stable version (e.g., `v1.0.0`) is present.
+- **Pre-release versions** rank below the stable release of the same version,
+  so `v1.0.0` is selected over `v1.0.0-alpha`. A pre-release of a higher
+  version is still selected over a lower stable release, so `v1.1.0-alpha`
+  is selected over `v1.0.0`.
 - **Invalid versions** are skipped with a warning.
 - **Corrupted directories** are skipped with a warning.
 
-To use a specific older version, you must currently uninstall newer versions or use a custom plugin directory.
+To use a specific older version, uninstall newer versions or use a custom plugin directory.
 
 ### List Available Plugins
 
@@ -123,6 +126,16 @@ finfocus plugin validate --plugin opencost
 
 ### Plugin Installation
 
+#### Registry Installation
+
+```bash
+# Install the newest stable release from the plugin registry
+finfocus plugin install opencost
+
+# Pin a specific version
+finfocus plugin install opencost@v0.1.2
+```
+
 #### Manual Installation
 
 ```bash
@@ -137,24 +150,8 @@ curl -L https://github.com/rshade/finfocus-plugin-opencost/releases/download/v0.
 chmod +x ~/.finfocus/plugins/opencost/v0.1.2/finfocus-plugin-opencost
 ```
 
-`finfocus plugin install opencost` does the same download, checksum check, and
-unpacking for you.
-
-> **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
->
-> A `ResourceExhausted` status is a rate limit. Core retries that plugin before
-> it asks the next one, and waits for `ErrorDetail.retry_after_seconds` when
-> the plugin sets it. A batch that returns `ResourceExhausted` is retried as a
-> batch. Core does not split that batch into one call per resource on the
-> rate-limited plugin.
-
-#### Package Manager Installation (Future)
-
-```bash
-# Coming soon
-finfocus plugin install opencost@v0.1.2
-finfocus plugin install aws-plugin@latest
-```
+`finfocus plugin install opencost@v0.1.2` does these steps and also checks the
+release checksum.
 
 ### Plugin Configuration
 
@@ -172,24 +169,34 @@ accepts catalog names only.
 
 #### Environment Variables
 
-Most plugins use environment variables for configuration:
+Most plugins use environment variables for configuration. Plugin processes
+inherit the environment FinFocus runs in. For example, the opencost plugin
+reads a Kubecost endpoint from:
 
 ```bash
-# opencost plugin reading a Kubecost endpoint
 export OPENCOST_PROFILE="kubecost"
 export KUBECOST_BASE_URL="https://kubecost.example.com"
 export KUBECOST_API_TOKEN="your-api-token"
-
-# AWS plugin configuration
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_REGION="us-west-2"
-
-# Azure plugin configuration
-export AZURE_CLIENT_ID="your-client-id"
-export AZURE_CLIENT_SECRET="your-client-secret"
-export AZURE_TENANT_ID="your-tenant-id"
 ```
+
+The public pricing plugins (`aws-public`, `azure-public`) need no credentials.
+`aws-ce` uses the AWS SDK default credential chain and needs a region:
+
+```bash
+# AWS credentials (for the aws-ce plugin)
+export AWS_PROFILE="your-profile"
+export AWS_REGION="us-east-1"
+```
+
+A plugin can advertise the settings it reads, each with its own environment
+variable, and its docs pages list them. For example,
+[aws-ce](plugins/aws-ce.md) reads `carbon_enabled` from
+`FINFOCUS_AWS_CARBON_ENABLED`; see
+[Historical AWS Carbon Reporting](plugins/historical-carbon.md). FinFocus takes each advertised value from that
+variable, or else from the plugin's section of the project or global config
+file. As a fallback, a config key the plugin does not advertise is passed to it
+as `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase, with hyphens as
+underscores.
 
 #### Configuration Files
 
@@ -248,46 +255,27 @@ finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --adapter opencos
 
 See [OpenCost Plugin](plugins/opencost.md) for every setting.
 
-### AWS Pricing Plugin
+### AWS Plugins
 
-**Repository**: [finfocus-plugin-aws](https://github.com/rshade/finfocus-plugin-aws) (planned)
+- **aws-public** ([repository](https://github.com/rshade/finfocus-plugin-aws-public),
+  [guide](plugins/aws-public.md)): AWS public pricing data.
+- **aws-ce** ([repository](https://github.com/rshade/finfocus-plugin-aws-ce),
+  [guide](plugins/aws-ce.md)): AWS Cost Explorer actual costs, account and
+  service forecasts, AWS Budgets, and recommendations.
 
-**Capabilities:**
+### Azure Plugin
 
-- AWS Cost Explorer integration
-- EC2, RDS, S3 pricing data
-- Reserved instance optimization
-- Multi-account cost aggregation
+- **azure-public** ([repository](https://github.com/rshade/finfocus-plugin-azure-public),
+  [guide](plugins/azure-public.md)): Azure public retail pricing data.
 
-**Configuration:**
+### Google Cloud
 
-```bash
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_REGION="us-west-2"
-```
+No plugin is dedicated to Google Cloud yet. The [flexera](plugins/flexera.md)
+and [vantage](plugins/vantage.md) plugins report Google Cloud actual costs
+from those platforms.
 
-### Azure Cost Management Plugin
-
-**Repository**: [finfocus-plugin-azure](https://github.com/rshade/finfocus-plugin-azure) (planned)
-
-**Capabilities:**
-
-- Azure Cost Management API integration
-- Resource group cost breakdown
-- Azure subscription analysis
-- Reserved instance tracking
-
-### GCP Cloud Billing Plugin
-
-**Repository**: [finfocus-plugin-gcp](https://github.com/rshade/finfocus-plugin-gcp) (planned)
-
-**Capabilities:**
-
-- Google Cloud Billing API integration
-- Project and folder cost attribution
-- Committed use discount tracking
-- BigQuery cost analysis
+The [plugin directory](https://finfocus.dev/plugins/) lists every plugin in the
+registry and what each one covers.
 
 ## Plugin Development
 
@@ -735,7 +723,8 @@ func (p *MyCloudPlugin) GetProjectedCost(ctx context.Context, req *pb.GetProject
 1. Implement the CostSource interface
 2. Add comprehensive tests
 3. Create documentation
-4. Submit to plugin registry (coming soon)
+4. Open a pull request that adds it to the registry catalog
+   (`internal/registry/registry.json`)
 
 ### Plugin Registry
 

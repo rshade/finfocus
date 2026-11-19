@@ -22,8 +22,8 @@ Complete installation instructions for FinFocus Core across different platforms 
 
 - **Operating System**: Linux, macOS, or Windows
 - **Architecture**: x86_64 (amd64) or ARM64
-- **Memory**: Minimum 256MB RAM
-- **Storage**: 50MB for binary, additional space for plugins and specs
+- **Memory**: Minimum 256 MB RAM
+- **Storage**: 50 MB for binary, additional space for plugins and specs
 
 ### Software Dependencies
 
@@ -33,76 +33,81 @@ Complete installation instructions for FinFocus Core across different platforms 
 
 ## Installation Methods
 
-### 1. Download Pre-built Binaries (Recommended)
+### 1. Install Script (Recommended)
 
-Download the latest release for your platform:
-
-#### Linux (x86_64)
+The install script picks the release archive for your OS (Linux or macOS) and
+architecture (amd64 or arm64) and checks it against the release's
+`checksums.txt` when the release has one:
 
 ```bash
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o finfocus
-chmod +x finfocus
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
+```
+
+The script installs to `/usr/local/bin` when it can write there and to
+`~/.local/bin` otherwise. That directory is often not on `PATH`, especially
+on macOS. The script prints the `export PATH=...` line to add.
+
+`FINFOCUS_VERSION` pins a release and `FINFOCUS_INSTALL_DIR` changes the
+install directory; [Quick Install](getting-started/installation.md#option-2-install-script-recommended)
+lists the options. On Windows, use a release archive instead.
+
+### 2. Download a Release Archive
+
+Each [release](https://github.com/rshade/finfocus/releases) publishes
+versioned archives named `finfocus-<version>-<os>-<arch>`: `.tar.gz` for
+`linux` and `macos`, `.zip` for `windows`, each on `amd64` and `arm64`, plus
+`checksums.txt`. There is no unversioned asset such as `finfocus-linux-amd64`.
+
+#### Linux and macOS
+
+```bash
+# Set the release, OS (linux or macos), and architecture (amd64 or arm64)
+VERSION=v0.5.8
+OS=linux
+ARCH=amd64
+ARCHIVE="finfocus-${VERSION}-${OS}-${ARCH}.tar.gz"
+
+curl -fLO "https://github.com/rshade/finfocus/releases/download/${VERSION}/${ARCHIVE}"
+curl -fLO "https://github.com/rshade/finfocus/releases/download/${VERSION}/checksums.txt"
+
+# Verify the archive (on macOS use: shasum -a 256 -c -)
+grep " ${ARCHIVE}\$" checksums.txt | sha256sum -c -
+
+tar -xzf "${ARCHIVE}" finfocus
 sudo mv finfocus /usr/local/bin/
 ```
 
-#### Linux (ARM64)
-
-```bash
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-arm64 -o finfocus
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
-```
-
-#### macOS (Intel)
-
-```bash
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-darwin-amd64 -o finfocus
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
-```
-
-#### macOS (Apple Silicon)
-
-```bash
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-darwin-arm64 -o finfocus
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
-```
-
-#### Windows (x86_64)
+#### Windows
 
 ```powershell
-# Download using PowerShell
-Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/latest/download/finfocus-windows-amd64.exe" -OutFile "finfocus.exe"
+# Set the release and architecture (amd64 or arm64)
+$Version = "v0.5.8"
+$Arch = "amd64"
+$Zip = "finfocus-$Version-windows-$Arch.zip"
 
-# Add to PATH (optional)
-Move-Item finfocus.exe $env:USERPROFILE\bin\
+$Base = "https://github.com/rshade/finfocus/releases/download/$Version"
+
+Invoke-WebRequest -Uri "$Base/$Zip" -OutFile $Zip
+Invoke-WebRequest -Uri "$Base/checksums.txt" -OutFile checksums.txt
+
+# Verify the archive against checksums.txt
+$Expected = ((Get-Content checksums.txt | Where-Object { $_ -like "*  $Zip" }) -split '\s+')[0]
+if ((Get-FileHash $Zip -Algorithm SHA256).Hash -ne $Expected) { throw "Checksum mismatch for $Zip" }
+
+Expand-Archive $Zip -DestinationPath "finfocus-$Version" -Force
+
+# Move the binary into a bin directory on PATH
+New-Item -ItemType Directory -Force -Path $env:USERPROFILE\bin
+Move-Item "finfocus-$Version\finfocus.exe" $env:USERPROFILE\bin\ -Force
 $env:PATH += ";$env:USERPROFILE\bin"
 ```
 
-### 2. Package Managers
+Replace `v0.5.8` with the release you want.
 
-#### Homebrew (macOS/Linux)
+### 3. Package Managers
 
-```bash
-# Coming soon - not yet available
-brew install finfocus
-```
-
-#### Chocolatey (Windows)
-
-```powershell
-# Coming soon - not yet available
-choco install finfocus
-```
-
-#### APT (Ubuntu/Debian)
-
-```bash
-# Coming soon - not yet available
-sudo apt update
-sudo apt install finfocus
-```
+FinFocus is not published to Homebrew, Chocolatey, or APT. Use the install
+script or a release archive.
 
 ## Platform-Specific Instructions
 
@@ -113,12 +118,10 @@ sudo apt install finfocus
 ```bash
 # Install dependencies
 sudo apt update
-sudo apt install curl
+sudo apt install curl tar
 
 # Download and install
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o finfocus
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 
 # Verify installation
 finfocus --version
@@ -128,12 +131,10 @@ finfocus --version
 
 ```bash
 # Install dependencies
-sudo yum install curl  # or dnf install curl
+sudo yum install curl tar  # or dnf install curl tar
 
 # Download and install
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o finfocus
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 
 # Verify installation
 finfocus --version
@@ -143,12 +144,10 @@ finfocus --version
 
 ```bash
 # Install dependencies
-apk add curl
+apk add curl tar
 
-# Download and install
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o finfocus
-chmod +x finfocus
-mv finfocus /usr/local/bin/
+# Download and install (the release binary is statically linked)
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 
 # Verify installation
 finfocus --version
@@ -156,19 +155,13 @@ finfocus --version
 
 ### macOS
 
-#### Using curl (Recommended)
+#### Using the Install Script (Recommended)
+
+The script picks `macos-amd64` on Intel Macs and `macos-arm64` on Apple
+Silicon:
 
 ```bash
-# Download for your architecture
-# Intel Macs
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-darwin-amd64 -o finfocus
-
-# Apple Silicon Macs
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-darwin-arm64 -o finfocus
-
-# Install
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 
 # Verify installation
 finfocus --version
@@ -177,9 +170,10 @@ finfocus --version
 #### Bypass Gatekeeper (if needed)
 
 ```bash
-# If macOS blocks the binary due to security settings
-sudo spctl --add /usr/local/bin/finfocus
-sudo xattr -dr com.apple.quarantine /usr/local/bin/finfocus
+# If macOS blocks the binary due to security settings, use the path the
+# install script printed (/usr/local/bin/finfocus or ~/.local/bin/finfocus)
+sudo spctl --add "$(command -v finfocus)"
+sudo xattr -dr com.apple.quarantine "$(command -v finfocus)"
 ```
 
 ### Windows
@@ -190,11 +184,19 @@ sudo xattr -dr com.apple.quarantine /usr/local/bin/finfocus
 # Create bin directory
 New-Item -ItemType Directory -Force -Path $env:USERPROFILE\bin
 
-# Download binary
-Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/latest/download/finfocus-windows-amd64.exe" -OutFile "$env:USERPROFILE\bin\finfocus.exe"
+# Download, verify, and unpack a release (replace the version as needed)
+$Version = "v0.5.8"
+$Zip = "finfocus-$Version-windows-amd64.zip"
+$Base = "https://github.com/rshade/finfocus/releases/download/$Version"
+Invoke-WebRequest -Uri "$Base/$Zip" -OutFile $Zip
+Invoke-WebRequest -Uri "$Base/checksums.txt" -OutFile checksums.txt
+$Expected = ((Get-Content checksums.txt | Where-Object { $_ -like "*  $Zip" }) -split '\s+')[0]
+if ((Get-FileHash $Zip -Algorithm SHA256).Hash -ne $Expected) { throw "Checksum mismatch for $Zip" }
+Expand-Archive $Zip -DestinationPath "finfocus-$Version" -Force
+Move-Item "finfocus-$Version\finfocus.exe" "$env:USERPROFILE\bin\" -Force
 
 # Add to PATH (persistent)
-[Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";$env:USERPROFILE\bin", [System.EnvironmentVariableTarget]::User)
+[Environment]::SetEnvironmentVariable("PATH", [Environment]::GetEnvironmentVariable("PATH", "User") + ";$env:USERPROFILE\bin", "User")
 
 # Refresh current session
 $env:PATH += ";$env:USERPROFILE\bin"
@@ -207,25 +209,26 @@ finfocus --version
 
 ```bash
 # Use Linux installation instructions inside WSL
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o finfocus
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 ```
 
 ## Docker Installation
 
 ### Using Official Docker Image
 
+The image is published to the GitHub Container Registry, not Docker Hub. See
+[Docker Deployment](deployment/docker.md) for tags and details.
+
 ```bash
-# Pull the latest image
-docker pull rshade/finfocus:latest
+# Pull the most recent release
+docker pull ghcr.io/rshade/finfocus:latest
 
 # Run with volume mounts
-docker run --rm -v $(pwd):/workspace rshade/finfocus:latest \
+docker run --rm -v $(pwd):/workspace ghcr.io/rshade/finfocus:latest \
   cost projected --pulumi-json /workspace/plan.json
 
 # Create an alias for easier usage
-alias finfocus='docker run --rm -v $(pwd):/workspace rshade/finfocus:latest'
+alias finfocus='docker run --rm -v $(pwd):/workspace ghcr.io/rshade/finfocus:latest'
 ```
 
 ### Docker Compose
@@ -235,11 +238,12 @@ alias finfocus='docker run --rm -v $(pwd):/workspace rshade/finfocus:latest'
 version: '3.8'
 services:
   finfocus:
-    image: rshade/finfocus:latest
+    image: ghcr.io/rshade/finfocus:latest
     volumes:
       - ./plans:/workspace/plans:ro
       - ./specs:/workspace/specs:ro
-      - ~/.finfocus:/root/.finfocus
+      # The image runs as user finfocus with HOME=/home/finfocus
+      - ~/.finfocus:/home/finfocus/.finfocus
     command: ['cost', 'projected', '--pulumi-json', '/workspace/plans/plan.json']
 ```
 
@@ -250,8 +254,8 @@ services:
 git clone https://github.com/rshade/finfocus
 cd finfocus
 
-# Build image
-docker build -t finfocus .
+# Build image (the Dockerfile is in docker/; the context is the repository root)
+docker build -f docker/Dockerfile -t finfocus .
 
 # Run
 docker run --rm finfocus --version
@@ -576,10 +580,8 @@ After installation:
 # Check current version
 finfocus --version
 
-# Download and replace binary with new version
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o /tmp/finfocus
-chmod +x /tmp/finfocus
-sudo mv /tmp/finfocus /usr/local/bin/finfocus
+# Re-run the install script; it installs the newest release
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 
 # Verify update
 finfocus --version
@@ -589,9 +591,8 @@ finfocus --version
 
 ```bash
 # Install specific version
-curl -L https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-linux-amd64.tar.gz -o finfocus-v0.3.0.tar.gz
-tar -xzf finfocus-v0.3.0.tar.gz
-chmod +x finfocus
+curl -fL https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-linux-amd64.tar.gz -o finfocus-v0.3.0.tar.gz
+tar -xzf finfocus-v0.3.0.tar.gz finfocus
 
 # Use specific version
 ./finfocus --version

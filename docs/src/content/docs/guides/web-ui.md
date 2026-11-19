@@ -315,7 +315,7 @@ To narrow what you see:
   line counts the lines that arrive meanwhile. Press **Resume** to follow
   again.
 - Press **Clear** to empty the view. This does not touch the log file.
-- Press **Download NDJSON** to save the rows currently shown, after filters,
+- Press **Download NDJSON** to save the rows shown, after filters,
   as a file with one JSON object per line.
 
 For the same data in a terminal, run [`finfocus logs`](../commands/logs.md). It

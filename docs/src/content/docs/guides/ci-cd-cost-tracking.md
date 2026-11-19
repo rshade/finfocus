@@ -38,18 +38,27 @@ declare a second copy.
 
 ## Where the database lives
 
-Each stack has one file, `<stack>.history.db`. Slashes in the stack name
-become dashes. The default directory is `~/.finfocus/history/`.
+Each stack of each project has one file, `<project>@<stack>.history.db`.
+FinFocus takes the project from a fully qualified `--stack org/project/dev`,
+otherwise from the `Pulumi.yaml` in the working directory or its closest
+parent that has one.
+Without a project, or for a database written by an earlier version, the
+file is `<stack>.history.db`, with slashes in the stack name turned into
+dashes. The [user guide](./user-guide.md) covers those older files.
 
-`FINFOCUS_HOME` overrides that root. Plugins and config use the same
+The directory is `FINFOCUS_HISTORY_DIR`, then `cost.history.directory`,
+then `history/` under the FinFocus home. The home is `$FINFOCUS_HOME`,
+then `$PULUMI_HOME/finfocus`, then `~/.finfocus/`.
+
+`FINFOCUS_HOME` overrides that home. Plugins and config use the same
 directory, so a CI job that sets `FINFOCUS_HOME` must install plugins into
 that home. A plugin installed only under the runner's real `~/.finfocus`
 is invisible to the collect step.
 
 Hosted runners delete the home directory when the job ends. Upload or
-cache the `history/` directory if the next deploy should continue the same
+cache the history directory if the next deploy should continue the same
 timeline. A job that starts from an empty directory still records the
-latest checkpoint, and it has no older snapshots to chart.
+checkpoint for that run, and it has no older snapshots to chart.
 
 ## GitHub Actions
 

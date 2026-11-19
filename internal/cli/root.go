@@ -258,7 +258,19 @@ const rootCmdExample = `  # Calculate projected costs from a Pulumi plan
   finfocus config init
 
   # Set configuration values
-  finfocus config set output.default_format json`
+  finfocus config set output.default_format json
+
+  # Open the browser dashboard for the current Pulumi or Terraform project
+  finfocus --web
+
+  # Serve on a pinned port without opening a browser (for example over SSH)
+  finfocus --web --port 8484 --no-browser
+
+  # Use pre-exported files instead of running Pulumi CLI commands
+  finfocus --web --pulumi-state state.json --pulumi-json plan.json
+
+  # Open two stacks as tabs in one dashboard
+  finfocus --web --stack dev,prod`
 
 // pluginCmdExample is the example text shown when running as a Pulumi tool plugin.
 const pluginCmdExample = `  # Calculate projected costs from a Pulumi plan

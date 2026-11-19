@@ -98,7 +98,7 @@ func TestSkipStateEstimate_ZeroTotalUsesStateEstimate(t *testing.T) {
 		Resources: []ResourceDescriptor{resource},
 		From:      from,
 		To:        to,
-	})
+	}, actualBatchVerdict{})
 	require.Empty(t, errs)
 	require.NotNil(t, result)
 	assert.Equal(t, "estimate", result.Adapter)
@@ -116,7 +116,7 @@ func TestSkipStateEstimate_KeepsPluginZero(t *testing.T) {
 		From:              from,
 		To:                to,
 		SkipStateEstimate: true,
-	})
+	}, actualBatchVerdict{})
 	require.Empty(t, errs)
 	require.NotNil(t, result)
 	assert.Zero(t, result.TotalCost)

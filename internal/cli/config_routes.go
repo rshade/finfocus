@@ -180,13 +180,13 @@ func NewConfigRoutesTestCmd() *cobra.Command {
 This command does not contact plugins. It uses configured routing rules and
 synthetic plugin metadata to show which plugin would be selected per feature.`,
 		Example: `  # Test routing for EC2 instances
-  finfocus config routes test aws:ec2:Instance
+  finfocus config routes test aws:ec2/instance:Instance
 
   # Include region in selection context
-  finfocus config routes test aws:ec2:Instance us-east-1
+  finfocus config routes test aws:ec2/instance:Instance us-east-1
 
   # JSON output for automation
-  finfocus config routes test aws:ec2:Instance --output json`,
+  finfocus config routes test aws:ec2/instance:Instance --output json`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return errors.New("resource-type argument is required")

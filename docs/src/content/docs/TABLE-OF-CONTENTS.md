@@ -57,6 +57,8 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [OpenCost Setup](plugins/opencost.md)                      | Kubernetes allocation plugin | End Users   |
 | [Vantage Setup](plugins/vantage.md)                        | Vantage actual cost plugin | End Users     |
 | [Flexera Setup](plugins/flexera.md)                        | Flexera One cost plugin   | End Users      |
+| [CloudZero Setup](plugins/cloudzero.md)                    | CloudZero actual cost plugin | End Users   |
+| [Prometheus Setup](plugins/prometheus.md)                  | Historical Kubernetes usage plugin | End Users |
 
 ### 📚 Comprehensive Guides (by Audience)
 
@@ -148,11 +150,23 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | ---------------------------------------------- | ------------------------------ |
 | [Flexera Plugin](plugins/flexera.md)           | Setup and configuration        |
 
+#### CloudZero (AVAILABLE)
+
+| Page                                           | Purpose                        |
+| ---------------------------------------------- | ------------------------------ |
+| [CloudZero Plugin](plugins/cloudzero.md)       | Setup and configuration        |
+
+#### Prometheus (AVAILABLE)
+
+| Page                                           | Purpose                        |
+| ---------------------------------------------- | ------------------------------ |
+| [Prometheus Plugin](plugins/prometheus.md)     | Setup, required metrics, and limits |
+
 #### Future Plugins
 
 | Page                                                            | Status                   |
 | --------------------------------------------------------------- | ------------------------ |
-| [Cloudability Coming Soon](plugins/cloudability/coming-soon.md) | FUTURE (customer demand) |
+| [Cloudability (planned)](plugins/cloudability/coming-soon.md)   | FUTURE (customer demand) |
 
 ### 📖 Reference Documentation
 
@@ -270,7 +284,6 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 - [Business Value](guides/business-value.md)
 - [Roadmap](architecture/roadmap.md)
-- [Comparison](guides/comparison.md)
 
 ---
 

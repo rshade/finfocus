@@ -61,7 +61,7 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 
 ### 1. Installation
 
-**Install script (recommended)** -- auto-detects OS/architecture and downloads the latest release:
+**Install script (recommended)** -- auto-detects OS/architecture and downloads the newest release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
@@ -348,18 +348,27 @@ global config. See [Budget Notifications](docs/src/content/docs/guides/budgets.m
 
 ### Environment Variables for Secrets
 
-For sensitive values like API keys and credentials, use environment variables:
+For sensitive values like API keys and credentials, use environment variables.
+Plugin processes inherit the environment FinFocus runs in.
+
+The public pricing plugins (`aws-public`, `azure-public`) need no credentials.
+`aws-ce` uses the AWS SDK default credential chain and needs a region:
 
 ```bash
-# AWS credentials (for aws-public and aws-ce plugins)
-export FINFOCUS_PLUGIN_AWS_ACCESS_KEY_ID="your-access-key"
-export FINFOCUS_PLUGIN_AWS_SECRET_ACCESS_KEY="your-secret-key"
-
-# Azure credentials (for azure-public plugin)
-export FINFOCUS_PLUGIN_AZURE_SUBSCRIPTION_ID="your-subscription-id"
+# AWS credentials (for the aws-ce plugin)
+export AWS_PROFILE="your-profile"
+export AWS_REGION="us-east-1"
 ```
 
-The naming convention is: `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase.
+A plugin can advertise the settings it reads, each with its own environment
+variable, and its docs pages list them. For example,
+[aws-ce](docs/src/content/docs/plugins/aws-ce.md) reads `carbon_enabled` from
+`FINFOCUS_AWS_CARBON_ENABLED`; see
+[Historical AWS Carbon Reporting](docs/src/content/docs/plugins/historical-carbon.md).
+FinFocus takes each advertised value from that variable, or else from the plugin's section of the project or
+global config file. As a fallback, a config key the plugin does not advertise
+is passed to it as `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase,
+with hyphens as underscores.
 
 ### Cost Allocation Tags
 
@@ -763,6 +772,8 @@ finfocus plugin validate
 | `aws-ce` | Available | AWS Cost Explorer actual costs, forecasts, budgets, and recommendations |
 | `azure-public` | In Development | Azure public pricing data |
 | `opencost` | Available | Kubernetes allocation cost from OpenCost or Kubecost |
+| `cloudzero` | Available | Actual cost per resource from the CloudZero billing costs API |
+| `prometheus` | Available | Historical Kubernetes CPU and memory usage from Prometheus for `cost cluster --from/--to`. See the [Prometheus plugin page](docs/src/content/docs/plugins/prometheus.md). |
 | `carbon` | Build from source | Offline EC2 operational carbon estimates alongside monetary pricing. See the [carbon plugin guide](docs/src/content/docs/plugins/carbon.md). |
 | `scorer` | Source install; first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`; hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
 
@@ -903,6 +914,7 @@ it, so the FinFocus side of the change is tracked as well.
 | `opencost` | [rshade/finfocus-plugin-opencost](https://github.com/rshade/finfocus-plugin-opencost/issues) |
 | `flexera` | [rshade/finfocus-plugin-flexera](https://github.com/rshade/finfocus-plugin-flexera/issues) |
 | `vantage` | [rshade/finfocus-plugin-vantage](https://github.com/rshade/finfocus-plugin-vantage/issues) |
+| `cloudzero` | [rshade/finfocus-plugin-cloudzero](https://github.com/rshade/finfocus-plugin-cloudzero/issues) |
 
 If you are not sure which repository a problem belongs to, open it here.
 

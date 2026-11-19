@@ -3,6 +3,13 @@ title: Vantage Plugin Troubleshooting
 description: Common issues, solutions, and support paths for the FinFocus Vantage plugin
 ---
 
+> **Earlier design.** This page was written before the plugin was released.
+> Install the plugin with `finfocus plugin install vantage`. The released
+> plugin has no `pull`, `backfill`, or `forecast` command and reads no
+> `config.yaml`. It is configured by the environment variables and the
+> per-request credential on the [Vantage plugin page](../vantage.md), which is
+> the reference when they disagree.
+
 This guide helps diagnose and resolve common issues with the Vantage plugin
 for FinFocus.
 
@@ -251,9 +258,9 @@ Rate limit exceeded
 
 The plugin automatically retries 429 responses with exponential backoff:
 
-- Attempt 1 → Wait 1s → Retry
-- Attempt 2 → Wait 2s → Retry
-- Attempt 3 → Wait 4s → Retry
+- Attempt 1 → Wait 1 s → Retry
+- Attempt 2 → Wait 2 s → Retry
+- Attempt 3 → Wait 4 s → Retry
 - Continues up to `max_retries` (default: 5)
 
 **Solutions:**
@@ -422,7 +429,7 @@ The plugin automatically retries 429 responses with exponential backoff:
 3. Monitor resources:
 
    ```bash
-   watch -n 1 'ps aux | grep finfocus-vantage'
+   watch -n 1 'ps aux | grep finfocus-plugin-vantage'
    ```
 
 4. Use monthly granularity:
@@ -468,7 +475,7 @@ Error: plugin 'vantage' not found
 4. Verify binary executable:
 
    ```bash
-   chmod +x ~/.finfocus/plugins/vantage/finfocus-vantage
+   chmod +x ~/.finfocus/plugins/vantage/v<version>/finfocus-plugin-vantage
    ```
 
 ---
@@ -494,7 +501,7 @@ Failed to communicate with vantage plugin
 1. Test plugin directly:
 
    ```bash
-   ~/.finfocus/plugins/vantage/finfocus-vantage --version
+   ~/.finfocus/plugins/vantage/v<version>/finfocus-plugin-vantage --version
    ```
 
 2. Check plugin logs:
@@ -654,7 +661,7 @@ finfocus --debug cost actual --adapter vantage --pulumi-state state.json --from 
 finfocus plugin list
 
 # Validate plugin
-finfocus plugin validate vantage
+finfocus plugin validate --plugin vantage
 ```
 
 ### Test API Connectivity
@@ -689,7 +696,7 @@ finfocus-vantage pull --config config.yaml --dry-run
 
 2. **Vantage Resources**
    - [Vantage API Documentation](https://docs.vantage.sh/api)
-   - [Vantage Support](https://support.vantage.sh/)
+   - [Vantage Support](mailto:support@vantage.sh)
    - [Vantage Status Page](https://status.vantage.sh/)
 
 3. **FinFocus Resources**
@@ -708,7 +715,6 @@ finfocus-vantage pull --config config.yaml --dry-run
 
 - **Vantage Support**: For Vantage API issues
   - Email: <support@vantage.sh>
-  - Portal: <https://support.vantage.sh/>
 
 - **FinFocus Support**: For plugin integration issues
   - GitHub Issues: <https://github.com/rshade/finfocus/issues>
@@ -750,6 +756,6 @@ When reporting issues, include:
    ```
 
 5. **Environment Information**:
-   - Plugin version: `finfocus-vantage --version`
+   - Plugin version: `finfocus plugin list`
    - FinFocus version: `finfocus --version`
    - OS: `uname -a`

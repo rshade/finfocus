@@ -80,6 +80,37 @@ Reads billed cost from Flexera One Bill Analysis, so it needs
 account. `finfocus setup` does not install it; run
 `finfocus plugin install flexera`.
 
+### cloudzero
+
+| Field | Value |
+|-------|-------|
+| Repository | `rshade/finfocus-plugin-cloudzero` |
+| Providers | `aws`, `azure`, `gcp` |
+| Capabilities | `cost_retrieval` |
+| Security | official |
+| Asset prefix | `finfocus-plugin-cloudzero` |
+
+Reads actual cost per resource from the CloudZero billing costs API, so it
+needs `CLOUDZERO_API_KEY` and `CLOUDZERO_RESOURCE_DIMENSION` (usually
+`Resource`). It has no projected cost. CloudZero allows 60 cost requests in a
+rolling 24 hours. `finfocus setup` does not install it; run
+`finfocus plugin install cloudzero`.
+
+### prometheus
+
+| Field | Value |
+|-------|-------|
+| Repository | `rshade/finfocus` (monorepo, release tags `prometheus-vX.Y.Z`) |
+| Providers | `kubernetes` |
+| Capabilities | `usage_stats` |
+| Security | official |
+| Asset prefix | `finfocus-plugin-prometheus` |
+
+Historical usage source for `finfocus cost cluster --from/--to`. It does not
+price or allocate, so install it with the kubernetes plugin, which allocates.
+It needs `FINFOCUS_PROMETHEUS_URL` outside a cluster. `finfocus setup` does
+not install it; run `finfocus plugin install prometheus`.
+
 ### opencost
 
 | Field | Value |

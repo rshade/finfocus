@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.8](https://github.com/rshade/finfocus/compare/prometheus-v0.1.7...prometheus-v0.1.8) (2026-11-19)
+
+
+### Added
+
+* **registry:** add prometheus plugin ([#2205](https://github.com/rshade/finfocus/issues/2205)) ([9c97f88](https://github.com/rshade/finfocus/commit/9c97f88019a05193beddbf9c43d525396b5fd657))
+
+
+### Dependencies
+
+* update go dependencies ([#2178](https://github.com/rshade/finfocus/issues/2178)) ([25cbdcf](https://github.com/rshade/finfocus/commit/25cbdcfe3f11bc65677071832f710484d3620dc4))
+
 ## [0.1.7](https://github.com/rshade/finfocus/compare/prometheus-v0.1.6...prometheus-v0.1.7) (2026-11-16)
 
 

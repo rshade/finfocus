@@ -65,9 +65,9 @@ submit a pull request directly.
 | Go               | 1.27.4+    | Core development    |
 | golangci-lint    | `mise.toml` | Go linting         |
 | markdownlint-cli | v0.45.0    | Markdown linting    |
-| Git              | Latest     | Version control     |
-| Make             | Latest     | Build automation    |
-| Node.js          | Latest LTS | Documentation tools |
+| Git              | Current    | Version control     |
+| Make             | Current    | Build automation    |
+| Node.js          | Active LTS | Documentation tools |
 
 ### Installing Development Tools
 
@@ -130,9 +130,32 @@ Run `make help` for a complete list. All available targets:
 | Target               | Description                                       |
 | -------------------- | ------------------------------------------------- |
 | `make docs-lint`     | Lint documentation markdown files                 |
+| `make docs-vale`     | Lint documentation prose with Vale                |
 | `make docs-build`    | Build documentation site with Jekyll              |
 | `make docs-serve`    | Serve documentation locally (localhost:4000)      |
 | `make docs-validate` | Validate documentation structure and completeness |
+
+`make docs-vale` uses the Vale version pinned in `mise.toml` (`make tools`).
+After `vale sync`, it checks that every `ai-tells` rule is a suggestion, then
+lints `docs/src/content/docs/` with `docs/.vale.ini`.
+The existing pages have a backlog of findings, and a full run exits nonzero
+until it is cleared. Pass the pages you changed to check only them:
+
+```bash
+make docs-vale VALE_FILES=docs/src/content/docs/guides/budgets.md
+```
+
+On a pull request, CI runs the same configuration through reviewdog and
+reports only the lines the pull request adds. An error-level finding on an
+added line fails the check. Warnings never fail it, and neither do the
+`ai-tells` suggestions, which flag prose patterns common in text that a
+language model wrote. Add exact product terms to
+`docs/.vale/styles/config/vocabularies/FinFocus/accept.txt`. Each entry also
+sets the casing Vale expects for that term.
+
+Write CLI commands, binary names, and plugin ids in backticks in prose, such
+as `finfocus` or the `kubernetes` plugin. Vale skips code, so the vocabulary
+casing for FinFocus and Kubernetes does not flag them.
 
 ### Verifying Your Setup
 
@@ -357,14 +380,14 @@ go test -bench=BenchmarkScale1K -benchtime=10x -benchmem ./test/benchmarks/...
 
 **Available benchmarks:**
 
-| Benchmark                    | Description             | Target    |
-| ---------------------------- | ----------------------- | --------- |
-| `BenchmarkScale1K`           | 1,000 resources         | < 1s      |
-| `BenchmarkScale10K`          | 10,000 resources        | < 30s     |
-| `BenchmarkScale100K`         | 100,000 resources       | < 5min    |
-| `BenchmarkDeeplyNested`      | Deep nesting complexity | < 1s      |
-| `BenchmarkJSONParsing`       | JSON parsing at scale   | Baseline  |
-| `BenchmarkGeneratorOverhead` | Generator overhead      | Baseline  |
+| Benchmark                    | Description             | Target       |
+| ---------------------------- | ----------------------- | ------------ |
+| `BenchmarkScale1K`           | 1,000 resources         | < 1 second   |
+| `BenchmarkScale10K`          | 10,000 resources        | < 30 seconds |
+| `BenchmarkScale100K`         | 100,000 resources       | < 5 minutes  |
+| `BenchmarkDeeplyNested`      | Deep nesting complexity | < 1 second   |
+| `BenchmarkJSONParsing`       | JSON parsing at scale   | Baseline     |
+| `BenchmarkGeneratorOverhead` | Generator overhead      | Baseline     |
 
 **Benchmark guidelines:**
 
@@ -470,11 +493,11 @@ example, `kubernetes-v0.1.0`) rather than the CLI's bare `vX.Y.Z` tags:
   plugin tag with `startsWith(tag, 'v')`; a plugin prefix starting with `v`
   (e.g. `vantage-v0.1.0`) would defeat that guard, so
   `ValidateRegistryEntry` rejects it.
-- A published `<plugin>-vX.Y.Z` release is never allowed to become the
-  repo's "Latest" release (that slot must stay on the newest CLI `vX.Y.Z`
+- A published `<plugin>-vX.Y.Z` release is never allowed to hold the
+  repo's `latest` release marker (that slot must stay on the newest CLI `vX.Y.Z`
   release, since `scripts/install.sh` and `plugin_init_fixtures.go` read
-  `/releases/latest`). `release-monorepo-plugin.yml` unmarks the plugin
-  release as latest and re-marks the newest stable CLI release after
+  `/releases/latest`). `release-monorepo-plugin.yml` clears the plugin
+  release's `latest` marker and re-marks the newest stable CLI release after
   uploading assets.
 
 ### Automated Nightly Failure Analysis
@@ -539,17 +562,18 @@ These workflows are triggered by a maintainer comment on a pull request:
 
 ## Project Architecture
 
-FinFocus operates as a three-repository ecosystem:
+FinFocus spans these repositories:
 
 | Repository                  | Purpose                                     |
 | --------------------------- | ------------------------------------------- |
 | [finfocus][core]     | CLI tool, plugin host, orchestration engine |
 | [finfocus-spec][spec]     | Protocol buffer definitions, SDK generation |
-| [finfocus-plugin][plugin] | Plugin implementations (Kubecost, Vantage)  |
+| Plugin implementations | Separate repositories such as [finfocus-plugin-aws-public][aws-public], and modules under `plugins/` in [finfocus][core]; see the [plugin registry][registry] for repository locations |
 
 [core]: https://github.com/rshade/finfocus
 [spec]: https://github.com/rshade/finfocus-spec
-[plugin]: https://github.com/rshade/finfocus-plugin
+[aws-public]: https://github.com/rshade/finfocus-plugin-aws-public
+[registry]: https://github.com/rshade/finfocus/blob/main/internal/registry/registry.json
 
 Cross-repository changes require coordination. See the
 [constitution](.specify/memory/constitution.md) for the cross-repo change
