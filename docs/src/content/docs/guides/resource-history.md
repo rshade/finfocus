@@ -74,8 +74,9 @@ during the requested period.
 FinFocus uses a layered query strategy:
 
 1. **Primary**: Query billing APIs by all known cloud IDs from the history store
-2. **Fallback**: For resources with no history (a cold start, or a resource created and
-   destroyed between runs), query billing APIs by configured cost allocation tags
+2. **Fallback**: For resources with no history (a cold start, or a resource
+   created and destroyed between runs), query billing APIs by configured cost
+   allocation tags
 3. **Deduplication**: Costs from tag-based queries are deduplicated against
    ID-based results to prevent double-counting
 

@@ -62,9 +62,9 @@ Idle:    $7.00 (4.8%)
 Policy:  built-in defaults · 3f2a9c1b4d5e
 ```
 
-The footer reports the mode and period, the priced total, the idle cost with its
-share of the total, the policy source with a short digest, and any resources that could not
-be priced.
+The footer reports the mode and period, the priced total, the idle cost with
+its share of the total, the policy source with a short digest, and any
+resources that could not be priced.
 
 ## Several usage sources
 

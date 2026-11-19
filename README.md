@@ -38,7 +38,7 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 - **No code changes required**: works with any existing Pulumi project via JSON export
 - **Budget guardrails**: enforce spending limits in CI/CD pipelines with non-zero exit codes
 - **Plugin architecture**: swap pricing sources without changing your workflow
-- **Single dashboard**: one interactive TUI for actual spend and projected costs that also shows drift analysis and recommendations
+- **Single dashboard**: one interactive TUI that shows drift analysis and recommendations next to actual spend and projected costs
 
 ## Key Features
 

@@ -171,9 +171,10 @@ forecast**.
 
 For the statistical model, the table has one column per monthly series: the
 forecast, its lower bound, its upper bound, and the plan baseline. For the
-growth model, it has one column per provider. Stored cost history and the spend CSV are
-summarized below it, with their date range. A failed query clears earlier
-results and shows the message `cost forecast` prints for the same settings.
+growth model, it has one column per provider. Stored cost history and the
+spend CSV are summarized below it, with their date range. A failed query
+clears earlier results and shows the message `cost forecast` prints for the
+same settings.
 
 ### Estimate controls
 
@@ -338,9 +339,9 @@ With one stack from a Pulumi project, the header names it and the tab bar
 shows it as a single selected tab with the same `loading`, `failed`, and
 `locked` markers.
 Nothing else changes: the address stays `#/<view>`, and there is nothing to
-switch to. A plan file, a state file, or Terraform shows no tab bar. Whether or not
-there is a tab bar, a stack that is waiting for its passphrase or failed to load
-says so above any view but Overview and links to Overview.
+switch to. A plan file, a state file, or Terraform shows no tab bar. Whether
+or not there is a tab bar, a stack that is waiting for its passphrase or
+failed to load says so above any view but Overview and links to Overview.
 
 ## Keyboard and display
 

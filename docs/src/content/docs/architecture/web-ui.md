@@ -167,11 +167,11 @@ The root server adds two routes, and a stack's own tree never has them:
   (`webStack.start`) through a `sync.Once` and answers `202` with the state.
 
 When there are two or more stacks, the root page names them in
-`<meta name="finfocus-stacks">`, written like the base prefix. The shell reads it at boot, so it
-never waits on a request to decide whether to show tabs. A server whose page
-lacks the tag, and any page under `/s/<name>/`, keeps `#/<view>` addresses,
-activation-free loading, and no stack list. The tab bar sits in the header
-between the title and the view links.
+`<meta name="finfocus-stacks">`, written like the base prefix. The shell reads
+it at boot, so it never waits on a request to decide whether to show tabs. A
+server whose page lacks the tag, and any page under `/s/<name>/`, keeps
+`#/<view>` addresses, activation-free loading, and no stack list. The tab bar
+sits in the header between the title and the view links.
 
 A single-stack root page instead names its Pulumi stack in
 `<meta name="finfocus-stack">` (`Options.StackName`). `runWebSession` passes the
