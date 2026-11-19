@@ -3,9 +3,12 @@ title: Vantage Plugin Setup Guide
 description: Step-by-step installation and configuration guide for the FinFocus Vantage plugin
 ---
 
-> **Note:** The Vantage plugin is released and in the plugin registry. Install it
-> with `finfocus plugin install vantage`. The [Vantage plugin page](../vantage.md)
-> lists the environment variables the released plugin reads.
+> **Earlier design.** This page was written before the plugin was released.
+> Install the plugin with `finfocus plugin install vantage`. The released
+> plugin has no `pull`, `backfill`, or `forecast` command and reads no
+> `config.yaml`. It is configured by the environment variables and the
+> per-request credential on the [Vantage plugin page](../vantage.md), which is
+> the reference when they disagree.
 
 This guide walks you through installing and configuring the Vantage plugin for
 FinFocus. Follow these steps to enable multi-cloud cost aggregation using
@@ -71,7 +74,8 @@ finfocus plugin validate --plugin vantage
 Each [release](https://github.com/rshade/finfocus-plugin-vantage/releases)
 publishes `finfocus-plugin-vantage_<version>_<OS>_<arch>` archives for Linux,
 macOS (`Darwin`), and Windows on `x86_64` and `arm64`, plus `checksums.txt`.
-Unpack the archive into `~/.finfocus/plugins/vantage/<version>/`.
+Unpack the archive into `~/.finfocus/plugins/vantage/v<version>/`, the
+directory `plugin install` uses (`vantage/v0.1.1/` for release v0.1.1).
 
 ### Option 3: Build from Source
 
@@ -85,8 +89,8 @@ cd finfocus-plugin-vantage
 # Build binary
 make build
 
-# Binary created at: bin/finfocus-vantage
-./bin/finfocus-vantage --version
+# Binary created at: bin/finfocus-plugin-vantage
+./bin/finfocus-plugin-vantage --version
 ```
 
 ### Verify Installation
@@ -94,13 +98,16 @@ make build
 Confirm the plugin is installed correctly:
 
 ```bash
-# Check version
-finfocus-vantage --version
-# Expected output: finfocus-vantage version 0.1.0
+# The plugin is listed with its version
+finfocus plugin list
 
-# View help
-finfocus-vantage --help
+# The plugin starts and answers FinFocus
+finfocus plugin validate --plugin vantage
 ```
+
+`plugin install` puts the `finfocus-plugin-vantage` binary in the plugin
+directory, not on `PATH`. FinFocus starts it; the binary itself only answers
+`--version` and otherwise serves gRPC.
 
 ---
 

@@ -131,14 +131,14 @@ bash: ./finfocus: Permission denied
    # x86_64 = amd64, aarch64 = arm64
    ```
 
-2. **Download correct binary**:
+2. **Download correct binary**: re-run the install script, which reads
+   `uname` and picks the archive for your OS and architecture. For a manual
+   download, use the `finfocus-<version>-<os>-<arch>` archive from the
+   [release](https://github.com/rshade/finfocus/releases); on a Mac, Intel is
+   `macos-amd64` and Apple Silicon is `macos-arm64`.
 
    ```bash
-   # For Intel Macs
-   curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-darwin-amd64 -o finfocus
-
-   # For Apple Silicon Macs
-   curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-darwin-arm64 -o finfocus
+   curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
    ```
 
 ## Pulumi Integration

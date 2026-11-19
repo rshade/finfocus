@@ -126,6 +126,16 @@ finfocus plugin validate --plugin opencost
 
 ### Plugin Installation
 
+#### Registry Installation
+
+```bash
+# Install the newest stable release from the plugin registry
+finfocus plugin install opencost
+
+# Pin a specific version
+finfocus plugin install opencost@v0.1.2
+```
+
 #### Manual Installation
 
 ```bash
@@ -140,26 +150,8 @@ curl -L https://github.com/rshade/finfocus-plugin-opencost/releases/download/v0.
 chmod +x ~/.finfocus/plugins/opencost/v0.1.2/finfocus-plugin-opencost
 ```
 
-`finfocus plugin install opencost` does the same download, checksum check, and
-unpacking for you.
-
-> **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
->
-> A `ResourceExhausted` status is a rate limit. Core retries that plugin before
-> it asks the next one, and waits for `ErrorDetail.retry_after_seconds` when
-> the plugin sets it. A batch that returns `ResourceExhausted` is retried as a
-> batch. Core does not split that batch into one call per resource on the
-> rate-limited plugin.
-
-#### Registry Installation
-
-```bash
-# Install the newest stable release from the plugin registry
-finfocus plugin install opencost
-
-# Pin a specific version
-finfocus plugin install opencost@v0.1.2
-```
+`finfocus plugin install opencost@v0.1.2` does these steps and also checks the
+release checksum.
 
 ### Plugin Configuration
 
