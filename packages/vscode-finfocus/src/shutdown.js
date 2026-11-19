@@ -53,16 +53,17 @@ function createShutdown(options) {
    * deadline, until none is left.
    *
    * @param {number} sid
+   * @param {string | null} owner
    * @returns {Promise<{confirmed: boolean, killed: boolean, survivors: number[]}>}
    */
-  async function sweep(sid) {
-    let members = await tree.members(sid);
+  async function sweep(sid, owner) {
+    let members = await tree.members(sid, owner);
     if (members.length === 0) return { confirmed: true, killed: false, survivors: [] };
     const deadline = Date.now() + confirmMs;
     while (members.length > 0 && Date.now() < deadline) {
       tree.killAll(members);
       await sleep(POLL_MS);
-      members = await tree.members(sid);
+      members = await tree.members(sid, owner);
     }
     return { confirmed: members.length === 0, killed: true, survivors: members };
   }
@@ -72,19 +73,20 @@ function createShutdown(options) {
      * Runs after every exit.
      *
      * @param {number | undefined} pid
+     * @param {string | null} [owner]
      * @returns {Promise<StopResult>}
      */
-    async reap(pid) {
+    async reap(pid, owner = null) {
       if (pid === undefined || platform === 'win32') return { confirmed: true, forced: false, survivors: [] };
-      const result = await sweep(pid);
+      const result = await sweep(pid, owner);
       return { confirmed: result.confirmed, forced: result.killed, survivors: result.survivors };
     },
 
     /**
-     * @param {{pid: number | undefined, exited: Promise<unknown>, terminate: () => void}} target
+     * @param {{pid: number | undefined, exited: Promise<unknown>, terminate: () => void, owner?: string | null}} target
      * @returns {Promise<StopResult>}
      */
-    async stop({ pid, exited, terminate }) {
+    async stop({ pid, exited, terminate, owner = null }) {
       if (pid === undefined) return { confirmed: true, forced: false, survivors: [] };
       if (platform === 'win32') {
         const killed = await tree.taskkill(pid);
@@ -93,7 +95,7 @@ function createShutdown(options) {
       }
       terminate();
       const graceful = await within(exited, graceMs);
-      const result = await sweep(pid);
+      const result = await sweep(pid, owner);
       return { confirmed: result.confirmed, forced: !graceful || result.killed, survivors: result.survivors };
     },
   };

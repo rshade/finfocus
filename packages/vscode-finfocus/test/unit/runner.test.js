@@ -245,3 +245,32 @@ test('a passphrase echoed inside an envelope message is redacted too', async () 
   assert.equal(outcome.failure.message, 'wrong [redacted] (passphrase_required)');
   assert.equal(outcome.failure.category, 'passphrase_required');
 });
+
+test('on macOS each run carries its own owner token, handed to the reap and the stop', async () => {
+  const seen = { reap: [], stop: [] };
+  const shutdown = {
+    reap: async (pid, owner) => (seen.reap.push([pid, owner]), { confirmed: true, forced: false, survivors: [] }),
+    stop: async (target) => (seen.stop.push(target.owner), { confirmed: true, forced: false, survivors: [] }),
+  };
+  const { runner: r, calls } = runner({ platform: 'darwin', shutdown });
+  const first = r.overview({ projectDir: '/w', stack: 'dev', stateOnly: true, passphrase: null });
+  const second = r.overview({ projectDir: '/w', stack: 'dev', stateOnly: true, passphrase: null });
+  const tokens = calls.map((c) => c.options.env.FINFOCUS_EXTENSION_RUN);
+  assert.match(tokens[0], /^[0-9a-f]{32}$/);
+  assert.notEqual(tokens[0], tokens[1]);
+  await first.stop();
+  finish(calls[0].child);
+  finish(calls[1].child);
+  await first.done;
+  await second.done;
+  assert.deepEqual(seen.stop, [tokens[0]]);
+  assert.deepEqual(seen.reap, [[4242, tokens[0]], [4242, tokens[1]]]);
+});
+
+test('off macOS no owner token is added to the environment', () => {
+  for (const platform of ['linux', 'win32']) {
+    const { runner: r, calls } = runner({ platform });
+    r.overview({ projectDir: '/w', stack: 'dev', stateOnly: true, passphrase: null });
+    assert.equal(Object.hasOwn(calls[0].options.env, 'FINFOCUS_EXTENSION_RUN'), false, platform);
+  }
+});

@@ -130,9 +130,13 @@ OSes and proves cleanup in OS integration tests.
   and confirmation waits until the session is empty. Membership comes from
   `/proc/<pid>/stat` (field 6, `session`, counted after the last `)` because
   the command name can contain spaces) on Linux, which needs no external
-  tool, so minimal dev containers without procps work. macOS uses
-  `/usr/bin/pkill -KILL -s <sid>` and `/usr/bin/pgrep -s <sid>`, which ship
-  with the OS. Confirmation runs after every exit, graceful or not, so a
+  tool, so minimal dev containers without procps work. macOS has no
+  readable session id: `pgrep -s <sid>` returned no process, not even the
+  session leader, on a GitHub macOS runner (ISS-003). The runner therefore
+  sets a random `FINFOCUS_EXTENSION_RUN` token in finfocus's environment, which
+  survives `setpgid` and re-parenting, and the members are the processes whose
+  environment carries it (`/bin/ps -axEww`, same-user only). A `ps` that fails
+  leaves the stop unconfirmed rather than empty. Confirmation runs after every exit, graceful or not, so a
   descendant that a clean exit left behind is swept too. Core needs no new
   forced-termination mechanism on Unix. Its share is graceful cancellation
   (close plugin groups, stop the Pulumi child with a signal and `WaitDelay`

@@ -96,9 +96,12 @@ finfocus, Pulumi, plugins, and descendants) must be contained for cleanup.
   Plugins move to their own process groups but stay in that session, so the
   session is the owned unit. Send SIGTERM to finfocus, allow 5 seconds for
   core context cancellation and plugin closure, then SIGKILL every process in
-  the session. Read membership from `/proc/<pid>/stat` on Linux; use
-  `/usr/bin/pkill -KILL -s <sid>` and `/usr/bin/pgrep -s <sid>` on macOS (see
-  research R4).
+  the session. Read membership from `/proc/<pid>/stat` on Linux. macOS has no
+  readable session id (`pgrep -s` matches nothing there, ISS-003), so the
+  extension adds a random `FINFOCUS_EXTENSION_RUN=<token>` to finfocus's
+  environment, which every descendant inherits, and the members are the
+  processes whose environment carries the token (`/bin/ps -axEww`). If `ps`
+  cannot run, the stop is reported as not confirmed (see research R4).
 - Windows: core holds a kill-on-close Job Object that every plugin and the
   Pulumi child join, so they die when finfocus exits for any reason. Core has
   no Job Object today (`process_group_windows.go` is a no-op), so core adds

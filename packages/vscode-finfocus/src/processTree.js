@@ -7,9 +7,45 @@ const childProcess = require('node:child_process');
  * Reads the owned process set. On Unix the unit is the session the extension
  * created for finfocus (`spawn` with `detached: true`): plugins call `setpgid`
  * but stay in it. Linux reads `/proc` directly, so a minimal container without
- * procps works; other Unix systems use `pgrep -s`. Windows has no session, so
- * its tree is ended through `taskkill /T`.
+ * procps works. macOS exposes no session id (`pgrep -s` matches nothing), so
+ * the runner puts a random token in finfocus's environment, which every
+ * descendant inherits through `setpgid` and re-parenting, and the members are
+ * the processes whose environment carries it. Other Unix systems use
+ * `pgrep -s`. Windows has no session, so its tree is ended through
+ * `taskkill /T`.
  */
+
+const OWNER_VAR = 'FINFOCUS_EXTENSION_RUN';
+
+/**
+ * `ps -axEww` prints every visible process with its whole environment, which
+ * passes the 1 MiB default of `execFile` on a busy workstation; a listing cut
+ * short would report no members and leave the descendants running.
+ */
+const MAX_LISTING_BYTES = 256 * 1024 * 1024;
+
+/**
+ * The pids in `ps -axEww` output whose environment carries the owner token.
+ * The environment follows the command on the same line, and the token is a
+ * fixed-length random value, so a substring match cannot hit another process.
+ *
+ * @param {string} output
+ * @param {string} owner
+ * @param {number} self a pid never reported (the sweeper's own process)
+ * @returns {number[]}
+ */
+function pidsWithOwner(output, owner, self) {
+  const marker = ` ${OWNER_VAR}=${owner}`;
+  /** @type {number[]} */
+  const found = [];
+  for (const line of output.split('\n')) {
+    const match = /^\s*(\d+)\s/.exec(line);
+    if (match === null || !line.includes(marker)) continue;
+    const pid = Number(match[1]);
+    if (pid !== self) found.push(pid);
+  }
+  return found;
+}
 
 /**
  * The session id from the contents of `/proc/<pid>/stat`, or null for a
@@ -50,7 +86,7 @@ function createTree(options = {}) {
    */
   function run(command, args) {
     return new Promise((resolve) => {
-      execFile(command, args, { windowsHide: true }, (error, stdout) => {
+      execFile(command, args, { windowsHide: true, maxBuffer: MAX_LISTING_BYTES }, (error, stdout) => {
         const code = error === null ? 0 : typeof (/** @type {any} */ (error).code) === 'number' ? /** @type {any} */ (error).code : -1;
         resolve({ code, stdout: String(stdout ?? '') });
       });
@@ -62,10 +98,15 @@ function createTree(options = {}) {
      * Live members of a session.
      *
      * @param {number} sid
+     * @param {string | null} [owner] the token the runner put in the environment
      * @returns {Promise<number[]>}
      */
-    async members(sid) {
+    async members(sid, owner = null) {
       if (platform === 'win32') return [];
+      if (platform === 'darwin' && owner !== null) {
+        const { code, stdout } = await run('/bin/ps', ['-axEww']);
+        return code === 0 ? pidsWithOwner(stdout, owner, process.pid) : [sid];
+      }
       if (platform === 'linux') {
         /** @type {number[]} */
         const found = [];
@@ -110,4 +151,4 @@ function createTree(options = {}) {
   };
 }
 
-module.exports = { createTree, sessionOfStat };
+module.exports = { createTree, sessionOfStat, pidsWithOwner, OWNER_VAR, MAX_LISTING_BYTES };

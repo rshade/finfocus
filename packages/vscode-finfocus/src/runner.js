@@ -1,8 +1,9 @@
 'use strict';
 
 const childProcess = require('node:child_process');
+const crypto = require('node:crypto');
 const { parseFailure } = require('./result');
-const { createTree } = require('./processTree');
+const { createTree, OWNER_VAR } = require('./processTree');
 const { createShutdown } = require('./shutdown');
 
 const PASSPHRASE_VAR = 'PULUMI_CONFIG_PASSPHRASE';
@@ -51,11 +52,13 @@ function overviewArgs({ stack, stateOnly }) {
  *
  * @param {NodeJS.ProcessEnv} base
  * @param {string | null} passphrase
+ * @param {string | null} [owner] the token that marks every descendant of this run
  * @returns {NodeJS.ProcessEnv}
  */
-function buildEnv(base, passphrase) {
+function buildEnv(base, passphrase, owner = null) {
   const env = { ...base };
   if (passphrase !== null) env[PASSPHRASE_VAR] = passphrase;
+  if (owner !== null) env[OWNER_VAR] = owner;
   return env;
 }
 
@@ -168,9 +171,10 @@ class Runner {
     if (!this.isTrusted()) {
       throw new RunnerError('untrusted', 'finfocus does not run in an untrusted workspace');
     }
+    const owner = this.platform === 'darwin' ? crypto.randomBytes(16).toString('hex') : null;
     const child = this.spawn(command, args, {
       cwd,
-      env: buildEnv(this.env, passphrase),
+      env: buildEnv(this.env, passphrase, owner),
       shell: false,
       detached: this.platform !== 'win32',
       windowsHide: true,
@@ -180,7 +184,7 @@ class Runner {
     const closed = collect(child, secrets, trimStdout);
     const pid = child.pid;
     const done = closed.then(async (outcome) => {
-      await this.shutdown.reap(pid);
+      await this.shutdown.reap(pid, owner);
       return outcome;
     });
     /** @type {Promise<StopResult> | null} */
@@ -190,7 +194,7 @@ class Runner {
       signal: (signal) => child.kill(signal),
       done,
       stop: () => {
-        stopping ??= this.shutdown.stop({ pid, exited: closed, terminate: () => child.kill('SIGTERM') }).then((result) => {
+        stopping ??= this.shutdown.stop({ pid, exited: closed, terminate: () => child.kill('SIGTERM'), owner }).then((result) => {
           if (!result.confirmed) stopping = null;
           return result;
         });

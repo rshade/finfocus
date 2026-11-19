@@ -105,9 +105,11 @@ test('the grandchild really is in its own process group inside the session', { s
       assert.equal(session(pids.parent), pids.parent, 'the runner made finfocus a session leader');
       assert.equal(session(pids.grandchild), session(pids.parent));
     }
-    const members = await createTree().members(pids.parent);
-    assert.ok(members.includes(pids.parent), `the leader is in its own session: ${members}`);
-    assert.ok(members.includes(pids.grandchild), `the grandchild is in the leader's session: ${members}`);
+    if (process.platform !== 'darwin') {
+      const members = await createTree().members(pids.parent);
+      assert.ok(members.includes(pids.parent), `the leader is in its own session: ${members}`);
+      assert.ok(members.includes(pids.grandchild), `the grandchild is in the leader's session: ${members}`);
+    }
   } finally {
     await handle.stop();
     cleanup(pids);
