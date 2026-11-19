@@ -19,6 +19,21 @@ Run conformance tests against a plugin binary to verify protocol compliance.
 The conformance suite validates that a plugin correctly implements the FinFocus
 gRPC protocol. It tests protocol compliance, error handling, timeout behavior,
 and context cancellation.
+
+Some probes send a resource and depend on its type:
+
+  GetProjectedCost_ValidResource, Batch_Handling
+      Price the probe resource. The plugin must support its type.
+  GetProjectedCost_PermissionDenied, _InternalError, _Unavailable
+      Send sentinel resource types that only a plugin built to recognize them
+      answers with the matching status. They run with the built-in probe only.
+  GetProjectedCost_InvalidResource, Context_Cancellation
+      Use the probe's provider and region; the type does not matter.
+
+The built-in probe is an AWS EC2 instance. When the plugin lists providers and
+none is AWS, the probes that need a supported type are skipped, with the reason
+in the report. Use --provider and --resource-type to probe with a resource the
+plugin prices; the sentinel probes are then skipped too.
 ```
 
 ```text
@@ -42,19 +57,27 @@ finfocus plugin conformance <plugin-path> [flags]
 
   # Use stdio mode
   finfocus plugin conformance --mode stdio ./plugins/aws-cost
+
+  # Probe a Kubernetes-only plugin with a resource it prices
+  finfocus plugin conformance --provider kubernetes \
+    --resource-type kubernetes:apps/v1:Deployment ./plugins/opencost
 ```
 
 ## Options
 
 ```text
-      --category strings     Filter by category (repeatable): protocol, error, performance, context
-      --filter string        Regex filter for test names
-  -h, --help[=true|false]    help for conformance
-      --mode string          Communication mode: tcp, stdio (default "tcp")
-      --output string        Output format: table, json, junit (default "table")
-      --output-file string   Write output to file (default: stdout)
-      --timeout string       Global suite timeout (default "5m")
-      --verbosity string     Output detail: quiet, normal, verbose, debug (default "normal")
+      --category strings       Filter by category (repeatable): protocol, error, performance, context
+      --filter string          Regex filter for test names
+  -h, --help[=true|false]      help for conformance
+      --mode string            Communication mode: tcp, stdio (default "tcp")
+      --output string          Output format: table, json, junit (default "table")
+      --output-file string     Write output to file (default: stdout)
+      --provider string        Provider of the probe resource (replaces the built-in AWS probe; needs --resource-type)
+      --region string          Region of the probe resource (optional)
+      --resource-type string   Resource type of the probe resource, which the plugin must price (needs --provider)
+      --sku string             SKU of the probe resource (optional)
+      --timeout string         Global suite timeout (default "5m")
+      --verbosity string       Output detail: quiet, normal, verbose, debug (default "normal")
 ```
 
 ## Options inherited from parent commands

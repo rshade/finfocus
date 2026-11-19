@@ -111,6 +111,8 @@ type TestCase struct {
 	Timeout time.Duration
 	// RequiredMethods lists gRPC methods this test validates.
 	RequiredMethods []string
+	// Probe states what the test needs from the probe resource (default: none).
+	Probe ProbeNeed
 	// TestFunc is the function that executes the test.
 	TestFunc TestFunc
 }
@@ -133,6 +135,17 @@ type TestContext struct {
 	Verbosity Verbosity
 	// Timeout is the timeout for this specific test.
 	Timeout time.Duration
+	// Probe is the resource the test sends when it needs one. Unset means the
+	// built-in AWS probe.
+	Probe ProbeResource
+}
+
+// probeResource returns the probe, or the built-in one when none is set.
+func (c *TestContext) probeResource() ProbeResource {
+	if c.Probe.IsZero() {
+		return DefaultProbeResource()
+	}
+	return c.Probe
 }
 
 // TestResult represents the outcome of running a single test.
@@ -187,6 +200,10 @@ type SuiteConfig struct {
 	TestFilter string
 	// Logger is the custom logger (optional).
 	Logger zerolog.Logger
+	// Probe replaces the built-in AWS probe resource (optional). Without it the
+	// suite reads the plugin's providers and skips the probes that need a
+	// resource type when the plugin does not price AWS.
+	Probe ProbeResource
 }
 
 // Summary contains aggregate test counts.

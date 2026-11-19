@@ -29,6 +29,10 @@ func NewSuite(cfg SuiteConfig) (*Suite, error) {
 		return nil, errors.New("plugin path is required")
 	}
 
+	if err := cfg.Probe.Validate(); err != nil {
+		return nil, err
+	}
+
 	// Apply defaults
 	if cfg.CommMode == "" {
 		cfg.CommMode = CommModeTCP
@@ -103,6 +107,7 @@ func (s *Suite) registerDefaultTests() {
 			Description:     "Verifies GetProjectedCost returns cost for valid resource",
 			Timeout:         DefaultTimeout,
 			RequiredMethods: []string{methodGetProjectedCost},
+			Probe:           ProbeSupportedType,
 			TestFunc:        testGetProjectedCostValid,
 		},
 		{
@@ -119,6 +124,7 @@ func (s *Suite) registerDefaultTests() {
 			Description:     "Verifies GetProjectedCost returns PermissionDenied for forbidden resource",
 			Timeout:         DefaultTimeout,
 			RequiredMethods: []string{methodGetProjectedCost},
+			Probe:           ProbeSentinelType,
 			TestFunc:        testGetProjectedCostPermissionDenied,
 		},
 		{
@@ -127,6 +133,7 @@ func (s *Suite) registerDefaultTests() {
 			Description:     "Verifies GetProjectedCost returns Internal for internal errors",
 			Timeout:         DefaultTimeout,
 			RequiredMethods: []string{methodGetProjectedCost},
+			Probe:           ProbeSentinelType,
 			TestFunc:        testGetProjectedCostInternal,
 		},
 		{
@@ -135,6 +142,7 @@ func (s *Suite) registerDefaultTests() {
 			Description:     "Verifies GetProjectedCost returns Unavailable when service is down",
 			Timeout:         DefaultTimeout,
 			RequiredMethods: []string{methodGetProjectedCost},
+			Probe:           ProbeSentinelType,
 			TestFunc:        testGetProjectedCostUnavailable,
 		},
 		// Context tests
@@ -161,6 +169,7 @@ func (s *Suite) registerDefaultTests() {
 			Description:     "Verifies plugin handles multiple sequential requests",
 			Timeout:         DefaultTimeout * batchTestTimeoutMultiplier,
 			RequiredMethods: []string{methodGetProjectedCost},
+			Probe:           ProbeSupportedType,
 			TestFunc:        testBatchHandling,
 		},
 	}
@@ -241,10 +250,12 @@ func (s *Suite) Run(ctx context.Context) (*SuiteReport, error) {
 	if err == nil {
 		pluginName = nameResp.GetName()
 	}
+	providers := pluginProviders(suiteCtx, client)
 	_ = closeFn() // Close initial connection
 
 	// Create runner
 	runner := NewRunner(s.logger, s.config.Verbosity)
+	runner.probe = resolveProbe(s.config.Probe, providers)
 
 	// Run tests with restart support
 	results := runner.RunTests(suiteCtx, testCases, connectFn)
