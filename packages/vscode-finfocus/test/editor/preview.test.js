@@ -64,7 +64,9 @@ suite('preview', () => {
     assert.equal(vscode.workspace.textDocuments.find((d) => d.uri.toString() === scratch().toString()).isDirty, false);
     assert.equal(parts.runner.calls.overview, 2);
     assert.equal(parts.runner.calls.requests[1].stateOnly, false);
-    await settle(200);
+    // The file watcher's notice for the save can arrive late on Windows; the
+    // mark must still end up cleared.
+    for (let waited = 0; waited < 3000 && reasons(parts.annotations).length > 0; waited += 100) await settle(100);
     assert.deepEqual(reasons(parts.annotations), []);
     await done(parts);
   });
