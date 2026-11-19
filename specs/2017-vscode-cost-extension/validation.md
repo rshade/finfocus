@@ -403,7 +403,7 @@ should resolve against the nearest `Pulumi.yaml` is open for the owner.
   separate category.
 - **Results**: unit suite 210 passing (`node --test "test/unit/*.test.js"`); `tsc
   --noEmit` clean; editor suite on stable 1.146.0 under `xvfb-run`, 54
-  passing, including all 11 readiness scenarios. The minimum-API 1.90 job has
+  passing, including all 11 readiness scenarios. The minimum-API 1.90 job (superseded: the editor job runs both API levels, see "CI results") has
   not been run locally.
 - **Troubleshooting** added to the guide and README.
 
@@ -475,7 +475,7 @@ should resolve against the nearest `Pulumi.yaml` is open for the owner.
   covered by `test/integration/`, and `editor/annotations.js` (77%) by the
   editor suite; neither is in this figure.
 - **Not done, so T086 stays open**: the Go docstring coverage was not
-  re-measured; the minimum-API (1.90) and current-editor CI jobs have not run;
+  re-measured; the minimum-API (1.90) and current-editor CI jobs had not run then (superseded: see "CI results");
   a combined extension coverage figure (unit + integration + editor) was not
   produced.
 
@@ -529,8 +529,8 @@ should resolve against the nearest `Pulumi.yaml` is open for the owner.
   the repository at `~/.cache/finfocus-perf/perf-real.cpuprofile` (400 KB; it
   embeds absolute local paths, so it is not committed) next to the raw timings
   in `perf-real.json`.
-- **Limits of this evidence**: one run on stable 1.147.0 only (the 1.90 job has
-  not run); the baseline typing window ran first, so its 87.7 ms pause may be
+- **Limits of this evidence**: one run of the real-CLI suite on stable 1.147.0 only (it was not
+  run on 1.90, and CI does not run it); the baseline typing window ran first, so its 87.7 ms pause may be
   workbench warm-up rather than the absence of the extension; the profile is a
   V8 sampling profile of the extension host, not a DevTools UI timeline; the
   typed document is the generated fixture, while the preview priced
@@ -547,7 +547,7 @@ should resolve against the nearest `Pulumi.yaml` is open for the owner.
   lockfile). The earlier local build was 32 files, 51.28 KB.
 - **T072 is still open**: the .NET location fixture is still pending (no
   `dotnet` on this machine), which blocks the first extension release; the
-  1.90 and current-editor CI jobs have not run, and `minFinfocusVersion`
+  1.90 and current-editor CI jobs had not run then (superseded: see "CI results"), and `minFinfocusVersion`
   (0.5.8) has not been confirmed against a released Part A.
 - **Go docstring coverage** (T086): every exported symbol in the 26 changed or
   new non-test Go files was checked with a go/ast script: 148 of 156 (94.9%)
@@ -759,10 +759,10 @@ by file because they do not carry requirement IDs. Everything was run on Linux
 | FR-021 (CLI errors passed through, no secrets) | Verified | "Secret, error, and path safety (T083)", `test/unit/hover_safety.test.js` |
 | FR-023 (minimum finfocus version) | Partial | `test/unit/version.test.js`, `test/editor/readiness.test.js`. `minFinfocusVersion` is not yet confirmed against a released core (T072) |
 | FR-024, FR-024a (one package, own release line) | Partial | VSIX contents inspected locally (T072); the release workflow has not run on CI |
-| FR-025 (supported editor API level) | Partial | Editor suites pass on 1.90.0 and stable locally ("Editor suite on both API levels"). The CI jobs and the other editors are open (T072, T073) |
+| FR-025 (supported editor API level) | Partial | The editor job runs both `minimum-api` (1.90.0) and `stable` through `pnpm run test:editor`, and passes on Linux, macOS and Windows in CI (PR #2244). Open: the other editors and the .NET fixture (T072, T073), and `minFinfocusVersion` against a released core |
 | FR-026 (renaming a JSON field fails a test) | Verified | `test/unit/result.test.js` mutates every path in `contract/overview-fields.json`; Go `RemovingAnyRequiredFieldIsDetected` and `RetypingAnyRequiredFieldIsDetected` |
 | FR-027 (keyboard and screen reader) | Partial | Labels and keyboard paths are tested in `test/unit/dashboard.test.js` and `test/editor/dashboard.test.js`. NVDA and VoiceOver, high contrast and zoom are open (T067, owner) |
-| FR-028 (stop owned processes, bounded shutdown) | Partial | `test/integration/shutdown.test.js` and `test/unit/{runner,scheduler}.test.js` on Linux. macOS and Windows are open (T029, T058) |
+| FR-028 (stop owned processes, bounded shutdown) | Partial | `test/integration/shutdown.test.js` and `test/unit/{runner,scheduler,processTree}.test.js`; the fixture-based shutdown tests pass on Linux, macOS and Windows in CI (PR #2244, ISS-003). Open: the real-CLI tests with plugin descendants skipped on every OS, and T016's Go tests ran on Linux only (T029, T058) |
 | SC-001 (every priced resource annotated, Node.js demo) | Partial | Node.js recorded and rendered; other runtimes open (see FR-001) |
 | SC-002 (cache hit within 2 s, idle miss within 20 s) | Verified | "Result reuse and completeness (T099)": hit 0.43 to 0.67 s, miss 6.5 to 8.6 s; "Real-CLI performance run" |
 | SC-003 (stale marker within 1 s) | Verified | "Performance run (T082)": 63 to 129 ms, no process spawned |
@@ -770,7 +770,7 @@ by file because they do not carry requirement IDs. Everything was run on Linux
 | SC-005 (field rename fails the build) | Verified | see FR-026 |
 | SC-006 (typing stays responsive during a preview) | Verified, one run | "Real-CLI performance run": the extension added no pause over 100 ms; one run, stable only |
 
-Open gates, none checked off here: T029, T058 (macOS and Windows runs), T067
+Open gates, none checked off here: T029 (T016's Go tests on macOS and Windows) and T058 (real-CLI shutdown tests), T067
 (assistive technology), T072 (CI jobs, .NET fixture, `minFinfocusVersion`),
 T073 (four editors on three OSes), T074 (WSL, SSH, dev container), and T086
 (CI matrix jobs, `processTree.js` at 95%). The follow-up issue
@@ -788,19 +788,24 @@ Run on GitHub-hosted runners with Node 22; the PR checks are the evidence.
   the CLI-only `display` object before comparing the CLI rows with the web
   `source` rows.
 - **Process shutdown tests (T058, extension Node tests)**: the fixture-based
-  tests pass on Linux and Windows (11 tests, 9 run and 2 skipped, with
-  `node --test "test/integration/*.test.js"`). On Windows `stop` always runs
+  tests pass on all three OSes after the ISS-003 fix (macOS: 9 of 11 pass, 0
+  fail, 2 skipped; Windows: 6 pass, 5 skipped by design, including the
+  session-only cases; Linux: 9 pass, 2 skipped), run with
+  `node --test "test/integration/*.test.js"`. On Windows `stop` always runs
   `taskkill /T /F` and reports `forced: true`, so the graceful case no longer
   expects an unforced stop there; the fixture has no job object, so this does
-  not exercise core's kill-on-close job. **macOS fails**: see ISS-003. The tests
-  now treat a zombie as gone and print `ps` for a survivor, and the macOS check
-  of session membership fails because `pgrep -s` finds no member. The two
-  real-CLI shutdown tests (plugin descendants) skipped on every OS: the job sets
-  no `FINFOCUS_BINARY`, and that file skips on Windows even when it is set.
+  not exercise core's kill-on-close job. The first macOS run failed (ISS-003):
+  `pgrep -s` matches no process there. The runner now puts a random
+  `FINFOCUS_EXTENSION_RUN` token in finfocus's environment on macOS and the
+  sweep finds the members with `ps -axEww` (read with a 256 MiB buffer, because
+  the listing carries every process's environment). The tests treat a zombie
+  as gone and print `ps` for a survivor. The two real-CLI shutdown tests
+  (plugin descendants) skipped on every OS: the job sets no `FINFOCUS_BINARY`,
+  and that file skips on Windows even when it is set.
 - **T029 (T016's Go process tests)**: not run on macOS or Windows. `ci.yml`
   runs `./test/integration/...` on Linux only, and
   `test/integration/overview_process_test.go` is `//go:build unix`.
-- **Editor tests**: pass on Linux and Windows after the on-save test waits for
+- **Editor tests**: the job on each OS runs both the 1.90.0 and stable configurations (`pnpm run test:editor` with no `--label`), and passes on Linux, macOS and Windows. They pass on Linux and Windows after the on-save test waits for
   the file watcher's late save notice. On macOS the 60 s performance gate had
   one run in which a single 530 ms stall appeared with the extension while its
   other windows were 29 ms above baseline. The gate now compares the smaller
@@ -810,9 +815,8 @@ Run on GitHub-hosted runners with Node 22; the PR checks are the evidence.
 - **Packaging**: the job failed because `vsce` does not create the output
   directory; it now runs `mkdir -p ../../dist` first and the VSIX is built and
   inspected on CI.
-- **Still open**: ISS-003 (macOS); the real-CLI cases on every OS (set
-  `FINFOCUS_BINARY` and a fixture project in the job); T016 on macOS and
-  Windows.
+- **Still open**: the real-CLI cases on every OS (set `FINFOCUS_BINARY` and a
+  fixture project in the job); T016 on macOS and Windows.
 
 ## Completion gates
 
