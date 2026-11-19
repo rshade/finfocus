@@ -131,8 +131,10 @@ The daily series follows the dates you ask for. `--from` and `--to` bound the
 days it reads, and without them the whole stored history of the stack is
 used: the daily store is already a rolling history, and the default cost
 window (the current month, which the drift comparison needs) never truncates
-it. The method therefore works once the store holds fifteen days of one
-currency, instead of only in the second half of a month.
+it. The method therefore works once the store holds fifteen complete UTC days
+of one currency for a resource (fourteen baseline days plus the observation
+day; the current partial day does not count), instead of only in the second
+half of a month.
 
 The series belongs to one stack, and the command reads the stack it just
 priced: `--stack` names it when given, and the stack named in the loaded

@@ -82,27 +82,9 @@ $env:PATH += ";$env:USERPROFILE\bin"
 
 ### 2. Package Managers
 
-#### Homebrew (macOS/Linux)
-
-```bash
-# Coming soon - not yet available
-brew install finfocus
-```
-
-#### Chocolatey (Windows)
-
-```powershell
-# Coming soon - not yet available
-choco install finfocus
-```
-
-#### APT (Ubuntu/Debian)
-
-```bash
-# Coming soon - not yet available
-sudo apt update
-sudo apt install finfocus
-```
+FinFocus is not published to Homebrew, Chocolatey, or APT. Install it with the
+[install script](getting-started/installation.md#option-2-install-script-recommended) or from a
+[release archive](https://github.com/rshade/finfocus/releases).
 
 ## Platform-Specific Instructions
 
