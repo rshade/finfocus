@@ -60,7 +60,7 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 
 ### 1. Installation
 
-**Install script (recommended)** -- auto-detects OS/architecture and downloads the latest release:
+**Install script (recommended)** -- auto-detects OS/architecture and downloads the newest release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh

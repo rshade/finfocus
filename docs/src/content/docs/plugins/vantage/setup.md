@@ -3,8 +3,9 @@ title: Vantage Plugin Setup Guide
 description: Step-by-step installation and configuration guide for the FinFocus Vantage plugin
 ---
 
-> **Note:** The Vantage plugin is currently **in development** and not yet available for installation.
-> This documentation is provided for reference and will be updated when the plugin is released.
+> **Note:** The Vantage plugin is released and in the plugin registry. Install it
+> with `finfocus plugin install vantage`. The [Vantage plugin page](../vantage.md)
+> lists the environment variables the released plugin reads.
 
 This guide walks you through installing and configuring the Vantage plugin for
 FinFocus. Follow these steps to enable multi-cloud cost aggregation using
@@ -48,41 +49,29 @@ Before installing the Vantage plugin, ensure you have:
 
 ## Installation
 
-### Option 1: Install Pre-Built Binary (Recommended)
+### Option 1: Install via FinFocus Plugin Manager (Recommended)
 
-Download the latest release for your platform:
-
-```bash
-# Linux (amd64)
-curl -Lo finfocus-vantage https://github.com/rshade/finfocus-plugin-vantage/releases/latest/download/finfocus-vantage-linux-amd64
-chmod +x finfocus-vantage
-sudo mv finfocus-vantage /usr/local/bin/
-
-# Linux (arm64)
-curl -Lo finfocus-vantage https://github.com/rshade/finfocus-plugin-vantage/releases/latest/download/finfocus-vantage-linux-arm64
-chmod +x finfocus-vantage
-sudo mv finfocus-vantage /usr/local/bin/
-
-# macOS (amd64)
-curl -Lo finfocus-vantage https://github.com/rshade/finfocus-plugin-vantage/releases/latest/download/finfocus-vantage-darwin-amd64
-chmod +x finfocus-vantage
-sudo mv finfocus-vantage /usr/local/bin/
-```
-
-### Option 2: Install via FinFocus Plugin Manager
-
-Install through FinFocus's plugin system:
+Install through FinFocus's plugin system. It downloads the archive for your
+platform and checks it against the release's `checksums.txt` before it unpacks
+the plugin into the plugin directory:
 
 ```bash
-# Install plugin (coming soon)
+# Install plugin
 finfocus plugin install vantage
 
 # List installed plugins
 finfocus plugin list
 
 # Verify installation
-finfocus plugin validate vantage
+finfocus plugin validate --plugin vantage
 ```
+
+### Option 2: Download a Release Archive
+
+Each [release](https://github.com/rshade/finfocus-plugin-vantage/releases)
+publishes `finfocus-plugin-vantage_<version>_<OS>_<arch>` archives for Linux,
+macOS (`Darwin`), and Windows on `x86_64` and `arm64`, plus `checksums.txt`.
+Unpack the archive into `~/.finfocus/plugins/vantage/<version>/`.
 
 ### Option 3: Build from Source
 

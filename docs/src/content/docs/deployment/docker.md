@@ -2,32 +2,35 @@
 title: Docker Deployment
 ---
 
-> **Note:** No Dockerfile currently exists in the repository. This guide describes
-> the planned Docker configuration. Container support is on the roadmap.
-
-This guide describes the Docker configuration for building and running
-FinFocus in a containerized environment.
+This guide describes the Docker image for running FinFocus in a container.
+The image is built from `docker/Dockerfile` in the repository. The
+`Docker Build and Push` workflow (`.github/workflows/docker.yml`) builds it for
+`linux/amd64` and `linux/arm64` on every `v*` release tag and publishes it to
+the GitHub Container Registry as `ghcr.io/rshade/finfocus`.
 
 ## Quick Start
 
 ### Pull from GitHub Container Registry
 
 ```bash
-# Pull the latest release
+# Pull the most recent release
 docker pull ghcr.io/rshade/finfocus:latest
 
-# Pull a specific version
-docker pull ghcr.io/rshade/finfocus:v0.3.0
+# Pull a specific version (tags have no leading "v")
+docker pull ghcr.io/rshade/finfocus:0.5.8
 ```
+
+Each release publishes the full version tag (`0.5.8`), the minor and major
+tags (`0.5`, `0`), and `latest`.
 
 ### Build Locally
 
-> **Note:** Local builds require a Dockerfile, which is not yet in the repository.
-> The following commands are provided for reference and will work once Docker support
-> is added. See [the roadmap](../architecture/roadmap.md) for status.
+Run the build from the repository root, because the build context is the whole
+repository. The Dockerfile uses BuildKit cache mounts, so it needs BuildKit,
+the default builder since Docker Engine 23.0.
 
 ```bash
-# Build the image (planned - requires Dockerfile)
+# Build the image
 docker build -f docker/Dockerfile -t finfocus:local .
 
 # Run the help command
@@ -78,7 +81,7 @@ docker run --rm \
 
 ## Image Details
 
-- **Base Image**: Alpine Linux (latest)
+- **Base Image**: Alpine Linux (`alpine:latest`)
 - **Go Version**: 1.27.4 (golang:1.27.4-alpine)
 - **User**: Non-root user `finfocus` (UID: 1001, GID: 1001)
 - **Working Directory**: `/home/finfocus`
@@ -155,5 +158,7 @@ sudo chown -R 1001:1001 ~/.finfocus
 
 ### Plugin Installation
 
-Currently, plugins must be manually installed in the `~/.finfocus/plugins`
-directory. Future versions will include automated plugin downloading capabilities.
+The image has no plugins. Install them with `finfocus plugin install`, or
+copy each plugin into `~/.finfocus/plugins/<name>/<version>/`. Mount that
+directory as shown in [Plugin Management](#plugin-management) to keep plugins
+between runs.

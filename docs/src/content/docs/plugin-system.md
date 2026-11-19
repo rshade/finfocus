@@ -49,7 +49,7 @@ graph TD
 ### Plugin Lifecycle
 
 1. **Discovery**: Registry scans `~/.finfocus/plugins/` directory and selects the
-   latest version of each plugin (using Semantic Versioning).
+   highest version of each plugin (using Semantic Versioning).
 2. **Launch**: Process launcher starts plugin binary
 3. **Connection**: gRPC connection establishment
 4. **Authentication**: Plugin authenticates with data source
@@ -79,14 +79,17 @@ graph TD
 
 FinFocus Core supports side-by-side installation of multiple plugin versions.
 When performing cost analysis or other operations, the system automatically selects
-the **latest version** of each installed plugin based on Semantic Versioning (SemVer)
+the **highest version** of each installed plugin based on Semantic Versioning (SemVer)
 rules.
 
-- **Pre-release versions** (e.g., `v1.0.0-alpha`) are ignored if a stable version (e.g., `v1.0.0`) is present.
+- **Pre-release versions** rank below the stable release of the same version,
+  so `v1.0.0` is selected over `v1.0.0-alpha`. A pre-release of a higher
+  version is still selected over a lower stable release, so `v1.1.0-alpha`
+  is selected over `v1.0.0`.
 - **Invalid versions** are skipped with a warning.
 - **Corrupted directories** are skipped with a warning.
 
-To use a specific older version, you must currently uninstall newer versions or use a custom plugin directory.
+To use a specific older version, uninstall newer versions or use a custom plugin directory.
 
 ### List Available Plugins
 
@@ -148,12 +151,14 @@ unpacking for you.
 > batch. Core does not split that batch into one call per resource on the
 > rate-limited plugin.
 
-#### Package Manager Installation (Future)
+#### Registry Installation
 
 ```bash
-# Coming soon
+# Install the newest stable release from the plugin registry
+finfocus plugin install opencost
+
+# Pin a specific version
 finfocus plugin install opencost@v0.1.2
-finfocus plugin install aws-plugin@latest
 ```
 
 ### Plugin Configuration
@@ -726,7 +731,8 @@ func (p *MyCloudPlugin) GetProjectedCost(ctx context.Context, req *pb.GetProject
 1. Implement the CostSource interface
 2. Add comprehensive tests
 3. Create documentation
-4. Submit to plugin registry (coming soon)
+4. Open a pull request that adds it to the registry catalog
+   (`internal/registry/registry.json`)
 
 ### Plugin Registry
 

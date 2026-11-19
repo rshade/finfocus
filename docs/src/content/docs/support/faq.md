@@ -24,7 +24,7 @@ For full options see the [Installation Guide](../getting-started/installation.md
 
 ### Q: Does FinFocus require a specific version of Pulumi?
 
-A: FinFocus works with Pulumi 3.0+. We recommend the latest version.
+A: FinFocus works with Pulumi 3.0+. We recommend the newest Pulumi release.
 
 ### Q: Can I use FinFocus with my cloud provider?
 

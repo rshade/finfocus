@@ -65,9 +65,9 @@ submit a pull request directly.
 | Go               | 1.27.4+    | Core development    |
 | golangci-lint    | `mise.toml` | Go linting         |
 | markdownlint-cli | v0.45.0    | Markdown linting    |
-| Git              | Latest     | Version control     |
-| Make             | Latest     | Build automation    |
-| Node.js          | Latest LTS | Documentation tools |
+| Git              | Current    | Version control     |
+| Make             | Current    | Build automation    |
+| Node.js          | Active LTS | Documentation tools |
 
 ### Installing Development Tools
 
@@ -493,11 +493,11 @@ example, `kubernetes-v0.1.0`) rather than the CLI's bare `vX.Y.Z` tags:
   plugin tag with `startsWith(tag, 'v')`; a plugin prefix starting with `v`
   (e.g. `vantage-v0.1.0`) would defeat that guard, so
   `ValidateRegistryEntry` rejects it.
-- A published `<plugin>-vX.Y.Z` release is never allowed to become the
-  repo's "Latest" release (that slot must stay on the newest CLI `vX.Y.Z`
+- A published `<plugin>-vX.Y.Z` release is never allowed to hold the
+  repo's `latest` release marker (that slot must stay on the newest CLI `vX.Y.Z`
   release, since `scripts/install.sh` and `plugin_init_fixtures.go` read
-  `/releases/latest`). `release-monorepo-plugin.yml` unmarks the plugin
-  release as latest and re-marks the newest stable CLI release after
+  `/releases/latest`). `release-monorepo-plugin.yml` clears the plugin
+  release's `latest` marker and re-marks the newest stable CLI release after
   uploading assets.
 
 ### Automated Nightly Failure Analysis

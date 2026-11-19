@@ -1111,7 +1111,7 @@ done > docs/llms.txt
 **Goals:**
 
 - Complete Vantage plugin documentation
-- Create Kubecost "coming soon" documentation
+- Create Kubecost placeholder documentation
 - Establish plugin documentation patterns
 
 **Deliverables:**
@@ -1119,8 +1119,8 @@ done > docs/llms.txt
 - [ ] plugins/plugin-development.md
 - [ ] plugins/plugin-sdk.md
 - [ ] plugins/vantage/ (all files)
-- [ ] plugins/flexera/coming-soon.md
-- [ ] plugins/cloudability/coming-soon.md
+- [ ] `plugins/flexera/coming-soon.md`
+- [ ] `plugins/cloudability/coming-soon.md`
 
 ---
 

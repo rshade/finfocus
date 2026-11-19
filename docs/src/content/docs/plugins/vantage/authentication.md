@@ -3,8 +3,9 @@ title: Vantage Plugin Authentication
 description: API key management and security best practices for the FinFocus Vantage plugin
 ---
 
-> **Note:** The Vantage plugin is currently **in development** and not yet available for installation.
-> This documentation is provided for reference and will be updated when the plugin is released.
+> **Note:** The Vantage plugin is released and in the plugin registry. Install it
+> with `finfocus plugin install vantage`. The [Vantage plugin page](../vantage.md)
+> lists the environment variables the released plugin reads.
 
 This guide explains how to securely configure authentication for the Vantage
 plugin, including API key management, credential storage, and security best
