@@ -89,11 +89,12 @@ function createShutdown(options) {
     async stop({ pid, exited, terminate, owner = null }) {
       if (pid === undefined) return { confirmed: true, forced: false, survivors: [] };
       if (platform === 'win32') {
-        const alreadyGone = await within(exited, 0);
-        const killed = await tree.taskkill(pid);
+        // taskkill finds nothing when finfocus already died on its own; core's
+        // kill-on-close job object has then ended every descendant, so the
+        // exit of the process is what confirms the stop.
+        await tree.taskkill(pid);
         const gone = await within(exited, confirmMs);
-        const confirmed = gone && (killed || alreadyGone);
-        return { confirmed, forced: true, survivors: confirmed ? [] : [pid] };
+        return { confirmed: gone, forced: true, survivors: gone ? [] : [pid] };
       }
       terminate();
       const graceful = await within(exited, graceMs);

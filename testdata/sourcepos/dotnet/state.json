@@ -1,0 +1,126 @@
+{
+    "version": 3,
+    "deployment": {
+        "manifest": {
+            "time": "2026-11-19T12:40:41.828554269Z",
+            "magic": "6b02600a5165ade11aed61204ae95a181004f824090cae8a8ea2ade5882ee9ed",
+            "version": "v3.277.0"
+        },
+        "secrets_providers": {
+            "type": "passphrase",
+            "state": {
+                "salt": "v1:TRXdTKRvpeI=:v1:QLTX4PfcxiWS6hvC:mqbCPoOUHd9IFDIToQ8i2IdEQrqKEQ=="
+            }
+        },
+        "resources": [
+            {
+                "urn": "urn:pulumi:dev::srcposdotnet::pulumi:pulumi:Stack::srcposdotnet-dev",
+                "custom": false,
+                "type": "pulumi:pulumi:Stack",
+                "outputs": {
+                    "web": "web"
+                },
+                "created": "2026-11-19T12:40:41.777376701Z",
+                "modified": "2026-11-19T12:40:41.777376701Z"
+            },
+            {
+                "urn": "urn:pulumi:dev::srcposdotnet::shop:index:Pair::edge",
+                "custom": false,
+                "type": "shop:index:Pair",
+                "parent": "urn:pulumi:dev::srcposdotnet::pulumi:pulumi:Stack::srcposdotnet-dev",
+                "created": "2026-11-19T12:40:41.782105082Z",
+                "modified": "2026-11-19T12:40:41.782105082Z"
+            },
+            {
+                "urn": "urn:pulumi:dev::srcposdotnet::pulumi:providers:command::default_1_3_0",
+                "custom": true,
+                "id": "7fc1d9db-0c5e-47fd-bbb7-7e47d54aea3c",
+                "type": "pulumi:providers:command",
+                "inputs": {
+                    "__internal": {},
+                    "__pulumi-go-provider-version": "v1.8.0",
+                    "version": "1.3.0"
+                },
+                "outputs": {
+                    "__pulumi-go-provider-version": "v1.8.0",
+                    "version": "1.3.0"
+                },
+                "created": "2026-11-19T12:40:41.812265497Z",
+                "modified": "2026-11-19T12:40:41.812265497Z"
+            },
+            {
+                "urn": "urn:pulumi:dev::srcposdotnet::shop:index:Pair$command:local:Command::edge-right",
+                "custom": true,
+                "id": "edge-right7c8b9364",
+                "type": "command:local:Command",
+                "inputs": {
+                    "create": "echo right"
+                },
+                "outputs": {
+                    "create": "echo right",
+                    "stderr": "",
+                    "stdout": "right"
+                },
+                "parent": "urn:pulumi:dev::srcposdotnet::shop:index:Pair::edge",
+                "provider": "urn:pulumi:dev::srcposdotnet::pulumi:providers:command::default_1_3_0::7fc1d9db-0c5e-47fd-bbb7-7e47d54aea3c",
+                "propertyDependencies": {
+                    "create": []
+                },
+                "created": "2026-11-19T12:40:41.8166221Z",
+                "modified": "2026-11-19T12:40:41.8166221Z",
+                "replaceOnChanges": [
+                    "triggers[*]"
+                ]
+            },
+            {
+                "urn": "urn:pulumi:dev::srcposdotnet::command:local:Command::web",
+                "custom": true,
+                "id": "web0e9a1384",
+                "type": "command:local:Command",
+                "inputs": {
+                    "create": "echo web"
+                },
+                "outputs": {
+                    "create": "echo web",
+                    "stderr": "",
+                    "stdout": "web"
+                },
+                "parent": "urn:pulumi:dev::srcposdotnet::pulumi:pulumi:Stack::srcposdotnet-dev",
+                "provider": "urn:pulumi:dev::srcposdotnet::pulumi:providers:command::default_1_3_0::7fc1d9db-0c5e-47fd-bbb7-7e47d54aea3c",
+                "propertyDependencies": {
+                    "create": []
+                },
+                "created": "2026-11-19T12:40:41.817473317Z",
+                "modified": "2026-11-19T12:40:41.817473317Z",
+                "replaceOnChanges": [
+                    "triggers[*]"
+                ]
+            },
+            {
+                "urn": "urn:pulumi:dev::srcposdotnet::shop:index:Pair$command:local:Command::edge-left",
+                "custom": true,
+                "id": "edge-left9c0c0816",
+                "type": "command:local:Command",
+                "inputs": {
+                    "create": "echo left"
+                },
+                "outputs": {
+                    "create": "echo left",
+                    "stderr": "",
+                    "stdout": "left"
+                },
+                "parent": "urn:pulumi:dev::srcposdotnet::shop:index:Pair::edge",
+                "provider": "urn:pulumi:dev::srcposdotnet::pulumi:providers:command::default_1_3_0::7fc1d9db-0c5e-47fd-bbb7-7e47d54aea3c",
+                "propertyDependencies": {
+                    "create": []
+                },
+                "created": "2026-11-19T12:40:41.816633723Z",
+                "modified": "2026-11-19T12:40:41.816633723Z",
+                "replaceOnChanges": [
+                    "triggers[*]"
+                ]
+            }
+        ],
+        "metadata": {}
+    }
+}

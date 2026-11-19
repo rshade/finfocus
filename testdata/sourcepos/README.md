@@ -141,5 +141,15 @@ resource has a location. `program-edited/` changes the `web` command.
 
 ## dotnet
 
-Pending: no .NET SDK is installed on the capture machine. Support is not
-claimed; see `validation.md`.
+Captured 2026-11-19 in CI (`.github/workflows/test-sourcepos-dotnet.yml`) with
+Pulumi CLI v3.277.0, .NET 8 and `Pulumi.Command` 1.x on a local backend.
+`program/` mirrors the Python fixture: a `Command` named `web` in
+`Program.cs` and a `Pair` component in `Pair.cs` that creates two children.
+
+The recorded state carries neither `sourcePosition` nor `stackTrace` on any
+resource: the .NET SDK does not record where a resource is declared, so
+`finfocus overview` reports no `location` for any of them, as it does for
+YAML. The extension therefore draws no inline annotation in a .NET project
+and still lists the resources in its tree. `state.json` is that recording. The
+CI job asserts every resource is present and that a location, if Pulumi ever
+records one, names the right file and line.
