@@ -195,7 +195,7 @@ docs/
 
 ### End Users
 
-**Goal:** "I have a Pulumi infrastructure. How do I see what it costs?"
+**Goal:** "How much does this Pulumi infrastructure cost?"
 
 **Entry Point:** `getting-started/quickstart.md`
 
@@ -224,7 +224,7 @@ docs/
 
 ### Engineers (Plugin Developers)
 
-**Goal:** "How do I build a FinFocus plugin for our cost service?"
+**Goal:** "How do you build a FinFocus plugin for your own cost service?"
 
 **Entry Point:** `plugins/plugin-development.md`
 

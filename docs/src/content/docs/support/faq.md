@@ -12,7 +12,7 @@ section. Jump to: [Installation](#installation--setup) |
 
 ## Installation & Setup
 
-### Q: How do I install FinFocus?
+### Q: How do you install FinFocus?
 
 A: The fastest way is the install script:
 
@@ -26,7 +26,7 @@ For full options see the [Installation Guide](../getting-started/installation.md
 
 A: FinFocus works with Pulumi 3.0+. We recommend the newest Pulumi release.
 
-### Q: Can I use FinFocus with my cloud provider?
+### Q: Can you use FinFocus with your cloud provider?
 
 A: For projected costs, yes, when a pricing plugin or a local pricing spec covers
 the resource. The `aws-public` and `azure-public` plugins price AWS and Azure resources
@@ -36,7 +36,7 @@ AWS Cost Explorer).
 
 ## Usage
 
-### Q: What is the simplest way to see my costs?
+### Q: What is the simplest way to see your costs?
 
 A: Navigate into any Pulumi project directory and run:
 
@@ -48,13 +48,13 @@ FinFocus auto-detects your project and stack, exports the current state, runs
 `pulumi preview --json`, and opens an interactive cost dashboard. No flags needed.
 `finfocus overview` and `finfocus ov` are aliases for the same command.
 
-### Q: Do I need to export the Pulumi state and plan manually?
+### Q: Do you need to export the Pulumi state and plan manually?
 
 A: No. Auto-detection handles this when you run `finfocus` from inside a Pulumi
 project directory. Use `--pulumi-state` and `--pulumi-json` only when you want
 to provide pre-exported files (e.g., in CI/CD where you control the export step).
 
-### Q: How do I select a specific Pulumi stack?
+### Q: How do you select a specific Pulumi stack?
 
 A: Pass `--stack`:
 
@@ -76,7 +76,7 @@ A: Accuracy depends on the plugin or spec used. The `aws-public` plugin uses
 AWS public pricing and is accurate for on-demand instance types. Actual costs
 may vary based on reserved instances, savings plans, and data transfer.
 
-### Q: Can I filter by custom tags?
+### Q: Can you filter by custom tags?
 
 A: Yes. Use `--filter "tag:key=value"` with any cost command:
 
@@ -85,7 +85,7 @@ finfocus overview --filter tag:env=production --plain --yes
 finfocus cost projected --filter tag:team=platform
 ```
 
-### Q: How do I reset configuration?
+### Q: How do you reset configuration?
 
 A: FinFocus uses two config locations:
 
@@ -110,12 +110,12 @@ A: The main plugins today:
 | `cloudzero` | — | ✓ | CloudZero billing costs per resource; needs a CloudZero API key and a resource dimension |
 | `opencost` | ✓ | ✓ | Kubernetes allocation from an OpenCost or Kubecost endpoint (set the `kubecost` profile for Kubecost) |
 
-### Q: Do I need a plugin?
+### Q: Do you need a plugin?
 
 A: For projected costs, no. Local pricing specs work without plugins.
 For actual costs, yes. A plugin with billing API access is required.
 
-### Q: How do I install a plugin?
+### Q: How do you install a plugin?
 
 A: Use the plugin install command:
 
@@ -134,7 +134,7 @@ A: The analyzer is a FinFocus mode that shows cost estimates directly inside
 `pulumi preview` output, with no separate command needed. It runs as a Pulumi
 Policy Pack.
 
-### Q: How do I set up the analyzer?
+### Q: How do you set up the analyzer?
 
 A: Install the analyzer plugin, then add it to your PATH:
 
@@ -214,12 +214,12 @@ finfocus overview --plain --yes
 
 ## Data & Privacy
 
-### Q: Does FinFocus send my data anywhere?
+### Q: Does FinFocus send your data anywhere?
 
 A: Only to the plugins you configure (e.g., a Vantage or OpenCost endpoint).
 Local specs and the cache are entirely on your machine. No telemetry is sent.
 
-### Q: Is my infrastructure data secure?
+### Q: Is your infrastructure data secure?
 
 A: Pulumi state JSON contains resource details, so treat it as sensitive. FinFocus
 is a local CLI tool; all data stays on your machine unless explicitly sent to a
@@ -232,7 +232,7 @@ plugin's external API.
 A: First run: 1–10 seconds depending on stack size and plugin API latency.
 Subsequent runs: sub-second for cached results.
 
-### Q: Can I use FinFocus with large infrastructure (1000+ resources)?
+### Q: Can you use FinFocus with large infrastructure (1000+ resources)?
 
 A: Yes. The overview enriches resources concurrently and paginates the TUI
 automatically. For very large stacks, use `--output ndjson` for streaming output
@@ -240,7 +240,7 @@ or `--filter` to narrow scope.
 
 ## Support
 
-### Q: Where can I get help?
+### Q: Where can you get help?
 
 A: See these resources:
 
@@ -248,10 +248,10 @@ A: See these resources:
 - [GitHub Issues](https://github.com/rshade/finfocus/issues)
 - [GitHub Discussions](https://github.com/rshade/finfocus/discussions)
 
-### Q: How do I report a bug?
+### Q: How do you report a bug?
 
 A: [Open a GitHub Issue](https://github.com/rshade/finfocus/issues/new)
 
-### Q: Can I contribute?
+### Q: Can you contribute?
 
 A: Yes! See [Contributing Guide](contributing.md).
