@@ -108,8 +108,8 @@ unlabeled      1      10.00   10.0%   1.00
 ```
 
 Each allocated row, idle rows included, counts once, under the capacity type
-of its node (matched by cluster and node name, as in the allocator, where a usage source
-that sends no cluster tag still matches), so the rows sum to the cluster
+of its node (matched by cluster and node name as the allocator matches them, so a usage
+source that sends no cluster tag still matches), so the rows sum to the cluster
 total and idle cost is never counted twice. Rows that match no node, such as
 the control plane, Fargate pods (which name a pod host that is not a priced
 node), and orphan rows (which name a node that no longer exists), go under

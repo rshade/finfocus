@@ -101,8 +101,8 @@ warning while the recommendations are listed unscored.
 For Clef set `SCORER_BACKEND=clef`, supply a Cloudflare token in `SCORER_API_KEY`, and set `SCORER_CLEF_ACCOUNT_ID`
 to a 32-character hexadecimal account id. The model defaults to `clef`, which is the only accepted Clef model id.
 Jev's model defaults to `jev-1.13.0`. Optional `SCORER_BASE_URL` defaults to `https://api.typesafe.ai` for Jev or
-`https://api.cloudflare.com` for Clef. For Clef it must be an origin without path, query, user info, or fragment.
-The adapter adds the account path. `SCORER_TIMEOUT`, `SCORER_BATCH_SIZE` and `SCORER_DUPLICATE_THRESHOLD` default to
+`https://api.cloudflare.com` for Clef. For Clef it must be an origin without path, query, user info or fragment,
+and the adapter adds the account path. `SCORER_TIMEOUT`, `SCORER_BATCH_SIZE` and `SCORER_DUPLICATE_THRESHOLD` default to
 `60s`, `25` and `0.5`.
 
 Both hosted backends send recommendation data to third parties. A compatible local endpoint may avoid hosted calls,

@@ -82,7 +82,7 @@ The header links to nine views, and a tenth, Logs, when you turn it on. Each has
 | **Sort** | Cycles the sort field: Cost, Name, Type, Delta. |
 | **Run preview** | Runs `pulumi preview` on demand and applies pending changes. One preview runs at a time. Elapsed time is shown while it runs. |
 | Cluster expand/collapse | Expands or collapses a Kubernetes cluster row. |
-| Resource row | Opens details: actual and projected breakdowns, current and after-change cost impact, cost drift, property changes, blast radius (dependents with count, monthly total, and what the total leaves out), recommendations, and budget status. Each dependent listed there opens its own detail, with a **Back to** button. |
+| Resource row | Opens details: actual and projected breakdowns, current and after-change cost impact, cost drift, property changes, blast radius (dependents with count, monthly total, and what the total leaves out), recommendations, and budget status. Each blast-radius dependent opens its own detail, with a **Back to** button. |
 | **Previous** / **Next** | Pages through large tables. |
 
 When a stack mixes currencies, resource rows stay visible and the totals show

@@ -129,7 +129,7 @@ message SupportsRequest {
 
 - `resource` (ResourceDescriptor) - Resource to check support for
 - `capability` (PluginCapability) - Operation the host is about to call.
-  `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability
+  `PLUGIN_CAPABILITY_UNSPECIFIED` means any capability.
 
 FinFocus sets `capability` to the operation it is about to call:
 `PLUGIN_CAPABILITY_PROJECTED_COSTS` for projected cost and projected batches,

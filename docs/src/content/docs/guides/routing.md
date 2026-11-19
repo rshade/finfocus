@@ -88,10 +88,10 @@ a plugin can still read the package from the type token, and a routing pattern
 such as `aws-native:*` still matches it. `finfocus config routes test` shows
 both, for example `provider: aws (package: aws-native)`.
 
-A plugin that reports `aws` receives `aws-native` resources. A plugin that
-still lists a package name, such as `azure-native`, keeps matching, and now
-also receives resources of the same cloud under another package name, which it can
-decline through `Supports`.
+A plugin that reports `aws` receives `aws-native` resources. Plugins that
+still list a package name, such as `azure-native`, keep matching, and now
+also receive resources of the same cloud under another package name. They can
+decline those resources through `Supports`.
 
 Cost reports, provider budgets, the `provider=` filter and history charts use
 the same cloud name, so `aws` and `aws-native` spend appears under one `aws`

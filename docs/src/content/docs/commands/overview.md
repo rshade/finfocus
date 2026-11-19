@@ -330,7 +330,7 @@ the output mode.
 | Interactive TUI | Footer bar + detail view | Color-coded health badge, spend/limit, utilization %. Press Enter for per-budget breakdown with forecasts and triggered alerts |
 | Plain (`--plain`) | Not rendered | Budget enforcement available via `--exit-on-threshold` |
 | JSON (`--output json`) | `budgets` array in output | Full budget health objects with utilization, forecasted spend, triggered thresholds |
-| NDJSON (`--output ndjson`) | Not included | NDJSON is resource-scoped, and budgets are stack-scoped |
+| NDJSON (`--output ndjson`) | Not included | NDJSON is resource-scoped, but budgets are stack-scoped |
 
 ### Budget Flags
 
