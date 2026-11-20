@@ -139,6 +139,23 @@ function statusFlags(plugin, installed) {
   return flags.map((flag) => flag.replace(/\.$/, '')).join('. ');
 }
 
+// confirmBlockReason explains a disabled Confirm button for a custom registry.
+// An empty string means the plan can be confirmed.
+function confirmBlockReason(current) {
+  if (current?.kind !== 'operation' || !current.plan?.registry) return '';
+  const { plan, registryInput } = current;
+  if (plan.checksumFile !== 'present') {
+    return 'Confirm stays disabled because this release has no checksum file.';
+  }
+  if (!plan.registryRevision) {
+    return 'Confirm stays disabled because the registry could not be verified.';
+  }
+  if (plan.registryConfirmationRequired && registryInput?.value !== plan.registry) {
+    return 'Confirm stays disabled because the typed name does not match the registry.';
+  }
+  return '';
+}
+
 function operationSummary(plan) {
   const lines = [
     `${plan.action} ${plan.name}`,
@@ -210,6 +227,11 @@ export function mount(container, { api }) {
   const list = el('div', { id: 'plugins-list' });
   const settings = el('section', { id: 'plugin-settings' });
   const summary = el('div', { id: 'plugin-confirm-summary' });
+  const confirmReason = el('p', {
+    id: 'plugin-confirm-reason',
+    class: 'config-note',
+    role: 'status',
+  });
   const title = el('h3', { id: 'plugin-confirm-title', text: 'Confirm' });
   const accept = el('button', { id: 'plugin-confirm-accept', class: 'dialog-submit', type: 'button', text: 'Confirm' });
   const cancel = el('button', { id: 'plugin-confirm-cancel', type: 'button', text: 'Cancel' });
@@ -220,6 +242,7 @@ export function mount(container, { api }) {
   },
   title,
   summary,
+  confirmReason,
   el('div', { class: 'dialog-actions' }, cancel, accept));
   const root = el('section', { class: 'config-page' },
     el('h2', { text: 'Plugins' }),
@@ -239,6 +262,7 @@ export function mount(container, { api }) {
   setHidden(errorBanner, true);
   setHidden(progress, true);
   setHidden(settings, true);
+  setHidden(confirmReason, true);
   accept.addEventListener('click', () => { void confirmPending(); });
   cancel.addEventListener('click', () => { if (dialog.open) dialog.close(); });
   dialog.addEventListener('close', () => { if (!holdPending) pending = null; });
@@ -269,7 +293,10 @@ export function mount(container, { api }) {
 
   function renderRegistries(rows) {
     if (rows.length === 0) {
-      registryList.replaceChildren(el('p', { class: 'config-note', text: 'No custom registries.' }));
+      registryList.replaceChildren(el('p', {
+        class: 'config-note',
+        text: 'No custom registries. Add a name and an HTTPS index URL, then choose Add registry.',
+      }));
       return;
     }
     registryList.replaceChildren(el('div', { class: 'table-wrap' },
@@ -346,12 +373,33 @@ export function mount(container, { api }) {
     errorBanner.replaceChildren(...errorLines(err).map((text) => el('p', { text })));
   }
 
+  function syncConfirmState(current) {
+    const reason = confirmBlockReason(current);
+    confirmReason.textContent = reason;
+    setHidden(confirmReason, reason === '');
+    accept.disabled = confirming === current || !canConfirm(current);
+    if (reason) accept.setAttribute('aria-describedby', confirmReason.id);
+    else accept.removeAttribute('aria-describedby');
+    const input = current?.registryInput;
+    if (!input) return;
+    const nameBlocked = reason !== '' && input.value !== current.plan.registry;
+    if (nameBlocked) {
+      input.setAttribute('aria-describedby', confirmReason.id);
+      if (input.value !== '') input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+      return;
+    }
+    input.removeAttribute('aria-describedby');
+    input.removeAttribute('aria-invalid');
+  }
+
   function showDialog() {
     holdPending = true;
     if (dialog.open) dialog.close();
     holdPending = false;
-    accept.disabled = confirming === pending || !canConfirm(pending);
+    syncConfirmState(pending);
     dialog.showModal();
+    pending?.registryInput?.focus();
   }
 
   function closeOperation() {
@@ -504,15 +552,7 @@ export function mount(container, { api }) {
     const { plan } = current;
     summary.replaceChildren(el('p', { text: operationSummary(plan) }));
     if (!plan.registry) return;
-    if (plan.checksumFile !== 'present') {
-      summary.append(el('p', { class: 'config-note', text: 'Custom registries require release checksums.' }));
-      return;
-    }
-    if (!plan.registryRevision) {
-      summary.append(el('p', { class: 'config-note', text: 'The registry could not be verified.' }));
-      return;
-    }
-    if (!plan.registryConfirmationRequired) return;
+    if (plan.checksumFile !== 'present' || !plan.registryRevision || !plan.registryConfirmationRequired) return;
     const input = el('input', {
       id: 'plugin-registry-confirmation',
       class: 'filter-input',
@@ -521,7 +561,7 @@ export function mount(container, { api }) {
       spellcheck: 'false',
     });
     current.registryInput = input;
-    input.addEventListener('input', () => { accept.disabled = confirming === current || !canConfirm(current); });
+    input.addEventListener('input', () => { syncConfirmState(current); });
     summary.append(registryField(`Type ${plan.registry} to confirm this registry`, input));
   }
 

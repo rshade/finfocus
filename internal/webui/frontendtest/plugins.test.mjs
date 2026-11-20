@@ -563,7 +563,7 @@ test('custom registry panel adds, refreshes, and removes sources', async () => {
   t.calls.filter((call) => call.path === '/api/plugins/catalog').at(-1).resolve(catalog());
   t.calls.filter((call) => call.path === '/api/plugins/registries' && call.body === null).at(-1).resolve({ registries: [] });
   await flush();
-  assert.match(t.container.querySelector('#plugin-registries').textContent, /No custom registries/);
+  assert.match(t.container.querySelector('#plugin-registries').textContent, /No custom registries\. Add a name and an HTTPS index URL, then choose Add registry/);
   t.mounted.unmount();
 });
 
@@ -583,14 +583,24 @@ test('first custom install requires the exact registry name and source revision'
   await flush();
   const accept = t.container.querySelector('#plugin-confirm-accept');
   const typed = t.container.querySelector('#plugin-registry-confirmation');
+  const reason = t.container.querySelector('#plugin-confirm-reason');
+  assert.equal(t.document.activeElement, typed);
   assert.equal(accept.disabled, true);
+  assert.match(reason.textContent, /typed name does not match the registry/);
+  assert.equal(accept.attrs['aria-describedby'], 'plugin-confirm-reason');
+  assert.equal(typed.attrs['aria-describedby'], 'plugin-confirm-reason');
   typed.value = 'WORK';
   typed.dispatch('input');
+  assert.equal(typed.attrs['aria-invalid'], 'true');
   accept.dispatch('click');
   assert.equal(t.calls.some((call) => call.path === '/api/plugins/recorder/install'), false);
   typed.value = 'work';
   typed.dispatch('input');
   assert.equal(accept.disabled, false);
+  assert.equal(reason.textContent, '');
+  assert.equal(reason.hidden, true);
+  assert.equal(accept.attrs['aria-describedby'], undefined);
+  assert.equal(typed.attrs['aria-describedby'], undefined);
   accept.dispatch('click');
   assert.equal(t.calls.at(-1).path, '/api/plugins/recorder/install');
   assert.deepEqual(body(t.calls.at(-1)), {
@@ -603,5 +613,32 @@ test('first custom install requires the exact registry name and source revision'
     registryRevision: 'source-revision',
     registryConfirmation: 'work',
   });
+  t.mounted.unmount();
+});
+
+test('a custom registry plan announces a missing checksum or an unverified source', async () => {
+  const t = await setup('plugins');
+  const next = catalog();
+  next.plugins[0].registry = 'work';
+  t.calls[0].resolve(next);
+  await flush();
+
+  async function openPlan(overrides) {
+    t.container.querySelector('#plugin-install-recorder').dispatch('click');
+    t.calls.at(-1).resolve(plan({ registry: 'work', ...overrides }));
+    await flush();
+  }
+
+  await openPlan({ checksumFile: 'missing', registryRevision: 'source-revision', registryConfirmationRequired: true });
+  const reason = t.container.querySelector('#plugin-confirm-reason');
+  assert.match(reason.textContent, /no checksum file/);
+  assert.equal(t.container.querySelector('#plugin-confirm-accept').disabled, true);
+  assert.equal(t.container.querySelector('#plugin-registry-confirmation'), undefined);
+  t.container.querySelector('#plugin-confirm-cancel').dispatch('click');
+
+  await openPlan({ checksumFile: 'present', registryRevision: '', registryConfirmationRequired: true });
+  assert.match(reason.textContent, /could not be verified/);
+  assert.equal(t.container.querySelector('#plugin-confirm-accept').disabled, true);
+  assert.equal(t.document.activeElement?.id, undefined);
   t.mounted.unmount();
 });
