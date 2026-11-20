@@ -23,13 +23,11 @@
         "id": "i-inputs",
         "inputs": {
           "instanceType": "t3.micro",
-          "tenancy": "default",
           "ami": "ami-0abcdef",
           "subnetId": "subnet-0123"
         },
         "outputs": {
           "instanceType": "t3.micro",
-          "tenancy": "default",
           "ami": "ami-0abcdef",
           "subnetId": "subnet-0123",
           "arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-inputs"

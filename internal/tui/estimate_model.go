@@ -56,6 +56,7 @@ type EstimateModel struct {
 	properties []PropertyRow
 	details    []viewmodel.EstimateDetail
 	note       string
+	curated    bool
 	showAll    bool
 	focusedRow int
 	editMode   bool
@@ -162,10 +163,22 @@ func (m *EstimateModel) WithEstimateCallback(
 	return m
 }
 
+// ApplyPricingDiscovery replans the editor from a pricing-spec discovery and
+// selects its first mode. The web display uses the same context.
+func (m *EstimateModel) ApplyPricingDiscovery(found engine.PricingDiscovery) {
+	if m == nil {
+		return
+	}
+	m.pricingSpecLoading = false
+	m.pricingModes = found.Modes
+	m.pricingMode = 0
+	m.replan()
+}
+
 // initializeProperties builds the editable rows and read-only details from the
 // shared property plan, the same policy the web editor uses.
 func (m *EstimateModel) initializeProperties() {
-	m.applyPlan(m.buildPlan(nil, nil))
+	m.applyPlan(m.buildPlan(nil))
 }
 
 // applyResult applies an estimate result to the model state.
@@ -212,10 +225,7 @@ func (m *EstimateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleRecalculateComplete(msg)
 
 	case estimatePricingSpecMsg:
-		m.pricingSpecLoading = false
-		m.replan(viewmodel.UsageHints(msg.discovery))
-		m.pricingModes = msg.discovery.Modes
-		m.pricingMode = 0
+		m.ApplyPricingDiscovery(msg.discovery)
 		if m.estimateFn != nil && len(m.pricingModes) > 0 {
 			return m, m.triggerRecalculation()
 		}
@@ -288,6 +298,7 @@ func (m *EstimateModel) selectPricingMode(index int) tea.Cmd {
 		return nil
 	}
 	m.pricingMode = index
+	m.replan()
 	if m.estimateFn != nil || m.recalculateFn != nil {
 		return m.triggerRecalculation()
 	}
@@ -301,8 +312,7 @@ func (m *EstimateModel) handleEditModeKey(msg tea.KeyPressMsg) (tea.Model, tea.C
 		// Commit the edit
 		key, had := m.focusedKey()
 		if index, ok := m.focusedPropertyIndex(); ok {
-			m.properties[index].CurrentValue = m.editBuffer
-			m.properties[index].Overridden = m.editBuffer != m.properties[index].OriginalValue
+			m.properties[index].SetCurrentValue(m.editBuffer, m.curated)
 		}
 		m.editMode = false
 		m.restoreFocus(key, had)

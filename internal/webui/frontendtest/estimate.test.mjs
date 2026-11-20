@@ -368,6 +368,63 @@ test('the fallback note shows in the status line only when the type is not curat
  assert.doesNotMatch(curated.container.textContent,/not curated/);
  assert.match(curated.container.textContent,/Estimate calculated/);curated.mounted.unmount();
 });
+test('a usage row sends a value and sends nothing while empty', async () => {
+ const t = await withProperties([
+  row('instanceType', 't3.micro', { class: 'pricing', defaultVisible: true }),
+  row('requestsPerMonth', '', { class: 'pricing', provenance: 'plugin-input', defaultVisible: true, usage: true }),
+ ]);
+ const usage = t.container.querySelectorAll('.estimate-input').find((n) => n.dataset.key === 'requestsPerMonth');
+ assert.equal(usage.value, '');
+ usage.dispatch('keydown', { key: 'Enter' });
+ assert.equal(t.calls.at(-1).body, null, 'an empty usage row sends no override');
+ assert.equal(String(t.calls.at(-1).path).includes('requestsPerMonth'), false);
+ usage.value = '1000000';
+ usage.dispatch('keydown', { key: 'Enter' });
+ assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.overrides)), { requestsPerMonth: '1000000' });
+ usage.value = '';
+ usage.dispatch('keydown', { key: 'Enter' });
+ assert.equal(t.calls.at(-1).path.startsWith('/api/estimate/baseline'), true);
+ t.mounted.unmount();
+});
+test('a mode change keeps a removed usage value on the returned row', async () => {
+ const t = await withProperties([
+  row('instanceType', 't3.micro', { class: 'pricing', defaultVisible: true }),
+  row('tenancy', '', { class: 'pricing', provenance: 'plugin-input', defaultVisible: true, usage: true }),
+ ]);
+ const tenancy = t.container.querySelectorAll('.estimate-input').find((n) => n.dataset.key === 'tenancy');
+ tenancy.value = 'dedicated';
+ tenancy.focus();
+ const mode = t.container.querySelector('#estimate-mode');
+ mode.value = 'opaque-mode';
+ mode.dispatch('change');
+ t.calls.at(-1).resolve({
+  display: {
+   ...baseline().display,
+   properties: [
+    row('instanceType', 't3.micro', { class: 'pricing', defaultVisible: true }),
+    row('tenancy', '', { class: 'other', defaultVisible: true, overridden: true, currentValue: 'dedicated' }),
+   ],
+  },
+  pricingMode: 'opaque-mode',
+ });
+ await flush();
+ const kept = t.container.querySelectorAll('.estimate-input').find((n) => n.dataset.key === 'tenancy');
+ assert.equal(kept.value, 'dedicated');
+ assert.equal(t.document.activeElement.dataset.key, 'tenancy');
+ t.mounted.unmount();
+});
+test('an uncurated response shows every row and the note without another request', async () => {
+ const note = 'Pricing inputs are not curated for this resource type; all safe properties are shown.';
+ const t = await withProperties([
+  row('acl', 'private', { defaultVisible: true }),
+ ], { curated: false, note });
+ assert.deepEqual(renderedKeys(t), ['acl']);
+ assert.match(t.container.textContent, /not curated/);
+ const count = t.calls.length;
+ t.container.querySelector('#estimate-show-advanced').dispatch('change');
+ assert.equal(t.calls.length, count);
+ t.mounted.unmount();
+});
 test('Show all properties is separate from Show all resources',async()=>{
  const t=await withProperties([row('instanceType','t3.micro',{class:'pricing',defaultVisible:true}),row('ami','ami-1')]);
  const advanced=t.container.querySelector('#estimate-show-advanced'),resources=t.container.querySelector('#estimate-show-all');

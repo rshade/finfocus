@@ -16,9 +16,9 @@ Property Changes:
   Property             Original        Modified        Δ Cost
                                                              
 → instanceType        t3.micro       t3.micro       
-  tenancy             default        default        
   ami                 ami-1          ami-1          
   subnetId            subnet-1       subnet-1       
+  tenancy             default        default        
 
 
 Read-only:

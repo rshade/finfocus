@@ -32,12 +32,12 @@ func TestEstimatePropertyPlanParityWithTerminal(t *testing.T) {
 		{
 			name:         "ebs volume",
 			resourceType: "aws:ebs/volume:Volume",
-			props:        map[string]any{"volumeType": "gp3", "size": float64(100), "encrypted": true, "id": "vol-1"},
+			props:        map[string]any{"type": "gp3", "size": float64(100), "encrypted": true, "id": "vol-1"},
 		},
 		{
 			name:         "unknown type",
-			resourceType: "aws:rds/instance:Instance",
-			props:        map[string]any{"instanceClass": "db.t3.micro", "engine": "mysql", "arn": "arn:aws:rds:x"},
+			resourceType: "aws:ec2/vpc:Vpc",
+			props:        map[string]any{"cidrBlock": "10.0.0.0/16", "arn": "arn:aws:ec2:vpc"},
 		},
 		{
 			name:         "credential-bearing",
@@ -78,6 +78,50 @@ func TestEstimatePropertyPlanParityWithTerminal(t *testing.T) {
 				for _, row := range terminal.Properties() {
 					assert.NotEqual(t, hidden, row.Key)
 				}
+			}
+		})
+	}
+}
+
+func TestEstimateUsageRowParity(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		resourceType string
+		props        map[string]any
+		plugin       string
+	}{
+		{
+			name: "s3 usage row", resourceType: "aws:s3/bucket:Bucket", plugin: "aws-public",
+			props: map[string]any{"acl": "private"},
+		},
+		{
+			name: "ec2 priced by another plugin", resourceType: "aws:ec2/instance:Instance", plugin: "civo-public",
+			props: map[string]any{"instanceType": "t3.micro", "tenancy": "default", "password": "hunter2"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			resource := &engine.ResourceDescriptor{
+				ID:         "urn:row",
+				Type:       tt.resourceType,
+				Provider:   "aws",
+				Properties: tt.props,
+			}
+			discovery := engine.PricingDiscovery{
+				Modes: []engine.PricingMode{{Plugin: tt.plugin, BillingMode: "per_hour"}},
+			}
+			display := viewmodel.BuildEstimateDisplay(
+				context.Background(), resource, &engine.EstimateResult{}, nil,
+				viewmodel.NewEstimateInputContext(discovery, ""),
+			)
+			terminal := tui.NewEstimateModel(context.Background(), resource, nil)
+			terminal.ApplyPricingDiscovery(discovery)
+
+			assert.Equal(t, planShape(display), terminalShape(terminal.Properties()))
+			for _, property := range display.Properties {
+				assert.NotEqual(t, "password", property.Key)
 			}
 		})
 	}

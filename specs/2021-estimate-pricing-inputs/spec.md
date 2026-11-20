@@ -8,9 +8,29 @@ layout: "docs"
 
 **Created**: 2026-11-19
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: Issue #1732 (follows `specs/630-estimate-resource-picker`, #1731)
+
+## Clarifications
+
+### Session 2026-11-19
+
+- Q: Which names may a reviewed mapping list, given that several plugin-accepted
+  names (S3 `storageClass`, NAT `dataProcessedGb`, DynamoDB, Lambda, and load
+  balancer usage keys) are never properties of the Pulumi resource? → A: Usage
+  rows. A `plugin-input` key the descriptor does not carry appears as an empty,
+  editable usage row, so the user can supply a value the plugin reads.
+- Q: Should a mapping apply whatever plugin prices the resource, or only the
+  plugin its `plugin-input` names come from? → A: Per plugin. Each mapping names
+  its plugin; its `plugin-input` and usage rows apply only when that plugin
+  serves the resource's estimate. `sku` and `region` rows always apply.
+  Recommendations are a separate route and are unaffected.
+- Q: RDS was left on the fallback because aws-public's RDS pricing was a stub,
+  but v0.2.5 prices it; what happens to RDS? → A: Add a reviewed mapping for
+  `aws:rds/instance:Instance`: `instanceClass` (sku), `region` and
+  `availabilityZone` (region), and `engine`, `storageType`, `allocatedStorage`,
+  `multiAz` (aws-public `plugin-input`), verified like every other mapping.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -34,8 +54,14 @@ instance type recalculates the estimate.
 2. **Given** an EC2 instance on `t3.micro`, **When** the developer sets
    `t3.large`, **Then** the recalculated estimate and delta match the same
    override sent through the CLI.
-3. **Given** a reviewed input that the descriptor does not carry, **When** the
-   editor opens, **Then** no empty or invented row appears.
+3. **Given** a reviewed `plugin-input` key that the descriptor does not carry
+   (such as a Lambda function's `requestsPerMonth`), **When** the editor opens,
+   **Then** it appears as an empty, editable usage row after the present pricing
+   inputs. A reviewed `sku` or `region` key that the descriptor does not carry
+   gets no row.
+4. **Given** a usage row, **When** the developer enters a value, **Then** the
+   recalculation sends it as an override like any other edit; a usage row left
+   empty sends nothing.
 
 ---
 
@@ -55,9 +81,11 @@ safe property is missing from the union of the default and advanced views.
 
 1. **Given** a supported resource, **When** Show all properties is on, **Then**
    the remaining safe properties follow the pricing inputs, editable.
-2. **Given** a resource type or plugin with no reviewed mapping, **When**
-   What-If opens, **Then** all safe properties are editable and a note says the
-   inputs are not curated for this type.
+2. **Given** a resource type with no reviewed mapping, or a resource whose
+   estimate is served by a plugin other than the mapping's and that carries no
+   reviewed `sku` or `region` key, **When** What-If opens, **Then** all safe
+   properties are editable and a note says the inputs are not curated for this
+   type.
 3. **Given** pricing-input metadata that is incomplete, **When** What-If opens,
    **Then** the editor takes the unknown-type fallback rather than a partial list.
 
@@ -135,7 +163,14 @@ transports and compare the ordered keys and classes.
 - A property named like an identity key but carrying a user-chosen value, such as
   a tag, is classified by its exact reviewed key, not by a substring match.
 - A request names a property the descriptor does not have: the existing
-  behavior for new overrides is unchanged, except for identity keys.
+  behavior for new overrides is unchanged, except for identity keys. A usage row
+  relies on this: its value reaches the plugin as a new override.
+- A usage row whose value is cleared drops its override; an empty usage row is
+  never sent and never counts as an override.
+- Selecting a pricing mode from another plugin removes the mapping's
+  `plugin-input` and usage rows and keeps its `sku` and `region` rows; an
+  override already entered in a removed row stays visible as an edited property
+  (FR-007). With the mapping's plugin not installed, the same rule applies.
 - Late responses after a toggle or after leaving the view must not rewrite the
   editor.
 
@@ -151,7 +186,16 @@ transports and compare the ordered keys and classes.
   records its provenance: the SKU or region extraction rule that reads it
   (`sku`, `region`), a name the plugin documents as accepted (`plugin-input`), or
   an exact match with a pricing-spec usage metric (`usage`). A property MUST be
-  marked a pricing input only when the selected estimation path consumes it.
+  marked a pricing input only when the selected estimation path consumes it. A
+  `sku` or `region` key MUST be a property the Pulumi resource type carries. A
+  `plugin-input` key MAY name a value the resource does not carry; when the
+  descriptor lacks it, the policy emits an empty, editable usage row (FR-012).
+  Each mapping names the plugin its `plugin-input` keys come from. Those keys
+  and their usage rows apply only when that plugin serves the resource's
+  estimate: it is among the plugins the estimate's pricing-spec discovery
+  reports for the resource and, when a pricing mode is selected, it is that
+  mode's plugin. `sku` and `region` keys come from core's extraction and apply
+  whatever plugin prices the resource.
 - **FR-003**: For a curated resource type, the default view MUST list pricing
   inputs first and show no other property, with two exceptions: a property that
   carries an override (FR-007) and every property of an uncurated type (FR-004).
@@ -178,10 +222,16 @@ transports and compare the ordered keys and classes.
 - **FR-010**: The policy MUST NOT discover inputs by perturbing properties or by
   probing plugins repeatedly, and MUST NOT require a new plugin protocol field.
   The only plugin metadata it uses is the pricing-spec discovery the estimate
-  already runs, which the engine caches per resource type, so classification is
-  the same on every request for one resource.
+  already runs, which the engine caches per resource type. Selecting a pricing
+  mode may change which `plugin-input` and usage rows apply (FR-002). It does
+  not cause another discovery call.
 - **FR-011**: The documentation MUST list the covered resource types, the
-  fallback behavior, and the advanced view.
+  fallback behavior, the advanced view, and the usage rows.
+- **FR-012**: A usage row MUST have no original value, MUST be editable, and MUST
+  appear in the default view after the present pricing inputs, in mapping order.
+  Only a non-empty value is sent as an override. A usage row counts as a reviewed
+  input, so a type whose reviewed keys are all absent from the descriptor is
+  still curated and does not take the FR-004 fallback.
 
 ### Key Entities
 
@@ -191,6 +241,9 @@ transports and compare the ordered keys and classes.
   that its pricing path reads, with provenance.
 - **Property presentation**: The ordered rows, the read-only details, and the
   fallback note for one descriptor and one set of overrides.
+- **Usage row**: A pricing-input row for a reviewed `plugin-input` key the
+  descriptor does not carry. It starts empty and becomes an override only when
+  the user enters a value.
 
 ## Web UI Fit *(mandatory)*
 
@@ -204,18 +257,34 @@ transports and compare the ordered keys and classes.
   Show all resources, the note in the status line, and identity details in the
   detail area.
 - **Additions**: A Show all properties toggle and a read-only details block.
-- **Render evidence**: Pending. The nearest view (Estimate) will be rendered with
-  Playwright against `../finfocus-demo` during implementation, and the date and
-  stack recorded here.
-- **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
-  accessibility). No engine, API, redaction, or data-shape work.
+- **Render evidence**: 2026-11-19, Estimate rendered with Playwright against
+  `../finfocus-demo` stack `dev` (preview-only creates). The EC2 instance showed
+  `instanceType` and `region` in the captioned table, with Show all properties
+  beside Show all resources in the controls row; the VPC (uncurated) showed
+  every safe property and the fallback note. The render found the EBS mapping
+  naming `volumeType`, which a Pulumi volume does not have: `type` was hidden.
+  Fixed (research.md); after the fix the volume leads with `type` and `size`.
+  2026-11-20: rendered again on `initial-30` stack `dev` (65 resources, empty
+  passphrase). The NAT gateway `clientNatGateway` opens on an empty
+  `dataProcessedGb` usage row, with aws-public's `per_hour_plus_data` mode
+  listed. The EC2 instance `webServer` leads with `instanceType` (`t3.micro`),
+  `region` (`us-west-2`), `availabilityZone` (`us-west-2c`), and `tenancy`
+  (`default`); the baseline is `$8.39/mo`.
+- **Follow-up issue scope**: Waived 2026-11-20 (T030). The web Estimate view
+  ships in this feature. No separate UX follow-up issue.
 
 ## Assumptions
 
 - Reviewed mappings start with the AWS resource types the aws-public plugin
-  prices; types beyond them use the fallback until reviewed.
+  prices, RDS instances included; types beyond them use the fallback until
+  reviewed. Each mapping is checked by the provenance test and against a real
+  Pulumi descriptor of its type.
 - Mappings live in core as presentation data, not provider pricing logic, and
   plugin-declared inputs remain a separate future change.
+- The mapping's plugin scopes only the What-If editor's rows and the overrides
+  it sends to the estimate. Recommendations route to every plugin that
+  advertises them, so another plugin (such as CloudZero, once it advertises
+  recommendations) still recommends for a resource that aws-public prices.
 - Identity keys are an exact, reviewed list; Pulumi-internal `__` properties stay
   hidden by the existing filter.
 
@@ -225,8 +294,9 @@ transports and compare the ordered keys and classes.
 
 - **SC-001**: For each documented AWS type, the reviewed pricing inputs are the
   first rows, and the EC2 instance type is the first row of its editor.
-- **SC-002**: The union of default and advanced rows equals the safe
-  non-identity properties of every fixture, supported or not.
+- **SC-002**: Every safe non-identity property of a fixture appears in the
+  union of the default and advanced rows. The only rows beyond that set are
+  applied usage rows and overrides for keys the descriptor does not carry.
 - **SC-003**: Every identity-key override is rejected by the web contract and
   refused by the terminal, with zero estimates priced.
 - **SC-004**: A toggle round trip leaves values, overrides, deltas, and focus

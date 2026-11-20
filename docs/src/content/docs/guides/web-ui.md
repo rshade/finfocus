@@ -221,8 +221,14 @@ available for inspecting a specific type.
 For the resource types FinFocus has reviewed, What-If lists the pricing inputs
 first and hides the rest. An EC2 instance shows `instanceType`, `region` and
 `availabilityZone` when the resource sets them, and `tenancy`. Reviewed types are
-EC2 instances, EBS volumes, Lambda functions, DynamoDB tables, load balancers
-(`lb` and `alb`), ElastiCache clusters, S3 buckets, and NAT gateways.
+EC2 instances, EBS volumes, RDS instances, Lambda functions, DynamoDB tables,
+load balancers (`lb` and `alb`), ElastiCache clusters, S3 buckets, and NAT
+gateways. A reviewed plugin input the resource does not carry, such as an S3
+bucket's `storageClass` or a Lambda function's `requestsPerMonth`, is an empty
+row you can fill in. Those rows, and the plugin inputs the resource does carry,
+appear only while the aws-public plugin serves the estimate. `instanceType` and
+other SKU or region inputs stay for every plugin. A value you typed stays
+visible if you switch to a plugin that drops the row.
 
 - **Show all properties** reveals every other safe property. It filters the rows
   already loaded, so it doesn't send a request and keeps your edits, deltas, and the

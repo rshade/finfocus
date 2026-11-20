@@ -71,6 +71,7 @@ func TestInputMappingsAreWellFormed(t *testing.T) {
 
 		assert.False(t, seen[name], "duplicate mapping %s", name)
 		seen[name] = true
+		assert.Equal(t, awsPublicPlugin, mapped.Plugin, "%s: plugin-input names come from aws-public", name)
 		assert.Equal(t, resourcetype.NormalizeProvider(mapped.Provider), mapped.Provider,
 			"%s: provider must already be the normalized billing cloud", name)
 		assert.Equal(t, mapped.ResourceSegment, strings.ToLower(mapped.ResourceSegment),

@@ -236,7 +236,13 @@ func TestEstimatePropertyProjectionParity(t *testing.T) {
 				),
 				uncurated(PropertyRow{Key: "zeta", OriginalValue: "last", CurrentValue: "last"}),
 			}, model.properties)
-			web := viewmodel.BuildEstimateDisplay(context.Background(), resource, result, model.GetOverrides(), nil)
+			web := viewmodel.BuildEstimateDisplay(
+				context.Background(),
+				resource,
+				result,
+				model.GetOverrides(),
+				viewmodel.EstimateInputContext{},
+			)
 			require.Len(t, web.Properties, 3)
 			for i, row := range model.properties {
 				assert.Equal(t, row.Key, web.Properties[i].Key)

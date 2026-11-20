@@ -59,8 +59,8 @@ func TestGoldenEstimateAdvanced(t *testing.T) {
 
 func TestGoldenEstimateFallbackNote(t *testing.T) {
 	t.Parallel()
-	model := estimateGoldenModel("aws:rds/instance:Instance", map[string]any{
-		"instanceClass": "db.t3.micro", "engine": "mysql", "arn": "arn:aws:rds:us-east-1:1:db:x",
+	model := estimateGoldenModel("aws:ec2/vpc:Vpc", map[string]any{
+		"cidrBlock": "10.0.0.0/16", "arn": "arn:aws:ec2:us-east-1:1:vpc/vpc-1",
 	})
 
 	testGolden(t, "estimate_fallback_note", model.View().Content)

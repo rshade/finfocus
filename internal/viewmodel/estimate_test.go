@@ -19,7 +19,13 @@ func TestEstimateDisplay(t *testing.T) {
 		TotalChange: 30,
 		Deltas:      []engine.CostDelta{{Property: "size", CostChange: 30}},
 	}
-	got := BuildEstimateDisplay(context.Background(), resource, result, map[string]string{"size": "3"}, nil)
+	got := BuildEstimateDisplay(
+		context.Background(),
+		resource,
+		result,
+		map[string]string{"size": "3"},
+		EstimateInputContext{},
+	)
 	assert.Equal(t, "€60.00/mo (EUR)", got.Baseline)
 	assert.Equal(t, "€90.00/mo (EUR)", got.Modified)
 	assert.Equal(t, "+$30.00 ↑", got.Change)
@@ -54,11 +60,11 @@ func TestEstimatePricingDisplay(t *testing.T) {
 	} {
 		assert.Equal(t, tc.want, FormatPricingRate(tc.mode))
 	}
-	assert.Empty(t, BuildEstimateDisplay(context.Background(), nil, nil, nil, nil).Properties)
+	assert.Empty(t, BuildEstimateDisplay(context.Background(), nil, nil, nil, EstimateInputContext{}).Properties)
 	assert.Equal(
 		t,
 		"$0.00 →",
-		BuildEstimateDisplay(context.Background(), nil, &engine.EstimateResult{}, nil, nil).Change,
+		BuildEstimateDisplay(context.Background(), nil, &engine.EstimateResult{}, nil, EstimateInputContext{}).Change,
 	)
 }
 
@@ -111,7 +117,7 @@ func TestEstimatePropertyProjection(t *testing.T) {
 				&engine.ResourceDescriptor{Properties: properties},
 				&engine.EstimateResult{Deltas: tc.deltas},
 				overrides,
-				nil,
+				EstimateInputContext{},
 			)
 			require.Len(t, display.Properties, 3)
 			for i, row := range rows {
@@ -134,7 +140,7 @@ func TestEstimateDisplayCuratedCarriesPlanFields(t *testing.T) {
 	}
 	result := &engine.EstimateResult{Deltas: []engine.CostDelta{{Property: "instanceType", CostChange: 10}}}
 
-	got := BuildEstimateDisplay(context.Background(), resource, result, nil, nil)
+	got := BuildEstimateDisplay(context.Background(), resource, result, nil, EstimateInputContext{})
 
 	require.Len(t, got.Properties, 2)
 	assert.Equal(t, "instanceType", got.Properties[0].Key)
@@ -155,7 +161,8 @@ func TestNewEstimatePropertyDisplayWithoutDeltas(t *testing.T) {
 
 	got := NewEstimatePropertyDisplay(plan, []engine.CostDelta{{Property: "instanceType", CostChange: 5}}, false)
 
-	require.Len(t, got.Properties, 1)
+	require.Len(t, got.Properties, 2)
+	assert.Equal(t, "instanceType", got.Properties[0].Key)
 	assert.Empty(t, got.Properties[0].Delta)
 	assert.NotNil(t, got.Details)
 	assert.True(t, got.Curated)

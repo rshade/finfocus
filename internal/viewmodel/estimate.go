@@ -47,6 +47,8 @@ type EstimateProperty struct {
 	Editable       bool            `json:"editable"`
 	DefaultVisible bool            `json:"defaultVisible"`
 	Overridden     bool            `json:"overridden"`
+	// Usage is true for a reviewed plugin-input the descriptor does not carry.
+	Usage bool `json:"usage,omitempty"`
 }
 
 // EstimateDisplay contains the presentation shared by estimate transports.
@@ -86,7 +88,7 @@ func NewEstimatePropertyDisplay(plan EstimatePropertyPlan, deltas []engine.CostD
 		property := EstimateProperty{
 			Key: row.Key, OriginalValue: row.OriginalValue, CurrentValue: row.CurrentValue,
 			Class: row.Class, Provenance: row.Provenance, Editable: row.Editable,
-			DefaultVisible: row.DefaultVisible, Overridden: row.Overridden,
+			DefaultVisible: row.DefaultVisible, Overridden: row.Overridden, Usage: row.Usage,
 		}
 		if withDeltas {
 			property.Delta = FormatEstimateDelta(row.CostDelta).Text
@@ -104,7 +106,7 @@ func BuildEstimateDisplay(
 	resource *engine.ResourceDescriptor,
 	result *engine.EstimateResult,
 	overrides map[string]string,
-	hints []engine.PricingMetricHint,
+	input EstimateInputContext,
 ) EstimateDisplay {
 	display := EstimateDisplay{Properties: []EstimateProperty{}, Details: []EstimateDetail{}}
 	if result == nil {
@@ -128,7 +130,7 @@ func BuildEstimateDisplay(
 	if resource == nil {
 		return display
 	}
-	plan := BuildEstimatePropertyPlan(ctx, resource, overrides, hints)
+	plan := BuildEstimatePropertyPlan(ctx, resource, overrides, input)
 	shared := NewEstimatePropertyDisplay(plan, result.Deltas, true)
 	display.Properties = shared.Properties
 	display.Details = shared.Details
@@ -163,6 +165,23 @@ type EstimatePropertyRow struct {
 	Editable       bool
 	DefaultVisible bool
 	Overridden     bool
+	// Usage is true for a reviewed plugin-input the descriptor does not carry.
+	Usage bool
+}
+
+// SetCurrentValue records an edit and refreshes Overridden and DefaultVisible
+// with the rule BuildEstimatePropertyPlan applies. curated is the plan's
+// Curated flag. Every editor (terminal and web) uses this one rule.
+func (r *EstimatePropertyRow) SetCurrentValue(value string, curated bool) {
+	r.CurrentValue = value
+	r.refreshFlags(curated)
+}
+
+// refreshFlags derives Overridden and DefaultVisible: a pricing input, an
+// edited row, or any row of an uncurated type is shown by default.
+func (r *EstimatePropertyRow) refreshFlags(curated bool) {
+	r.Overridden = r.CurrentValue != r.OriginalValue
+	r.DefaultVisible = r.Class == PropertyClassPricing || r.Overridden || !curated
 }
 
 // BuildEstimatePropertyRows applies the shared property order and value projection.

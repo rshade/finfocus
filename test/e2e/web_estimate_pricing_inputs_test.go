@@ -28,7 +28,7 @@ func TestWebUIEstimatePricingInputs(t *testing.T) {
 	browser := webBrowser(t)
 	state := filepath.Join(f.root, "test/e2e/fixtures/web/estimate-inputs-state.json")
 	plan := filepath.Join(f.root, "test/e2e/fixtures/web/estimate-inputs-plan.json")
-	s := f.start(t, plan, false, "WEB_AUTO_DETECT=true", "WEB_STATE="+state)
+	s := f.start(t, plan, false, "WEB_AUTO_DETECT=true", "WEB_AWS_PUBLIC=true", "WEB_STATE="+state)
 	page := webPage(t, browser, s, playwright.ColorSchemeLight)
 	webRoute(t, page, "estimate")
 	webWait(
@@ -39,6 +39,15 @@ func TestWebUIEstimatePricingInputs(t *testing.T) {
 
 	assert.Equal(t, []string{"instanceType", "tenancy"}, estimateInputKeys(t, page),
 		"pricing inputs first, advanced properties hidden")
+	tenancy, err := page.Locator("[aria-label='Current tenancy']").InputValue()
+	require.NoError(t, err)
+	assert.Empty(t, tenancy, "an absent plugin-input is an empty usage row and sends nothing")
+	webType(t, page, "[aria-label='Current tenancy']", "dedicated")
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	webWait(t, page, `() => document.querySelector('.estimate-table')?.getAttribute('aria-busy') === 'false'`)
+	kept, err := page.Locator("[aria-label='Current tenancy']").InputValue()
+	require.NoError(t, err)
+	assert.Equal(t, "dedicated", kept, "a usage value round-trips as an override")
 	details, err := page.Locator(".estimate-details").TextContent()
 	require.NoError(t, err)
 	assert.Contains(t, details, "arn:aws:ec2:us-east-1:123456789012:instance/i-inputs")

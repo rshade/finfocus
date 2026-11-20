@@ -208,9 +208,11 @@ finfocus cost actual --pulumi-json plan.json --from 2024-01-01 --to 2024-01-31
 
 `finfocus cost estimate` opens an interactive editor on a terminal. It uses the
 same property policy as the web What-If view. For a reviewed AWS type, the
-editor lists the pricing inputs first and hides the other properties. Press `a`
-to show all properties and `a` again to hide them. A property you edited stays
-visible.
+editor lists the pricing inputs first and hides the other properties. A plugin
+input the resource does not carry is an empty row. Those rows appear only while
+aws-public serves the estimate. Press `a` to show all properties and `a` again
+to hide them. A property you edited stays visible, including after a pricing-mode
+change that drops its row.
 
 Identity metadata (`id`, `arn`, `urn`, and `pulumi:` or `terraform:` keys) sits
 in a **Read-only** block under the table. The cursor can't enter it, and an

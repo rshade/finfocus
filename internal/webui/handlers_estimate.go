@@ -208,7 +208,7 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 		// Discovery has its own deadline and still runs when the price call failed.
 		found := eng.DiscoverPricingSpec(ctx, resource)
 		modes := estimatePricingModes(found)
-		display := baselineFailureDisplay(ctx, resource, viewmodel.UsageHints(found))
+		display := baselineFailureDisplay(ctx, resource, viewmodel.NewEstimateInputContext(found, query.PricingMode))
 		done()
 		s.WriteJSON(w, http.StatusOK, estimateBaselineFailure{
 			Status:       estimateStatusUnavailable,
@@ -222,7 +222,13 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 	}
 	result = cloneData(result)
 	found := eng.DiscoverPricingSpec(ctx, resource)
-	display := viewmodel.BuildEstimateDisplay(ctx, resource, result, query.Overrides, viewmodel.UsageHints(found))
+	display := viewmodel.BuildEstimateDisplay(
+		ctx,
+		resource,
+		result,
+		query.Overrides,
+		viewmodel.NewEstimateInputContext(found, query.PricingMode),
+	)
 	if !baseline {
 		done()
 		s.WriteJSON(w, http.StatusOK, struct {
@@ -281,9 +287,9 @@ func estimatePricingModes(found engine.PricingDiscovery) []estimateMode {
 func baselineFailureDisplay(
 	ctx context.Context,
 	resource *engine.ResourceDescriptor,
-	hints []engine.PricingMetricHint,
+	input viewmodel.EstimateInputContext,
 ) viewmodel.EstimateDisplay {
-	plan := viewmodel.BuildEstimatePropertyPlan(ctx, resource, nil, hints)
+	plan := viewmodel.BuildEstimatePropertyPlan(ctx, resource, nil, input)
 	return viewmodel.NewEstimatePropertyDisplay(plan, nil, false)
 }
 

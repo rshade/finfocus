@@ -11,15 +11,20 @@ import (
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
-func (m *EstimateModel) buildPlan(
-	overrides map[string]string,
-	hints []engine.PricingMetricHint,
-) viewmodel.EstimatePropertyPlan {
+func (m *EstimateModel) inputContext() viewmodel.EstimateInputContext {
+	id := ""
+	if len(m.pricingModes) > 0 && m.pricingMode >= 0 && m.pricingMode < len(m.pricingModes) {
+		id = m.pricingModes[m.pricingMode].ID()
+	}
+	return viewmodel.NewEstimateInputContext(engine.PricingDiscovery{Modes: m.pricingModes}, id)
+}
+
+func (m *EstimateModel) buildPlan(overrides map[string]string) viewmodel.EstimatePropertyPlan {
 	ctx := m.ctx
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return viewmodel.BuildEstimatePropertyPlan(ctx, m.resource, overrides, hints)
+	return viewmodel.BuildEstimatePropertyPlan(ctx, m.resource, overrides, m.inputContext())
 }
 
 // Properties returns every editable row in editor order, whether or not it is
@@ -37,6 +42,7 @@ func (m *EstimateModel) applyPlan(plan viewmodel.EstimatePropertyPlan) {
 	m.properties = plan.Rows
 	m.details = plan.Details
 	m.note = plan.Note
+	m.curated = plan.Curated
 }
 
 // visibleIndexes lists the rows the cursor can reach: pricing inputs, edited
@@ -45,8 +51,7 @@ func (m *EstimateModel) applyPlan(plan viewmodel.EstimatePropertyPlan) {
 func (m *EstimateModel) visibleIndexes() []int {
 	indexes := make([]int, 0, len(m.properties))
 	for i, row := range m.properties {
-		if m.showAll || m.note != "" || row.Class == viewmodel.PropertyClassPricing ||
-			row.CurrentValue != row.OriginalValue {
+		if m.showAll || row.DefaultVisible {
 			indexes = append(indexes, i)
 		}
 	}
@@ -93,9 +98,9 @@ func (m *EstimateModel) toggleShowAll() {
 
 // replan rebuilds the rows when discovery delivers usage hints after the model
 // was built. Typed and committed edits, the deltas, and the cursor row stay by key.
-func (m *EstimateModel) replan(hints []engine.PricingMetricHint) {
+func (m *EstimateModel) replan() {
 	key, had := m.focusedKey()
-	plan := m.buildPlan(m.GetOverrides(), hints)
+	plan := m.buildPlan(m.GetOverrides())
 	m.applyPlan(plan)
 	viewmodel.ApplyEstimateDeltas(m.properties, m.deltas)
 	m.restoreFocus(key, had)

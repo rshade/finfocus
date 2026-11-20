@@ -501,12 +501,13 @@ func TestEstimateModel_RowsComeFromThePlan(t *testing.T) {
 	model := ec2EstimateModel(props)
 
 	plan := viewmodel.BuildEstimatePropertyPlan(
-		context.Background(), &engine.ResourceDescriptor{Type: estimateEC2Type, Properties: props}, nil, nil,
+		context.Background(), &engine.ResourceDescriptor{Type: estimateEC2Type, Properties: props}, nil,
+		viewmodel.EstimateInputContext{},
 	)
 
 	assert.Equal(t, plan.Rows, model.properties)
 	assert.Equal(t, plan.Details, model.details)
-	assert.Equal(t, []string{"instanceType", "tenancy"}, visibleKeys(model))
+	assert.Equal(t, []string{"instanceType"}, visibleKeys(model))
 	view := model.View().Content
 	assert.Contains(t, view, "instanceType")
 	assert.NotContains(t, view, "subnetId")
@@ -685,4 +686,38 @@ func TestEstimateModel_RevertedAdvancedEditLeavesTheDefaultListAfterReplan(t *te
 	model = pressShowAll(model)
 
 	assert.Equal(t, []string{"instanceType"}, visibleKeys(model))
+}
+
+func TestEstimateModel_ModeSwitchReplansBeforePricing(t *testing.T) {
+	t.Parallel()
+	model := ec2EstimateModel(map[string]any{"instanceType": "t3.micro", "ami": "ami-1"})
+	aws := engine.PricingMode{Plugin: "aws-public", BillingMode: "per_hour"}
+	civo := engine.PricingMode{Plugin: "civo-public", BillingMode: "per_hour"}
+	model.pricingModes = []engine.PricingMode{aws, civo}
+	model.pricingMode = 0
+	model.replan()
+	assert.Contains(t, visibleKeys(model), "tenancy")
+	focusKey(t, model, "tenancy")
+	model = typeInto(model, "dedicated")
+	assert.Equal(t, "dedicated", model.GetOverrides()["tenancy"])
+
+	priced := false
+	model.estimateFn = func(context.Context, *engine.EstimateRequest) (*engine.EstimateResult, error) {
+		priced = true
+		return &engine.EstimateResult{}, nil
+	}
+	cmd := model.selectPricingMode(1)
+	require.NotNil(t, cmd)
+	assert.False(t, priced, "replan finishes before the pricing command runs")
+	var row PropertyRow
+	for _, candidate := range model.properties {
+		if candidate.Key == "tenancy" {
+			row = candidate
+		}
+	}
+	assert.Equal(t, "dedicated", row.CurrentValue)
+	assert.Equal(t, viewmodel.PropertyClassOther, row.Class)
+	assert.True(t, row.Overridden)
+	assert.Contains(t, visibleKeys(model), "tenancy")
+	assert.Equal(t, "tenancy", visibleKeys(model)[model.focusedRow])
 }

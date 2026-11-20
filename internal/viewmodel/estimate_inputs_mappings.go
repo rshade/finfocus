@@ -5,7 +5,10 @@ package viewmodel
 
 import "github.com/rshade/finfocus-spec/sdk/go/pluginsdk/mapping"
 
-const awsProvider = "aws"
+const (
+	awsProvider     = "aws"
+	awsPublicPlugin = "aws-public"
+)
 
 // InputSpec names one reviewed pricing input and why it is trusted.
 type InputSpec struct {
@@ -15,10 +18,12 @@ type InputSpec struct {
 
 // InputMapping lists the reviewed pricing inputs of one resource type, in
 // display order. Provider is the normalized billing cloud and ResourceSegment
-// the lowercased module/resource segment of the type token.
+// the lowercased module/resource segment of the type token. Plugin names the
+// plugin whose plugin-input keys the list uses.
 type InputMapping struct {
 	Provider        string
 	ResourceSegment string
+	Plugin          string
 	Inputs          []InputSpec
 }
 
@@ -40,7 +45,7 @@ func loadBalancerInputs() []InputSpec {
 func reviewedInputMappings() []InputMapping {
 	return []InputMapping{
 		{
-			Provider: awsProvider, ResourceSegment: "ec2/instance",
+			Provider: awsProvider, ResourceSegment: "ec2/instance", Plugin: awsPublicPlugin,
 			Inputs: append(
 				[]InputSpec{
 					{Key: mapping.AWSKeyInstanceType, Provenance: ProvenanceSKU},
@@ -51,30 +56,62 @@ func reviewedInputMappings() []InputMapping {
 			),
 		},
 		{
-			Provider: awsProvider, ResourceSegment: "ebs/volume",
+			Provider: awsProvider, ResourceSegment: "ebs/volume", Plugin: awsPublicPlugin,
 			Inputs: append(
-				[]InputSpec{{Key: mapping.AWSKeyVolumeType, Provenance: ProvenanceSKU}},
+				// Pulumi names the EBS volume type `type`; ExtractAWSSKU reads it.
+				[]InputSpec{{Key: mapping.AWSKeyType, Provenance: ProvenanceSKU}},
 				pluginInputs("size")...,
 			),
 		},
 		{
-			Provider: awsProvider, ResourceSegment: "lambda/function",
+			Provider: awsProvider, ResourceSegment: "rds/instance", Plugin: awsPublicPlugin,
+			Inputs: append(
+				[]InputSpec{
+					{Key: mapping.AWSKeyInstanceClass, Provenance: ProvenanceSKU},
+					{Key: mapping.AWSKeyRegion, Provenance: ProvenanceRegion},
+					{Key: mapping.AWSKeyAvailabilityZone, Provenance: ProvenanceRegion},
+				},
+				pluginInputs("engine", "storageType", "allocatedStorage", "multiAz")...,
+			),
+		},
+		{
+			Provider: awsProvider, ResourceSegment: "lambda/function", Plugin: awsPublicPlugin,
 			Inputs: pluginInputs("memorySize", "architectures", "requestsPerMonth", "avgDurationMs"),
 		},
 		{
-			Provider: awsProvider, ResourceSegment: "dynamodb/table",
+			Provider: awsProvider, ResourceSegment: "dynamodb/table", Plugin: awsPublicPlugin,
 			Inputs: pluginInputs(
 				"billingMode", "readCapacity", "writeCapacity", "storageGb",
 				"readRequestsPerMonth", "writeRequestsPerMonth",
 			),
 		},
-		{Provider: awsProvider, ResourceSegment: "lb/loadbalancer", Inputs: loadBalancerInputs()},
-		{Provider: awsProvider, ResourceSegment: "alb/loadbalancer", Inputs: loadBalancerInputs()},
 		{
-			Provider: awsProvider, ResourceSegment: "elasticache/cluster",
+			Provider:        awsProvider,
+			ResourceSegment: "lb/loadbalancer",
+			Plugin:          awsPublicPlugin,
+			Inputs:          loadBalancerInputs(),
+		},
+		{
+			Provider:        awsProvider,
+			ResourceSegment: "alb/loadbalancer",
+			Plugin:          awsPublicPlugin,
+			Inputs:          loadBalancerInputs(),
+		},
+		{
+			Provider: awsProvider, ResourceSegment: "elasticache/cluster", Plugin: awsPublicPlugin,
 			Inputs: pluginInputs("nodeType", "numCacheNodes", "engine"),
 		},
-		{Provider: awsProvider, ResourceSegment: "s3/bucket", Inputs: pluginInputs("storageClass")},
-		{Provider: awsProvider, ResourceSegment: "ec2/natgateway", Inputs: pluginInputs("dataProcessedGb")},
+		{
+			Provider:        awsProvider,
+			ResourceSegment: "s3/bucket",
+			Plugin:          awsPublicPlugin,
+			Inputs:          pluginInputs("storageClass"),
+		},
+		{
+			Provider:        awsProvider,
+			ResourceSegment: "ec2/natgateway",
+			Plugin:          awsPublicPlugin,
+			Inputs:          pluginInputs("dataProcessedGb"),
+		},
 	}
 }

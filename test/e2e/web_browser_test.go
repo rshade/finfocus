@@ -136,7 +136,11 @@ func (f webFixture) start(t *testing.T, source string, encrypted bool, fixtureEn
 	require.NoError(t, os.WriteFile(filepath.Join(home, "config.yaml"), config, 0o600))
 	plugin, err := os.ReadFile(f.plugin)
 	require.NoError(t, err)
-	for _, name := range []string{"webfixture", "webalternate"} {
+	names := []string{"webfixture", "webalternate"}
+	if slices.Contains(fixtureEnv, "WEB_AWS_PUBLIC=true") {
+		names = append(names, "aws-public")
+	}
+	for _, name := range names {
 		dir := filepath.Join(home, "plugins", name, "0.1.0")
 		require.NoError(t, os.MkdirAll(dir, 0o750))
 		binary := "finfocus-plugin-" + name
@@ -429,7 +433,11 @@ func TestWebUIBrowser(t *testing.T) {
 			requestMu.Unlock()
 		})
 		webType(t, page, "#overview-filter", "test-instance")
-		webWait(t, page, `() => document.querySelector('.overview-table tbody')?.textContent?.includes('test-instance')`)
+		webWait(
+			t,
+			page,
+			`() => document.querySelector('.overview-table tbody')?.textContent?.includes('test-instance')`,
+		)
 		webTab(t, page, ".sort-button")
 		require.NoError(t, page.Keyboard().Press("Enter"))
 		webTab(t, page, ".overview-table tbody .resource-link")
@@ -680,7 +688,9 @@ func TestWebUIStateOnlyPreviewGate(t *testing.T) {
 		const note = document.querySelector('.state-only-footnote');
 		return !!button && button.disabled && header?.textContent === 'Projected' && !!note && note.hidden;
 	}`)
-	status, err := page.Evaluate(`() => fetch('/api/overview/preview', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:'{}'}).then(async (response) => ({status: response.status, code: (await response.json()).code}))`)
+	status, err := page.Evaluate(
+		`() => fetch('/api/overview/preview', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:'{}'}).then(async (response) => ({status: response.status, code: (await response.json()).code}))`,
+	)
 	require.NoError(t, err)
 	payload, ok := status.(map[string]any)
 	require.True(t, ok)
@@ -1226,15 +1236,37 @@ func TestWebUIOverviewPresentation(t *testing.T) {
 	for _, name := range []string{"updated", "active"} {
 		urn := "urn:pulumi:dev::test::aws:ec2/instance:Instance::" + name
 		inputs := map[string]any{"instanceType": "t3.micro", "region": "us-east-1"}
-		resources = append(resources, map[string]any{"urn": urn, "type": "aws:ec2/instance:Instance", "custom": true, "id": "i-" + name, "inputs": inputs})
+		resources = append(
+			resources,
+			map[string]any{
+				"urn":    urn,
+				"type":   "aws:ec2/instance:Instance",
+				"custom": true,
+				"id":     "i-" + name,
+				"inputs": inputs,
+			},
+		)
 		old := map[string]any{"urn": urn, "type": "aws:ec2/instance:Instance", "inputs": inputs}
 		op := "same"
 		after := old
 		if name == "updated" {
 			op = "update"
-			after = map[string]any{"urn": urn, "type": "aws:ec2/instance:Instance", "inputs": map[string]any{"instanceType": "t3.large", "region": "us-east-1"}}
+			after = map[string]any{
+				"urn":    urn,
+				"type":   "aws:ec2/instance:Instance",
+				"inputs": map[string]any{"instanceType": "t3.large", "region": "us-east-1"},
+			}
 		}
-		steps = append(steps, map[string]any{"urn": urn, "type": "aws:ec2/instance:Instance", "op": op, "oldState": old, "newState": after})
+		steps = append(
+			steps,
+			map[string]any{
+				"urn":      urn,
+				"type":     "aws:ec2/instance:Instance",
+				"op":       op,
+				"oldState": old,
+				"newState": after,
+			},
+		)
 	}
 	state, err := json.Marshal(map[string]any{"version": 3, "deployment": map[string]any{"resources": resources}})
 	require.NoError(t, err)
@@ -1245,12 +1277,19 @@ func TestWebUIOverviewPresentation(t *testing.T) {
 	require.NoError(t, os.WriteFile(planPath, plan, 0o600))
 	s := f.start(t, planPath, false, "WEB_AUTO_DETECT=true", "WEB_RICH_PRESENTATION=true", "WEB_STATE="+statePath)
 	page := webPage(t, browser, s, playwright.ColorSchemeLight)
-	webWait(t, page, `() => { const list = document.querySelector('.phase-checklist'); return !!list && list.hidden && document.querySelectorAll('.resource-link').length === 2 }`)
+	webWait(
+		t,
+		page,
+		`() => { const list = document.querySelector('.phase-checklist'); return !!list && list.hidden && document.querySelectorAll('.resource-link').length === 2 }`,
+	)
 	for _, name := range []string{"updated", "active"} {
 		urn := "urn:pulumi:dev::test::aws:ec2/instance:Instance::" + name
 		resource := s.query(t, "/api/overview/resource?urn="+url.QueryEscape(urn), nil)
 		display := resource["display"].(map[string]any)
-		require.NoError(t, page.Locator(".resource-link").Filter(playwright.LocatorFilterOptions{HasText: name}).Click())
+		require.NoError(
+			t,
+			page.Locator(".resource-link").Filter(playwright.LocatorFilterOptions{HasText: name}).Click(),
+		)
 		webWait(t, page, `() => document.querySelector('.detail-panel .detail-header') !== null`)
 		detail, readErr := page.Locator(".detail-panel").TextContent()
 		require.NoError(t, readErr)
@@ -1362,7 +1401,11 @@ func TestWebUIConfigEditKeepsProjectComment(t *testing.T) {
 	assert.NotContains(t, mustText(t, page, "#config-preview-dialog"), "stored-secret")
 	webTab(t, page, "#config-confirm")
 	require.NoError(t, page.Keyboard().Press("Enter"))
-	webWait(t, page, `() => document.querySelector('#config-message')?.textContent?.includes('does not reload') && document.querySelector('#config-output-precision')?.value === '4'`)
+	webWait(
+		t,
+		page,
+		`() => document.querySelector('#config-message')?.textContent?.includes('does not reload') && document.querySelector('#config-output-precision')?.value === '4'`,
+	)
 
 	data, err := os.ReadFile(projectConfig)
 	require.NoError(t, err)

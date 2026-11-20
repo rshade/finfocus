@@ -3,7 +3,7 @@
 └───────────────────────┘
 
 Provider: aws
-Type: aws:rds/instance:Instance
+Type: aws:ec2/vpc:Vpc
 ID: urn:golden
 
 Baseline:  $0.00/mo (USD)
@@ -15,12 +15,11 @@ Property Changes:
 ------------------------------------------------------------
   Property             Original        Modified        Δ Cost
                                                              
-→ engine              mysql          mysql          
-  instanceClass       db.t3.micro    db.t3.micro    
+→ cidrBlock           10.0.0.0/16    10.0.0.0/16    
 
 
 Read-only:
-  arn: arn:aws:rds:us-east-1:1:db:x
+  arn: arn:aws:ec2:us-east-1:1:vpc/vpc-1
 
 Pricing inputs are not curated for this resource type; all safe properties are shown.
 

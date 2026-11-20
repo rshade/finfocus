@@ -186,7 +186,9 @@ func TestEstimateHTTPRecalculateParityAndRedaction(t *testing.T) {
 	require.Equal(t, 200, resp.StatusCode)
 	raw, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	for _, secret := range []string{"credential-value", "projected-credential", "new-credential", "secret-value", "projected-secret", "new-secret"} {
+	for _, secret := range []string{
+		"credential-value", "projected-credential", "new-credential", "secret-value", "projected-secret", "new-secret",
+	} {
 		assert.NotContains(t, string(raw), secret)
 	}
 	var got engine.EstimateResult
@@ -210,6 +212,7 @@ func TestEstimateHTTPRecalculateParityAndRedaction(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(raw, &display))
 	require.Len(t, display.Display.Properties, 2)
+	assert.Equal(t, "verbatim", display.Display.Properties[1].Key)
 	assert.Equal(t, "  exact\tvalue  ", display.Display.Properties[1].CurrentValue)
 	assert.InDelta(t, 30.0, got.TotalChange, 1e-9)
 	assert.InDelta(t, 1.0, resource.Properties["size"], 1e-9, "source maps remain immutable")
@@ -315,10 +318,10 @@ func TestEstimateHTTPUnchangedOverridesAndSecretDeltas(t *testing.T) {
 		if tc.key == "verbatim" {
 			require.Len(t, got.Deltas, 1)
 			assert.Equal(t, tc.value, got.Deltas[0].NewValue)
-		} else {
-			assert.Empty(t, got.Deltas)
-			assert.NotContains(t, string(raw), tc.value)
+			continue
 		}
+		assert.Empty(t, got.Deltas)
+		assert.NotContains(t, string(raw), tc.value)
 	}
 	session.Ready(
 		[]engine.OverviewRow{
@@ -754,6 +757,7 @@ type ec2EstimatePlugin struct {
 
 	failure error
 	calls   atomic.Int32
+	seen    atomic.Value
 }
 
 func (p *ec2EstimatePlugin) GetPricingSpec(
@@ -777,6 +781,13 @@ func (p *ec2EstimatePlugin) EstimateCost(
 	_ ...grpc.CallOption,
 ) (*pbc.EstimateCostResponse, error) {
 	p.calls.Add(1)
+	if attrs := request.GetAttributes(); attrs != nil {
+		copied := make(map[string]any, len(attrs.AsMap()))
+		for key, value := range attrs.AsMap() {
+			copied[key] = value
+		}
+		p.seen.Store(copied)
+	}
 	if p.failure != nil {
 		return nil, p.failure
 	}
@@ -869,10 +880,10 @@ func TestEstimateHTTPOrdersPricingInputsFirstOnBothPaths(t *testing.T) {
 
 	wantShape := []estimatePlanShape{
 		{"instanceType", viewmodel.PropertyClassPricing, true},
-		{"tenancy", viewmodel.PropertyClassPricing, true},
 		{"monthlyHours", viewmodel.PropertyClassPricing, true},
 		{"ami", viewmodel.PropertyClassOther, false},
 		{"subnetId", viewmodel.PropertyClassOther, false},
+		{"tenancy", viewmodel.PropertyClassOther, false},
 	}
 	assert.Equal(t, wantShape[:1], planShape(baseline.Display)[:1], "SC-001: instanceType is the first row")
 	assert.Equal(t, wantShape, planShape(baseline.Display))
@@ -880,7 +891,7 @@ func TestEstimateHTTPOrdersPricingInputsFirstOnBothPaths(t *testing.T) {
 		"discovery runs on both paths, so both classify alike")
 	assert.True(t, baseline.Display.Curated)
 	assert.Empty(t, baseline.Display.Note)
-	assert.Equal(t, viewmodel.ProvenanceUsage, baseline.Display.Properties[2].Provenance)
+	assert.Equal(t, viewmodel.ProvenanceUsage, baseline.Display.Properties[1].Provenance)
 	assert.Equal(t, []viewmodel.EstimateDetail{
 		{Key: "arn", Value: "arn:aws:ec2:us-east-1:1:instance/i-1"},
 		{Key: "pulumi:cloudId", Value: "i-1"},
@@ -925,10 +936,10 @@ func TestEstimateHTTPBaselineFailureKeepsThePlan(t *testing.T) {
 	}
 	assert.Equal(t, []estimatePlanShape{
 		{"instanceType", viewmodel.PropertyClassPricing, true},
-		{"tenancy", viewmodel.PropertyClassPricing, true},
 		{"monthlyHours", viewmodel.PropertyClassPricing, true},
 		{"ami", viewmodel.PropertyClassOther, false},
 		{"subnetId", viewmodel.PropertyClassOther, false},
+		{"tenancy", viewmodel.PropertyClassOther, false},
 	}, planShape(got.Display))
 }
 
@@ -942,11 +953,11 @@ func TestEstimateHTTPFallsBackWhenInputsAreNotCurated(t *testing.T) {
 	}{
 		{
 			name:         "unknown type",
-			resourceType: "aws:rds/instance:Instance",
+			resourceType: "aws:ec2/vpc:Vpc",
 			props: map[string]any{
-				"instanceClass":    "db.t3.micro",
-				"engine":           "mysql",
-				"allocatedStorage": float64(20),
+				"cidrBlock":        "10.0.0.0/16",
+				"enableDnsSupport": true,
+				"tags":             map[string]any{"Name": "net"},
 			},
 			wantRows: 3,
 		},
@@ -1070,4 +1081,89 @@ func TestEstimateHTTPAllowsEditableOverridesThatLookLikeIdentity(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.NotZero(t, plugin.calls.Load())
+}
+
+func estimateServerNamed(
+	t *testing.T, name string, plugin *ec2EstimatePlugin, resource *engine.ResourceDescriptor,
+) *Server {
+	t.Helper()
+	eng := engine.New([]*pluginhost.Client{{Name: name, API: plugin}}, nil)
+	session := NewSession(
+		context.Background(),
+		SessionOptions{EstimateResources: func(context.Context) ([]engine.ResourceDescriptor, error) {
+			return []engine.ResourceDescriptor{*resource}, nil
+		}},
+	)
+	session.SetData(eng, nil, engine.DateRange{}, "")
+	return newRunningServer(t, Options{Session: session})
+}
+
+func TestEstimateHTTPUsageRowReachesTheEngine(t *testing.T) {
+	t.Parallel()
+	plugin := &ec2EstimatePlugin{}
+	resource := &engine.ResourceDescriptor{
+		ID: "urn:fn", Type: "aws:lambda/function:Function", Provider: "aws",
+		Properties: map[string]any{"memorySize": float64(128)},
+	}
+	s := estimateServerNamed(t, "aws-public", plugin, resource)
+
+	baseline := overviewRequest(t, s, "GET", "/api/estimate/baseline?urn=urn:fn", "")
+	require.Equal(t, http.StatusOK, baseline.StatusCode)
+	var got struct {
+		Display viewmodel.EstimateDisplay `json:"display"`
+	}
+	require.NoError(t, json.NewDecoder(baseline.Body).Decode(&got))
+	var usage viewmodel.EstimateProperty
+	for _, property := range got.Display.Properties {
+		if property.Key == "requestsPerMonth" {
+			usage = property
+		}
+	}
+	assert.True(t, usage.Usage)
+	assert.Empty(t, usage.OriginalValue)
+	assert.True(t, usage.DefaultVisible)
+	assert.Equal(t, "memorySize", got.Display.Properties[0].Key)
+
+	recalc := overviewRequest(t, s, "POST", "/api/estimate/recalculate",
+		`{"urn":"urn:fn","overrides":{"requestsPerMonth":"1000000"}}`)
+	require.Equal(t, http.StatusOK, recalc.StatusCode)
+	seen, _ := plugin.seen.Load().(map[string]any)
+	assert.Equal(t, "1000000", seen["requestsPerMonth"])
+}
+
+func TestEstimateHTTPOtherPluginDropsUsageRows(t *testing.T) {
+	t.Parallel()
+	ec2 := &engine.ResourceDescriptor{
+		ID: "urn:ec2", Type: ec2EstimateType, Provider: "aws",
+		Properties: map[string]any{"instanceType": "t3.micro", "ami": "ami-1"},
+	}
+	s := estimateServerNamed(t, "civo-public", &ec2EstimatePlugin{}, ec2)
+	resp := overviewRequest(t, s, "GET", "/api/estimate/baseline?urn=urn:ec2", "")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var got struct {
+		Display viewmodel.EstimateDisplay `json:"display"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+	assert.Equal(t, "instanceType", got.Display.Properties[0].Key)
+	assert.Equal(t, viewmodel.PropertyClassPricing, got.Display.Properties[0].Class)
+	for _, property := range got.Display.Properties {
+		assert.NotEqual(t, "tenancy", property.Key)
+	}
+	assert.True(t, got.Display.Curated)
+
+	bucket := &engine.ResourceDescriptor{
+		ID: "urn:bucket", Type: "aws:s3/bucket:Bucket", Provider: "aws",
+		Properties: map[string]any{"acl": "private"},
+	}
+	bucketServer := estimateServerNamed(t, "civo-public", &ec2EstimatePlugin{}, bucket)
+	bucketResp := overviewRequest(t, bucketServer, "GET", "/api/estimate/baseline?urn=urn:bucket", "")
+	require.Equal(t, http.StatusOK, bucketResp.StatusCode)
+	var bucketGot struct {
+		Display viewmodel.EstimateDisplay `json:"display"`
+	}
+	require.NoError(t, json.NewDecoder(bucketResp.Body).Decode(&bucketGot))
+	assert.False(t, bucketGot.Display.Curated)
+	assert.Equal(t, viewmodel.EstimateFallbackNote, bucketGot.Display.Note)
+	require.Len(t, bucketGot.Display.Properties, 1)
+	assert.True(t, bucketGot.Display.Properties[0].DefaultVisible)
 }

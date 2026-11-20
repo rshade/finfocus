@@ -53,7 +53,9 @@ func planFor(resourceType string, props map[string]any, overrides map[string]str
 		context.Background(),
 		&engine.ResourceDescriptor{Type: resourceType, Properties: props},
 		overrides,
-		hints,
+		NewEstimateInputContext(engine.PricingDiscovery{Modes: []engine.PricingMode{{
+			Plugin: "aws-public", BillingMode: "per_hour", MetricHints: hints,
+		}}}, ""),
 	)
 }
 
@@ -78,52 +80,60 @@ func TestBuildEstimatePropertyPlanReviewedOrder(t *testing.T) {
 			wantOther:   []string{"ami", "subnetId"},
 		},
 		{
-			name:         "an absent reviewed key makes no row",
+			name:         "an absent sku makes no row and an absent plugin-input is a usage row",
 			resourceType: ec2Type,
 			props:        map[string]any{"instanceType": "t3.micro", "ami": "ami-1"},
-			wantPricing:  []string{"instanceType"},
+			wantPricing:  []string{"instanceType", "tenancy"},
 			wantOther:    []string{"ami"},
 		},
 		{
+			// Pulumi names the EBS volume type `type`; core reads it as the SKU.
 			name:         "ebs volume",
 			resourceType: "aws:ebs/volume:Volume",
-			props:        map[string]any{"size": 100, "volumeType": "gp3", "encrypted": true},
-			wantPricing:  []string{"volumeType", "size"},
+			props:        map[string]any{"size": 100, "type": "gp3", "encrypted": true},
+			wantPricing:  []string{"type", "size"},
 			wantOther:    []string{"encrypted"},
 		},
 		{
 			name:         "lambda function",
 			resourceType: "aws:lambda/function:Function",
 			props:        map[string]any{"memorySize": 256, "handler": "main", "architectures": []any{"arm64"}},
-			wantPricing:  []string{"memorySize", "architectures"},
+			wantPricing:  []string{"memorySize", "architectures", "requestsPerMonth", "avgDurationMs"},
 			wantOther:    []string{"handler"},
 		},
 		{
 			name:         "dynamodb table",
 			resourceType: "aws:dynamodb/table:Table",
 			props:        map[string]any{"billingMode": "PROVISIONED", "readCapacity": 5, "hashKey": "id"},
-			wantPricing:  []string{"billingMode", "readCapacity"},
-			wantOther:    []string{"hashKey"},
+			wantPricing: []string{
+				"billingMode",
+				"readCapacity",
+				"writeCapacity",
+				"storageGb",
+				"readRequestsPerMonth",
+				"writeRequestsPerMonth",
+			},
+			wantOther: []string{"hashKey"},
 		},
 		{
 			name:         "lb load balancer",
 			resourceType: "aws:lb/loadBalancer:LoadBalancer",
 			props:        map[string]any{"loadBalancerType": "application", "internal": false},
-			wantPricing:  []string{"loadBalancerType"},
+			wantPricing:  []string{"loadBalancerType", "lcuPerHour", "nlcuPerHour", "capacityUnits"},
 			wantOther:    []string{"internal"},
 		},
 		{
 			name:         "alb maps like lb",
 			resourceType: "aws:alb/loadBalancer:LoadBalancer",
 			props:        map[string]any{"loadBalancerType": "network", "internal": false},
-			wantPricing:  []string{"loadBalancerType"},
+			wantPricing:  []string{"loadBalancerType", "lcuPerHour", "nlcuPerHour", "capacityUnits"},
 			wantOther:    []string{"internal"},
 		},
 		{
 			name:         "elasticache cluster",
 			resourceType: "aws:elasticache/cluster:Cluster",
 			props:        map[string]any{"nodeType": "cache.t3.micro", "numCacheNodes": 2, "port": 6379},
-			wantPricing:  []string{"nodeType", "numCacheNodes"},
+			wantPricing:  []string{"nodeType", "numCacheNodes", "engine"},
 			wantOther:    []string{"port"},
 		},
 		{
@@ -192,13 +202,8 @@ func TestBuildEstimatePropertyPlanFallback(t *testing.T) {
 	}{
 		{
 			name:         "unknown type",
-			resourceType: "aws:rds/instance:Instance",
-			props:        map[string]any{"instanceClass": "db.t3.micro", "engine": "mysql"},
-		},
-		{
-			name:         "mapped type with no reviewed key",
-			resourceType: ec2Type,
-			props:        map[string]any{"ami": "ami-1", "subnetId": "subnet-1"},
+			resourceType: "aws:ec2/vpc:Vpc",
+			props:        map[string]any{"cidrBlock": "10.0.0.0/16"},
 		},
 		{
 			name:         "empty type",
@@ -265,7 +270,7 @@ func TestBuildEstimatePropertyPlanIdentity(t *testing.T) {
 	plan := planFor(ec2Type, props, nil, nil)
 
 	assert.Equal(t, wantIdentity, detailKeys(plan.Details))
-	assert.Equal(t, []string{"instanceType", "subnetId", "tags"}, planKeys(plan.Rows))
+	assert.Equal(t, []string{"instanceType", "tenancy", "subnetId", "tags"}, planKeys(plan.Rows))
 	for _, detail := range plan.Details {
 		assert.NotContains(t, planKeys(plan.Rows), detail.Key)
 	}
@@ -285,7 +290,8 @@ func TestBuildEstimatePropertyPlanIdentityIsExact(t *testing.T) {
 	plan := planFor(ec2Type, props, nil, nil)
 
 	assert.Empty(t, plan.Details)
-	assert.Len(t, plan.Rows, len(props))
+	assert.Len(t, plan.Rows, len(props)+1)
+	assert.True(t, rowByKey(t, plan.Rows, "tenancy").Usage)
 }
 
 func TestBuildEstimatePropertyPlanIdentityOnlyDescriptor(t *testing.T) {
@@ -293,9 +299,11 @@ func TestBuildEstimatePropertyPlanIdentityOnlyDescriptor(t *testing.T) {
 
 	plan := planFor("aws:s3/bucket:Bucket", map[string]any{"arn": "a", "id": "b"}, nil, nil)
 
-	assert.False(t, plan.Curated)
-	assert.Equal(t, EstimateFallbackNote, plan.Note)
-	assert.Empty(t, plan.Rows)
+	assert.True(t, plan.Curated)
+	assert.Empty(t, plan.Note)
+	require.Len(t, plan.Rows, 1)
+	assert.True(t, plan.Rows[0].Usage)
+	assert.Equal(t, "storageClass", plan.Rows[0].Key)
 	assert.Equal(t, []string{"arn", "id"}, detailKeys(plan.Details))
 }
 
@@ -331,7 +339,7 @@ func TestBuildEstimatePropertyPlanOverrides(t *testing.T) {
 		assert.False(t, ami.DefaultVisible)
 	})
 
-	t.Run("an override naming a property the descriptor lacks makes no row", func(t *testing.T) {
+	t.Run("an override naming a property the descriptor lacks stays visible", func(t *testing.T) {
 		t.Parallel()
 
 		props := map[string]any{"instanceType": "t3.micro", "ami": "ami-1"}
@@ -339,7 +347,11 @@ func TestBuildEstimatePropertyPlanOverrides(t *testing.T) {
 
 		plan := planFor(ec2Type, props, overrides, nil)
 
-		assert.Equal(t, []string{"instanceType", "ami"}, planKeys(plan.Rows))
+		assert.Equal(t, []string{"instanceType", "tenancy", "ami", "ebsOptimized"}, planKeys(plan.Rows))
+		row := rowByKey(t, plan.Rows, "ebsOptimized")
+		assert.Equal(t, PropertyClassOther, row.Class)
+		assert.True(t, row.Overridden)
+		assert.True(t, row.DefaultVisible)
 		assert.Empty(t, plan.Details)
 		require.NoError(t, RejectIdentityOverrides(overrides))
 	})
@@ -355,7 +367,7 @@ func TestBuildEstimatePropertyPlanUsageHints(t *testing.T) {
 
 		plan := planFor(ec2Type, props, nil, []engine.PricingMetricHint{{Metric: "monthlyHours", Unit: "hour"}})
 
-		assert.Equal(t, []string{"instanceType", "monthlyHours", "Monthly", "ami"}, planKeys(plan.Rows))
+		assert.Equal(t, []string{"instanceType", "monthlyHours", "tenancy", "Monthly", "ami"}, planKeys(plan.Rows))
 		usage := rowByKey(t, plan.Rows, "monthlyHours")
 		assert.Equal(t, PropertyClassPricing, usage.Class)
 		assert.Equal(t, ProvenanceUsage, usage.Provenance)
@@ -389,14 +401,14 @@ func TestBuildEstimatePropertyPlanUsageHints(t *testing.T) {
 			[]engine.PricingMetricHint{{Metric: "arn"}})
 
 		assert.Equal(t, []string{"arn"}, detailKeys(plan.Details))
-		assert.Equal(t, []string{"instanceType"}, planKeys(plan.Rows))
+		assert.Equal(t, []string{"instanceType", "tenancy"}, planKeys(plan.Rows))
 	})
 
 	t.Run("a hint on an unmapped type does not make it curated", func(t *testing.T) {
 		t.Parallel()
 
-		plan := planFor("aws:rds/instance:Instance", map[string]any{"engine": "mysql"}, nil,
-			[]engine.PricingMetricHint{{Metric: "engine"}})
+		plan := planFor("aws:ec2/vpc:Vpc", map[string]any{"cidrBlock": "10.0.0.0/16"}, nil,
+			[]engine.PricingMetricHint{{Metric: "cidrBlock"}})
 
 		assert.False(t, plan.Curated)
 		assert.Equal(t, EstimateFallbackNote, plan.Note)
@@ -439,10 +451,11 @@ func TestBuildEstimatePropertyPlanCoversRedactedInput(t *testing.T) {
 		"id": "i-1", "arn": "a", "pulumi:urn": "u", "terraform:id": "t",
 		"password": "p", "__defaults": []any{},
 	}
-	want := make([]string, 0, len(props))
+	want := make([]string, 0, len(props)+1)
 	for key := range engine.RedactedProperties(context.Background(), props) {
 		want = append(want, key)
 	}
+	want = append(want, "tenancy")
 	sort.Strings(want)
 
 	plan := planFor(ec2Type, props, nil, nil)
@@ -458,7 +471,7 @@ func TestBuildEstimatePropertyPlanNilAndEmpty(t *testing.T) {
 	t.Run("nil resource", func(t *testing.T) {
 		t.Parallel()
 
-		plan := BuildEstimatePropertyPlan(context.Background(), nil, nil, nil)
+		plan := BuildEstimatePropertyPlan(context.Background(), nil, nil, EstimateInputContext{})
 
 		assert.Empty(t, plan.Rows)
 		assert.Empty(t, plan.Details)
@@ -470,10 +483,198 @@ func TestBuildEstimatePropertyPlanNilAndEmpty(t *testing.T) {
 
 		plan := planFor(ec2Type, nil, nil, nil)
 
-		assert.Empty(t, plan.Rows)
+		require.Len(t, plan.Rows, 1)
+		assert.True(t, plan.Rows[0].Usage)
+		assert.Equal(t, "tenancy", plan.Rows[0].Key)
 		assert.Empty(t, plan.Details)
-		assert.False(t, plan.Curated)
-		assert.Equal(t, EstimateFallbackNote, plan.Note)
+		assert.True(t, plan.Curated)
+		assert.Empty(t, plan.Note)
+	})
+}
+
+func awsContext(plugin, modeID string, hints []engine.PricingMetricHint) EstimateInputContext {
+	return NewEstimateInputContext(engine.PricingDiscovery{Modes: []engine.PricingMode{{
+		Plugin: plugin, BillingMode: "per_hour", MetricHints: hints,
+	}}}, modeID)
+}
+
+func TestBuildEstimatePropertyPlanUsageRowsAndPluginScope(t *testing.T) {
+	t.Parallel()
+
+	t.Run("absent plugin-input is an empty usage row in mapping order", func(t *testing.T) {
+		t.Parallel()
+
+		lambda := planFor("aws:lambda/function:Function", map[string]any{"memorySize": float64(128)}, nil, nil)
+		requests := rowByKey(t, lambda.Rows, "requestsPerMonth")
+		assert.Equal(
+			t,
+			[]string{"memorySize", "architectures", "requestsPerMonth", "avgDurationMs"},
+			planKeys(lambda.Rows)[:4],
+		)
+		assert.True(t, requests.Usage)
+		assert.Empty(t, requests.OriginalValue)
+		assert.Empty(t, requests.CurrentValue)
+		assert.True(t, requests.Editable)
+		assert.True(t, requests.DefaultVisible)
+		assert.False(t, requests.Overridden)
+		assert.Equal(t, PropertyClassPricing, requests.Class)
+		assert.True(t, lambda.Curated)
+		assert.Empty(t, lambda.Note)
+
+		bucket := planFor("aws:s3/bucket:Bucket", map[string]any{"acl": "private"}, nil, nil)
+		storage := rowByKey(t, bucket.Rows, "storageClass")
+		assert.Equal(t, "storageClass", bucket.Rows[0].Key)
+		assert.True(t, storage.Usage)
+		assert.True(t, bucket.Curated)
+	})
+
+	t.Run("a filled usage value is an override and an empty one is not", func(t *testing.T) {
+		t.Parallel()
+
+		filled := planFor("aws:lambda/function:Function", nil, map[string]string{"requestsPerMonth": "1000000"}, nil)
+		row := rowByKey(t, filled.Rows, "requestsPerMonth")
+		assert.Equal(t, "1000000", row.CurrentValue)
+		assert.True(t, row.Overridden)
+		assert.True(t, row.Usage)
+
+		empty := planFor("aws:lambda/function:Function", nil, map[string]string{"requestsPerMonth": ""}, nil)
+		cleared := rowByKey(t, empty.Rows, "requestsPerMonth")
+		assert.Empty(t, cleared.CurrentValue)
+		assert.False(t, cleared.Overridden)
+	})
+
+	t.Run("an absent sku or region makes no row", func(t *testing.T) {
+		t.Parallel()
+
+		plan := planFor(ec2Type, map[string]any{"instanceType": "t3.micro"}, nil, nil)
+		assert.NotContains(t, planKeys(plan.Rows), "region")
+		assert.NotContains(t, planKeys(plan.Rows), "availabilityZone")
+	})
+
+	t.Run("another plugin drops plugin-input rows and keeps the sku", func(t *testing.T) {
+		t.Parallel()
+
+		mode := (&engine.PricingMode{Plugin: "civo-public", BillingMode: "per_hour"}).ID()
+		input := awsContext("civo-public", mode, nil)
+		plan := BuildEstimatePropertyPlan(context.Background(), &engine.ResourceDescriptor{
+			Type: ec2Type, Properties: map[string]any{"instanceType": "t3.micro", "tenancy": "default", "ami": "ami-1"},
+		}, nil, input)
+
+		assert.Equal(t, PropertyClassPricing, rowByKey(t, plan.Rows, "instanceType").Class)
+		assert.Equal(t, PropertyClassOther, rowByKey(t, plan.Rows, "tenancy").Class)
+		assert.False(t, rowByKey(t, plan.Rows, "tenancy").Usage)
+		assert.True(t, plan.Curated)
+	})
+
+	t.Run("automatic applies a discovered aws-public plugin", func(t *testing.T) {
+		t.Parallel()
+
+		input := awsContext("finfocus-plugin-aws-public", "", nil)
+		plan := BuildEstimatePropertyPlan(context.Background(), &engine.ResourceDescriptor{
+			Type: "aws:s3/bucket:Bucket", Properties: map[string]any{"acl": "private"},
+		}, nil, input)
+
+		assert.True(t, rowByKey(t, plan.Rows, "storageClass").Usage)
+		assert.True(t, plan.Curated)
+	})
+
+	t.Run("empty discovery keeps only sku and region rows", func(t *testing.T) {
+		t.Parallel()
+
+		ec2 := BuildEstimatePropertyPlan(context.Background(), &engine.ResourceDescriptor{
+			Type: ec2Type, Properties: map[string]any{"instanceType": "t3.micro", "tenancy": "default"},
+		}, nil, EstimateInputContext{})
+		assert.Equal(t, PropertyClassPricing, rowByKey(t, ec2.Rows, "instanceType").Class)
+		assert.Equal(t, PropertyClassOther, rowByKey(t, ec2.Rows, "tenancy").Class)
+		assert.True(t, ec2.Curated)
+
+		bucket := BuildEstimatePropertyPlan(context.Background(), &engine.ResourceDescriptor{
+			Type: "aws:s3/bucket:Bucket", Properties: map[string]any{"acl": "private"},
+		}, nil, EstimateInputContext{})
+		assert.NotContains(t, planKeys(bucket.Rows), "storageClass")
+		assert.False(t, bucket.Curated)
+		assert.Equal(t, EstimateFallbackNote, bucket.Note)
+	})
+
+	t.Run("an override whose usage row does not apply stays as an edited property", func(t *testing.T) {
+		t.Parallel()
+
+		plan := BuildEstimatePropertyPlan(context.Background(), &engine.ResourceDescriptor{
+			Type: "aws:s3/bucket:Bucket", Properties: map[string]any{"acl": "private"},
+		}, map[string]string{"storageClass": "GLACIER"}, EstimateInputContext{})
+
+		row := rowByKey(t, plan.Rows, "storageClass")
+		assert.Equal(t, PropertyClassOther, row.Class)
+		assert.False(t, row.Usage)
+		assert.True(t, row.Overridden)
+		assert.Equal(t, "GLACIER", row.CurrentValue)
+		assert.True(t, row.DefaultVisible)
+	})
+
+	t.Run("a hidden override key makes no row", func(t *testing.T) {
+		t.Parallel()
+
+		plan := planFor(
+			ec2Type,
+			map[string]any{"instanceType": "t3.micro"},
+			map[string]string{"password": "secret"},
+			nil,
+		)
+		assert.NotContains(t, planKeys(plan.Rows), "password")
+	})
+
+	t.Run("a later present input stays ahead of earlier usage rows", func(t *testing.T) {
+		t.Parallel()
+
+		plan := planFor("aws:lambda/function:Function", map[string]any{
+			"memorySize": float64(128), "avgDurationMs": float64(50),
+		}, nil, nil)
+
+		assert.Equal(
+			t,
+			[]string{"memorySize", "avgDurationMs", "architectures", "requestsPerMonth"},
+			planKeys(plan.Rows),
+		)
+		assert.False(t, rowByKey(t, plan.Rows, "avgDurationMs").Usage)
+		assert.True(t, rowByKey(t, plan.Rows, "architectures").Usage)
+	})
+
+	t.Run("an override of a redacted property makes no row", func(t *testing.T) {
+		t.Parallel()
+
+		plan := planFor(ec2Type, map[string]any{
+			"instanceType": "t3.micro",
+			"private":      map[string]any{pulumiSecret: "1", "ciphertext": "secret-value"},
+		}, map[string]string{"private": "new-secret"}, nil)
+
+		assert.NotContains(t, planKeys(plan.Rows), "private")
+		for _, row := range plan.Rows {
+			assert.NotContains(t, row.CurrentValue, "new-secret")
+			assert.NotContains(t, row.CurrentValue, "secret-value")
+		}
+	})
+
+	t.Run("a usage key is not identity", func(t *testing.T) {
+		t.Parallel()
+
+		require.NoError(
+			t,
+			RejectIdentityOverrides(map[string]string{"requestsPerMonth": "1", "storageClass": "STANDARD"}),
+		)
+	})
+
+	t.Run("rds lists its reviewed keys", func(t *testing.T) {
+		t.Parallel()
+
+		plan := planFor("aws:rds/instance:Instance", map[string]any{
+			"instanceClass": "db.t3.micro", "engine": "mysql", "allocatedStorage": float64(20),
+		}, nil, nil)
+		assert.Equal(t, []string{
+			"instanceClass", "engine", "allocatedStorage", "storageType", "multiAz",
+		}, planKeys(plan.Rows))
+		assert.False(t, rowByKey(t, plan.Rows, "engine").Usage)
+		assert.True(t, rowByKey(t, plan.Rows, "storageType").Usage)
+		assert.True(t, plan.Curated)
 	})
 }
 
@@ -518,6 +719,37 @@ func TestRejectIdentityOverrides(t *testing.T) {
 			for _, value := range tt.overrides {
 				assert.NotContains(t, err.Error(), `"`+value+`"`)
 			}
+		})
+	}
+}
+
+func TestEstimatePropertyRowSetCurrentValue(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		class       PropertyClass
+		curated     bool
+		value       string
+		wantOver    bool
+		wantVisible bool
+	}{
+		{name: "other row edited stays visible", class: PropertyClassOther, curated: true, value: "b", wantOver: true,
+			wantVisible: true},
+		{name: "other row edited back is hidden", class: PropertyClassOther, curated: true, value: "a"},
+		{name: "pricing row is always visible", class: PropertyClassPricing, curated: true, value: "a",
+			wantVisible: true},
+		{name: "uncurated shows every row", class: PropertyClassOther, curated: false, value: "a", wantVisible: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			row := EstimatePropertyRow{Key: "k", OriginalValue: "a", CurrentValue: "z", Class: tt.class}
+			row.SetCurrentValue(tt.value, tt.curated)
+			assert.Equal(t, tt.value, row.CurrentValue)
+			assert.Equal(t, tt.wantOver, row.Overridden)
+			assert.Equal(t, tt.wantVisible, row.DefaultVisible)
 		})
 	}
 }

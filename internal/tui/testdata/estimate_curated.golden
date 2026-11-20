@@ -16,7 +16,6 @@ Property Changes:
   Property             Original        Modified        Δ Cost
                                                              
 → instanceType        t3.micro       t3.micro       
-  tenancy             default        default        
 
 
 Read-only:

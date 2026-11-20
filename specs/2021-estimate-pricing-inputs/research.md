@@ -40,6 +40,9 @@ output, not inputs.
 
 ## R3. Launch type list
 
+> Superseded for RDS by R17: aws-public v0.2.5 prices RDS, and RDS now has a
+> reviewed mapping.
+
 **Decision**: Reviewed mappings for `aws:ec2/instance:Instance`,
 `aws:ebs/volume:Volume`, `aws:lambda/function:Function`,
 `aws:dynamodb/table:Table`, `aws:lb/loadBalancer:LoadBalancer`,
@@ -191,7 +194,7 @@ plugin source at tag `v0.2.5`: `internal/plugin/attr_aliases.go`
 | Type | Reviewed keys (plugin-input unless noted) | Kind |
 | --- | --- | --- |
 | `aws:ec2/instance:Instance` | `instanceType` (sku), `region`, `availabilityZone` (region), `tenancy` | sku, region, plugin-input |
-| `aws:ebs/volume:Volume` | `volumeType` (sku), `size` | sku, plugin-input |
+| `aws:ebs/volume:Volume` | `type` (sku), `size` | sku, plugin-input |
 | `aws:lambda/function:Function` | `memorySize`, `architectures`, `requestsPerMonth`, `avgDurationMs` | plugin-input |
 | `aws:dynamodb/table:Table` | `billingMode`, `readCapacity`, `writeCapacity`, `storageGb`, `readRequestsPerMonth`, `writeRequestsPerMonth` | plugin-input |
 | `aws:lb/loadBalancer:LoadBalancer`, `aws:alb/loadBalancer:LoadBalancer` | `loadBalancerType`, `lcuPerHour`, `nlcuPerHour`, `capacityUnits` | plugin-input |
@@ -200,6 +203,15 @@ plugin source at tag `v0.2.5`: `internal/plugin/attr_aliases.go`
 | `aws:ec2/natGateway:NatGateway` | `dataProcessedGb` | plugin-input |
 
 Findings that change the mapping list T007 implements:
+
+- **EBS SKU is `type`, not `volumeType`.** `volumeType` is the plugin's
+  internal attribute name; a Pulumi `aws:ebs/volume:Volume` input is `type`,
+  which `mapping.ExtractAWSSKU` reads (`instanceType`, `instanceClass`, `type`,
+  then `volumeType`). The T028 render against `../finfocus-demo` showed the
+  volume type hidden behind Show all properties. A live recalculation on that
+  volume moved the monthly cost for `type: io2` and left it unchanged for
+  `volumeType: io2`. Same rule as dropping EC2 `platform`: a reviewed key must
+  be a property the Pulumi program sets.
 
 - **EC2 `platform` is dropped.** The plugin reads a `platform` tag, but
   `aws:ec2/instance:Instance` has no `platform` input (it is an output), so the
@@ -258,3 +270,100 @@ Consequences for R5:
   the policy already does for any absent reviewed key.
 - `createdAt`, `lastModified`, and `ownerId` stay out until a live capture
   shows them, as R5 says.
+
+## R12. Reviewed keys are Pulumi inputs; plugin-only names become usage rows (ISS-001)
+
+- **Decision**: A `sku` or `region` key MUST be a property the Pulumi resource
+  type carries (EBS `type`, not the plugin's `volumeType`). A `plugin-input` key
+  is a name the mapping's plugin reads; when the descriptor lacks it, the
+  policy emits a usage row (spec FR-012). The corrected table:
+
+  | Type | Present-key inputs | Usage rows when absent |
+  | --- | --- | --- |
+  | `aws:ec2/instance:Instance` | `instanceType` (sku), `region`, `availabilityZone` (region), `tenancy` | `tenancy` |
+  | `aws:ebs/volume:Volume` | `type` (sku), `size` | `size` |
+  | `aws:rds/instance:Instance` | `instanceClass` (sku), `region`, `availabilityZone` (region), `engine`, `storageType`, `allocatedStorage`, `multiAz` | the four plugin-input keys |
+  | `aws:lambda/function:Function` | `memorySize`, `architectures` | those two, `requestsPerMonth`, `avgDurationMs` |
+  | `aws:dynamodb/table:Table` | `billingMode`, `readCapacity`, `writeCapacity` | those three, `storageGb`, `readRequestsPerMonth`, `writeRequestsPerMonth` |
+  | `aws:lb/loadBalancer:LoadBalancer`, `aws:alb/…` | `loadBalancerType` | `loadBalancerType`, `lcuPerHour`, `nlcuPerHour`, `capacityUnits` |
+  | `aws:elasticache/cluster:Cluster` | `nodeType`, `numCacheNodes`, `engine` | the same three |
+  | `aws:s3/bucket:Bucket` | none | `storageClass` |
+  | `aws:ec2/natGateway:NatGateway` | none | `dataProcessedGb` |
+
+  Every usage key is a `serviceAliases` entry in aws-public v0.2.5
+  (`internal/plugin/attr_aliases.go`), checked one by one, so each row lands
+  on a key the plugin reads.
+- **Rationale**: The clarification chose usage rows (spec Clarifications,
+  Q1). A key no program can set is reachable only as a row the user fills in.
+- **Alternatives**: Drop plugin-only keys (S3 and NAT lose curation); keep
+  them inert (docs overstate coverage). Both rejected in clarification.
+
+## R13. A usage value reaches the plugin unchanged
+
+- **Decision**: No engine change. `mergePropertiesWithOverrides`
+  (`internal/engine/estimate.go`) already adds an override for an absent key,
+  as a string because `coerceOverrideValue` has no original to copy a type
+  from. Both estimate paths send the merged map: `EstimateCost` and the
+  projected fallback (`estimateSelectedFallback`).
+- **Rationale**: aws-public flattens every attribute to a string
+  (`pricingTags` → `scalarString`) and parses numbers itself
+  (`validateNonNegativeInt64` and friends), and its `EstimateCost` reads
+  attributes "through the same lookup the projected-cost path uses". A string
+  `"1000000"` for `requestsPerMonth` therefore prices.
+- **Check**: an implementation task recalculates a real Lambda or S3
+  descriptor with a usage value and asserts the modified cost moves, the same
+  live proof R10's EBS finding used.
+
+## R14. Which plugin serves the estimate
+
+- **Decision**: An `InputMapping` names its plugin (`aws-public`). The policy
+  receives the plugins the estimate's pricing-spec discovery reports
+  (`engine.PricingDiscovery.Modes[].Plugin`) and the selected mode's plugin
+  (the mode whose `ID()` the request carries; empty for Automatic). The
+  mapping's `plugin-input` and usage rows apply when its plugin is selected,
+  or, under Automatic, when it is among the discovered plugins. `sku` and
+  `region` rows apply regardless.
+- **Plugin names**: `Mode.Plugin` is `pluginhost.Client.Name`, the name the
+  plugin reports (`finfocus-plugin-aws-public`), while the install directory
+  and `plugin list` use `aws-public`. The policy compares after trimming the
+  `finfocus-plugin-` prefix, the same rule `registry/entry.go` uses to derive
+  a plugin name from a repository name.
+- **Determinism (FR-010)**: discovery is the call the estimate already makes,
+  cached per resource type, so the rows are the same on every request for one
+  resource and selection. No new plugin call, no protocol field.
+- **Discovery empty** (no plugin implements `GetPricingSpec`, or it timed
+  out): no plugin serves, so only `sku`/`region` rows apply. EC2, EBS, and RDS
+  stay curated through their SKU key; S3 and NAT take the fallback. Recorded
+  as accepted: the fallback still shows every safe property.
+- **Recommendations** route by capability to every plugin that advertises
+  them and never read this policy (spec Assumptions).
+
+## R15. Rows for overrides the descriptor lacks
+
+- **Decision**: `BuildEstimatePropertyRows` drops an override whose key the
+  descriptor lacks. The policy adds two kinds of such rows:
+  1. A usage row (R12) when its mapping applies, with the override, if any,
+     as its current value.
+  2. An `other`, overridden row for any remaining override key, so an entry
+     made in a usage row survives a mode switch that removes the row (spec
+     edge case, FR-007).
+  Identity keys are rejected before this (FR-006). An override key that
+  `engine.IsHiddenPropertyKey` hides gets no row (FR-009), the same name rule
+  redaction uses.
+- **Invariant change**: rows and details now cover the redacted input keys
+  plus usage keys and non-hidden override keys.
+
+## R16. Terminal mode switch replans
+
+- **Decision**: The terminal always selects a concrete mode once discovery
+  arrives (`pricingModes[pricingMode]`). Selecting another mode now replans
+  with that mode's plugin before recalculating, as discovery arrival already
+  does (`replan`). The web page already re-requests on a mode change and
+  sends its overrides, so the server builds the new rows.
+
+## R17. RDS (corrects R3)
+
+- **Decision**: Add the reviewed RDS mapping in R12's table. R3's premise
+  (RDS is a $0 stub) is superseded by R10: aws-public v0.2.5 `estimateRDS`
+  reads `engine`, the SKU from `instanceClass`, and the aliases `storageType`,
+  `allocatedStorage`, and `multiAz`, all `aws:rds/instance:Instance` inputs.

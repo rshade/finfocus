@@ -5,6 +5,7 @@ package viewmodel
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -41,7 +42,67 @@ const (
 	pulumiNamespace    = "pulumi:"
 	terraformNamespace = "terraform:"
 	typeTokenParts     = 3
+	pluginNamePrefix   = "finfocus-plugin-"
+	noSelectedPlugin   = "\x00"
 )
+
+// EstimateInputContext is what the policy needs beyond the descriptor: the
+// pricing-spec hints and which plugin serves this estimate.
+type EstimateInputContext struct {
+	// Hints are the usage metrics from discovery, in mode order.
+	Hints []engine.PricingMetricHint
+	// Plugins are the discovered plugin names with the finfocus-plugin- prefix
+	// removed. They apply only when no pricing mode is selected.
+	Plugins []string
+	// SelectedPlugin is the selected mode's plugin, trimmed the same way. It is
+	// empty for Automatic. A mode id that does not name a plugin selects none.
+	SelectedPlugin string
+}
+
+// NewEstimateInputContext builds the policy input from the discovery the
+// estimate already ran and the selected pricing-mode id. An empty id is
+// Automatic.
+func NewEstimateInputContext(discovery engine.PricingDiscovery, pricingModeID string) EstimateInputContext {
+	input := EstimateInputContext{Hints: UsageHints(discovery)}
+	seen := make(map[string]struct{}, len(discovery.Modes))
+	for _, mode := range discovery.Modes {
+		name := trimPluginName(mode.Plugin)
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		input.Plugins = append(input.Plugins, name)
+	}
+	if pricingModeID == "" {
+		return input
+	}
+	var pair [2]string
+	name := ""
+	if err := json.Unmarshal([]byte(pricingModeID), &pair); err == nil {
+		name = trimPluginName(pair[0])
+	}
+	if name == "" {
+		name = noSelectedPlugin
+	}
+	input.SelectedPlugin = name
+	return input
+}
+
+func trimPluginName(name string) string {
+	return strings.TrimPrefix(name, pluginNamePrefix)
+}
+
+// pluginServes reports whether the mapping's plugin prices this estimate.
+// A selected mode must name it. Automatic matches any discovered plugin.
+func (c EstimateInputContext) pluginServes(plugin string) bool {
+	if c.SelectedPlugin != "" {
+		return c.SelectedPlugin == plugin
+	}
+	return slices.Contains(c.Plugins, plugin)
+}
 
 // EstimateDetail is one read-only identity row.
 type EstimateDetail struct {
@@ -86,14 +147,15 @@ func RejectIdentityOverrides(overrides map[string]string) error {
 }
 
 // BuildEstimatePropertyPlan redacts the descriptor's properties, then classifies
-// and orders them. Hints are the usage metrics discovered for the type; an empty
-// list claims no usage input. An override naming a property the descriptor lacks
-// makes no row.
+// and orders them. input carries the discovery hints and which plugin serves the
+// estimate. A reviewed plugin-input the descriptor lacks becomes a usage row
+// when that plugin serves. An override for any other absent, non-hidden key
+// becomes an other row so an edit survives a mode change.
 func BuildEstimatePropertyPlan(
 	ctx context.Context,
 	resource *engine.ResourceDescriptor,
 	overrides map[string]string,
-	hints []engine.PricingMetricHint,
+	input EstimateInputContext,
 ) EstimatePropertyPlan {
 	var resourceType string
 	var raw map[string]any
@@ -113,17 +175,21 @@ func BuildEstimatePropertyPlan(
 	}
 	slices.SortFunc(details, func(a, b EstimateDetail) int { return strings.Compare(a.Key, b.Key) })
 
-	rows := BuildEstimatePropertyRows(editable, overrides)
-	classes, curated := classifyRows(resourceType, rows, hints)
+	rows := appendReviewedAbsences(
+		resourceType, BuildEstimatePropertyRows(editable, overrides), overrides, input, removedByRedaction(raw, props),
+	)
+	classes, curated := classifyRows(resourceType, rows, input)
 	for i := range rows {
 		rows[i].Class = classes[rows[i].Key].class
 		rows[i].Provenance = classes[rows[i].Key].provenance
 		rows[i].Editable = true
-		rows[i].Overridden = rows[i].CurrentValue != rows[i].OriginalValue
-		rows[i].DefaultVisible = rows[i].Class == PropertyClassPricing || rows[i].Overridden || !curated
+		rows[i].refreshFlags(curated)
 	}
 	slices.SortStableFunc(rows, func(a, b EstimatePropertyRow) int {
-		return classes[a.Key].rank - classes[b.Key].rank
+		if classes[a.Key].rank != classes[b.Key].rank {
+			return classes[a.Key].rank - classes[b.Key].rank
+		}
+		return strings.Compare(a.Key, b.Key)
 	})
 
 	plan := EstimatePropertyPlan{Rows: rows, Details: details, Curated: curated}
@@ -144,10 +210,79 @@ const (
 	otherRank     = 1 << 20
 )
 
+func removedByRedaction(raw, props map[string]any) map[string]bool {
+	removed := make(map[string]bool)
+	for key := range raw {
+		if _, kept := props[key]; !kept {
+			removed[key] = true
+		}
+	}
+	return removed
+}
+
+func appendReviewedAbsences(
+	resourceType string,
+	rows []EstimatePropertyRow,
+	overrides map[string]string,
+	input EstimateInputContext,
+	redacted map[string]bool,
+) []EstimatePropertyRow {
+	present := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		present[row.Key] = true
+	}
+	if mapped, ok := mappingFor(resourceType); ok && input.pluginServes(mapped.Plugin) {
+		for _, spec := range mapped.Inputs {
+			if spec.Provenance != ProvenancePluginInput || present[spec.Key] || redacted[spec.Key] {
+				continue
+			}
+			current := ""
+			if value, exists := overrides[spec.Key]; exists {
+				current = value
+			}
+			rows = append(rows, EstimatePropertyRow{
+				Key: spec.Key, OriginalValue: "", CurrentValue: current, Usage: true,
+			})
+			present[spec.Key] = true
+		}
+	}
+	for key, value := range overrides {
+		if present[key] || redacted[key] || isIdentityKey(key) || engine.IsHiddenPropertyKey(key) {
+			continue
+		}
+		rows = append(rows, EstimatePropertyRow{Key: key, OriginalValue: "", CurrentValue: value})
+		present[key] = true
+	}
+	return rows
+}
+
+func classifyMappedRows(
+	mapped InputMapping,
+	present, usageRow map[string]bool,
+	serves bool,
+	classes map[string]rowClass,
+) bool {
+	curated := false
+	for rank, spec := range mapped.Inputs {
+		if !present[spec.Key] || (spec.Provenance == ProvenancePluginInput && !serves) {
+			continue
+		}
+		// Present pricing inputs keep mapping order. Usage rows follow them,
+		// still in mapping order (FR-012).
+		rowRank := rank
+		if usageRow[spec.Key] {
+			rowRank = usageRankBase + rank + 1
+		}
+		classes[spec.Key] = rowClass{class: PropertyClassPricing, provenance: spec.Provenance, rank: rowRank}
+		curated = true
+	}
+	return curated
+}
+
 func classifyRows(
 	resourceType string,
 	rows []EstimatePropertyRow,
-	hints []engine.PricingMetricHint,
+	input EstimateInputContext,
 ) (map[string]rowClass, bool) {
 	present := make(map[string]bool, len(rows))
 	for _, row := range rows {
@@ -155,15 +290,16 @@ func classifyRows(
 	}
 	classes := make(map[string]rowClass, len(rows))
 	curated := false
-	if mapped, ok := mappingFor(resourceType); ok {
-		for rank, input := range mapped.Inputs {
-			if present[input.Key] {
-				classes[input.Key] = rowClass{class: PropertyClassPricing, provenance: input.Provenance, rank: rank}
-				curated = true
-			}
+	usageRow := make(map[string]bool)
+	for _, row := range rows {
+		if row.Usage {
+			usageRow[row.Key] = true
 		}
 	}
-	for _, hint := range hints {
+	if mapped, ok := mappingFor(resourceType); ok {
+		curated = classifyMappedRows(mapped, present, usageRow, input.pluginServes(mapped.Plugin), classes)
+	}
+	for _, hint := range input.Hints {
 		if _, claimed := classes[hint.Metric]; present[hint.Metric] && !claimed {
 			classes[hint.Metric] = rowClass{
 				class:      PropertyClassPricing,

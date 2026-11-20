@@ -241,12 +241,14 @@ the TUI and browser; JavaScript renders their financial strings verbatim.
 
 `display` contains server-formatted `baseline`, `modified`, `change`, `arrow`,
 and `properties: [{ key, originalValue, currentValue, delta, class, provenance,
-editable, defaultVisible, overridden }]`, plus `details: [{ key, value }]`,
-`curated`, and `note` (spec 2021, additive). `viewmodel.BuildEstimatePropertyPlan`
-builds them, through `viewmodel.BuildEstimateDisplay` on both paths and through
+editable, defaultVisible, overridden, usage }]`, plus `details: [{ key, value }]`,
+`curated`, and `note` (spec 2021, additive). `usage` marks a reviewed
+plugin-input the resource does not carry. `viewmodel.NewEstimateInputContext`
+turns `(*engine.Engine).DiscoverPricingSpec` and the selected pricing mode into
+the hints and plugin scope. `viewmodel.BuildEstimatePropertyPlan`
+builds the rows, through `viewmodel.BuildEstimateDisplay` on both paths and through
 `baselineFailureDisplay` on a failed baseline. It redacts with
-`engine.RedactedProperties` and takes the usage hints of
-`(*engine.Engine).DiscoverPricingSpec`, which now runs before `display` on the
+`engine.RedactedProperties`. Discovery runs before `display` on the
 baseline and the recalculate path. `viewmodel.RejectIdentityOverrides` backs the
 `400` / `identity_override` answer on recalculate. See
 [specs/2021-estimate-pricing-inputs/contracts/http-api.md](../../2021-estimate-pricing-inputs/contracts/http-api.md).

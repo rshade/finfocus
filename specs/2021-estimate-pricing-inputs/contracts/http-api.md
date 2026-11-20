@@ -11,7 +11,9 @@ and one new rejection. The page computes no classification.
 
 | Method | Called by | Purpose |
 | --- | --- | --- |
-| `viewmodel.BuildEstimatePropertyPlan` | `viewmodel.BuildEstimateDisplay`, `baselineFailureDisplay`, `tui.EstimateModel.initializeProperties` | Classify, order, and tag rows; build details and note |
+| `viewmodel.BuildEstimatePropertyPlan` | `viewmodel.BuildEstimateDisplay`, `baselineFailureDisplay`, `tui.EstimateModel.initializeProperties` | Classify, order, and tag rows, including usage rows; build details and note |
+| `viewmodel.NewEstimateInputContext` | `Server.serveEstimate`, `baselineFailureDisplay`, `tui.EstimateModel` (on discovery and on a mode switch) | Hints, discovered plugins, and the selected mode's plugin (research R14) |
+| `viewmodel.EstimatePropertyRow.SetCurrentValue` | the plan builder, `tui.EstimateModel` edit commit | One rule for `overridden` and `defaultVisible` |
 | `viewmodel.BuildEstimateDisplay` | `Server.serveEstimate` (baseline and recalculate) | Fill `display`, now including the plan |
 | `viewmodel.RejectIdentityOverrides` | `Server.handleEstimateRecalculate`, `tui.EstimateModel` before recalculation | Refuse identity keys (takes the override map only) |
 | exported form of `engine.redactedProperties` | `BuildEstimatePropertyPlan` | Redaction on both transports, no size cap (research R9) |
@@ -30,15 +32,25 @@ and one new rejection. The page computes no classification.
 | `editable` | bool | Always true for rows in this list |
 | `defaultVisible` | bool | Show without Show all properties |
 | `overridden` | bool | `currentValue` differs from `originalValue` |
+| `usage` | bool | A usage row: a reviewed `plugin-input` key the resource lacks. `originalValue` is `""`; the row is editable and default-visible |
 
-Order: pricing inputs in mapping order, then other rows sorted by key.
+Order: pricing inputs in mapping order (usage rows take their mapping position
+after the present keys), then other rows sorted by key.
+
+Which rows appear depends on the selected `pricingMode`: a mapping's
+`plugin-input` and usage rows appear only when the mapping's plugin
+(`aws-public`) serves the estimate, meaning it is the selected mode's plugin,
+or, with no mode selected, one of the plugins the discovery reports. `sku` and
+`region` rows appear for every mode. An override whose key the resource lacks
+and whose usage row does not apply still has a row (`class: other`,
+`overridden: true`), unless the key is identity (rejected) or hidden.
 
 ## `display` (additive)
 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `details` | `[{key, value}]` | Read-only identity metadata, sorted by key |
-| `curated` | bool | The type has a mapping with at least one reviewed key present |
+| `curated` | bool | The type has a mapping and at least one reviewed row applies: a present `sku` or `region` key, a present `plugin-input` whose plugin serves, or a usage row whose plugin serves (FR-012) |
 | `note` | string | Fallback text when `curated` is false, else empty |
 
 The baseline-failure response (`status: "unavailable"`) carries the same fields,
@@ -79,3 +91,8 @@ is true, or all of them while the Show all properties checkbox is on, renders
 line. The checkbox sits in the controls row beside Show all resources. Toggling
 changes no request and no state: the list is rebuilt from the last response,
 and the page restores the focused input by its `key`.
+
+A usage row renders an empty input. The page sends an input as an override
+only when its value differs from `originalValue`, so an empty usage row sends
+nothing and a filled one sends its value. Changing the pricing mode re-requests
+with the current overrides, and the server rebuilds the rows for that mode.
