@@ -157,6 +157,30 @@ Write CLI commands, binary names, and plugin ids in backticks in prose, such
 as `finfocus` or the `kubernetes` plugin. Vale skips code, so the vocabulary
 casing for FinFocus and Kubernetes doesn't flag them.
 
+##### Check staged docs before committing
+
+With Python 3 and the pinned Vale installed (`mise install vale`), sync the
+Vale styles once in each worktree. Repeat setup when the style packages change.
+
+```bash
+make docs-vale-setup
+make docs-vale-staged
+```
+
+The staged check reads the Git index, reports findings on added lines in
+Markdown and MDX pages under `docs/src/content/docs/`, and blocks on errors.
+It uses the styles already on disk, so the commit check runs offline.
+
+To run it automatically, opt in to the repository's Git hooks:
+
+```bash
+git config --local core.hooksPath .githooks
+```
+
+This setting is shared by the repository's linked worktrees. If you already
+use a hook manager or have a pre-commit hook, add `make docs-vale-staged`
+to that hook instead.
+
 ### Verifying Your Setup
 
 ```bash

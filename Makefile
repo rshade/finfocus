@@ -411,14 +411,21 @@ docs-lint:
 	markdownlint-cli2 --config docs/.markdownlint-cli2.jsonc 'docs/**/*.md' '#docs/dist/**' '#docs/.astro/**' '#docs/node_modules/**'
 	@echo "Documentation linting complete."
 
+.PHONY: docs-vale-setup
+docs-vale-setup:
+	@test -n "$(VALE)" || (echo "vale not found. Install with: mise install vale"; exit 1)
+	"$(VALE)" --config docs/.vale.ini sync
+	@bash scripts/check-vale-ai-tells.sh
+
 # Lints all of VALE_FILES, including the existing backlog, so it exits nonzero
 # on the full tree. CI reports only the lines a pull request adds.
 .PHONY: docs-vale
-docs-vale:
-	@test -n "$(VALE)" || (echo "vale not found. Install with: mise install"; exit 1)
-	$(VALE) --config docs/.vale.ini sync
-	@bash scripts/check-vale-ai-tells.sh
-	$(VALE) --config docs/.vale.ini $(VALE_FILES)
+docs-vale: docs-vale-setup
+	"$(VALE)" --config docs/.vale.ini $(VALE_FILES)
+
+.PHONY: docs-vale-staged
+docs-vale-staged:
+	@python3 scripts/vale_staged.py "$(VALE)"
 
 .PHONY: docs-sync
 docs-sync:
@@ -528,6 +535,8 @@ help:
 	@echo "  docs-cli         - Regenerate the CLI reference from the command tree"
 	@echo "  docs-lint        - Lint documentation markdown"
 	@echo "  docs-vale        - Lint documentation prose with Vale (VALE_FILES=<paths>)"
+	@echo "  docs-vale-setup  - Download and check Vale styles for this worktree"
+	@echo "  docs-vale-staged - Lint added lines in staged documentation"
 	@echo "  docs-sync        - Sync root docs (README.md, CONTRIBUTING.md) to docs site"
 	@echo "  docs-build       - Build documentation site"
 	@echo "  docs-serve       - Serve documentation locally (http://localhost:4000)"
