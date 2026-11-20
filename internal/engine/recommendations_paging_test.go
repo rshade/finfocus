@@ -441,7 +441,7 @@ func TestGetRecommendationsForResources_CachedEntryWithErrorsIsBypassed(t *testi
 
 	excluded := loadExcludedRecommendationIDs(ctx, eng.dismissalStore)
 	key := eng.recommendationsCacheKey(resources, excluded, false)
-	require.True(t, strings.HasSuffix(key, "/recs-v2"))
+	require.True(t, strings.HasSuffix(key, "/recs-v3"))
 	stale, err := json.Marshal(RecommendationsResult{
 		Currency:        "USD",
 		Recommendations: []Recommendation{{ID: "stale"}},
@@ -458,7 +458,7 @@ func TestGetRecommendationsForResources_CachedEntryWithErrorsIsBypassed(t *testi
 	assert.Equal(t, 3, plugin.calls())
 }
 
-func TestGetRecommendationsForResources_IgnoresLegacyRecsV1CacheEntry(t *testing.T) {
+func TestGetRecommendationsForResources_IgnoresLegacyRecsV2CacheEntry(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -470,9 +470,9 @@ func TestGetRecommendationsForResources_IgnoresLegacyRecsV1CacheEntry(t *testing
 	resources := []ResourceDescriptor{ec2("i-1")}
 
 	excluded := loadExcludedRecommendationIDs(ctx, eng.dismissalStore)
-	v2Key := eng.recommendationsCacheKey(resources, excluded, false)
-	require.True(t, strings.HasSuffix(v2Key, "/recs-v2"))
-	legacyKey := strings.TrimSuffix(v2Key, "/recs-v2") + "/recs-v1"
+	v3Key := eng.recommendationsCacheKey(resources, excluded, false)
+	require.True(t, strings.HasSuffix(v3Key, "/recs-v3"))
+	legacyKey := strings.TrimSuffix(v3Key, "/recs-v3") + "/recs-v2"
 	legacy, err := json.Marshal(RecommendationsResult{
 		Currency:        "USD",
 		Recommendations: []Recommendation{{ID: "rec-1"}},
@@ -486,7 +486,7 @@ func TestGetRecommendationsForResources_IgnoresLegacyRecsV1CacheEntry(t *testing
 	assert.Equal(t, []string{"rec-1", "rec-2", "rec-3"}, recIDs(result.Recommendations))
 	assert.Equal(t, 3, plugin.calls(), "the legacy entry is not read; all three pages are fetched")
 
-	cached, err := store.Get(v2Key)
+	cached, err := store.Get(v3Key)
 	require.NoError(t, err)
-	require.NotNil(t, cached, "the fresh result is stored under the /recs-v2 key")
+	require.NotNil(t, cached, "the fresh result is stored under the /recs-v3 key")
 }

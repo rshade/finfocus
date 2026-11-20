@@ -3876,9 +3876,11 @@ func (e *Engine) recommendationsCacheKey(
 
 // recommendationsCacheFormat versions the stored RecommendationsResult JSON. It
 // changes when a stored field is added, or when what a key holds changes, so an
-// entry written by an earlier release is never read. /recs-v2 retires entries
-// that held only each plugin's first page.
-const recommendationsCacheFormat = "/recs-v2"
+// entry written by an earlier release is never read. /recs-v2 retired entries
+// that held only each plugin's first page. /recs-v3 retires answers given
+// before targets carried attributes, which can lack recommendations a plugin
+// finds only through them.
+const recommendationsCacheFormat = "/recs-v3"
 
 // recommendationTarget is a plugin together with the resources routed to it.
 type recommendationTarget struct {
@@ -3914,7 +3916,11 @@ func (e *Engine) routeRecommendationTargets(
 // recommendationsRequest builds the plugin request for one recommendations fetch.
 // includeDismissed asks the plugin to return recommendations it has dismissed.
 // excluded IDs are still sent, and a plugin that honors both omits those IDs.
+// Each target carries its properties twice, as the flattened tags and as the
+// redacted attributes actual-cost descriptors carry, because the tag cap drops
+// nested values from resources with many properties.
 func (e *Engine) recommendationsRequest(
+	ctx context.Context,
 	resources []ResourceDescriptor,
 	excludedIDs []string,
 	includeDismissed bool,
@@ -3926,6 +3932,7 @@ func (e *Engine) recommendationsRequest(
 			Type:       r.Type,
 			Provider:   r.Provider,
 			Properties: ConvertToProto(r.Properties),
+			Attributes: BuildAttributes(ctx, r.Properties),
 		})
 	}
 	req := &proto.GetRecommendationsRequest{
@@ -4020,7 +4027,7 @@ func (e *Engine) fetchRecommendationsSequential(
 ) ([]*proto.Recommendation, error) {
 	log := logging.FromContext(ctx)
 
-	req := e.recommendationsRequest(resources, excludedIDs, includeDismissed)
+	req := e.recommendationsRequest(ctx, resources, excludedIDs, includeDismissed)
 	recs, err := e.fetchRecommendationPages(ctx, client, req)
 	if err != nil {
 		return nil, err
@@ -4059,7 +4066,7 @@ func (e *Engine) fetchRecommendationsWithBatching(
 		ctx,
 		resources,
 		func(ctx context.Context, batchResources []ResourceDescriptor, batchIndex int) error {
-			req := e.recommendationsRequest(batchResources, excludedIDs, includeDismissed)
+			req := e.recommendationsRequest(ctx, batchResources, excludedIDs, includeDismissed)
 
 			batchRecs, recErr := e.fetchRecommendationPages(ctx, client, req)
 			if recErr != nil {
