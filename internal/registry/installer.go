@@ -66,6 +66,8 @@ type InstallResult struct {
 type Installer struct {
 	client    *GitHubClient
 	pluginDir string
+	// recordInstalled overrides provenance persistence in tests.
+	recordInstalled func(config.InstalledPlugin) error
 }
 
 // HintsForEntry builds asset naming hints from a registry entry.
@@ -414,18 +416,13 @@ func (i *Installer) installRelease(
 		}
 	}
 
-	// Save to config unless --no-save
-	if !opts.NoSave {
-		plugin := config.InstalledPlugin{
-			Name:     name,
-			URL:      fmt.Sprintf("github.com/%s", repository),
-			Version:  version,
-			Registry: opts.registrySource,
-		}
-		if addErr := config.AddInstalledPlugin(plugin); addErr != nil {
-			// Non-fatal, just warn
-			report.msg(fmt.Sprintf("Warning: failed to save to config: %v", addErr))
-		}
+	if saveErr := i.persistInstall(installDir, config.InstalledPlugin{
+		Name:     name,
+		URL:      fmt.Sprintf("github.com/%s", repository),
+		Version:  version,
+		Registry: opts.registrySource,
+	}, opts, report); saveErr != nil {
+		return nil, saveErr
 	}
 
 	report.msg(fmt.Sprintf("Successfully installed %s@%s", name, version))
@@ -435,6 +432,38 @@ func (i *Installer) installRelease(
 		Version: version,
 		Path:    installDir,
 	}, nil
+}
+
+// persistInstall writes provenance. A custom install fails when that write
+// fails. A built-in install warns and still succeeds. NoSave writes nothing.
+// A new custom directory holds only this attempt, so a failed save removes
+// it. A forced overwrite already replaced the previous files, and deleting
+// the directory would not restore them.
+func (i *Installer) persistInstall(
+	installDir string, plugin config.InstalledPlugin, opts InstallOptions, report progressReport,
+) error {
+	if opts.NoSave {
+		return nil
+	}
+	addErr := i.saveProvenance(plugin)
+	if addErr == nil {
+		return nil
+	}
+	if opts.registrySource == "" {
+		report.msg(fmt.Sprintf("Warning: failed to save to config: %v", addErr))
+		return nil
+	}
+	if !opts.Force {
+		_ = os.RemoveAll(installDir)
+	}
+	return fmt.Errorf("saving custom registry install: %w", addErr)
+}
+
+func (i *Installer) saveProvenance(plugin config.InstalledPlugin) error {
+	if i.recordInstalled != nil {
+		return i.recordInstalled(plugin)
+	}
+	return config.AddInstalledPlugin(plugin)
 }
 
 // downloadAndVerify downloads the release asset to a temp file, optionally verifies

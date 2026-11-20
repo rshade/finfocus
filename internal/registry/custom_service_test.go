@@ -3,9 +3,11 @@ package registry
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"sync/atomic"
 	"testing"
@@ -87,4 +89,19 @@ func TestCustomRegistryInstallRequiresConfirmationAndChecksum(t *testing.T) {
 	record, err := config.GetInstalledPlugin(name)
 	require.NoError(t, err)
 	assert.Equal(t, source.Name, record.Registry)
+
+	installer.recordInstalled = func(config.InstalledPlugin) error {
+		return errors.New("disk full")
+	}
+	_, err = service.Install(t.Context(), installer, plugin, "", "", InstallOptions{Force: true}, nil)
+	require.ErrorContains(t, err, "saving custom registry install")
+	require.ErrorContains(t, err, "disk full")
+	_, statErr := os.Stat(result.Path)
+	require.NoError(t, statErr)
+
+	require.NoError(t, os.RemoveAll(result.Path))
+	_, err = service.Install(t.Context(), installer, plugin, "", "", InstallOptions{}, nil)
+	require.ErrorContains(t, err, "saving custom registry install")
+	_, statErr = os.Stat(result.Path)
+	require.ErrorIs(t, statErr, os.ErrNotExist)
 }

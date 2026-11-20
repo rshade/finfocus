@@ -111,9 +111,11 @@ func installConfirmedCustomPlugin(
 	if plugin.Revision() != request.RegistryRevision || plugin.Entry.Repository != request.Repository {
 		return pluginStatus(http.StatusConflict, "registry_changed", "registry entry changed; review a new plan")
 	}
-	opts := registry.InstallOptions{OnEvent: forwardProgress(report)}
+	dir := config.New().PluginDir
+	opts := registry.InstallOptions{PluginDir: dir, OnEvent: forwardProgress(report)}
+	reuseInstalledVersion(dir, name, request.Version, &opts)
 	if _, installErr := service.Install(
-		ctx, registry.NewInstaller(config.New().PluginDir), plugin, request.Version,
+		ctx, registry.NewInstaller(dir), plugin, request.Version,
 		request.RegistryConfirmation, opts, nil,
 	); installErr != nil {
 		return installErr

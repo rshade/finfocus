@@ -955,7 +955,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   A custom entry is `community` or `experimental`, never `official`, and it
   cannot shadow a built-in name. A name offered by two sources is left out of
   the catalog. Installs require `checksums.txt` and cannot skip or accept a
-  missing checksum. The first install from a source needs its name typed;
+  missing checksum. A failed provenance save fails that install: a new
+  version directory is removed, and a forced overwrite is left on disk.
+  The dashboard sets Force when the planned version directory already
+  exists, including a custom install, so a retry can reload it. A call
+  with no version keeps the already-installed error. `plugin registry install` rejects an
+  invalid `FINFOCUS_SECURE_PLUGINS` value before it installs (exit 2).
+  The first install from a source needs its name typed;
   editing that source clears the confirmation. `plugin update` refuses a
   plugin whose installed record names a custom registry. Web install and
   update both use `PluginInstall` when the request names a registry. MCP
