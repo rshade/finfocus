@@ -230,6 +230,22 @@ spike that won't repeat, add an **Exclude range** such as
 `2025-12-01:2025-12-31`. The model order and confidence appear in the summary,
 and any warning the CLI would print appears under the table.
 
+## Allocate Kubernetes cost
+
+Open **Cluster** to split a cluster's node cost across its workloads, the same
+as `finfocus cost cluster`. It needs a plugin that provides usage, such as
+the `kubernetes` plugin. Without one, the page shows the missing capability
+and links to **Plugins**. Leave the fields empty and press **Run allocation** for the
+current kubeconfig context's monthly run rate by namespace. Fill **From** and
+**To** for a past window, or pick **Group by** Label and enter a key such as
+`app_kubernetes_io_name`.
+
+To try an allocation policy before committing it, pick the file under
+**Policy file**. The page reads it and sends the text to the local server.
+Open **Allocation policy** to see the effective policy and its digest. If more than
+one installed plugin can serve the query, the page says so and shows a
+**Usage source** or **Allocator** field to choose one.
+
 ## Open another tab or reconnect
 
 Open the printed URL again to start another tab or browser profile. The URL

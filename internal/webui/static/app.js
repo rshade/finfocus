@@ -20,6 +20,7 @@ const ROUTES = {
   recommendations: () => import('./views/recommendations.js'),
   estimate: () => import('./views/estimate.js'),
   forecast: () => import('./views/forecast.js'),
+  cluster: () => import('./views/cluster.js'),
   carbon: () => import('./views/carbon.js'),
   plugins: () => import('./views/plugins.js'),
   config: () => import('./views/config.js'),
