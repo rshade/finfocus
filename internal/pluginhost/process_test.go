@@ -1089,11 +1089,10 @@ func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
 	defer listener.Close()
 	stdoutPort := listener.Addr().(*net.TCPAddr).Port
 
-	// Get an unbound port by opening and immediately closing a listener.
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	unboundPort := ln.Addr().(*net.TCPAddr).Port
-	ln.Close()
+	// A privileged port stays unbound, as in BothPortsFail below. A closed
+	// ephemeral port can be taken by a parallel test during the fallback
+	// window; the direct bind then succeeds and the fallback is never tried.
+	unboundPort := 2
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
