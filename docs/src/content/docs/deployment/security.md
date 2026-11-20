@@ -45,8 +45,19 @@ Plugins are executable binaries that run as separate processes and communicate o
 - **SHA256 checksum verification**: Plugin binaries are verified against SHA256 checksums
   stored in `checksums.txt` during installation. When `checksums.txt` is unavailable or
   can't be parsed, the installer emits a warning and continues. Only a confirmed hash
-  mismatch aborts installation. Use `--skip-checksum` to bypass verification explicitly.
+  mismatch aborts installation, unless secure plugin mode (below) is on. Use `--skip-checksum` to bypass verification explicitly.
   Checksums are published alongside release artifacts.
+- **Secure plugin mode**: Set `FINFOCUS_SECURE_PLUGINS=true` to make verification
+  mandatory. An install or update then fails when the release has no `checksums.txt`
+  or it does not list the archive, `--skip-checksum` is refused with exit 2, and the
+  dashboard refuses to plan a release with no `checksums.txt` instead of offering its
+  accept-missing confirmation. `plugin install`, `plugin update`, `setup` (unless
+  `--skip-plugins`), and `finfocus --web`, including the dashboard opened from `overview`,
+  reject an invalid value with exit 2. `setup` keeps its collect-and-continue behavior: a
+  default plugin that secure mode refuses is reported as a warning and not installed. The
+  check proves the archive matches the `checksums.txt` of the same release, not who
+  published it, and it does not re-check plugins already on disk. It is off by default,
+  because not every plugin release publishes `checksums.txt` yet.
 
 ## Network Security
 

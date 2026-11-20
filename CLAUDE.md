@@ -620,6 +620,18 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   there. A launch whose requesters all leave is cancelled (`entry.stop`). The launch context is `WithoutCancel(requester)` cancelled by the
   pool, never the requester's context. Holders get a `Client` copy with cloned
   `Metadata` (the registry merge writes it); `Close` releases one hold.
+- Secure plugin mode (`FINFOCUS_SECURE_PLUGINS`, #164): env only, off by
+  default, through `config.ResolveSecurePlugins` (a bad value is exit 2). When on,
+  `registry.applySecurePlugins` forces `RequireChecksumFile`, drops
+  `AcceptMissingChecksum`, and refuses `SkipChecksum` (`ErrSkipChecksumForbidden`).
+  It runs at the top of `Installer.Install` and `Installer.Update`, so the CLI,
+  setup, and the dashboard share it; `plugin install` and `plugin update` also call
+  `registry.CheckSecurePlugins` first for exit 2, and `setup` (unless `--skip-plugins`) and `--web`
+  validate the value at startup. The dashboard plan (`refuseMissingChecksumInSecureMode`)
+  answers 409 `checksum_required` for a release with no `checksums.txt`, so the page
+  never offers accept-missing; the installer stays the enforcement point. A failure
+  names the variable. `internal/registry` tests unset it in `TestMain`; a test of the
+  mode sets it with `t.Setenv`. A hash mismatch is fatal either way.
 - Dashboard settings apply on the next `NewClient`. The first reload must not
   close the overview pipeline's original clients. Later reloads close only
   the set the previous reload opened. `closeReloaded` runs before
@@ -917,7 +929,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `ListLatestPlugins` order, sorted by name (router priority ties rely on it).
 - With `region` in `plugin.metadata.json`, discovery looks for
   `finfocus-plugin-<name>-<region>` first.
-- Only a confirmed checksum mismatch is fatal; `--skip-checksum` exists.
+- Only a confirmed checksum mismatch is fatal, unless secure plugin mode is on
+  (see "Secure plugin mode" above); `--skip-checksum` exists.
   The dashboard catalog path does not offer that flag. A missing
   `checksums.txt` warns and continues on the CLI and returns
   `ErrChecksumUnavailable` on the web path unless the person accepts it.

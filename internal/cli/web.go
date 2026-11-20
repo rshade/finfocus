@@ -15,6 +15,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/weblog"
 	"github.com/rshade/finfocus/internal/webui"
 )
@@ -169,6 +170,10 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		auditKeyPulumiState: flags.pulumiState,
 		auditKeyPulumiJSON:  flags.pulumiJSON,
 	})
+
+	if _, secureErr := registry.SecurePluginsEnabled(); secureErr != nil {
+		return toValidationError(ctx, secureErr)
+	}
 
 	stacks, stackErr := normalizeStackList(flags.stack)
 	if stackErr != nil {

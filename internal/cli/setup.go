@@ -271,6 +271,12 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions, runner *SetupRunner) error
 		ctx = context.Background()
 	}
 
+	if !opts.SkipPlugins {
+		if secureErr := registry.CheckSecurePlugins(false); secureErr != nil {
+			return toValidationError(ctx, secureErr)
+		}
+	}
+
 	traceID := logging.GetOrGenerateTraceID(ctx)
 	ctx = logging.ContextWithTraceID(ctx, traceID)
 
@@ -652,10 +658,10 @@ func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []
 				Name:   stepNamePluginInstall,
 				Status: StepWarning,
 				Message: fmt.Sprintf(
-					"Failed to install plugin %s: %v\n  Try later: finfocus plugin install %s",
+					"Failed to install plugin %s: %v%s",
 					pluginName,
 					err,
-					pluginName,
+					setupRetryHint(pluginName, err),
 				),
 				Err: err,
 			})
@@ -674,4 +680,11 @@ func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []
 	}
 
 	return results
+}
+
+func setupRetryHint(pluginName string, err error) string {
+	if errors.Is(err, registry.ErrSecureModeRefusal) && registry.IsUnverifiableRelease(err) {
+		return ""
+	}
+	return "\n  Try later: finfocus plugin install " + pluginName
 }

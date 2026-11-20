@@ -61,6 +61,27 @@ func TestInstall_CatalogOnlyIgnoresSkipChecksum(t *testing.T) {
 	assert.True(t, os.IsNotExist(statErr))
 }
 
+func TestUpdate_CatalogOnlyIgnoresSkipChecksum(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	pluginDir := t.TempDir()
+	first := policyInstaller(t, pluginDir, policyRelease{plugin: "aws-public", version: "v1.0.0"})
+	_, err := first.Install(context.Background(), "aws-public@v1.0.0", InstallOptions{}, nil)
+	require.NoError(t, err)
+
+	second := policyInstaller(t, pluginDir, policyRelease{
+		plugin:  "aws-public",
+		version: "v2.0.0",
+		hash:    "0000000000000000000000000000000000000000000000000000000000000000",
+	})
+	_, err = second.Update(context.Background(), "aws-public", UpdateOptions{
+		Version:      "v2.0.0",
+		CatalogOnly:  true,
+		SkipChecksum: true,
+	}, nil)
+
+	require.ErrorIs(t, err, ErrChecksumMismatch)
+}
+
 func TestInstall_RequireChecksumFile(t *testing.T) {
 	t.Parallel()
 
@@ -184,6 +205,8 @@ type policyRelease struct {
 	version      string
 	hash         string
 	omitChecksum bool
+	// checksumsOthers publishes a checksums.txt that does not list the archive.
+	checksumsOthers bool
 }
 
 func policyInstaller(t *testing.T, pluginDir string, rel policyRelease) *Installer {
@@ -193,6 +216,9 @@ func policyInstaller(t *testing.T, pluginDir string, rel policyRelease) *Install
 	checksums := rel.hash + "  " + assetName + "\n"
 	if rel.hash == "" && !rel.omitChecksum {
 		checksums = checksumForBytes(archive) + "  " + assetName + "\n"
+	}
+	if rel.checksumsOthers {
+		checksums = checksumForBytes(archive) + "  some-other-archive.tar.gz\n"
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

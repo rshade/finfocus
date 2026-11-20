@@ -43,6 +43,10 @@ type InstallOptions struct {
 	// when the latest release has no assets. Any other value keeps the
 	// no-asset error instead of installing a different release.
 	AcceptFallbackVersion string
+
+	// secureMode is set by the installer when FINFOCUS_SECURE_PLUGINS forced the
+	// checksum policy, so a failure can name the variable.
+	secureMode bool
 }
 
 // InstallResult contains the result of a plugin installation.
@@ -130,6 +134,18 @@ func (i *Installer) Install(
 			return nil, fmt.Errorf("%w: %q", ErrCatalogSpecifier, specifier)
 		}
 	}
+
+	policy, err := applySecurePlugins(checksumPolicy{
+		skip:          opts.SkipChecksum,
+		requireFile:   opts.RequireChecksumFile,
+		acceptMissing: opts.AcceptMissingChecksum,
+	})
+	if err != nil {
+		return nil, err
+	}
+	opts.RequireChecksumFile = policy.requireFile
+	opts.AcceptMissingChecksum = policy.acceptMissing
+	opts.secureMode = policy.secure
 
 	report := newProgressReport(progress, opts.OnEvent)
 
@@ -504,6 +520,9 @@ func (i *Installer) verifyChecksumForRelease(
 		// The CLI warns and continues unless the caller required the file.
 		missingAccepted := errors.Is(err, ErrChecksumUnavailable) && opts.AcceptMissingChecksum
 		if opts.RequireChecksumFile && !missingAccepted {
+			if opts.secureMode {
+				return fmt.Errorf("%w: %w", ErrSecureModeRefusal, err)
+			}
 			return err
 		}
 		checksumWarn(report, err.Error()+", skipping verification")
@@ -545,9 +564,12 @@ func (i *Installer) fetchExpectedHash(
 
 	switch {
 	case errors.Is(err, ErrAssetNotInChecksums):
-		return "", fmt.Errorf("%s not found in checksums file", assetName)
+		return "", &checksumFileError{
+			msg:  fmt.Sprintf("%s not found in checksums file", assetName),
+			kind: ErrAssetNotInChecksums,
+		}
 	case errors.Is(err, ErrMalformedChecksums):
-		return "", errors.New("checksums.txt is malformed")
+		return "", &checksumFileError{msg: "checksums.txt is malformed", kind: ErrMalformedChecksums}
 	default:
 		return "", fmt.Errorf("failed to parse checksums.txt: %w", err)
 	}
@@ -696,15 +718,25 @@ func (i *Installer) Update(
 	progress func(msg string),
 ) (*UpdateResult, error) {
 	report := newProgressReport(progress, opts.OnEvent)
+	if opts.CatalogOnly {
+		opts.SkipChecksum = false
+	}
+	checksums, err := applySecurePlugins(checksumPolicy{
+		skip:          opts.SkipChecksum,
+		requireFile:   opts.RequireChecksumFile,
+		acceptMissing: opts.AcceptMissingChecksum,
+	})
+	if err != nil {
+		return nil, err
+	}
+	opts.RequireChecksumFile = checksums.requireFile
+	opts.AcceptMissingChecksum = checksums.acceptMissing
+	secureMode := checksums.secure
 	policy := InstallOptions{
 		CatalogOnly:           opts.CatalogOnly,
 		RequireChecksumFile:   opts.RequireChecksumFile,
 		AcceptMissingChecksum: opts.AcceptMissingChecksum,
 		AcceptFallbackVersion: opts.AcceptFallbackVersion,
-	}
-	if opts.CatalogOnly {
-		opts.SkipChecksum = false
-		policy.SkipChecksum = false
 	}
 
 	// Acquire lock for this plugin
@@ -767,6 +799,9 @@ func (i *Installer) Update(
 	}
 
 	if opts.DryRun {
+		if secureMode && FindChecksumAsset(release) == nil {
+			return nil, fmt.Errorf("%w: %w", ErrSecureModeRefusal, ErrChecksumUnavailable)
+		}
 		report.msg(fmt.Sprintf("Would update %s from %s to %s", name, oldVersion, newVersion))
 		return &UpdateResult{
 			Name:       name,
@@ -790,6 +825,7 @@ func (i *Installer) Update(
 		RequireChecksumFile:   opts.RequireChecksumFile,
 		AcceptMissingChecksum: opts.AcceptMissingChecksum,
 		AcceptFallbackVersion: opts.AcceptFallbackVersion,
+		secureMode:            secureMode,
 	}
 
 	repository := fmt.Sprintf("%s/%s", owner, repo)
@@ -1065,4 +1101,23 @@ func (i *Installer) discoverPluginFromFilesystem(
 		}, nil
 	}
 	return nil, fmt.Errorf("no version found for plugin %q", name)
+}
+
+// checksumFileError keeps the checksum failure text callers already see while
+// letting [errors.Is] tell which sentinel caused it.
+type checksumFileError struct {
+	msg  string
+	kind error
+}
+
+func (e *checksumFileError) Error() string { return e.msg }
+
+func (e *checksumFileError) Unwrap() error { return e.kind }
+
+// IsUnverifiableRelease reports whether err says the release itself cannot be
+// verified: no checksums.txt, an archive it does not list, or no valid entries.
+func IsUnverifiableRelease(err error) bool {
+	return errors.Is(err, ErrChecksumUnavailable) ||
+		errors.Is(err, ErrAssetNotInChecksums) ||
+		errors.Is(err, ErrMalformedChecksums)
 }
