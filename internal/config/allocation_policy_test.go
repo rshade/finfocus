@@ -240,3 +240,85 @@ func TestResolveAllocationPolicy_UnreadableNamesFile(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, "cannot read allocation policy "+locked+": permission denied", err.Error())
 }
+
+func TestParseAllocationPolicy(t *testing.T) {
+	t.Parallel()
+
+	const source = "request body"
+	tests := []struct {
+		name       string
+		body       string
+		wantJSON   string
+		wantSource string
+		wantCode   string
+		wantMsg    string
+	}{
+		{name: "hujson text", body: "{\n  // weights\n  \"idle\": \"share\",\n}", wantJSON: `{"idle":"share"}`,
+			wantSource: source},
+		{name: "null is no policy", body: " null ", wantSource: source},
+		{name: "syntax error names the source and position", body: `{ "idle": `, wantCode: "config_invalid",
+			wantMsg: "allocation policy request body is not valid HuJSON: line 1, column 11:"},
+		{
+			name:     "too large names the source",
+			body:     `{"idle": "` + strings.Repeat("x", int(ax.DefaultMaxConfigBytes)) + `"}`,
+			wantCode: "config_too_large",
+			wantMsg:  "allocation policy request body is larger than",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			policy, err := ParseAllocationPolicy(context.Background(), strings.NewReader(tt.body), source)
+			if tt.wantCode != "" {
+				axErr, ok := errors.AsType[*ax.Error](err)
+				require.True(t, ok, "want an *ax.Error, got %T", err)
+				assert.Equal(t, tt.wantCode, axErr.ErrorCode)
+				assert.Equal(t, ax.ExitValidation, axErr.ExitCode())
+				assert.Contains(t, axErr.Message, tt.wantMsg)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantSource, policy.Source)
+			if tt.wantJSON == "" {
+				assert.Nil(t, policy.JSON)
+				return
+			}
+			assert.JSONEq(t, tt.wantJSON, string(policy.JSON))
+		})
+	}
+}
+
+//nolint:paralleltest // isolatePolicyDirs uses t.Setenv and the process-wide resolved project dir
+func TestResolveDiscoveredAllocationPolicy_NamesTierNotPath(t *testing.T) {
+	home, project := isolatePolicyDirs(t)
+	ctx := context.Background()
+
+	got, err := ResolveDiscoveredAllocationPolicy(ctx)
+	require.NoError(t, err)
+	assert.Nil(t, got.JSON)
+	assert.Empty(t, got.Source)
+
+	writePolicy(t, home, `{ "version": 1, /* global */ }`)
+	got, err = ResolveDiscoveredAllocationPolicy(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, GlobalAllocationPolicyLabel, got.Source)
+	assert.JSONEq(t, `{"version":1}`, string(got.JSON))
+
+	projectPath := writePolicy(t, project, "{\n  \"idle\": \"share\"\n  \"version\": 1\n}\n")
+	SetResolvedProjectDir(project)
+	_, err = ResolveDiscoveredAllocationPolicy(ctx)
+	require.Error(t, err, "the project file wins, so its syntax error is reported")
+	assert.Contains(t, err.Error(), "allocation policy "+ProjectAllocationPolicyLabel+" is not valid HuJSON: line 3")
+	assert.NotContains(t, err.Error(), projectPath)
+	axErr, ok := errors.AsType[*ax.Error](err)
+	require.True(t, ok)
+	assert.NotContains(t, axErr.ActionableFix, projectPath)
+	assert.NotContains(t, fmt.Sprint(axErr.Context), projectPath)
+
+	writePolicy(t, project, `{"idle": "separate"}`)
+	got, err = ResolveDiscoveredAllocationPolicy(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, ProjectAllocationPolicyLabel, got.Source)
+	assert.JSONEq(t, `{"idle":"separate"}`, string(got.JSON))
+}

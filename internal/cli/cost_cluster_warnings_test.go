@@ -27,7 +27,7 @@ func gapWarnings(pods int) []string {
 	return out
 }
 
-func incompleteOutput(warnings []string, unpriced ...engine.PricedSummary) clusterOutput {
+func incompleteOutput(warnings []string, unpriced ...engine.PricedSummary) engine.ClusterReport {
 	out := sampleClusterOutput(false)
 	out.Mode, out.Period = engine.ModeHistorical, "2026-10-01 to 2026-11-11, 41 days"
 	out.Incomplete = true
@@ -36,7 +36,7 @@ func incompleteOutput(warnings []string, unpriced ...engine.PricedSummary) clust
 	return out
 }
 
-func footer(t *testing.T, out clusterOutput) string {
+func footer(t *testing.T, out engine.ClusterReport) string {
 	t.Helper()
 	table := renderTo(t, outputFormatTable, out)
 	_, after, found := strings.Cut(table, "Policy:")
@@ -50,7 +50,7 @@ func TestRenderCluster_IncompleteFooter(t *testing.T) {
 	unpriced := engine.PricedSummary{Kind: "node", ID: "n2", Note: "no price for m9.huge"}
 	tests := []struct {
 		name     string
-		out      clusterOutput
+		out      engine.ClusterReport
 		want     []string
 		wantNone []string
 	}{
@@ -130,12 +130,12 @@ func TestRenderCluster_MachineOutputKeepsEveryWarning(t *testing.T) {
 	warnings := append(gapWarnings(20), retentionWarning)
 	out := incompleteOutput(warnings)
 
-	var doc clusterOutput
+	var doc engine.ClusterReport
 	require.NoError(t, json.Unmarshal([]byte(renderTo(t, outputFormatJSON, out)), &doc))
 	assert.Equal(t, warnings, doc.Warnings)
 
 	first, _, _ := strings.Cut(renderTo(t, outputFormatNDJSON, out), "\n")
-	var summary clusterOutput
+	var summary engine.ClusterReport
 	require.NoError(t, json.Unmarshal([]byte(first), &summary))
 	assert.Equal(t, warnings, summary.Warnings)
 }

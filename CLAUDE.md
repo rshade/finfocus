@@ -768,6 +768,23 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   main Allocate carries plugin usage and prices, so its `InvalidArgument`
   stays exit 1. A `--usage-source`/`--allocator` that names nothing, or is
   needed to choose, is a `pluginChoiceError` (exit 2); no capable plugin is exit 1.
+  The builder (`cost_cluster_build.go`: `parseClusterQuery`,
+  `buildClusterReport`, `buildClusterPolicy`) types those as
+  `*engine.ClusterInputError` (CLI `clusterCommandError` -> exit 2, web 400)
+  and `*engine.ClusterPluginMissingError` (exit 1, web 200
+  `status: "unavailable"`); keep new failures typed there, not in the CLI.
+- Cluster web hook (`specs/2021-cluster-web-hook/`): `POST /api/cluster/query`
+  and `/api/cluster/policy` call that builder through `webData.cluster`
+  under the query gate. The page sends policy *text*; a discovered
+  `allocation.hujson` is named by tier (`config.ResolveDiscoveredAllocationPolicy`),
+  never by path. The query uses `Session.beginQueryWithin(ctx, 0)`: the
+  generic 2-minute `queryTimeout` would cut a window the CLI finishes, and
+  every cluster plugin call has its own deadline. `RedactJSON` drops an
+  array record whose `key`/`property` looks like a hidden property name
+  (`__idle__`, `vault-secrets`); a string field tagged `datakey:"true"`
+  (`ClusterGroup.Key`, `ClusterGroupDisplay.Key`) marks it as data, checked
+  against the Go value. Tag any new record whose `key` is data, or groups
+  vanish from the web and stop summing to the total.
 - `cost anomalies` (`specs/1923-cost-anomalies/`) runs the overview pipeline
   and lists rows whose `CostDrift` is set through `engine.SelectAnomalies`,
   the one selector the CLI, MCP tool, and web handler share. It adds no rule
