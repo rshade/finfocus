@@ -31,7 +31,8 @@
       "asset_hints": {
         "asset_prefix": "finfocus-plugin-aws-public",
         "version_prefix": false
-      }
+      },
+      "aliases": ["finfocus-plugin-aws-public"]
     },
     "aws-ce": {
       "name": "aws-ce",
@@ -143,7 +144,8 @@
       "asset_hints": {
         "asset_prefix": "finfocus-plugin-cloudzero",
         "version_prefix": false
-      }
+      },
+      "aliases": ["finfocus-plugin-cloudzero"]
     },
     "jev": {
       "name": "jev",

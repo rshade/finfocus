@@ -98,13 +98,20 @@ func TestESCRedaction(t *testing.T) {
 
 func installRecorder(t *testing.T, home, binPath string) {
 	t.Helper()
-	dir := filepath.Join(home, "plugins", "recorder", "0.1.0")
+	installRecorderAs(t, home, binPath, "recorder")
+}
+
+// installRecorderAs copies the recorder into the plugin directory under the
+// given install name, so tests can install it under a name it does not report.
+func installRecorderAs(t *testing.T, home, binPath, installName string) {
+	t.Helper()
+	dir := filepath.Join(home, "plugins", installName, "0.1.0")
 	require.NoError(t, os.MkdirAll(dir, 0o700))
 	source, err := os.Open(binPath)
 	require.NoError(t, err)
 	defer source.Close()
 	target, err := os.OpenFile(
-		filepath.Join(dir, "finfocus-plugin-recorder"),
+		filepath.Join(dir, "finfocus-plugin-"+installName),
 		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
 		0o755,
 	)

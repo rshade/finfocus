@@ -278,6 +278,22 @@ func TestPool_SameEnvironmentLaunchesOnce(t *testing.T) {
 }
 
 //nolint:paralleltest // isolatePoolConfig sets FINFOCUS_HOME and FINFOCUS_PROJECT_DIR
+func TestPool_HoldersCarryInstallName(t *testing.T) {
+	isolatePoolConfig(t)
+	launcher := &processLauncher{info: poolPluginInfo()}
+	pool := newTestPool(t, launcher)
+
+	first, err := pool.Acquire(poolContext(), launcher, "/plugins/recorder")
+	require.NoError(t, err)
+	second, err := pool.Acquire(poolContext(), launcher, "/plugins/recorder")
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, launcher.starts())
+	assert.Equal(t, poolPlugin, first.InstallName)
+	assert.Equal(t, poolPlugin, second.InstallName)
+}
+
+//nolint:paralleltest // isolatePoolConfig sets FINFOCUS_HOME and FINFOCUS_PROJECT_DIR
 func TestPool_DifferentBinaryLaunchesSeparately(t *testing.T) {
 	isolatePoolConfig(t)
 	launcher := &processLauncher{info: poolPluginInfo()}

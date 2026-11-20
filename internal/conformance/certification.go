@@ -32,6 +32,7 @@ func Certify(suiteReport *SuiteReport, name, version string) *CertificationRepor
 	}
 
 	// A skipped probe is unverified, so it blocks certification like a failure.
+	// Warnings are advisory and do not.
 	summary := suiteReport.Summary
 	if summary.Failed > 0 || summary.Errors > 0 || summary.Skipped > 0 {
 		report.Certified = false
@@ -41,7 +42,7 @@ func Certify(suiteReport *SuiteReport, name, version string) *CertificationRepor
 				report.Issues = append(report.Issues, fmt.Sprintf("%s: %s", res.TestName, res.Error))
 			case StatusSkip:
 				report.Issues = append(report.Issues, fmt.Sprintf("%s: skipped: %s", res.TestName, res.Error))
-			case StatusPass:
+			case StatusPass, StatusWarn:
 			}
 		}
 	} else {
@@ -70,7 +71,8 @@ func (r *CertificationReport) GenerateMarkdown() string {
 	fmt.Fprintf(&sb, "- Passed: %d\n", r.SuiteSummary.Passed)
 	fmt.Fprintf(&sb, "- Failed: %d\n", r.SuiteSummary.Failed)
 	fmt.Fprintf(&sb, "- Errors: %d\n", r.SuiteSummary.Errors)
-	fmt.Fprintf(&sb, "- Skipped: %d\n\n", r.SuiteSummary.Skipped)
+	fmt.Fprintf(&sb, "- Skipped: %d\n", r.SuiteSummary.Skipped)
+	fmt.Fprintf(&sb, "- Warnings: %d\n\n", r.SuiteSummary.Warnings)
 
 	if len(r.Issues) > 0 {
 		sb.WriteString("## Issues\n\n")

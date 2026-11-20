@@ -45,6 +45,9 @@ requests), `RunAdvancedConformance` (adds latency limits, 50 concurrent
 requests, 30 day range). `ConformanceResult` has a `Summary` with `Total`, `Passed`, and `Failed`; confirm in the
 SDK source for your version.
 
+Core's binary suite (`finfocus plugin conformance <binary>`) also checks the
+plugin's name; see `naming.md`.
+
 ## Integration against real finfocus
 
 1. `make build install`.

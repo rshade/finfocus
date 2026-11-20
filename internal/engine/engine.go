@@ -1259,6 +1259,7 @@ func (e *Engine) GetActualCostWithOptions(
 ) ([]CostResult, error) {
 	log := logging.FromContext(ctx)
 	start := time.Now()
+	adapterAllows := e.adapterFilter(request.Adapter)
 
 	// Apply overall query timeout if not already set
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
@@ -1371,7 +1372,7 @@ func (e *Engine) GetActualCostWithOptions(
 				client := match.Client
 
 				// Apply explicit adapter filter if specified
-				if request.Adapter != "" && client.Name != request.Adapter {
+				if !adapterAllows(client) {
 					continue
 				}
 				if rateLimitedPlugins[j.index] == client.Name {
@@ -1717,6 +1718,7 @@ func (e *Engine) getActualCostForResource(
 	request ActualCostRequest,
 	batch actualBatchVerdict,
 ) (*CostResult, []ErrorDetail) {
+	adapterAllows := e.adapterFilter(request.Adapter)
 	var errors []ErrorDetail
 	var resourceResult *CostResult
 	log := logging.FromContext(ctx)
@@ -1736,7 +1738,7 @@ func (e *Engine) getActualCostForResource(
 		client := match.Client
 
 		// Apply explicit adapter filter if specified
-		if request.Adapter != "" && client.Name != request.Adapter {
+		if !adapterAllows(client) {
 			continue
 		}
 

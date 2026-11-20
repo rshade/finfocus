@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rshade/ax-go/axtest"
@@ -873,4 +874,20 @@ func TestPluginInitCalculatorExtractsAndValidates(t *testing.T) {
 		assert.Contains(t, string(readme), want)
 	}
 	assert.NotContains(t, string(readme), "{{")
+}
+
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
+func TestPluginInitDefinesNameOnce(t *testing.T) {
+	tmpDir := t.TempDir()
+	runPluginInitForTest(t, &cli.PluginInitOptions{
+		Name: "acme-cost", Author: "Test Author", Providers: []string{"aws"}, OutputDir: tmpDir, Force: true,
+	})
+
+	calculator, err := os.ReadFile(filepath.Join(tmpDir, "acme-cost", "internal", "pricing", "calculator.go"))
+	require.NoError(t, err)
+	src := string(calculator)
+	assert.Contains(t, src, `PluginName = "acme-cost"`)
+	assert.Contains(t, src, "pluginsdk.NewBasePlugin(PluginName)")
+	assert.Contains(t, src, "Name:        PluginName,")
+	assert.Equal(t, 1, strings.Count(src, `"acme-cost"`), "the name literal appears once, in the constant")
 }

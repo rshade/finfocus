@@ -317,7 +317,15 @@ func collectRoutingIssues(cmd *cobra.Command, cfg *config.Config) ([]string, []s
 		defer cleanup()
 	}
 
-	result := router.ValidateRoutingConfig(cfg.Routing, clients)
+	return routingIssues(cfg.Routing, clients)
+}
+
+// routingIssues validates routing rules against the given clients and splits
+// the result into warnings and problems. A name that only matches through a
+// catalog alias, or that also matches a second plugin, is a warning; a name
+// that matches no plugin is a problem.
+func routingIssues(routing *config.RoutingConfig, clients []*pluginhost.Client) ([]string, []string) {
+	result := router.ValidateRoutingConfig(routing, clients)
 	var problems []string
 	if result.HasErrors() {
 		problems = make([]string, 0, len(result.Errors))

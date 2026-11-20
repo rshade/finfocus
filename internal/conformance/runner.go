@@ -14,6 +14,7 @@ type Runner struct {
 	logger    zerolog.Logger
 	verbosity Verbosity
 	probe     probePlan
+	identity  PluginIdentity
 }
 
 // NewRunner creates a new test runner with the given logger and verbosity.
@@ -74,6 +75,7 @@ func (r *Runner) RunTest(ctx context.Context, tc TestCase, client any) *TestResu
 		Verbosity:    r.verbosity,
 		Timeout:      timeout,
 		Probe:        r.probe.resource,
+		Identity:     r.identity,
 	}
 
 	// Record start time
@@ -140,7 +142,7 @@ func (r *Runner) logResult(_ TestCase, result *TestResult) {
 	switch result.Status {
 	case StatusPass:
 		event = r.logger.Debug()
-	case StatusFail:
+	case StatusFail, StatusWarn:
 		event = r.logger.Warn()
 	case StatusError:
 		event = r.logger.Error()

@@ -32,7 +32,16 @@ const SkipVersionCheckKey contextKey = "skip_version_check"
 
 // Client wraps a gRPC connection to a plugin and provides the cost source API.
 type Client struct {
-	Name     string
+	// Name is the name the plugin reports from its Name RPC. Output columns
+	// such as Adapter show it.
+	Name string
+	// InstallName is the plugin's install directory name, which is also its
+	// catalog name and what `plugin list` shows. It is empty for a client
+	// opened without WithInstallName (a conformance run on a bare binary).
+	InstallName string
+	// Aliases are former names from the plugin's catalog entry, set by the
+	// registry, so a config written before a rename keeps matching.
+	Aliases  []string
 	Metadata *proto.PluginMetadata
 	Conn     *grpc.ClientConn
 	API      proto.CostSourceClient
@@ -112,6 +121,7 @@ func launchClient(
 
 	client := &Client{
 		Name:            started.name,
+		InstallName:     in.installName,
 		Conn:            started.conn,
 		API:             started.api,
 		Close:           started.idempotentClose(),
