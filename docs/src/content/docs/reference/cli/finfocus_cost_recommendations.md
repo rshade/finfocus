@@ -126,13 +126,13 @@ finfocus cost recommendations [flags]
 
 ## See also
 
-- [finfocus cost](./finfocus_cost.md) -
+- [`finfocus cost`](./finfocus_cost.md) -
   Cost calculation commands
-- [finfocus cost recommendations dismiss](./finfocus_cost_recommendations_dismiss.md) -
+- [`finfocus cost recommendations dismiss`](./finfocus_cost_recommendations_dismiss.md) -
   Dismiss a cost optimization recommendation
-- [finfocus cost recommendations history](./finfocus_cost_recommendations_history.md) -
+- [`finfocus cost recommendations history`](./finfocus_cost_recommendations_history.md) -
   View local and plugin lifecycle history of a recommendation
-- [finfocus cost recommendations snooze](./finfocus_cost_recommendations_snooze.md) -
+- [`finfocus cost recommendations snooze`](./finfocus_cost_recommendations_snooze.md) -
   Snooze a recommendation until a future date
-- [finfocus cost recommendations undismiss](./finfocus_cost_recommendations_undismiss.md) -
+- [`finfocus cost recommendations undismiss`](./finfocus_cost_recommendations_undismiss.md) -
   Re-enable a dismissed or snoozed recommendation

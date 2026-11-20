@@ -40,13 +40,13 @@ See each sub-command's help for details on how to use the generated script.
 
 ## See also
 
-- [finfocus](./finfocus.md) -
+- [`finfocus`](./finfocus.md) -
   FinFocus CLI and plugin host
-- [finfocus completion bash](./finfocus_completion_bash.md) -
+- [`finfocus completion bash`](./finfocus_completion_bash.md) -
   Generate the autocompletion script for bash
-- [finfocus completion fish](./finfocus_completion_fish.md) -
+- [`finfocus completion fish`](./finfocus_completion_fish.md) -
   Generate the autocompletion script for fish
-- [finfocus completion powershell](./finfocus_completion_powershell.md) -
+- [`finfocus completion powershell`](./finfocus_completion_powershell.md) -
   Generate the autocompletion script for powershell
-- [finfocus completion zsh](./finfocus_completion_zsh.md) -
+- [`finfocus completion zsh`](./finfocus_completion_zsh.md) -
   Generate the autocompletion script for zsh

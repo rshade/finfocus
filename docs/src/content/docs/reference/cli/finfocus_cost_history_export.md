@@ -68,5 +68,5 @@ finfocus cost history export [flags]
 
 ## See also
 
-- [finfocus cost history](./finfocus_cost_history.md) -
+- [`finfocus cost history`](./finfocus_cost_history.md) -
   Collect and view projected cost history

@@ -181,10 +181,10 @@ func TestRenderPage(t *testing.T) {
 		"## Options\n\n" +
 		"```text\n  -h, --help[=true|false]   help for run\n      --mode string         run mode\n```\n\n" +
 		"## See also\n\n" +
-		"- [app](./app.md) -\n  App root\n"
+		"- [`app`](./app.md) -\n  App root\n"
 	assert.Equal(t, want, string(pages["app_run.md"]))
 	assert.Equal(t, "Runs <name>.\n  # not a heading\n", child.Long, "Render must not change the command")
-	assert.Contains(t, string(pages["app.md"]), "- [app run](./app_run.md) -\n  Run a thing\n")
+	assert.Contains(t, string(pages["app.md"]), "- [`app run`](./app_run.md) -\n  Run a thing\n")
 }
 
 func TestToStarlight(t *testing.T) {
@@ -213,7 +213,7 @@ func TestToStarlight(t *testing.T) {
 		{
 			name: "rewrites the see-also list",
 			in:   "### SEE ALSO\n\n* [app](./app.md)\t - App\n\n\n",
-			want: "## See also\n\n- [app](./app.md) -\n  App\n",
+			want: "## See also\n\n- [`app`](./app.md) -\n  App\n",
 		},
 	}
 	for _, tt := range tests {

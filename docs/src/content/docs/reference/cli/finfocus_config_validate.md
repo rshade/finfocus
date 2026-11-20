@@ -62,5 +62,5 @@ finfocus config validate [flags]
 
 ## See also
 
-- [finfocus config](./finfocus_config.md) -
+- [`finfocus config`](./finfocus_config.md) -
   Configuration management commands

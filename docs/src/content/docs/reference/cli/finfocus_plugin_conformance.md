@@ -96,5 +96,5 @@ finfocus plugin conformance <plugin-path> [flags]
 
 ## See also
 
-- [finfocus plugin](./finfocus_plugin.md) -
+- [`finfocus plugin`](./finfocus_plugin.md) -
   Plugin management commands

@@ -59,5 +59,5 @@ finfocus plugin inspect <plugin-name> <resource-type> [flags]
 
 ## See also
 
-- [finfocus plugin](./finfocus_plugin.md) -
+- [`finfocus plugin`](./finfocus_plugin.md) -
   Plugin management commands

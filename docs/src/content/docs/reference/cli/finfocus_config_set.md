@@ -72,5 +72,5 @@ finfocus config set <key> <value> [flags]
 
 ## See also
 
-- [finfocus config](./finfocus_config.md) -
+- [`finfocus config`](./finfocus_config.md) -
   Configuration management commands

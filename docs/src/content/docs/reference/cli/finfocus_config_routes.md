@@ -39,9 +39,9 @@ View and test the plugin routing configuration.
 
 ## See also
 
-- [finfocus config](./finfocus_config.md) -
+- [`finfocus config`](./finfocus_config.md) -
   Configuration management commands
-- [finfocus config routes list](./finfocus_config_routes_list.md) -
+- [`finfocus config routes list`](./finfocus_config_routes_list.md) -
   Display routing rules
-- [finfocus config routes test](./finfocus_config_routes_test.md) -
+- [`finfocus config routes test`](./finfocus_config_routes_test.md) -
   Test plugin selection for a resource type

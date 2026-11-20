@@ -45,5 +45,5 @@ finfocus __schema [flags]
 
 ## See also
 
-- [finfocus](./finfocus.md) -
+- [`finfocus`](./finfocus.md) -
   FinFocus CLI and plugin host

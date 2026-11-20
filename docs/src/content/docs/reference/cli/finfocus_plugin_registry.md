@@ -33,13 +33,13 @@ Manage custom plugin registries
 
 ## See also
 
-- [finfocus plugin](./finfocus_plugin.md) -
+- [`finfocus plugin`](./finfocus_plugin.md) -
   Plugin management commands
-- [finfocus plugin registry add](./finfocus_plugin_registry_add.md) -
+- [`finfocus plugin registry add`](./finfocus_plugin_registry_add.md) -
   Add a custom registry to global configuration
-- [finfocus plugin registry install](./finfocus_plugin_registry_install.md) -
+- [`finfocus plugin registry install`](./finfocus_plugin_registry_install.md) -
   Install a plugin from a custom registry with checksum verification
-- [finfocus plugin registry list](./finfocus_plugin_registry_list.md) -
+- [`finfocus plugin registry list`](./finfocus_plugin_registry_list.md) -
   List configured custom registries
-- [finfocus plugin registry remove](./finfocus_plugin_registry_remove.md) -
+- [`finfocus plugin registry remove`](./finfocus_plugin_registry_remove.md) -
   Remove a custom registry and its trust confirmation

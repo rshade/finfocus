@@ -66,5 +66,5 @@ finfocus plugin list [flags]
 
 ## See also
 
-- [finfocus plugin](./finfocus_plugin.md) -
+- [`finfocus plugin`](./finfocus_plugin.md) -
   Plugin management commands

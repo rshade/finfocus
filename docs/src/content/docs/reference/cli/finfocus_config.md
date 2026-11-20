@@ -33,17 +33,17 @@ Configuration management commands
 
 ## See also
 
-- [finfocus](./finfocus.md) -
+- [`finfocus`](./finfocus.md) -
   FinFocus CLI and plugin host
-- [finfocus config get](./finfocus_config_get.md) -
+- [`finfocus config get`](./finfocus_config_get.md) -
   Get a configuration value
-- [finfocus config init](./finfocus_config_init.md) -
+- [`finfocus config init`](./finfocus_config_init.md) -
   Initialize configuration file with default values
-- [finfocus config list](./finfocus_config_list.md) -
+- [`finfocus config list`](./finfocus_config_list.md) -
   List all configuration values
-- [finfocus config routes](./finfocus_config_routes.md) -
+- [`finfocus config routes`](./finfocus_config_routes.md) -
   Plugin routing commands
-- [finfocus config set](./finfocus_config_set.md) -
+- [`finfocus config set`](./finfocus_config_set.md) -
   Set a configuration value
-- [finfocus config validate](./finfocus_config_validate.md) -
+- [`finfocus config validate`](./finfocus_config_validate.md) -
   Validate configuration file

@@ -233,7 +233,7 @@ release and nothing is installed. A checksum that doesn't match stops the instal
 Custom registries require the user to type the exact registry name on the
 first install. Every release from a custom registry requires a matching
 checksum, regardless of the secure plugin mode setting. Custom catalog
-entries cannot replace a built-in name.
+entries can't replace a built-in name.
 
 ### Logs view
 

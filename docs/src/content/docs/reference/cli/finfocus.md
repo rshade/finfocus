@@ -102,25 +102,25 @@ finfocus [flags]
 
 ## See also
 
-- [finfocus __schema](./finfocus___schema.md) -
+- [`finfocus __schema`](./finfocus___schema.md) -
   Emit the AX machine-discoverability schema
-- [finfocus analyzer](./finfocus_analyzer.md) -
+- [`finfocus analyzer`](./finfocus_analyzer.md) -
   Pulumi Analyzer plugin commands
-- [finfocus carbon](./finfocus_carbon.md) -
+- [`finfocus carbon`](./finfocus_carbon.md) -
   Query provider-reported historical carbon emissions
-- [finfocus completion](./finfocus_completion.md) -
+- [`finfocus completion`](./finfocus_completion.md) -
   Generate the autocompletion script for the specified shell
-- [finfocus config](./finfocus_config.md) -
+- [`finfocus config`](./finfocus_config.md) -
   Configuration management commands
-- [finfocus cost](./finfocus_cost.md) -
+- [`finfocus cost`](./finfocus_cost.md) -
   Cost calculation commands
-- [finfocus logs](./finfocus_logs.md) -
+- [`finfocus logs`](./finfocus_logs.md) -
   Show the last entries of the finfocus log file
-- [finfocus mcp-server](./finfocus_mcp-server.md) -
+- [`finfocus mcp-server`](./finfocus_mcp-server.md) -
   Run this CLI as a live MCP server
-- [finfocus overview](./finfocus_overview.md) -
+- [`finfocus overview`](./finfocus_overview.md) -
   Unified stack cost dashboard
-- [finfocus plugin](./finfocus_plugin.md) -
+- [`finfocus plugin`](./finfocus_plugin.md) -
   Plugin management commands
-- [finfocus setup](./finfocus_setup.md) -
+- [`finfocus setup`](./finfocus_setup.md) -
   Bootstrap the FinFocus environment

@@ -39,5 +39,5 @@ finfocus plugin registry add <name> <https-url> [flags]
 
 ## See also
 
-- [finfocus plugin registry](./finfocus_plugin_registry.md) -
+- [`finfocus plugin registry`](./finfocus_plugin_registry.md) -
   Manage custom plugin registries
