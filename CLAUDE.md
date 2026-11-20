@@ -514,6 +514,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   stays in `pendingPorts` until its plugin binds. A skipped pending port's
   listener is closed at once: the readiness probe is a bare TCP dial, so a
   held listener would answer for another plugin.
+- A test that needs a port nothing listens on uses a privileged port (2, 3),
+  never a closed ephemeral listener: a parallel test can take that port
+  before the bare TCP dial, and the bind then succeeds.
 - Always `cmd.Wait()` after `cmd.Process.Kill()`. In `ProcessLauncher`,
   `watchProcess` owns that one `cmd.Wait`; cleanup goes through
   `pluginProcess.stop`, never a second `cmd.Wait`.
