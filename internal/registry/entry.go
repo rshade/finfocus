@@ -21,6 +21,8 @@ type RegistryEntry struct {
 	Capabilities       []string            `json:"capabilities"`
 	SecurityLevel      string              `json:"security_level"`
 	MinSpecVersion     string              `json:"min_spec_version"`
+	MaxSpecVersion     string              `json:"max_spec_version,omitempty"`
+	Keywords           []string            `json:"keywords,omitempty"`
 	AssetHints         *RegistryAssetHints `json:"asset_hints,omitempty"`
 	// TagPrefix marks a plugin released from a monorepo under prefixed tags,
 	// e.g. "kubernetes-" for tag "kubernetes-v0.1.0". Empty for single-plugin repos.
@@ -28,6 +30,8 @@ type RegistryEntry struct {
 	// Deprecated keeps the plugin installable for existing setups. New setups
 	// should use Replacement when it is set.
 	Deprecated bool `json:"deprecated,omitempty"`
+	// DeprecationMessage is advisory text from a custom index.
+	DeprecationMessage string `json:"deprecation_message,omitempty"`
 	// Replacement is the catalog name to use instead of a deprecated plugin.
 	Replacement string `json:"replacement,omitempty"`
 }
@@ -40,6 +44,9 @@ func (e RegistryEntry) DeprecationNotice() string {
 	}
 	if e.Replacement != "" {
 		return fmt.Sprintf("%s is deprecated; use %s for new installs", e.Name, e.Replacement)
+	}
+	if e.DeprecationMessage != "" {
+		return e.DeprecationMessage
 	}
 	return fmt.Sprintf("%s is deprecated", e.Name)
 }

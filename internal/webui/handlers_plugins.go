@@ -46,6 +46,9 @@ type pluginOperation struct {
 
 func (s *Server) registerPlugins(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/plugins/catalog", s.handlePluginCatalog)
+	mux.HandleFunc("GET /api/plugins/registries", s.handlePluginRegistries)
+	mux.HandleFunc("POST /api/plugins/registries", s.handlePluginRegistryAdd)
+	mux.HandleFunc("DELETE /api/plugin-registries/{name}", s.handlePluginRegistryRemove)
 	mux.HandleFunc("POST /api/plugins/{name}/plan", s.handlePluginPlan)
 	mux.HandleFunc("POST /api/plugins/{name}/install", s.handlePluginInstall)
 	mux.HandleFunc("POST /api/plugins/{name}/update", s.handlePluginUpdate)
@@ -115,6 +118,10 @@ func (s *Server) handlePluginPlan(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, "invalid_request", "action must be install, update, or remove")
 		return
 	}
+	if !validPluginRegistry(request.Registry, request.Action) {
+		s.writeError(w, http.StatusBadRequest, "invalid_request", "invalid registry name")
+		return
+	}
 	if request.Action == pluginActionRemove && request.Version == "" {
 		s.writeError(w, http.StatusBadRequest, "invalid_request", "remove requires a version")
 		return
@@ -181,13 +188,19 @@ func (s *Server) startConfirmed(
 		s.writeError(w, http.StatusInternalServerError, "internal", "plugin installer unavailable")
 		return
 	}
+	if !validPluginRegistry(request.Registry, action) {
+		s.writeError(w, http.StatusBadRequest, "invalid_request", "invalid registry name")
+		return
+	}
 	request.CatalogOnly = true
 	request.RequireChecksumFile = true
 	asked := request.Version
 	if action != pluginActionRemove && request.AcceptFallbackFrom != "" {
 		asked = request.AcceptFallbackFrom
 	}
-	plan, err := s.session.opts.PluginPlan(r.Context(), name, PluginPlanRequest{Action: action, Version: asked})
+	plan, err := s.session.opts.PluginPlan(r.Context(), name, PluginPlanRequest{
+		Action: action, Version: asked, Registry: request.Registry,
+	})
 	if err != nil {
 		s.writePluginError(w, err)
 		return

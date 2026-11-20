@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.finfocus.dev/schemas/plugin_registry.schema.json",
+  "title": "FinFocus Plugin Registry Index",
+  "description": "Schema for plugin registry index files containing metadata for discoverable plugins",
+  "type": "object",
+  "required": ["schema_version", "plugins"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this registry schema format",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "examples": ["1.0.0"]
+    },
+    "plugins": {
+      "type": "object",
+      "description": "Map of plugin names to their registry entries",
+      "additionalProperties": {
+        "$ref": "#/$defs/RegistryEntry"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "RegistryEntry": {
+      "type": "object",
+      "description": "Registry entry for a single plugin",
+      "required": [
+        "name",
+        "description",
+        "repository",
+        "author",
+        "supported_providers",
+        "min_spec_version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique plugin identifier (must match registry key)",
+          "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$",
+          "minLength": 1,
+          "maxLength": 50,
+          "examples": ["kubecost", "aws-public"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the plugin",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "repository": {
+          "type": "string",
+          "description": "GitHub repository in owner/repo format",
+          "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+$",
+          "examples": ["rshade/finfocus-plugin-kubecost"]
+        },
+        "author": {
+          "type": "string",
+          "description": "Plugin author or organization name",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "license": {
+          "type": "string",
+          "description": "SPDX license identifier",
+          "examples": ["Apache-2.0", "MIT", "GPL-3.0-only"]
+        },
+        "homepage": {
+          "type": "string",
+          "description": "Plugin homepage URL",
+          "format": "uri"
+        },
+        "supported_providers": {
+          "type": "array",
+          "description": "Cloud providers supported by this plugin. Entries are clouds, not IaC packages: a plugin that prices azure-native resources lists azure.",
+          "items": {
+            "type": "string",
+            "enum": ["aws", "azure", "gcp", "kubernetes", "custom"]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "capabilities": {
+          "type": "array",
+          "description": "Plugin capabilities. Accepts every capability a plugin manifest accepts (see plugin_manifest.schema.json), including the PluginCapability values from enums.proto written as the lowercase value name without the PLUGIN_CAPABILITY_ prefix, plus the registry-only values tagging, anomaly_detection, forecasting, alerts, and custom.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "cost_retrieval",
+              "cost_projection",
+              "pricing_specs",
+              "real_time_data",
+              "historical_data",
+              "filtering",
+              "aggregation",
+              "tagging",
+              "recommendations",
+              "anomaly_detection",
+              "forecasting",
+              "budgets",
+              "alerts",
+              "custom",
+              "batch_processing",
+              "rate_limiting",
+              "caching",
+              "encryption",
+              "compression",
+              "multi_tenancy",
+              "audit_logging",
+              "projected_costs",
+              "actual_costs",
+              "carbon",
+              "dry_run",
+              "energy",
+              "water",
+              "pricing_spec",
+              "estimate_cost",
+              "dismiss_recommendations",
+              "batch_cost",
+              "resolve_resource_types",
+              "usage_stats",
+              "allocation",
+              "contract_commitments",
+              "invoice_data",
+              "recommendation_scoring",
+            "cost_parse",
+            "historical_carbon"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "security_level": {
+          "type": "string",
+          "description": "Plugin security trust level",
+          "enum": ["untrusted", "community", "verified", "official"],
+          "default": "community"
+        },
+        "min_spec_version": {
+          "type": "string",
+          "description": "Minimum FinFocus spec version required",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "examples": ["0.1.0"]
+        },
+        "max_spec_version": {
+          "type": "string",
+          "description": "Maximum FinFocus spec version supported",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "keywords": {
+          "type": "array",
+          "description": "Searchable keywords",
+          "items": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "deprecated": {
+          "type": "boolean",
+          "description": "Whether this plugin is deprecated",
+          "default": false
+        },
+        "deprecation_message": {
+          "type": "string",
+          "description": "Message explaining deprecation and migration path"
+        }
+      },
+      "dependentRequired": {
+        "deprecated": ["deprecation_message"]
+      },
+      "additionalProperties": false
+    }
+  }
+}

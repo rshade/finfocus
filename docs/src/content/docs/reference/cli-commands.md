@@ -602,6 +602,28 @@ tag, so they match the SDK version it scaffolds. A development build uses
 succeeds and prints the command to run later. `--offline` and `--no-skill`
 skip it.
 
+## plugin registry
+
+Manage custom HTTPS plugin indices with
+[`finfocus plugin registry`](./cli/finfocus_plugin_registry.md). Registry sources
+belong in global configuration. Built-in names take precedence. A custom
+index can list plugins as community or experimental.
+
+- [`plugin registry add`](./cli/finfocus_plugin_registry_add.md) validates an index
+  and adds its source. Use `--sha256` to pin the index content.
+- [`plugin registry list`](./cli/finfocus_plugin_registry_list.md) shows the
+  configured sources.
+- [`plugin registry remove`](./cli/finfocus_plugin_registry_remove.md) removes a
+  source and its confirmation.
+- [`plugin registry install`](./cli/finfocus_plugin_registry_install.md) installs
+  a plugin from a named source. On the first install, supply the exact source
+  name with `--confirm-registry`. A matching release checksum is required.
+
+```bash
+finfocus plugin registry add company https://registry.example.com/index.json
+finfocus plugin registry install company provisioning --confirm-registry company
+```
+
 ## plugin install
 
 Install a FinFocus plugin from a registry or URL. Flags and examples:

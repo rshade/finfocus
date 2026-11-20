@@ -319,8 +319,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   retention.
 - `make test-e2e-kind` pins `E2E_AWS_PUBLIC_VERSION` (Renovate bumps it).
 - Web plugin e2e uses the production seams `FINFOCUS_CATALOG_FILE` and
-  `FINFOCUS_GITHUB_API` (a stand-in catalog and GitHub API, not a supported
-  custom registry). `webEnvironment` strips every `FINFOCUS_*` value before
+  `FINFOCUS_GITHUB_API` (a stand-in catalog and GitHub API). They are not the
+  user-configured registries in `specs/2022-custom-plugin-registries/`.
+  `webEnvironment` strips every `FINFOCUS_*` value before
   `fixtureEnv` is appended, so pass those two through `fixtureEnv`.
   `GITHUB_TOKEN` is not stripped. Do not mention the seams in user docs.
 
@@ -943,7 +944,23 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - `FINFOCUS_CATALOG_FILE` overlays the embedded catalog for `GetPlugin` and
   `GetAllPluginEntries` (read each call, not cached). `ListPluginsFromRegistry`
   stays on the embedded catalog. `FINFOCUS_GITHUB_API` replaces the GitHub API
-  base. Both are test seams. A custom registry remains #1766.
+  base. Both are test seams, not custom registries.
+- Custom registries (`specs/2022-custom-plugin-registries/`, #1766) are global
+  config only: `plugin_registries` and `plugin_registry_confirmations`. A
+  project overlay that names either key fails the merge, and the
+  working-directory fallback supplies none. An index is HTTPS with no
+  credentials, query, or fragment; redirects must stay on that HTTPS origin;
+  the body limit is 1 MiB and the deadline is 10s. An optional SHA-256 pin
+  covers the index bytes. Validation uses the embedded finfocus-spec schema.
+  A custom entry is `community` or `experimental`, never `official`, and it
+  cannot shadow a built-in name. A name offered by two sources is left out of
+  the catalog. Installs require `checksums.txt` and cannot skip or accept a
+  missing checksum. The first install from a source needs its name typed;
+  editing that source clears the confirmation. `plugin update` refuses a
+  plugin whose installed record names a custom registry. Web install and
+  update both use `PluginInstall` when the request names a registry. MCP
+  exposes `plugin registry list` only; add, remove, and install take
+  positional arguments and stay off the tool list.
 - Monorepo plugins (`tag_prefix: "kubernetes-"`): "latest" is the highest
   prefixed stable semver, never `/releases/latest`; installs use the canonical
   version; the entry needs `asset_hints.asset_prefix`.

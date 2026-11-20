@@ -20,6 +20,7 @@ require (
 	github.com/rshade/ax-go v0.10.0
 	github.com/rshade/finfocus-spec v0.7.12
 	github.com/rshade/goarima v0.4.1-0.20261029015414-6420b7848c38
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.1.0
 	github.com/stretchr/testify v1.12.1
@@ -74,7 +75,6 @@ require (
 	github.com/prometheus/procfs v0.23.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/xo/terminfo v1.3.1 // indirect

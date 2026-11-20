@@ -116,6 +116,11 @@ type Config struct {
 	// Web configures the dashboard (finfocus --web). Nil means defaults everywhere.
 	Web *WebConfig `yaml:"web,omitempty" json:"web,omitempty"`
 
+	// PluginRegistries are trusted source settings loaded only from global config.
+	PluginRegistries []PluginRegistrySource `yaml:"plugin_registries,omitempty" json:"plugin_registries,omitempty"`
+	// PluginRegistryConfirmations stores a fingerprint for each approved source.
+	PluginRegistryConfirmations map[string]string `yaml:"plugin_registry_confirmations,omitempty" json:"plugin_registry_confirmations,omitempty"`
+
 	InstalledPlugins []InstalledPlugin `yaml:"installed_plugins,omitempty" json:"installed_plugins,omitempty"`
 
 	// Internal fields
@@ -343,6 +348,8 @@ func New() *Config {
 
 	if UsesWorkingDirFallback() {
 		markProjectDestinations(cfg.Cost.Budgets)
+		cfg.PluginRegistries = nil
+		cfg.PluginRegistryConfirmations = nil
 	}
 
 	// Apply YAML plugin_dir override (lower precedence than env var, applied first).
@@ -427,6 +434,8 @@ func NewStrict() (*Config, error) {
 
 	if UsesWorkingDirFallback() {
 		markProjectDestinations(cfg.Cost.Budgets)
+		cfg.PluginRegistries = nil
+		cfg.PluginRegistryConfirmations = nil
 	}
 
 	// Apply YAML plugin_dir override (lower precedence than env var, applied first).
@@ -456,7 +465,8 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for _, key := range []string{keyOutput, keyPlugins, keyLogging, keyAnalyzer, keyPluginHost,
-		keyCost, keyRouting, keyScoring, keyOverview, keyESC, keyWeb, keyPluginDir, keyInstalledPlugin} {
+		keyCost, keyRouting, keyScoring, keyOverview, keyESC, keyWeb, keyPluginDir, keyInstalledPlugin,
+		keyPluginRegistries, keyPluginRegistryConfirmations} {
 		delete(keys, key)
 	}
 	c.extraKeys = keys
@@ -655,6 +665,11 @@ func (c *Config) Get(key string) (any, error) {
 		return c.getESCValue(parts[1:])
 	case keyWeb:
 		return c.getWebValue(parts[1:])
+	case keyPluginRegistries:
+		if len(parts) == 1 {
+			return slices.Clone(c.PluginRegistries), nil
+		}
+		return nil, fmt.Errorf("unknown registry setting: %s", key)
 	default:
 		return nil, fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -662,7 +677,7 @@ func (c *Config) Get(key string) (any, error) {
 
 // List returns all configuration as a map.
 func (c *Config) List() map[string]any {
-	return map[string]any{
+	values := map[string]any{
 		keyOutput:     c.Output,
 		keyPlugins:    c.Plugins,
 		keyLogging:    c.Logging,
@@ -675,6 +690,10 @@ func (c *Config) List() map[string]any {
 		keyESC:        c.ESC,
 		keyWeb:        c.Web,
 	}
+	if c.PluginRegistries != nil {
+		values[keyPluginRegistries] = slices.Clone(c.PluginRegistries)
+	}
+	return values
 }
 
 // Validate validates the configuration.
@@ -703,6 +722,10 @@ func (c *Config) Validate() error {
 	// Validate plugin configurations
 	if err := c.validatePluginConfigurations(); err != nil {
 		return fmt.Errorf("plugin configuration validation failed: %w", err)
+	}
+
+	if err := validatePluginRegistrySources(c.PluginRegistries); err != nil {
+		return fmt.Errorf("plugin registry configuration validation failed: %w", err)
 	}
 
 	// Validate cost configuration

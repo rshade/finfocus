@@ -958,6 +958,39 @@ button:disabled {
   vertical-align: top;
 }
 
+#plugin-registries {
+  margin: 0 0 1rem;
+}
+
+#plugin-registries-heading {
+  margin: 0 0 0.5rem;
+}
+
+.plugin-registry-form .filter-label {
+  min-width: 0;
+}
+
+.plugin-registry-url {
+  min-width: 12rem;
+  overflow-wrap: anywhere;
+}
+
+#plugin-registry-list th[scope='row'] {
+  min-width: 8rem;
+}
+
+@media (min-width: 41rem) {
+  #plugin-registry-name,
+  #plugin-registry-sha256 {
+    min-width: 0;
+    width: 12rem;
+  }
+
+  #plugin-registry-trust {
+    min-width: 9rem;
+  }
+}
+
 .plugin-actions {
   display: flex;
   flex-wrap: wrap;

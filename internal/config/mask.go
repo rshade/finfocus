@@ -2,6 +2,7 @@ package config
 
 import (
 	"maps"
+	"slices"
 	"strings"
 )
 
@@ -34,6 +35,13 @@ func (c *Config) MaskedForDisplay() *Config {
 		dest.Headers = headers
 	})
 	masked.Plugins = maskPlugins(c.Plugins)
+	masked.PluginRegistries = slices.Clone(c.PluginRegistries)
+	masked.PluginRegistryConfirmations = nil
+	for i := range masked.PluginRegistries {
+		if !validPluginRegistryURL(masked.PluginRegistries[i].URL) {
+			masked.PluginRegistries[i].URL = RedactedValue
+		}
+	}
 	return &masked
 }
 

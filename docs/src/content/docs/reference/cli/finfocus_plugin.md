@@ -47,6 +47,8 @@ Plugin management commands
   Install a plugin from registry or URL
 - [finfocus plugin list](./finfocus_plugin_list.md) -
   List installed plugins
+- [finfocus plugin registry](./finfocus_plugin_registry.md) -
+  Manage custom plugin registries
 - [finfocus plugin remove](./finfocus_plugin_remove.md) -
   Remove an installed plugin
 - [finfocus plugin update](./finfocus_plugin_update.md) -

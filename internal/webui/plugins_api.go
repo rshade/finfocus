@@ -16,6 +16,22 @@ func (e *StatusError) Error() string {
 	return e.Text
 }
 
+// PluginRegistryRow is a custom source shown in the Plugins page.
+type PluginRegistryRow struct {
+	Name   string `json:"name"`
+	URL    string `json:"url"`
+	Trust  string `json:"trust"`
+	SHA256 string `json:"sha256,omitempty"`
+}
+
+// PluginRegistryRequest describes a source to add to the global configuration.
+type PluginRegistryRequest struct {
+	Name   string `json:"name"`
+	URL    string `json:"url"`
+	Trust  string `json:"trust"`
+	SHA256 string `json:"sha256,omitempty"`
+}
+
 // PluginCatalogRow is one Plugins page row.
 type PluginCatalogRow struct {
 	Name              string   `json:"name"`
@@ -24,6 +40,7 @@ type PluginCatalogRow struct {
 	Capabilities      []string `json:"capabilities"`
 	SecurityLevel     string   `json:"securityLevel"`
 	Repository        string   `json:"repository"`
+	Registry          string   `json:"registry,omitempty"`
 	InCatalog         bool     `json:"inCatalog"`
 	InstalledVersions []string `json:"installedVersions"`
 	LatestVersion     string   `json:"latestVersion"`
@@ -36,27 +53,34 @@ type PluginCatalogRow struct {
 // PluginPlanRequest asks for a confirmation summary. Version is optional for
 // install and update. Remove requires it.
 type PluginPlanRequest struct {
-	Action  string `json:"action"`
-	Version string `json:"version,omitempty"`
+	Action   string `json:"action"`
+	Version  string `json:"version,omitempty"`
+	Registry string `json:"registry,omitempty"`
 }
 
 // PluginPlan is the confirmation summary. Building it does not download or delete.
 type PluginPlan struct {
-	Action        string `json:"action"`
-	Name          string `json:"name"`
-	Version       string `json:"version"`
-	Repository    string `json:"repository"`
-	SecurityLevel string `json:"securityLevel"`
-	FallbackFrom  string `json:"fallbackFrom"`
-	ChecksumFile  string `json:"checksumFile"`
-	InCatalog     bool   `json:"inCatalog"`
-	Deprecated    bool   `json:"deprecated,omitempty"`
-	Replacement   string `json:"replacement,omitempty"`
+	Registry                     string `json:"registry,omitempty"`
+	RegistryRevision             string `json:"registryRevision,omitempty"`
+	RegistryConfirmationRequired bool   `json:"registryConfirmationRequired,omitempty"`
+	Action                       string `json:"action"`
+	Name                         string `json:"name"`
+	Version                      string `json:"version"`
+	Repository                   string `json:"repository"`
+	SecurityLevel                string `json:"securityLevel"`
+	FallbackFrom                 string `json:"fallbackFrom"`
+	ChecksumFile                 string `json:"checksumFile"`
+	InCatalog                    bool   `json:"inCatalog"`
+	Deprecated                   bool   `json:"deprecated,omitempty"`
+	Replacement                  string `json:"replacement,omitempty"`
 }
 
 // PluginOperationRequest confirms a plan. CatalogOnly and RequireChecksumFile
 // are set by the handler before the callback runs; they are not part of the body.
 type PluginOperationRequest struct {
+	Registry              string `json:"registry,omitempty"`
+	RegistryRevision      string `json:"registryRevision,omitempty"`
+	RegistryConfirmation  string `json:"registryConfirmation,omitempty"`
 	Version               string `json:"version"`
 	Repository            string `json:"repository"`
 	SecurityLevel         string `json:"securityLevel"`
@@ -198,6 +222,14 @@ func confirmationMatches(plan PluginPlan, body PluginOperationRequest) bool {
 	}
 	if body.AcceptFallbackFrom != plan.FallbackFrom {
 		return false
+	}
+	if body.Registry != plan.Registry {
+		return false
+	}
+	if plan.Registry != "" {
+		return plan.RegistryRevision != "" && body.RegistryRevision == plan.RegistryRevision &&
+			plan.ChecksumFile == "present" && !body.AcceptMissingChecksum &&
+			(!plan.RegistryConfirmationRequired || body.RegistryConfirmation == plan.Registry)
 	}
 	if plan.ChecksumFile == "missing" && !body.AcceptMissingChecksum {
 		return false

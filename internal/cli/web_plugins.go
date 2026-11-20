@@ -40,14 +40,26 @@ func wirePlugins(ctx context.Context, options *webui.SessionOptions, cmd *cobra.
 	}
 	projectDir := config.ResolveProjectDir(ctx, flagValue, cwd)
 	globalPath := filepath.Join(config.ResolveConfigDir(), "config.hujson")
-	options.PluginCatalog = pluginCatalog
-	options.PluginPlan = pluginPlan
+	custom := registry.NewCustomRegistryService(nil)
+	wireCustomRegistries(options, custom)
+	options.PluginCatalog = func(catalogCtx context.Context) ([]webui.PluginCatalogRow, error) {
+		return pluginCatalog(catalogCtx, custom)
+	}
+	options.PluginPlan = func(planCtx context.Context, name string, request webui.PluginPlanRequest) (webui.PluginPlan, error) {
+		if request.Registry != "" {
+			return planCustomPlugin(planCtx, custom, name, request)
+		}
+		return pluginPlan(planCtx, name, request)
+	}
 	options.PluginPrepare = func(_ context.Context, name string, _ webui.PluginOperationRequest) error {
 		return preparePluginChange(name)
 	}
 	options.PluginInstall = func(
 		installCtx context.Context, name string, request webui.PluginOperationRequest, report func(webui.PluginProgress),
 	) error {
+		if request.Registry != "" {
+			return installConfirmedCustomPlugin(installCtx, custom, name, request, report, data.reloadPlugins)
+		}
 		return installConfirmedPlugin(installCtx, name, request, report, data.reloadPlugins)
 	}
 	options.PluginRemove = func(
@@ -77,7 +89,7 @@ func withSessionESC(ctx context.Context, data *webData) context.Context {
 	return ctx
 }
 
-func pluginCatalog(ctx context.Context) ([]webui.PluginCatalogRow, error) {
+func pluginCatalog(ctx context.Context, custom *registry.CustomRegistryService) ([]webui.PluginCatalogRow, error) {
 	entries, err := registry.GetAllPluginEntries()
 	if err != nil {
 		return nil, err
@@ -86,6 +98,7 @@ func pluginCatalog(ctx context.Context) ([]webui.PluginCatalogRow, error) {
 	if err != nil {
 		return nil, err
 	}
+	sources := appendCustomCatalog(ctx, custom, &entries)
 	merged := registry.MergeCatalog(entries, installed, func(entry registry.RegistryEntry) (string, error) {
 		release, _, releaseErr := resolveCatalogRelease(ctx, &entry, "")
 		if releaseErr != nil {
@@ -97,6 +110,7 @@ func pluginCatalog(ctx context.Context) ([]webui.PluginCatalogRow, error) {
 	for _, row := range merged {
 		rows = append(rows, webui.PluginCatalogRow{
 			Name:              row.Name,
+			Registry:          sources[row.Name],
 			Description:       row.Description,
 			Providers:         row.Providers,
 			Capabilities:      row.Capabilities,

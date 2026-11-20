@@ -72,6 +72,9 @@ type SessionOptions struct {
 	ConfigPreview         func(context.Context, config.WriteRequest) (config.PatchResult, error)
 	ConfigSave            func(context.Context, config.WriteRequest) (config.PatchResult, error)
 	PluginCatalog         func(context.Context) ([]PluginCatalogRow, error)
+	PluginRegistries      func(context.Context) ([]PluginRegistryRow, error)
+	PluginRegistryAdd     func(context.Context, PluginRegistryRequest) error
+	PluginRegistryRemove  func(context.Context, string) error
 	PluginPlan            func(context.Context, string, PluginPlanRequest) (PluginPlan, error)
 	PluginPrepare         func(context.Context, string, PluginOperationRequest) error
 	PluginInstall         func(context.Context, string, PluginOperationRequest, func(PluginProgress)) error

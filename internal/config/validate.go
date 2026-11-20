@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"maps"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -101,6 +103,13 @@ func ValidateProjectConfigSource(path string, data []byte) (ValidationResult, *C
 		data = converted
 	}
 	result, cfg, lines := validateConfigSource(path, data)
+	for _, key := range slices.Sorted(maps.Keys(lines)) {
+		if pluginRegistryKey(key) != "" {
+			result.Errors = append(result.Errors, ValidationError{
+				Line: lines[key], Path: key, Message: ErrPluginRegistriesGlobalOnly.Error(),
+			})
+		}
+	}
 	if cfg == nil {
 		if fromYAML {
 			clearLines(&result)
@@ -159,6 +168,9 @@ func validateConfigSource(path string, data []byte) (ValidationResult, *Config, 
 	src := &configSource{data: data, lines: map[string]int{}}
 	if object, ok := value.Value.(*hujson.Object); ok {
 		walkObject(object, "", configStructType(), src, &result)
+		if keyErr := validatePluginRegistryKeys(object); keyErr != nil {
+			addSemanticError(&result, keyErr, src.lines)
+		}
 	} else {
 		result.Errors = append(result.Errors, ValidationError{
 			Message: "configuration must be a JSON object",
@@ -179,7 +191,7 @@ func validateConfigSource(path string, data []byte) (ValidationResult, *Config, 
 			})
 		}
 		result.Valid = false
-		return result, nil, nil
+		return result, nil, src.lines
 	}
 	if cfg.Output.DefaultFormat == "" {
 		cfg.Output.DefaultFormat = formatTable
@@ -268,6 +280,9 @@ func lineForPath(lines map[string]int, path string) int {
 }
 
 func locateConfigError(err error) string {
+	if field, ok := errors.AsType[*pluginRegistryFieldError](err); ok {
+		return field.path
+	}
 	msg := err.Error()
 	base := ""
 	if strings.Contains(msg, "budget") {
