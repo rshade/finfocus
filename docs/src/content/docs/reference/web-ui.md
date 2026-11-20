@@ -58,7 +58,7 @@ start the opener is logged as a warning. The server keeps running.
 
 ## Views
 
-The header links to nine views, and a tenth, Logs, when you turn it on. Each has its own URL fragment, and a
+The header links to ten views, and an eleventh, Logs, when you turn it on. Each has its own URL fragment, and a
 **Skip to main content** link comes first in the tab order.
 
 | View | Fragment | Shows |
@@ -69,6 +69,7 @@ The header links to nine views, and a tenth, Logs, when you turn it on. Each has
 | Recommendations | `#/recommendations` | Recommendation counts, savings, actions, descriptions, and scorer signals when scoring is configured |
 | Estimate | `#/estimate` | What-if comparison for one resource: baseline, modified monthly cost, total change, and per-property deltas |
 | Forecast | `#/forecast` | Monthly cost projected from the current month, with the growth model or a statistical model fitted to a spend CSV, its bounds, the plan baseline, budget, and warnings |
+| Cluster | `#/cluster` | Kubernetes cost allocation from `cost cluster`: total, idle capacity and its share, mode, policy, cost by group, capacity types, warnings, and the effective allocation policy |
 | Carbon | `#/carbon` | Provider-published monthly carbon emissions for complete UTC months, with source, provider, grouping, period, model version, and retrieval time per record |
 | Config | `#/config` | Effective configuration, the tier each value comes from, and edits to known settings in the project or global file |
 | Plugins | `#/plugins` | Catalog and custom registries, installed versions, release operations, and per-plugin settings |
@@ -176,11 +177,39 @@ spend CSV are summarized below it, with their date range. A failed query
 clears earlier results and shows the message `cost forecast` prints for the
 same settings.
 
+### Cluster controls
+
+The Cluster view calls the same Go method as `finfocus cost cluster` and
+shows the values of `--output json` for the same settings, with every amount,
+share, mode, and policy line formatted by the server. It sends nothing until
+you press **Run allocation**.
+
+| Control | Effect |
+| --- | --- |
+| Context, Namespace | The same as `--context` and `--namespace`. Empty is the current kubeconfig context and every namespace. |
+| Selector | The same as `--selector`. Comma-separated `key=value` pairs. |
+| Group by | Namespace, Controller, Pod, Node, Pulumi stack, or Label (`--group-by label:<key>`, with the key in **Label key**). |
+| From, To | A date or an RFC 3339 time, as for `--from` and `--to`. Empty is the monthly run rate. |
+| Usage source, Allocator | Shown only after a query is rejected because more than one installed plugin can serve it. The message lists them. The same as `--usage-source` and `--allocator`. |
+| Policy file | Optional. The browser reads the chosen file and sends its text. The server never opens a path from the page. |
+
+The totals bar shows the total, idle capacity and its share (or the scope that
+left idle out), the mode, and the policy. The group table lists each group's
+CPU, memory, total, share, and notes in the order the CLI lists them,
+highest total first. A capacity table follows when nodes have capacity-type labels. Warnings come
+next, and, for an incomplete report, what the usage source reported missing
+and which resources couldn't be priced.
+
+When no installed plugin provides `usage_stats` or `allocation`, the view
+shows the missing capability and links to **Plugins** instead of showing an
+error. A rejected query shows the message `cost cluster` prints for the same
+flags. **Allocation policy** opens the effective policy, its source, and its
+short digest, the same as `--show-policy`.
+
 ### Cluster allocation API
 
-`finfocus cost cluster` is reachable through the HTTP API, through the same
-Go methods the command calls. The dashboard has no Cluster view yet. A
-request takes `context`, `namespace`, `selector` (a list of `key=value`),
+The Cluster view reads `finfocus cost cluster` through this HTTP API, through
+the same Go methods the command calls. A request takes `context`, `namespace`, `selector` (a list of `key=value`),
 `groupBy`, `from`, `to`, `usageSource`, `allocator`, and `policy`, each in
 the syntax of the flag of the same name. `policy` is the allocation policy's
 HuJSON text: the server never opens a path from the page. Without it, the
@@ -193,8 +222,8 @@ the answer is still HTTP 200, with `status: "unavailable"` and the missing
 `capability`. Each plugin call keeps the command's own deadline, so a long
 historical window isn't cut short.
 
-Meanwhile, the Overview's cluster rows show the same live allocation: expand
-a cluster to list its namespaces and idle capacity.
+The Overview's cluster rows show the same live allocation: expand a cluster to
+list its namespaces and idle capacity.
 
 ![Overview with an EKS cluster expanded into live namespace allocation rows, with idle capacity first](./screenshots/web-overview-cluster.png)
 

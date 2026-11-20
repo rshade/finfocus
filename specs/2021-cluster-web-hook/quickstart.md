@@ -49,3 +49,19 @@ aws-public v0.2.5:
   including `__idle__`.
 - `groupBy: "daily"` answered 400 `invalid_cluster_query` with the CLI's
   message.
+
+### Cluster view (#2280)
+
+2026-11-19, same cluster, labels, and isolated home: `finfocus --web
+--no-browser --port 18767 --pulumi-state
+testdata/overview/state-cluster-expansion.json`, then `#/cluster` and **Run
+allocation** with every field empty. The totals bar read $70.08 total, $52.77
+idle (75.3%), `run-rate (monthly, 730 h)`, and `built-in defaults ·
+9ad579498af7`; the group table listed the seven namespaces in the CLI's order
+(`__idle__` first, as the highest total), and the capacity table showed one
+`on-demand` node. Those match `finfocus cost cluster --output json` from the
+same home. **Allocation policy** showed the same source, digest, and
+effective policy as `--show-policy`. Rendered with Playwright in light at
+1280 px and dark at 390 px, with no page overflow. The labels were removed
+afterward. `TestWebUICluster` (`test/e2e`, `e2e_web`) covers the unavailable
+answer, a 400, and the policy panel against the fixture plugin in both themes.

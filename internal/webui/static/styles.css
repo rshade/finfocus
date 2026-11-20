@@ -1191,6 +1191,117 @@ button:disabled {
   }
 }
 
+/* Cluster form wraps like Forecast. Plugin-choice and label-key fields are
+   hidden until needed; .filter-label's flex display would otherwise win. */
+.cluster-toolbar .filter-label {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.cluster-toolbar .filter-label[hidden] {
+  display: none;
+}
+
+.cluster-toolbar .filter-input,
+.cluster-toolbar select,
+.cluster-toolbar input[type="file"] {
+  min-width: 0;
+  width: 100%;
+}
+
+.cluster-status[data-state="invalid"],
+.cluster-policy-status[data-state="invalid"],
+.cluster-policy-status[data-state="failed"] {
+  color: var(--error);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cluster-unavailable {
+  margin: 0.75rem 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-subtle);
+}
+
+.cluster-unavailable p {
+  margin: 0.25rem 0;
+  overflow-wrap: anywhere;
+}
+
+.cluster-unavailable-title {
+  font-weight: 600;
+}
+
+.cluster-unavailable a {
+  color: var(--accent);
+}
+
+.cluster-wrap {
+  margin: 0.75rem 0;
+}
+
+.cluster-table .col-num,
+.cluster-capacity-table .col-num {
+  text-align: right;
+}
+
+.cluster-table .cluster-row-head,
+.cluster-capacity-table .cluster-row-head {
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.cluster-notes ul,
+.cluster-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.cluster-warnings,
+.cluster-incomplete {
+  margin: 0.75rem 0;
+  color: var(--fg-muted);
+}
+
+.cluster-policy {
+  margin: 1rem 0;
+}
+
+.cluster-policy summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cluster-policy-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0.5rem 0;
+}
+
+.cluster-policy-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cluster-policy-effective {
+  max-height: 24rem;
+  overflow: auto;
+  padding: 0.6rem 1rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+@media (max-width: 40rem) {
+  .cluster-toolbar .filter-label {
+    flex: none;
+  }
+}
+
 .anomalies-table .col-resource {
   white-space: normal;
   overflow-wrap: anywhere;

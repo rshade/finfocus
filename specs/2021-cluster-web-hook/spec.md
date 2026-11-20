@@ -215,8 +215,9 @@ CLI's `--show-policy --output json`.
   several are installed); status line for loading, unavailable, and
   validation messages; totals bar with total, idle and its share, and the
   mode line; captioned group table (group, CPU, memory, total, share,
-  notes) with numeric columns aligned like the Overview table and the idle
-  group last; a capacity table when node capacity types are labeled;
+  notes) with numeric columns aligned like the Overview table, in the
+  report's order (highest total first; the page never reorders, so idle has
+  no fixed place); a capacity table when node capacity types are labeled;
   warnings and incomplete explanation below the tables.
 - **Additions**: a policy panel showing source, short digest, and the
   effective policy as formatted text, loaded on demand.
@@ -224,9 +225,13 @@ CLI's `--show-policy --output json`.
   with Playwright against the `oc-e2e` kind cluster and the
   `state-cluster-expansion` fixture; both endpoints matched the CLI JSON
   there (details in `quickstart.md`).
+  The Cluster view itself was rendered there on the same day, in light at
+  1280 px and dark at 390 px (`quickstart.md`, "Cluster view (#2280)").
 - **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
   accessibility). No engine, API, redaction, or data-shape work. Filed as
   #2280.
+- **View shipped**: #2280 added `#/cluster`
+  (`internal/webui/static/views/cluster.js`), linked after Forecast.
 
 ## Success Criteria *(mandatory)*
 
