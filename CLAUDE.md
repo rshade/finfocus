@@ -728,9 +728,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   and a project-sourced destination with `${` is skipped without a lookup.
   Slack and webhook deliveries require HTTPS and follow no redirects. Email
   uses verified STARTTLS or implicit TLS, with plaintext for loopback relays.
+  PagerDuty sends Events API v2 triggers over HTTPS. Its deduplication key
+  uses the evaluation month and its warning may include sanitized diagnostics.
   Deliveries time out after 10s. Failure reasons redact variable values, URLs,
-  secret-looking headers, and SMTP credentials. HTTP bodies and SMTP reply
-  text are discarded.
+  secret-looking headers, SMTP credentials, and PagerDuty routing keys. Slack
+  and webhook response bodies and SMTP reply text are discarded.
   `ThresholdStatus.Notifications` is `json:"-"`; masking is display-only
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.

@@ -275,8 +275,8 @@ func TestValidateConfigSource_Notifications(t *testing.T) {
   "providers":{"aws":{"amount":50,"alerts":[{"threshold":100,"type":"forecasted",
     "notifications":[{"type":"sms","url":"https://example.com"}]}]}}}}}`,
 			path: "cost.budgets.providers.aws.alerts[0].notifications[0].type",
-			text: "slack, webhook, email",
-			hint: "slack, webhook, email",
+			text: "slack, webhook, email, pagerduty",
+			hint: "slack, webhook, email, pagerduty",
 		},
 		{
 			name: "tag webhook channel",

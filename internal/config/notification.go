@@ -19,6 +19,8 @@ const (
 	NotificationTypeWebhook NotificationType = "webhook"
 	// NotificationTypeEmail delivers a budget alert through an SMTP relay.
 	NotificationTypeEmail NotificationType = "email"
+	// NotificationTypePagerDuty triggers an incident via the PagerDuty Events API.
+	NotificationTypePagerDuty NotificationType = "pagerduty"
 )
 
 // NotificationVariablePrefix is the only environment variable prefix that a
@@ -38,7 +40,7 @@ const (
 
 // Notification validation errors.
 var (
-	ErrNotificationTypeInvalid     = errors.New("notification type must be one of: slack, webhook, email")
+	ErrNotificationTypeInvalid     = errors.New("notification type must be one of: slack, webhook, email, pagerduty")
 	ErrNotificationURLRequired     = errors.New("notification url is required")
 	ErrNotificationHTTPSRequired   = errors.New("HTTPS is required: the url must start with https:// and name a host")
 	ErrNotificationMethodInvalid   = errors.New("notification method must be POST or PUT")
@@ -87,7 +89,7 @@ const (
 type NotificationDestination struct {
 	EmailConfig `yaml:",inline"`
 
-	// Type is "slack", "webhook", or "email".
+	// Type selects a supported destination.
 	Type NotificationType `yaml:"type" json:"type"`
 	// URL is the HTTPS endpoint. It may contain ${FINFOCUS_NOTIFY_*} references.
 	URL string `yaml:"url,omitempty" json:"url,omitempty"`
@@ -98,6 +100,13 @@ type NotificationDestination struct {
 	// Headers are extra request headers. Values may contain ${FINFOCUS_NOTIFY_*}
 	// references. Webhook destinations only.
 	Headers map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
+
+	// RoutingKey is the PagerDuty integration credential.
+	RoutingKey string `yaml:"routing_key,omitempty" json:"routing_key,omitempty"`
+	// Severity controls the PagerDuty event severity.
+	Severity string `yaml:"severity,omitempty" json:"severity,omitempty"`
+	// DedupKey chooses the PagerDuty deduplication mode.
+	DedupKey string `yaml:"dedup_key,omitempty" json:"dedup_key,omitempty"`
 
 	source destinationSource
 }
@@ -135,7 +144,12 @@ func (d NotificationDestination) Validate() error {
 		if err := validateNotificationMethod(d.Method); err != nil {
 			return err
 		}
+	case NotificationTypePagerDuty:
+		return d.validatePagerDuty()
 	case NotificationTypeEmail:
+		if field := d.firstPagerDutyField(); field != "" {
+			return fieldNotAllowed(field, NotificationTypePagerDuty)
+		}
 		switch {
 		case d.URL != "":
 			return &NotificationFieldError{Field: notificationFieldURL, Err: ErrNotificationFieldNotAllowed}
@@ -152,6 +166,9 @@ func (d NotificationDestination) Validate() error {
 			Field: notificationFieldType,
 			Err:   fmt.Errorf("%w (got %q)", ErrNotificationTypeInvalid, d.Type),
 		}
+	}
+	if field := d.firstPagerDutyField(); field != "" {
+		return fieldNotAllowed(field, NotificationTypePagerDuty)
 	}
 	if field := d.EmailConfig.firstSetField(); field != "" {
 		return fieldNotAllowed(field, NotificationTypeEmail)
@@ -302,7 +319,7 @@ func HasNotificationReference(value string) bool {
 
 // DestinationHasReference reports whether an expandable field contains a "${" reference.
 func DestinationHasReference(d NotificationDestination) bool {
-	if HasNotificationReference(d.URL) {
+	if HasNotificationReference(d.URL) || HasNotificationReference(d.RoutingKey) {
 		return true
 	}
 	for _, value := range d.Headers {
@@ -374,6 +391,9 @@ func projectDestinationErrors(budgets *BudgetsConfig) []ValidationError {
 		fields := make([]string, 0, 1+len(dest.Headers))
 		if HasNotificationReference(dest.URL) {
 			fields = append(fields, notificationFieldURL)
+		}
+		if HasNotificationReference(dest.RoutingKey) {
+			fields = append(fields, notificationFieldRoutingKey)
 		}
 		names := make([]string, 0, len(dest.Headers))
 		for name := range dest.Headers {

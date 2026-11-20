@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -13,6 +16,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/notification"
+	"github.com/rshade/finfocus/internal/pulumi"
 )
 
 const (
@@ -52,11 +56,31 @@ func notifyBudgetAlerts(cmd *cobra.Command, result *BudgetRenderResult, currency
 
 	ctx := commandContext(cmd)
 	dispatcher := notification.NewDispatcher(notificationClient, os.LookupEnv)
-	results := dispatcher.Deliver(ctx, deliveriesFor(alerts), notification.Options{
+	deliveries := deliveriesFor(alerts)
+	// Resolve the project once, and only when this run can send a PagerDuty event.
+	projectName := sync.OnceValue(notificationProject)
+	for i := range deliveries {
+		if deliveries[i].Destination.Type == config.NotificationTypePagerDuty {
+			deliveries[i].Event.Project = projectName()
+		}
+	}
+	results := dispatcher.Deliver(ctx, deliveries, notification.Options{
 		DryRun:  dryRunRequested(cmd),
 		Timeout: notification.DefaultTimeout,
 	})
 	reportDeliveryResults(cmd, results)
+}
+
+func notificationProject() string {
+	projectConfigDir := config.GetResolvedProjectDir()
+	if projectConfigDir == "" {
+		return ""
+	}
+	name, err := pulumi.GetProjectName(filepath.Dir(projectConfigDir))
+	if err != nil {
+		return ""
+	}
+	return name
 }
 
 // validateNotifyConfig runs the cost pre-run configuration check for commands
@@ -108,7 +132,7 @@ func collectExceededAlerts(result *BudgetRenderResult, fallbackCurrency string, 
 			CurrentPercent:  status.Percentage,
 			ForecastedSpend: status.ForecastedSpend,
 			ForecastPercent: status.ForecastPercentage,
-			Time:            now,
+			Time:            cmp.Or(status.EvaluatedAt, now),
 		})
 	}
 	if result.ScopedResult == nil {
@@ -134,7 +158,7 @@ func collectExceededAlerts(result *BudgetRenderResult, fallbackCurrency string, 
 			CurrentPercent:  scope.Percentage,
 			ForecastedSpend: scope.ForecastedSpend,
 			ForecastPercent: scope.ForecastPercentage,
-			Time:            now,
+			Time:            cmp.Or(scope.EvaluatedAt, now),
 		})
 	}
 	return alerts
@@ -172,7 +196,7 @@ func deliveriesFor(alerts []exceededAlert) []notification.Delivery {
 }
 
 // reportDeliveryResults prints one stderr line per dry-run, failed, or skipped
-// delivery. HTTP destination failures also go to the structured logger.
+// delivery. Slack and webhook failures also go to the structured logger.
 func reportDeliveryResults(cmd *cobra.Command, results []notification.DeliveryResult) {
 	log := logging.FromContext(commandContext(cmd))
 	for _, result := range results {
@@ -187,7 +211,7 @@ func reportDeliveryResults(cmd *cobra.Command, results []notification.DeliveryRe
 				Str("scope", label).
 				Msg("budget notification sent")
 		case notification.OutcomeDryRun:
-			summary := result.RecipientSummary
+			summary := result.DryRunSummary
 			if summary != "" {
 				summary = " (" + summary + ")"
 			}
@@ -196,8 +220,8 @@ func reportDeliveryResults(cmd *cobra.Command, results []notification.DeliveryRe
 		case notification.OutcomeFailed, notification.OutcomeSkipped:
 			cmd.PrintErrf("warning: %s notification for %s budget (%s%% %s) %s: %s\n",
 				result.Type, label, threshold, result.AlertType, result.Outcome, result.Reason)
-			// A CLI logger can also write to stderr. Email reports one warning.
-			if result.Type == config.NotificationTypeEmail {
+			// A CLI logger can also write to stderr and duplicate the warning.
+			if result.Type == config.NotificationTypeEmail || result.Type == config.NotificationTypePagerDuty {
 				continue
 			}
 			log.Warn().

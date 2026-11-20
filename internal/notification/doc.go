@@ -1,17 +1,12 @@
 // Package notification delivers budget alert notifications.
 //
-// When a budget-evaluating cost command finds an exceeded alert threshold that
-// has destinations attached, and the run opted in with --notify or
-// FINFOCUS_NOTIFY, the CLI builds one [BudgetAlertEvent] per exceeded threshold
-// and hands a [Delivery] per destination to a [Dispatcher]. The dispatcher
-// expands ${FINFOCUS_NOTIFY_*} references, checks HTTPS, and sends every
-// delivery concurrently with a per-destination time limit.
+// When a cost command finds an exceeded threshold with destinations and the run
+// opts in, the CLI builds one [BudgetAlertEvent] per threshold and hands a
+// [Delivery] per destination to a [Dispatcher]. The dispatcher expands allowed
+// notification variables and sends each delivery concurrently with a deadline.
 //
-// Two destination types are built in: Slack incoming webhooks and generic
-// HTTPS webhooks that receive the budget.threshold.exceeded JSON event.
-//
-// Delivery never fails the command. Each outcome is reported as a
-// [DeliveryResult] whose reason has every resolved URL and header value
-// replaced by [RedactedText], and response bodies are never read into a
-// reason. No state is kept between runs.
+// Slack, generic webhooks, and PagerDuty use HTTPS. Email uses SMTP.
+// Delivery never fails the cost command. [DeliveryResult] masks credentials
+// and may include bounded, sanitized PagerDuty diagnostics. The package keeps
+// no state between runs.
 package notification

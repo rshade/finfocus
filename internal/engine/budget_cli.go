@@ -61,6 +61,8 @@ type ThresholdStatus struct {
 
 // BudgetStatus represents the result of evaluating a budget against current spend.
 type BudgetStatus struct {
+	// EvaluatedAt records the clock sample used to calculate the forecast.
+	EvaluatedAt time.Time `json:"-" yaml:"-"`
 	// Budget is the original budget configuration.
 	Budget config.BudgetConfig
 	// CurrentSpend is the actual spend amount.
@@ -142,12 +144,14 @@ func (e *DefaultBudgetEngine) Evaluate(
 	percentage := (currentSpend / budget.Amount) * percentFull
 
 	// Calculate forecasted spend using linear extrapolation
-	forecastedSpend, forecastPercentage := e.calculateForecast(budget.Amount, currentSpend)
+	now := e.now()
+	forecastedSpend, forecastPercentage := calculateForecast(budget.Amount, currentSpend, now)
 
 	// Evaluate all configured alerts
 	alerts := e.evaluateAlerts(budget.Alerts, percentage, forecastPercentage)
 
 	return &BudgetStatus{
+		EvaluatedAt:        now,
 		Budget:             budgetWithoutDestinations(budget),
 		CurrentSpend:       currentSpend,
 		Percentage:         percentage,
@@ -161,8 +165,7 @@ func (e *DefaultBudgetEngine) Evaluate(
 // calculateForecast calculates the forecasted monthly spend using linear extrapolation.
 // Formula: forecast = (current_spend / current_day_in_period) * total_days_in_period
 // Returns the forecasted spend amount and the percentage of budget it represents.
-func (e *DefaultBudgetEngine) calculateForecast(budgetAmount, currentSpend float64) (float64, float64) {
-	now := e.now()
+func calculateForecast(budgetAmount, currentSpend float64, now time.Time) (float64, float64) {
 	currentDay := now.Day()
 	totalDays := daysInMonth(now)
 

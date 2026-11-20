@@ -42,6 +42,10 @@ type BudgetAlertInput struct {
 
 // BudgetAlertEvent is the message sent to every destination of one exceeded threshold.
 type BudgetAlertEvent struct {
+	// Project is the resolved Pulumi project name, when known.
+	Project string
+	// BudgetMonth is the evaluator's local calendar month.
+	BudgetMonth      string
 	Scope            string
 	ScopeKey         string
 	Amount           float64
@@ -90,6 +94,7 @@ func NewBudgetAlertEvent(in BudgetAlertInput) BudgetAlertEvent {
 		Spend:            spend,
 		SpendPercent:     percent,
 		Timestamp:        when.UTC(),
+		BudgetMonth:      when.Format("2006-01"),
 		Version:          version.GetVersion(),
 	}
 }

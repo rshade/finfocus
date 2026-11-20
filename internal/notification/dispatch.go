@@ -38,12 +38,15 @@ const reasonProjectVariable = "project config cannot use variables; move this de
 
 // Resolved is a destination with its variables expanded, ready to send.
 type Resolved struct {
-	Type    config.NotificationType
-	URL     string
-	Channel string
-	Method  string
-	Headers map[string]string
-	Email   config.EmailConfig
+	Type       config.NotificationType
+	URL        string
+	Channel    string
+	Method     string
+	Headers    map[string]string
+	Email      config.EmailConfig
+	RoutingKey string
+	Severity   string
+	DedupMode  string
 }
 
 // Sender delivers an event to one resolved destination.
@@ -57,8 +60,8 @@ type Delivery struct {
 	Event       BudgetAlertEvent
 }
 
-// DeliveryResult is the outcome of one Delivery. Reason never contains a
-// resolved URL, header value, or response body.
+// DeliveryResult is the outcome of one Delivery. Reason masks destination credentials and may contain sanitized
+// PagerDuty response diagnostics.
 type DeliveryResult struct {
 	Type             config.NotificationType
 	Scope            string
@@ -67,8 +70,8 @@ type DeliveryResult struct {
 	AlertType        config.AlertType
 	Outcome          Outcome
 	Reason           string
-	// RecipientSummary is set for email dry runs and masks SMTP credentials.
-	RecipientSummary string
+	// DryRunSummary describes the would-be delivery without credentials.
+	DryRunSummary string
 }
 
 // Options controls one Deliver call.
@@ -85,7 +88,7 @@ type Dispatcher struct {
 	senders map[config.NotificationType]Sender
 }
 
-// NewDispatcher returns a Dispatcher with the Slack, webhook, and email senders
+// NewDispatcher returns a Dispatcher with the Slack, webhook, email, and PagerDuty senders
 // registered. client is copied and never follows redirects; nil uses a new
 // client. lookup resolves ${FINFOCUS_NOTIFY_*} variables; nil resolves none.
 func NewDispatcher(client *http.Client, lookup func(string) (string, bool)) *Dispatcher {
@@ -94,9 +97,10 @@ func NewDispatcher(client *http.Client, lookup func(string) (string, bool)) *Dis
 	}
 	httpClient := noRedirectClient(client)
 	return &Dispatcher{lookup: lookup, senders: map[config.NotificationType]Sender{
-		config.NotificationTypeSlack:   &slackSender{client: httpClient},
-		config.NotificationTypeWebhook: &webhookSender{client: httpClient},
-		config.NotificationTypeEmail:   &emailSender{},
+		config.NotificationTypeSlack:     &slackSender{client: httpClient},
+		config.NotificationTypeWebhook:   &webhookSender{client: httpClient},
+		config.NotificationTypeEmail:     &emailSender{},
+		config.NotificationTypePagerDuty: &pagerDutySender{client: httpClient},
 	}}
 }
 
@@ -160,8 +164,13 @@ func (d *Dispatcher) deliverOne(
 		return withOutcome(result, OutcomeSkipped, "url is not HTTPS after expansion")
 	}
 	if dryRun {
-		if dest.Type == config.NotificationTypeEmail {
-			result.RecipientSummary = emailRecipientSummary(resolved.Email, credentials)
+		switch dest.Type {
+		case config.NotificationTypeEmail:
+			result.DryRunSummary = emailRecipientSummary(resolved.Email, credentials)
+		case config.NotificationTypePagerDuty:
+			result.DryRunSummary = "trigger, severity " + resolved.Severity + ", routing_key " + RedactedText
+		case config.NotificationTypeSlack, config.NotificationTypeWebhook:
+			// The destination type and threshold identify the HTTP delivery.
 		}
 		return withOutcome(result, OutcomeDryRun, "")
 	}
@@ -169,7 +178,11 @@ func (d *Dispatcher) deliverOne(
 	sendCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	if sendErr := sender.Send(sendCtx, resolved, delivery.Event); sendErr != nil {
-		return withOutcome(result, OutcomeFailed, redactor.Redact(failureReason(sendErr, timeout)))
+		reason := redactor.Redact(failureReason(sendErr, timeout))
+		if dest.Type == config.NotificationTypePagerDuty {
+			reason = pagerDutyWarning(reason)
+		}
+		return withOutcome(result, OutcomeFailed, reason)
 	}
 	return withOutcome(result, OutcomeSent, "")
 }
@@ -194,16 +207,16 @@ func (d *Dispatcher) resolve(
 		return value, ok
 	}
 
+	if dest.Type == config.NotificationTypePagerDuty {
+		return resolvePagerDuty(dest, lookup, redactor)
+	}
+
 	redactor.Add(dest.URL)
 	resolvedURL, err := Expand(dest.URL, lookup)
 	if err != nil {
 		return Resolved{}, fmt.Errorf("url: %w", err)
 	}
-	redactor.Add(resolvedURL)
-	if parsed, parseErr := url.Parse(resolvedURL); parseErr == nil {
-		redactor.Add(parsed.Host)
-		redactor.Add(parsed.Hostname())
-	}
+	addURLSecrets(redactor, resolvedURL)
 
 	headers := make(map[string]string, len(dest.Headers))
 	names := make([]string, 0, len(dest.Headers))
@@ -231,6 +244,14 @@ func (d *Dispatcher) resolve(
 		Method:  strings.ToUpper(dest.Method),
 		Headers: headers,
 	}, nil
+}
+
+func addURLSecrets(redactor *Redactor, target string) {
+	redactor.Add(target)
+	if parsed, err := url.Parse(target); err == nil {
+		redactor.Add(parsed.Host)
+		redactor.Add(parsed.Hostname())
+	}
 }
 
 // minSecretHeaderLength is the shortest literal header value treated as a
