@@ -1,0 +1,3 @@
+name: shop
+runtime: nodejs
+description: Source location fixture for the editor extension

@@ -1,0 +1,29 @@
+{
+  "runtime": "yaml",
+  "state": {
+    "root": "program",
+    "resources": {
+      "srcposyaml-dev": null,
+      "default": null,
+      "web": null,
+      "worker": null
+    }
+  },
+  "preview": {
+    "root": "program-edited",
+    "resources": {
+      "srcposyaml-dev": {
+        "op": "same",
+        "location": null
+      },
+      "worker": {
+        "op": "same",
+        "location": null
+      },
+      "web": {
+        "op": "update",
+        "location": null
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
+	"github.com/rshade/finfocus/internal/sourcepos"
 
 	"reflect"
 	"sort"
@@ -17,15 +18,15 @@ import (
 // Provider regions come from deployed state alone: these are the current
 // properties that actual costs and the baseline projected price read, and a
 // preview's provider change applies only to projected properties.
-func convertStateResources(resources []ingest.StackExportResource) []engine.StateResource {
+// Declaration locations resolve through resolver; a nil resolver yields none.
+func convertStateResources(
+	resources []ingest.StackExportResource,
+	resolver *sourcepos.Resolver,
+) []engine.StateResource {
 	scope := stateProviderScope(resources)
 	result := make([]engine.StateResource, len(resources))
 	for i, r := range resources {
-		var createdAt *time.Time
-		if r.Created != nil {
-			t := *r.Created // copy value to avoid aliasing the ingest layer's pointer
-			createdAt = &t
-		}
+		createdAt := copyTime(r.Created)
 		result[i] = engine.StateResource{
 			URN:        r.URN,
 			Type:       r.Type,
@@ -33,10 +34,21 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 			Custom:     r.Custom,
 			Properties: scope.withProviderRegion(ingest.MergeProperties(r.Outputs, r.Inputs), r.URN, r.Type),
 			CreatedAt:  createdAt,
+			ModifiedAt: copyTime(r.Modified),
 			External:   r.External,
+			Location:   resolver.Resolve(r.SourcePosition, ingest.FramePositions(r.StackTrace)),
 		}
 	}
 	return result
+}
+
+// copyTime returns a copy so the result never aliases the ingest layer's pointer.
+func copyTime(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	copied := *t
+	return &copied
 }
 
 const (
@@ -48,7 +60,11 @@ const (
 // convertPlanSteps converts ingest.PulumiStep to engine.PlanStep.
 // For update/replace operations, it also extracts property diffs
 // by comparing OldState.Inputs to NewState.Inputs.
-func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
+//
+// A step's location comes from its new state only, the current declaration.
+// A delete step has none: its old state names code that may have moved or
+// gone, and a deployed location is never substituted for a missing one.
+func convertPlanSteps(steps []ingest.PulumiStep, resolver *sourcepos.Resolver) []engine.PlanStep {
 	result := make([]engine.PlanStep, len(steps))
 	for i, s := range steps {
 		result[i] = engine.PlanStep{
@@ -69,6 +85,10 @@ func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 		}
 		if s.NewState != nil {
 			result[i].NewCloudID = s.NewState.ID
+			result[i].Location = resolver.Resolve(
+				s.NewState.SourcePosition,
+				ingest.FramePositions(s.NewState.StackTrace),
+			)
 		}
 	}
 	return result

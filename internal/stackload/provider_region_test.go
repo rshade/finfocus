@@ -349,7 +349,7 @@ func westProviderCreate() ingest.PulumiStep {
 }
 
 func loadedSnapshot(state []ingest.StackExportResource) *Snapshot {
-	return &Snapshot{RawState: state, State: convertStateResources(state), StateStatus: Status{Loaded: true}}
+	return &Snapshot{RawState: state, State: convertStateResources(state, nil), StateStatus: Status{Loaded: true}}
 }
 
 func eastState() []ingest.StackExportResource {

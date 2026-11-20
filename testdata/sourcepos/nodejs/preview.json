@@ -1,0 +1,949 @@
+{
+  "steps": [
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "custom": false,
+        "type": "pulumi:pulumi:Stack",
+        "outputs": {
+          "web": "web"
+        },
+        "created": "2026-11-17T03:15:39.094834429Z",
+        "modified": "2026-11-17T03:15:39.094834429Z",
+        "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#38,19",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#38,19"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#601,38"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "custom": false,
+        "type": "pulumi:pulumi:Stack",
+        "created": "2026-11-17T03:15:39.094834429Z",
+        "modified": "2026-11-17T03:15:39.094834429Z",
+        "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#38,19",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#38,19"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#601,38"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::shop::shop:index:Pair::edge",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::shop:index:Pair::edge",
+        "custom": false,
+        "type": "shop:index:Pair",
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "created": "2026-11-17T03:15:39.860735928Z",
+        "modified": "2026-11-17T03:15:39.860735928Z",
+        "sourcePosition": "project:///index.js#8,14",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///index.js#8,14"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::shop:index:Pair::edge",
+        "custom": false,
+        "type": "shop:index:Pair",
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "created": "2026-11-17T03:15:39.860735928Z",
+        "modified": "2026-11-17T03:15:39.860735928Z",
+        "sourcePosition": "project:///index.js#10,14",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///index.js#10,14"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::worker-a",
+      "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::worker-a",
+        "custom": true,
+        "id": "worker-a",
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"worker-a\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "t3.small"
+        },
+        "outputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"worker-a\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.876661135Z",
+        "modified": "2026-11-17T03:15:39.876661135Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///index.js#7,33"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::worker-a",
+        "custom": true,
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"worker-a\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "t3.small"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.876661135Z",
+        "modified": "2026-11-17T03:15:39.876661135Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///index.js#9,33"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::worker-b",
+      "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::worker-b",
+        "custom": true,
+        "id": "worker-b",
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"worker-b\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "t3.small"
+        },
+        "outputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"worker-b\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.880425333Z",
+        "modified": "2026-11-17T03:15:39.880425333Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///index.js#7,33"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::worker-b",
+        "custom": true,
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"worker-b\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "t3.small"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.880425333Z",
+        "modified": "2026-11-17T03:15:39.880425333Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///index.js#9,33"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::worker-c",
+      "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::worker-c",
+        "custom": true,
+        "id": "worker-c",
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"worker-c\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "t3.small"
+        },
+        "outputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"worker-c\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.885956788Z",
+        "modified": "2026-11-17T03:15:39.885956788Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///index.js#7,33"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::worker-c",
+        "custom": true,
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"worker-c\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "t3.small"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.885956788Z",
+        "modified": "2026-11-17T03:15:39.885956788Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {},
+          {},
+          {
+            "sourcePosition": "project:///index.js#9,33"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::extra",
+      "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::extra",
+        "custom": true,
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"extra\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "t3.micro"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {
+            "sourcePosition": "project:///index.js#14,15"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::vendored",
+      "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::vendored",
+        "custom": true,
+        "id": "v",
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1};\n\nfunction __f1() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: \"v\", outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "outputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1};\n\nfunction __f1() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: \"v\", outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": []
+        },
+        "created": "2026-11-17T03:15:39.870283544Z",
+        "modified": "2026-11-17T03:15:39.870283544Z",
+        "sourcePosition": "project:///../vendor-lib/index.js#4,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../vendor-lib/index.js#4,5"
+          },
+          {
+            "sourcePosition": "project:///index.js#9,18"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::vendored",
+        "custom": true,
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1};\n\nfunction __f1() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: \"v\", outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": []
+        },
+        "created": "2026-11-17T03:15:39.870283544Z",
+        "modified": "2026-11-17T03:15:39.870283544Z",
+        "sourcePosition": "project:///../vendor-lib/index.js#4,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///../vendor-lib/index.js#4,5"
+          },
+          {
+            "sourcePosition": "project:///index.js#11,18"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::packed",
+      "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::packed",
+        "custom": true,
+        "id": "p",
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1};\n\nfunction __f1() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: \"p\", outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "outputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1};\n\nfunction __f1() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: \"p\", outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": []
+        },
+        "created": "2026-11-17T03:15:39.885168019Z",
+        "modified": "2026-11-17T03:15:39.885168019Z",
+        "sourcePosition": "project:///node_modules/packed-lib/index.js#4,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///node_modules/packed-lib/index.js#4,5"
+          },
+          {
+            "sourcePosition": "project:///index.js#10,16"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::packed",
+        "custom": true,
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1};\n\nfunction __f1() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: \"p\", outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": []
+        },
+        "created": "2026-11-17T03:15:39.885168019Z",
+        "modified": "2026-11-17T03:15:39.885168019Z",
+        "sourcePosition": "project:///node_modules/packed-lib/index.js#4,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///node_modules/packed-lib/index.js#4,5"
+          },
+          {
+            "sourcePosition": "project:///index.js#12,16"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::web",
+      "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::web",
+        "custom": true,
+        "id": "web",
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"web\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "t3.large"
+        },
+        "outputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"web\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.873424583Z",
+        "modified": "2026-11-17T03:15:39.873424583Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {
+            "sourcePosition": "project:///index.js#6,13"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::web",
+        "custom": true,
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"web\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "t3.xlarge"
+        },
+        "parent": "urn:pulumi:dev::shop::pulumi:pulumi:Stack::shop-dev",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.873424583Z",
+        "modified": "2026-11-17T03:15:39.873424583Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {
+            "sourcePosition": "project:///index.js#8,13"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:dev::shop::shop:index:Pair$pulumi-nodejs:dynamic:Resource::edge-right",
+      "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::shop:index:Pair$pulumi-nodejs:dynamic:Resource::edge-right",
+        "custom": true,
+        "id": "edge-right",
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"edge-right\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "small"
+        },
+        "outputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"edge-right\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.888347001Z",
+        "modified": "2026-11-17T03:15:39.888347001Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {
+            "sourcePosition": "project:///lib/pair.js#8,18"
+          },
+          {
+            "sourcePosition": "project:///index.js#8,14"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::shop:index:Pair$pulumi-nodejs:dynamic:Resource::edge-right",
+        "custom": true,
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"edge-right\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "small"
+        },
+        "parent": "urn:pulumi:dev::shop::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.888347001Z",
+        "modified": "2026-11-17T03:15:39.888347001Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {
+            "sourcePosition": "project:///lib/pair.js#8,18"
+          },
+          {
+            "sourcePosition": "project:///index.js#10,14"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:dev::shop::shop:index:Pair$pulumi-nodejs:dynamic:Resource::edge-left",
+      "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+      "oldState": {
+        "urn": "urn:pulumi:dev::shop::shop:index:Pair$pulumi-nodejs:dynamic:Resource::edge-left",
+        "custom": true,
+        "id": "edge-left",
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"edge-left\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "small"
+        },
+        "outputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"edge-left\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n"
+        },
+        "parent": "urn:pulumi:dev::shop::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.889542148Z",
+        "modified": "2026-11-17T03:15:39.889542148Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {
+            "sourcePosition": "project:///lib/pair.js#7,17"
+          },
+          {
+            "sourcePosition": "project:///index.js#8,14"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "newState": {
+        "urn": "urn:pulumi:dev::shop::shop:index:Pair$pulumi-nodejs:dynamic:Resource::edge-left",
+        "custom": true,
+        "type": "pulumi-nodejs:dynamic:Resource",
+        "inputs": {
+          "__provider": "exports.handler = __f0;\n\nvar __provider = {create: __f1, diff: __f2, update: __f3};\n\nfunction __f1() {\n  return (function() {\n    with({ name: \"edge-left\", this: undefined, arguments: undefined }) {\n\nreturn async () => ({ id: name, outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f2(__0, __1, __2) {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async (_id, olds, news) => ({\n  changes: JSON.stringify(olds) !== JSON.stringify(news),\n});\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f3() {\n  return (function() {\n    with({ this: undefined, arguments: undefined }) {\n\nreturn async () => ({ outs: {} });\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n\nfunction __f0() {\n  return (function() {\n    with({ provider: __provider, this: undefined, arguments: undefined }) {\n\nreturn () => provider;\n\n    }\n  }).apply(undefined, undefined).apply(this, arguments);\n}\n",
+          "size": "small"
+        },
+        "parent": "urn:pulumi:dev::shop::shop:index:Pair::edge",
+        "provider": "urn:pulumi:dev::shop::pulumi:providers:pulumi-nodejs::default::6e347b71-f908-447a-91ea-eab13cffe082",
+        "propertyDependencies": {
+          "__provider": [],
+          "size": []
+        },
+        "created": "2026-11-17T03:15:39.889542148Z",
+        "modified": "2026-11-17T03:15:39.889542148Z",
+        "sourcePosition": "project:///lib/box.js#14,5",
+        "stackTrace": [
+          {
+            "sourcePosition": "project:///lib/box.js#14,5"
+          },
+          {
+            "sourcePosition": "project:///lib/pair.js#7,17"
+          },
+          {
+            "sourcePosition": "project:///index.js#10,14"
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/cmd/run/run.ts#541,33"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/runtime/stack.ts#79,28"
+          },
+          {
+            "sourcePosition": "project:///node_modules/@pulumi/resource.ts#1687,22"
+          }
+        ]
+      },
+      "detailedDiff": null
+    }
+  ],
+  "diagnostics": [],
+  "duration": 1256800872,
+  "changeSummary": {
+    "create": 1,
+    "same": 4,
+    "update": 6
+  }
+}

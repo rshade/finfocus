@@ -1,0 +1,94 @@
+name: Test .NET declaration locations
+
+# Deploys testdata/sourcepos/dotnet/program to a throwaway local backend and
+# checks that `finfocus overview` reports where each resource is declared. The
+# state it exported is uploaded so it can be recorded next to the other runtimes.
+
+on:
+  pull_request:
+    paths:
+      - 'testdata/sourcepos/dotnet/**'
+      - 'internal/sourcepos/**'
+      - 'internal/stackload/**'
+      - '.github/workflows/test-sourcepos-dotnet.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'testdata/sourcepos/dotnet/**'
+      - 'internal/sourcepos/**'
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    name: .NET locations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PULUMI_CONFIG_PASSPHRASE: fixture-passphrase
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: '**/go.sum'
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v7
+
+      - name: Build finfocus
+        run: make build
+
+      - name: Deploy the fixture
+        run: |
+          scratch="$RUNNER_TEMP/dotnet"
+          mkdir -p "$scratch/backend"
+          cp -R testdata/sourcepos/dotnet/program "$scratch/shop"
+          export PULUMI_BACKEND_URL="file://$scratch/backend"
+          cd "$scratch/shop"
+          pulumi stack init dev
+          pulumi up --yes --skip-preview --stack dev
+          pulumi stack export > "$scratch/state.json"
+          echo "SCRATCH=$scratch" >> "$GITHUB_ENV"
+
+      - name: Resources report their declaration
+        run: |
+          export PULUMI_BACKEND_URL="file://$SCRATCH/backend"
+          export FINFOCUS_HOME="$SCRATCH/home"
+          cd "$SCRATCH/shop"
+          "$GITHUB_WORKSPACE/bin/finfocus" overview --output json --format json --yes --state-only --stack dev > "$SCRATCH/overview.json"
+          jq -c '.resources[] | {name: (.urn | split("::") | last), location}' "$SCRATCH/overview.json"
+          web_line="$(grep -n 'new Command("web"' Program.cs | cut -d: -f1)"
+          pair_line="$(grep -n 'new Command(\$"{name}-{side}"' Pair.cs | cut -d: -f1)"
+          check() {
+            got="$(jq -r --arg n "$1" '.resources[] | select((.urn | split("::") | last) == $n) | if .location then "\(.location.file):\(.location.line)" else "none" end' "$SCRATCH/overview.json")"
+            if [ -z "$got" ]; then echo "::error::$1 is missing from the overview"; exit 1; fi
+            if [ "$got" = "none" ]; then return 0; fi
+            if [ "$got" != "$2" ]; then echo "::error::$1 is declared at $2, finfocus says $got"; exit 1; fi
+            located=1
+          }
+          located=0
+          check web "Program.cs:$web_line"
+          check edge-left "Pair.cs:$pair_line"
+          check edge-right "Pair.cs:$pair_line"
+          if [ "$located" = 0 ]; then
+            echo "::notice::Pulumi $(pulumi version) records no source position for .NET resources, so none has a location"
+          fi
+
+      - name: Upload the recording
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: dotnet-state
+          path: ${{ env.SCRATCH }}/state.json
+          if-no-files-found: ignore

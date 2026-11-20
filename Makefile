@@ -222,7 +222,7 @@ build-all: build build-recorder build-plugin build-kubernetes build-scorer build
 # Default test target - runs unit tests only (fast, for CI and local dev)
 # Unit tests are colocated with source; see test/README.md for details
 .PHONY: test
-test: test-unit test-frontend test-zerolog-viewer test-kubernetes test-scorer test-prometheus test-carbon
+test: test-unit test-frontend test-zerolog-viewer test-vscode-extension test-kubernetes test-scorer test-prometheus test-carbon
 
 # Browser renderer regression tests use the Node version pinned in mise.toml.
 .PHONY: test-frontend
@@ -233,6 +233,11 @@ test-frontend:
 .PHONY: test-zerolog-viewer
 test-zerolog-viewer:
 	node --test packages/zerolog-viewer/test/*.test.mjs
+
+# The VS Code extension's pure-logic tests need no install.
+.PHONY: test-vscode-extension
+test-vscode-extension:
+	node --test "packages/vscode-finfocus/test/unit/*.test.js"
 
 # Browser acceptance is credential-free and requires the real binary and Chromium.
 # Resolve the installer in the nested module, keeping its driver version matched.
@@ -294,7 +299,7 @@ test-all:
 	go test -v -timeout 15m ./internal/... ./pkg/... ./test/integration/...
 
 .PHONY: lint
-lint: lint-kubernetes lint-scorer lint-prometheus lint-carbon check-plugin-boundaries license-check
+lint: lint-kubernetes lint-scorer lint-prometheus lint-carbon lint-vscode-extension check-plugin-boundaries license-check
 	@echo "Running golangci-lint (expected version $(GOLANGCI_LINT_VERSION))..."
 	@$(GOLANGCI_LINT) --version | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "golangci-lint $(GOLANGCI_LINT_VERSION) required. Install with"; \
@@ -306,6 +311,14 @@ lint: lint-kubernetes lint-scorer lint-prometheus lint-carbon check-plugin-bound
 		echo "  npm install -g markdownlint-cli@0.45.0"; exit 1)
 	$(MARKDOWNLINT) $(MARKDOWNLINT_FILES)
 	@$(MAKE) lint-actions
+
+PNPM?=pnpm
+
+.PHONY: lint-vscode-extension
+lint-vscode-extension:
+	@echo "Type-checking the VS Code extension..."
+	$(PNPM) --dir packages/vscode-finfocus install --frozen-lockfile
+	$(PNPM) --dir packages/vscode-finfocus run typecheck
 
 .PHONY: lint-actions
 lint-actions:

@@ -5,6 +5,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
+	"github.com/rshade/finfocus/internal/sourcepos"
 )
 
 // Snapshot contains the inventory and availability of one stack load.
@@ -36,6 +37,7 @@ type Snapshot struct {
 	Mismatches []string
 	graph      engine.DependencyGraph
 	stateGraph engine.DependencyGraph
+	resolver   *sourcepos.Resolver
 }
 
 // Graph returns the dependency graph of this load. The graph is shared and
@@ -52,7 +54,7 @@ func (s *Snapshot) WithPlan(plan *ingest.PulumiPlan) *Snapshot {
 	next.Steps = nil
 	next.PlanStatus = Status{Reason: ReasonNotRequested}
 	if plan != nil {
-		next.Steps = convertPlanSteps(plan.Steps)
+		next.Steps = convertPlanSteps(plan.Steps, s.resolver)
 		next.PlanStatus = Status{Loaded: true, Reason: ReasonNone}
 	}
 	inventoryProviderScope(next.RawState, plan).annotateSteps(next.Steps)
@@ -66,10 +68,8 @@ func (s *Snapshot) Rows(ctx context.Context) ([]engine.OverviewRow, error) {
 	copy(state, s.State)
 	for i := range state {
 		state[i].Properties = deepCopyProperties(state[i].Properties)
-		if state[i].CreatedAt != nil {
-			created := *state[i].CreatedAt
-			state[i].CreatedAt = &created
-		}
+		state[i].CreatedAt = copyTime(state[i].CreatedAt)
+		state[i].ModifiedAt = copyTime(state[i].ModifiedAt)
 	}
 	if !s.PlanStatus.Loaded {
 		return engine.NewRowsFromState(ctx, state), nil

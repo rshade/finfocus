@@ -1713,3 +1713,164 @@ func TestBudgetHealthResult_RoundTrip(t *testing.T) {
 	assert.InDelta(t, original.Limit, roundTripped.Limit, 1e-9)
 	assert.InDelta(t, original.CurrentSpend, roundTripped.CurrentSpend, 1e-9)
 }
+
+// ---------------------------------------------------------------------------
+// BuildOverviewJSONOutput display text (FR-005)
+// ---------------------------------------------------------------------------
+
+func displayParityRows() []OverviewRow {
+	return []OverviewRow{
+		{
+			URN: "urn:web", Type: "aws:ec2/instance:Instance",
+			Status:        StatusUpdating,
+			ActualCost:    &ActualCostData{MTDCost: 18.4, Currency: "USD"},
+			ProjectedCost: &ProjectedCostData{MonthlyCost: 1234.5, Currency: "USD"},
+			BaselineProjectedCost: &ProjectedCostData{
+				MonthlyCost: 1000, Currency: "USD",
+			},
+			PropertyDiffs: []PropertyDiff{{Key: "instanceType", OldValue: "t3.large", NewValue: "t3.xlarge"}},
+		},
+		{
+			URN: "urn:logs", Type: "aws:s3/bucket:Bucket",
+			Status:        StatusCreating,
+			ProjectedCost: &ProjectedCostData{MonthlyCost: 0, Currency: "USD"},
+		},
+		{
+			URN: "urn:wait", Type: "command:local:Command",
+			Status: StatusActive,
+		},
+		{
+			URN: "urn:db", Type: "aws:rds/instance:Instance",
+			Status: StatusActive,
+			Error:  &OverviewRowError{URN: "urn:db", ErrorType: ErrorTypeNetwork, Message: "boom"},
+		},
+	}
+}
+
+func TestBuildOverviewJSONOutput_RowDisplayMatchesRowResult(t *testing.T) {
+	t.Parallel()
+
+	result := ComputeOverviewResult(displayParityRows(), testDayOfMonth)
+	output, err := BuildOverviewJSONOutput(context.Background(), result, StackContext{StackName: "dev"}, nil)
+	require.NoError(t, err)
+	require.Len(t, output.Resources, len(result.Rows))
+
+	for i, row := range result.Rows {
+		got := output.Resources[i].Display
+		assert.Equal(t, row.ProjectedDisplay, got.Projected, row.URN)
+		assert.Equal(t, row.ActualDisplay, got.Actual, row.URN)
+		assert.Equal(t, row.DeltaDisplay, got.Delta, row.URN)
+		assert.Equal(t, row.StatusDisplay, got.Status, row.URN)
+	}
+}
+
+func TestBuildOverviewJSONOutput_UnpricedZeroAndErrorMarkers(t *testing.T) {
+	t.Parallel()
+
+	result := ComputeOverviewResult(displayParityRows(), testDayOfMonth)
+	output, err := BuildOverviewJSONOutput(context.Background(), result, StackContext{StackName: "dev"}, nil)
+	require.NoError(t, err)
+
+	byType := map[string]OverviewRowDisplay{}
+	for _, res := range output.Resources {
+		byType[res.Type] = res.Display
+	}
+	assert.Equal(t, "$0.00", byType["aws:s3/bucket:Bucket"].Projected, "a priced zero is a price")
+	assert.Equal(t, "-", byType["aws:s3/bucket:Bucket"].Actual)
+	assert.Equal(t, "-", byType["command:local:Command"].Projected, "unpriced rows print the table marker")
+	assert.Equal(t, "-", byType["command:local:Command"].Actual)
+	assert.Equal(t, "ERR", byType["aws:rds/instance:Instance"].Projected)
+	assert.Equal(t, "+ creating", byType["aws:s3/bucket:Bucket"].Status)
+}
+
+func TestBuildOverviewJSONOutput_DisplayAppearsInTableOutput(t *testing.T) {
+	t.Parallel()
+
+	result := ComputeOverviewResult(displayParityRows(), testDayOfMonth)
+	stackCtx := StackContext{StackName: "dev", TotalResources: len(result.Rows)}
+	output, err := BuildOverviewJSONOutput(context.Background(), result, stackCtx, nil)
+	require.NoError(t, err)
+
+	var table bytes.Buffer
+	require.NoError(t, RenderOverviewAsTable(&table, result, stackCtx))
+	lines := strings.Split(table.String(), "\n")
+
+	for _, res := range output.Resources {
+		name := res.URN
+		var line string
+		for _, candidate := range lines {
+			if strings.Contains(candidate, name) {
+				line = candidate
+				break
+			}
+		}
+		require.NotEmpty(t, line, "table has a line for %s", name)
+		assert.Contains(t, line, res.Display.Projected, name)
+		assert.Contains(t, line, res.Display.Actual, name)
+		assert.Contains(t, line, res.Display.Status, name)
+	}
+}
+
+func TestBuildOverviewJSONOutput_SummaryDisplay(t *testing.T) {
+	t.Parallel()
+
+	result := ComputeOverviewResult(displayParityRows(), testDayOfMonth)
+	output, err := BuildOverviewJSONOutput(context.Background(), result, StackContext{StackName: "dev"}, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, FormatOverviewCurrency(result.Summary.TotalProjected), output.Summary.Display.Projected)
+	assert.Equal(t, FormatOverviewCurrency(result.Summary.TotalActual), output.Summary.Display.Actual)
+	assert.Equal(t, FormatOverviewDelta(result.Summary.TotalDelta), output.Summary.Display.Delta)
+	assert.Equal(t, "$1,234.50", output.Summary.Display.Projected)
+	assert.Equal(t, "$18.40", output.Summary.Display.Actual)
+}
+
+func TestBuildOverviewJSONOutput_EmptyResources(t *testing.T) {
+	t.Parallel()
+
+	output, err := BuildOverviewJSONOutput(
+		context.Background(), ComputeOverviewResult(nil, testDayOfMonth), StackContext{StackName: "dev"}, nil)
+	require.NoError(t, err)
+
+	assert.NotNil(t, output.Resources)
+	assert.Empty(t, output.Resources)
+	assert.Equal(t, "$0.00", output.Summary.Display.Projected)
+	assert.Equal(t, "$0.00", output.Summary.Display.Actual)
+	assert.Equal(t, "$0.00", output.Summary.Display.Delta)
+}
+
+func TestBuildOverviewJSONOutput_MixedCurrenciesIsAnError(t *testing.T) {
+	t.Parallel()
+
+	rows := []OverviewRow{
+		{URN: "urn:r1", Type: "aws:ec2:Instance", Status: StatusActive,
+			ActualCost: &ActualCostData{MTDCost: 10, Currency: "USD"}},
+		{URN: "urn:r2", Type: "azure:compute:VirtualMachine", Status: StatusActive,
+			ProjectedCost: &ProjectedCostData{MonthlyCost: 20, Currency: "EUR"}},
+	}
+	_, err := BuildOverviewJSONOutput(
+		context.Background(), ComputeOverviewResult(rows, testDayOfMonth), StackContext{}, nil)
+	require.ErrorIs(t, err, ErrMixedCurrencies)
+}
+
+func TestRenderOverviewAsJSON_KeepsNumericFieldsAndAddsDisplay(t *testing.T) {
+	t.Parallel()
+
+	result := ComputeOverviewResult(displayParityRows(), testDayOfMonth)
+	var buf bytes.Buffer
+	require.NoError(t, RenderOverviewAsJSON(context.Background(), &buf, result, StackContext{StackName: "dev"}, nil))
+
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &doc))
+	summary, ok := doc["summary"].(map[string]any)
+	require.True(t, ok)
+	assert.InDelta(t, result.Summary.TotalProjected, summary["projectedMonthly"], 1e-9)
+	assert.Contains(t, summary, "display")
+
+	resources, ok := doc["resources"].([]any)
+	require.True(t, ok)
+	first, ok := resources[0].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, first, "display")
+	assert.Contains(t, first, "projectedCost")
+}

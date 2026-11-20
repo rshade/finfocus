@@ -720,6 +720,7 @@ export function mount(container, ctx) {
           ['Pricing', pick(row, 'spotDisplay')],
           ['Delta', pick(row, 'deltaDisplay')],
           ['Drift', pick(row, 'driftDisplay')],
+          ['Declared at', resp.display?.declaredAt],
         ]
           .filter(([, value]) => value !== undefined && value !== '')
           .flatMap(([label, value]) => [

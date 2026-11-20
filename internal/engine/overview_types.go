@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/rshade/finfocus/internal/sourcepos"
 )
 
 // maxMessageLen is the maximum length of an error message in OverviewRowError.
@@ -361,9 +363,15 @@ type OverviewRow struct {
 	// insufficient data points in the current billing window.
 	// Nil for resources from Pulumi < v3.60.0 or plan-only resources.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	// ModifiedAt is when deployed state last changed. Nil for a preview-only
+	// create and for state that records no modification time.
+	ModifiedAt *time.Time `json:"modifiedAt,omitempty"`
 	// External marks an imported resource, whose CreatedAt is the import time
 	// and not the cloud creation time.
 	External bool `json:"-"`
+	// Location is where the resource is declared, relative to the project.
+	// Nil when unknown, and always nil for an expanded cluster child.
+	Location *sourcepos.Location `json:"location,omitempty"`
 	// ParentURN references the cluster row this row is expanded under.
 	// Empty for top-level rows.
 	ParentURN string `json:"parentUrn,omitempty"`
@@ -507,9 +515,16 @@ type StateResource struct {
 	// JSON key is "createdAt" (not "created" as in the Pulumi state format);
 	// conversion happens in cli.convertStateResources.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	// ModifiedAt is when Pulumi last altered the resource's state. It is read
+	// from deployed state only and never from provider properties; nil for
+	// older state files.
+	ModifiedAt *time.Time `json:"modifiedAt,omitempty"`
 	// External marks an imported resource, whose CreatedAt is the import time
 	// and not the cloud creation time.
 	External bool `json:"-"`
+	// Location is where the resource is declared, resolved against the project.
+	// Nil when Pulumi recorded no position inside the project.
+	Location *sourcepos.Location `json:"location,omitempty"`
 }
 
 // PropertyDiff represents a single property change from a Pulumi plan.
@@ -538,4 +553,8 @@ type PlanStep struct {
 	OldCloudID string `json:"oldCloudId,omitempty"`
 	// NewCloudID is the cloud resource ID from NewState (populated for replace/create ops).
 	NewCloudID string `json:"newCloudId,omitempty"`
+	// Location is the current declaration of the resource, resolved from the
+	// preview's new state. It never comes from a deleted resource's old state,
+	// which names code that may no longer exist.
+	Location *sourcepos.Location `json:"location,omitempty"`
 }

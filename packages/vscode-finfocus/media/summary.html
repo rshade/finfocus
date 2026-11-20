@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}}; script-src 'nonce-{{nonce}}';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{styleUri}}">
+  <title>FinFocus summary</title>
+</head>
+<body>
+  <main aria-labelledby="stack">
+    <h2 id="stack" tabindex="-1">FinFocus</h2>
+    <p id="empty">No cost result yet. Open a Pulumi project to see its costs.</p>
+    <div id="card" hidden>
+      <dl class="figures">
+        <dt>Projected monthly</dt><dd id="projected"></dd>
+        <dt>Month to date</dt><dd id="actual"></dd>
+        <dt>Delta</dt><dd id="delta"></dd>
+      </dl>
+      <p id="completeness" class="completeness" tabindex="0" hidden></p>
+      <p id="budget"></p>
+      <p id="freshness"></p>
+      <h3 id="top-heading">Most expensive resources</h3>
+      <ol id="top" aria-labelledby="top-heading"></ol>
+      <button id="preview" type="button">Run preview</button>
+    </div>
+  </main>
+  <script nonce="{{nonce}}" src="{{scriptUri}}"></script>
+</body>
+</html>

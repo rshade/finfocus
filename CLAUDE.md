@@ -76,6 +76,38 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
 ./bin/finfocus plugin list --output json
 ```
 
+- VS Code extension (`packages/vscode-finfocus`): `make test-vscode-extension`
+  runs only the unit tests. The editor tests need a display and download VS Code
+  1.90.0 and stable: `cd packages/vscode-finfocus && xvfb-run -a node_modules/.bin/vscode-test`
+  (`.vscode-test/` is ignored). Set `FINFOCUS_BINARY` and `FINFOCUS_FIXTURE_PROJECT`
+  (a deployed `testdata/sourcepos/nodejs/program` stack, with `NODE_PATH` at its
+  `node_modules` and `PULUMI_BACKEND_URL`/`PULUMI_CONFIG_PASSPHRASE`) to run the
+  real-CLI case; it skips otherwise. If the `pnpm` shim fails with a missing
+  corepack `pnpm.cjs`, run `node_modules/.bin/tsc --noEmit -p jsconfig.json` for
+  the type check.
+- VS Code extension process ownership (`packages/vscode-finfocus/src/shutdown.js`,
+  `processTree.js`): `node --test "test/integration/*.test.js"` runs real process trees
+  (needs `bash` for job control, Linux or macOS); `real_cli_shutdown.test.js`
+  also needs `FINFOCUS_BINARY` and `FINFOCUS_FIXTURE_PROJECT` with a plugin
+  under `FINFOCUS_HOME/plugins`. `Runner` handles reap the session after every
+  exit, and tests that fake `spawn` must pass a fake `shutdown`, or the reap
+  reads `/proc` for the fake pid.
+- VS Code extension content rules (`packages/vscode-finfocus`): resource text
+  from `finfocus overview --format json` is untrusted. The hover takes it only
+  through `MarkdownString.appendText` (never trusted, no HTML), the tree uses
+  plain-string tooltips, and the webview writes it with `textContent`.
+  `test/unit/hover_safety.test.js` pins the hover. Deployed-state results are
+  cached (`src/cache.js`, files under `globalStorageUri`; workspace storage is locked per live extension host): the key is the stack's
+  `lastUpdate` and `resourceCount` from `pulumi stack ls --json`, the settings and
+  project-config hashes, the finfocus version, and a TTL; a preview, an untrusted
+  workspace, and an `incomplete` result never touch it. An unpriced row is one
+  whose `display.projected` is the `-` pinned under `placeholders` in
+  `contract/overview-fields.json` (an explained failure prints `ERR` and has an
+  `errors[]` entry); the JSON cannot say why, so `src/completeness.js` decides by
+  stability across two runs. `test/editor/performance-real.test.js` (opt-in with `FINFOCUS_BINARY` and `FINFOCUS_FIXTURE_PROJECT`; it runs a real preview) hands `PULUMI_CONFIG_PASSPHRASE=''` to the `Runner` itself: the editor host drops the empty variable and the preview then exits 1. The extension never formats
+  money: it shows the `display` strings. Parser tests mutate every path in
+  `contract/overview-fields.json`; adding a required JSON field means adding
+  it there.
 - `make lint` checks golangci-lint's version against `mise.toml` and runs
   `mise which golangci-lint`. Install it with `mise install` (`make tools`).
   Do not point `GOLANGCI_LINT` at `$(HOME)/go/bin/golangci-lint`: that copy
@@ -332,6 +364,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   of every plugin (0.5.4: #1922 listed historical carbon in four plugins that
   only changed `go.mod`). `deps` renders under Dependencies; the plugins take
   the top-level `changelog-sections`, which hide `docs` and `refactor`.
+- The VS Code extension releases as `vscode-finfocus-vX.Y.Z`
+  (`release-vscode-extension.yml`). That tag starts with `v`, so any workflow
+  that selects core releases with `startsWith(tag, 'v')` must also exclude
+  `vscode-finfocus-` (goreleaser, nightly); docker's tag pattern is
+  `v[0-9]*`. `release-monorepo-plugin.yml` already skips `v` tags.
 - `make install-<plugin>` stamps the version from
   `.release-please-manifest.json`. A test that installs a plugin reads that
   file too; a hardcoded version fails only on the release PR, once the bump lands
@@ -388,6 +425,19 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   The `__` prefix keeps it out of `BuildAttributes`, web redaction, and the
   estimate property list; descriptor and overview JSON and NDJSON strip it.
   Plan-only runs see the provider only when the preview creates or updates it.
+- **Declaration locations** (`internal/sourcepos`, `specs/2017-vscode-cost-extension/`
+  R1): a standard-library leaf. `NewResolver(root, runtime).Resolve(position,
+  frames)` takes the innermost `stackTrace` frame that names a regular file
+  under the project root (symlinks that leave it are rejected), then falls back
+  to `sourcePosition`. Frames under `node_modules` or `site-packages` are
+  dependencies and skipped (Pulumi records the SDK as in-root paths). Only
+  `go` maps `../`-prefixed module paths through the `go.mod` module path (Go is
+  built with `-trimpath`); YAML records only language-host frames, so it never
+  resolves. A user-defined resource class records its own constructor line, so
+  its instances share one location. Recordings and `expected.json` per runtime
+  live in `testdata/sourcepos/`; a Go fixture needs a hand-built `-trimpath`
+  binary (`runtime.options.binary`) when the language host picks another
+  toolchain.
 - **No credential or Pulumi secret reaches a plugin.** One rule each:
   `config.IsCredentialName` (which `engine.isCredentialKey` calls) /
   `skipDottedSegment` for names and `history.IsPulumiSecret`
@@ -466,6 +516,19 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - Always `cmd.Wait()` after `cmd.Process.Kill()`. In `ProcessLauncher`,
   `watchProcess` owns that one `cmd.Wait`; cleanup goes through
   `pluginProcess.stop`, never a second `cmd.Wait`.
+- Descendant ownership (`specs/2017-vscode-cost-extension/` R4): Unix plugins
+  get their own process group (`Setpgid`), so a group kill aimed at finfocus
+  misses them, and only Linux adds `Pdeathsig` (direct children). Every
+  descendant stays in finfocus's session (no child calls `setsid`), so the
+  VS Code extension owns finfocus's session and sweeps it after a SIGKILL; core
+  adds no watchdog. The Pulumi child (`internal/pulumi/child_unix.go`) is
+  interrupted through `cmd.Cancel` with a 5s `WaitDelay`, so Pulumi stops its
+  own language host and providers, then killed. On Windows,
+  `internal/procjob` is a kill-on-close Job Object (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`)
+  that `configureProcessGroup` and the Pulumi child (`child_windows.go`) join,
+  so killing finfocus kills every plugin and Pulumi; Windows cannot deliver an
+  interrupt, so cancellation kills. `test/integration/overview_process_test.go`
+  asserts by PID.
 - A plugin that exits before it binds fails at once with `pluginExitError`:
   exit status plus a bounded stderr excerpt built only from the
   `message`/`error` fields of JSON log lines (free-form stderr is never shown,
@@ -1320,8 +1383,9 @@ Specs 613-623 hold the details. Invariants:
 ### MCP Server (`internal/cli/mcp.go`, `output_mode.go`)
 
 - `mcp-server` and `--mcp` cancel their context on SIGINT and SIGTERM
-  (`cancelOnShutdownSignal`, installed only on those two entry points; `main`
-  still passes `context.Background()`). ax-go `mcp.Serve` then drains and
+  (`cancelOnShutdownSignal`, installed on those two entry points and on the
+  non-interactive `overview` path, which stops the Pulumi child and closes
+  plugins; `main` still passes `context.Background()`). ax-go `mcp.Serve` then drains and
   returns nil, so the process exits 0 with deferred cleanup run. Do not move the
   handler into `main`: `analyzer serve`, `--web`, and the TUI commands own their
   signals. Do not patch ax-go from this repo. `mcp_server_signal_test.go`
@@ -1391,4 +1455,5 @@ Specs 613-623 hold the details. Invariants:
 
 ## Active Technologies
 
+- `packages/vscode-finfocus` (2017-vscode-cost-extension): plain CommonJS JavaScript with JSDoc types (`tsc --checkJs`), VS Code API `^1.90.0`, no runtime dependencies; unit tests under `node --test`, editor tests under `@vscode/test-cli`
 - Go 1.27.4 (`go.mod`), finfocus-spec v0.7.12 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only; `github.com/pulumi/esc-sdk/sdk` v0.14.0; `github.com/rshade/goarima` (statistical forecast; never tag the fork, pin a commit)

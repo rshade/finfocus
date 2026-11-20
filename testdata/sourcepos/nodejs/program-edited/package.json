@@ -1,0 +1,1 @@
+{"name":"shop","version":"1.0.0","main":"index.js","dependencies":{"@pulumi/pulumi":"^3","packed-lib":"file:../pack-lib/packed-lib-1.0.0.tgz","vendor-lib":"file:../vendor-lib"}}

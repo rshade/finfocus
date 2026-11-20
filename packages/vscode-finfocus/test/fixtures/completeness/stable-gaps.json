@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "stackName": "dev",
+    "generatedAt": "2026-11-18T00:00:00Z",
+    "isStateOnly": true
+  },
+  "summary": {
+    "currency": "USD",
+    "display": {
+      "projected": "$60.00",
+      "actual": "-",
+      "delta": "-"
+    }
+  },
+  "budgetDisplay": {
+    "healthDisplay": "",
+    "amountsDisplay": "",
+    "footerDisplay": "",
+    "details": []
+  },
+  "resources": [
+    {
+      "urn": "urn:pulumi:dev::shop::aws:ec2/instance:Instance::a",
+      "type": "aws:ec2/instance:Instance",
+      "status": "active",
+      "display": {
+        "projected": "$10.00",
+        "actual": "-",
+        "delta": "-",
+        "status": "active"
+      },
+      "projectedCost": {
+        "monthlyCost": 10,
+        "currency": "USD"
+      }
+    },
+    {
+      "urn": "urn:pulumi:dev::shop::aws:ec2/instance:Instance::b",
+      "type": "aws:ec2/instance:Instance",
+      "status": "active",
+      "display": {
+        "projected": "$20.00",
+        "actual": "-",
+        "delta": "-",
+        "status": "active"
+      },
+      "projectedCost": {
+        "monthlyCost": 20,
+        "currency": "USD"
+      }
+    },
+    {
+      "urn": "urn:pulumi:dev::shop::aws:ec2/instance:Instance::c",
+      "type": "aws:ec2/instance:Instance",
+      "status": "active",
+      "display": {
+        "projected": "$30.00",
+        "actual": "-",
+        "delta": "-",
+        "status": "active"
+      },
+      "projectedCost": {
+        "monthlyCost": 30,
+        "currency": "USD"
+      }
+    },
+    {
+      "urn": "urn:pulumi:dev::shop::aws:ec2/instance:Instance::dns",
+      "type": "aws:ec2/instance:Instance",
+      "status": "active",
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "active"
+      }
+    }
+  ],
+  "errors": []
+}

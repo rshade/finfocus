@@ -761,3 +761,77 @@ func TestMapStateResource_GoldenEKSState(t *testing.T) {
 	assert.Equal(t, "i-0bastion1234abcde", bastion.Properties[ingest.PropertyPulumiCloudID])
 	assert.Equal(t, "true", bastion.Properties[ingest.PropertyPulumiExternal])
 }
+
+func TestParseStackExport_PreservesSourcePositionAndStackTrace(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{
+		"version": 3,
+		"deployment": {"resources": [
+			{
+				"urn": "urn:pulumi:dev::shop::pulumi-nodejs:dynamic:Resource::web",
+				"type": "pulumi-nodejs:dynamic:Resource",
+				"custom": true,
+				"sourcePosition": "project:///lib/box.js#14,5",
+				"stackTrace": [
+					{"sourcePosition": "project:///lib/box.js#14,5"},
+					{},
+					{"sourcePosition": "project:///index.js#6,13"}
+				]
+			},
+			{"urn": "urn:pulumi:dev::shop::aws:s3/bucket:Bucket::plain", "type": "aws:s3/bucket:Bucket", "custom": true}
+		]}
+	}`)
+
+	state, err := ingest.ParseStackExport(data)
+	require.NoError(t, err)
+	require.Len(t, state.Deployment.Resources, 2)
+
+	located := state.Deployment.Resources[0]
+	assert.Equal(t, "project:///lib/box.js#14,5", located.SourcePosition)
+	require.Len(t, located.StackTrace, 3)
+	assert.Equal(t, "project:///lib/box.js#14,5", located.StackTrace[0].SourcePosition)
+	assert.Empty(t, located.StackTrace[1].SourcePosition, "a frame Pulumi records no position for stays empty")
+	assert.Equal(t, "project:///index.js#6,13", located.StackTrace[2].SourcePosition)
+
+	plain := state.Deployment.Resources[1]
+	assert.Empty(t, plain.SourcePosition)
+	assert.Empty(t, plain.StackTrace)
+}
+
+func TestGetCustomResources_KeepsSourcePosition(t *testing.T) {
+	t.Parallel()
+
+	state := &ingest.StackExport{Deployment: ingest.StackExportDeployment{Resources: []ingest.StackExportResource{
+		{
+			URN: "urn:a", Type: "aws:s3/bucket:Bucket", Custom: true,
+			SourcePosition: "project:///index.js#4,1",
+			StackTrace:     []ingest.StackFrame{{SourcePosition: "project:///index.js#4,1"}},
+		},
+	}}}
+
+	got := state.GetCustomResources()
+	require.Len(t, got, 1)
+	assert.Equal(t, "project:///index.js#4,1", got[0].SourcePosition)
+	assert.Equal(t, []ingest.StackFrame{{SourcePosition: "project:///index.js#4,1"}}, got[0].StackTrace)
+}
+
+func TestMapStateResource_SourcePositionIsNotAPricingProperty(t *testing.T) {
+	t.Parallel()
+
+	withPosition := ingest.StackExportResource{
+		URN: "urn:a", Type: "aws:ec2/instance:Instance", Custom: true, ID: "i-1",
+		Inputs:         map[string]any{"instanceType": "t3.micro"},
+		SourcePosition: "project:///index.js#4,1",
+		StackTrace:     []ingest.StackFrame{{SourcePosition: "project:///index.js#4,1"}},
+	}
+	without := withPosition
+	without.SourcePosition = ""
+	without.StackTrace = nil
+
+	got, err := ingest.MapStateResource(withPosition)
+	require.NoError(t, err)
+	want, err := ingest.MapStateResource(without)
+	require.NoError(t, err)
+	assert.Equal(t, want, got, "a recorded position must not change what a plugin is asked to price")
+}

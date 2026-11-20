@@ -29,6 +29,7 @@ import (
 	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/stackload"
 	"github.com/rshade/finfocus/internal/tui"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // fdProvider is implemented by *[os.File] and other writers that expose a file descriptor.
@@ -223,20 +224,17 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 
 	// --- Plain text / non-interactive path ---
 
+	// A signal cancels the load and enrichment, which stops the Pulumi child and
+	// closes every plugin before the process exits. The TUI and web paths above
+	// own their signals.
+	stopSignals := cancelOnShutdownSignal(cmd)
+	defer stopSignals()
+	ctx = cmd.Context()
+
 	// 3-10. Load, merge, filter, enrich, and expand through the shared
 	// event-driven pipeline; only rendering and budget-exit evaluation remain
 	// plain-path concerns.
-	pipe := newOverviewPipeline(overviewPipelineConfig{
-		cmd:       cmd,
-		params:    params,
-		dateRange: dateRange,
-		audit:     audit,
-		loader:    plainOverviewLoader,
-		// Budget data is only needed for JSON output; the plain path fetches
-		// it synchronously after expansion and reports plugin budgets only.
-		wantBudget:    params.output == outputFormatJSON,
-		dismissalRows: true,
-	})
+	pipe := newOverviewPipeline(newPlainOverviewPipelineConfig(cmd, params, dateRange, audit))
 	pipe.ConfirmEnrichment = func(
 		_ context.Context, data OverviewPipelineData, clientCount int,
 	) (bool, error) {
@@ -281,6 +279,29 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 
 	audit.logSuccess(ctx, len(finalResult.Rows), 0)
 	return nil
+}
+
+// newPlainOverviewPipelineConfig configures the non-interactive pipeline.
+// Budget data is only needed for JSON output; the plain path fetches it
+// synchronously after expansion. JSON output also applies the config budget
+// when no plugin returns one, the same fallback the TUI and web dashboard use.
+func newPlainOverviewPipelineConfig(
+	cmd *cobra.Command,
+	params overviewParams,
+	dateRange engine.DateRange,
+	audit *auditContext,
+) overviewPipelineConfig {
+	wantJSON := params.output == outputFormatJSON
+	return overviewPipelineConfig{
+		cmd:            cmd,
+		params:         params,
+		dateRange:      dateRange,
+		audit:          audit,
+		loader:         plainOverviewLoader,
+		wantBudget:     wantJSON,
+		budgetFallback: wantJSON,
+		dismissalRows:  true,
+	}
 }
 
 // finalizeOverviewOutput builds the stack context from the pipeline result,
@@ -836,10 +857,7 @@ func renderOverviewOutput(
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
 	case outputFormatJSON:
-		renderErr := engine.RenderOverviewAsJSON(
-			cmd.Context(), cmd.OutOrStdout(), result, stackCtx, budgetResult,
-		)
-		if renderErr != nil {
+		if renderErr := renderOverviewJSON(cmd, result, stackCtx, budgetResult); renderErr != nil {
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
 	case "ndjson":
@@ -853,6 +871,33 @@ func renderOverviewOutput(
 		)
 	}
 	return nil
+}
+
+// overviewJSONDocument is the CLI JSON overview: the engine document plus the
+// top-level budget display, which the engine cannot build without importing
+// viewmodel. It is the object the web dashboard serves as the budget display.
+type overviewJSONDocument struct {
+	engine.OverviewJSONOutput
+
+	BudgetDisplay viewmodel.BudgetDisplay `json:"budgetDisplay"`
+}
+
+// renderOverviewJSON writes the JSON overview with display strings and the
+// budget display; with no budget the display is present with empty details.
+func renderOverviewJSON(
+	cmd *cobra.Command,
+	result engine.OverviewResult,
+	stackCtx engine.StackContext,
+	budgetResult *engine.BudgetResult,
+) error {
+	output, buildErr := engine.BuildOverviewJSONOutput(cmd.Context(), result, stackCtx, budgetResult)
+	if buildErr != nil {
+		return buildErr
+	}
+	return engine.EncodeOverviewJSON(cmd.OutOrStdout(), overviewJSONDocument{
+		OverviewJSONOutput: output,
+		BudgetDisplay:      viewmodel.BuildBudgetDisplay(budgetResult),
+	})
 }
 
 // overviewInteractive reports whether overview should launch the TUI.

@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/rshade/finfocus/internal/sourcepos"
 )
 
 // OverviewRowResult holds display-ready values for a single resource row.
@@ -63,6 +65,9 @@ type OverviewRowResult struct {
 	BaselineProjectedCost *ProjectedCostData `json:"-"`
 	CostDrift             *CostDriftData     `json:"costDrift,omitempty"`
 	Error                 *OverviewRowError  `json:"error,omitempty"`
+
+	// Location is where the resource is declared, copied from the source row.
+	Location *sourcepos.Location `json:"location,omitempty"`
 
 	// Source is the original enriched row, retained for JSON/NDJSON
 	// serialization (which marshal the full OverviewRow schema) and for
@@ -137,6 +142,7 @@ func ComputeOverviewRowResult(row OverviewRow) OverviewRowResult {
 		BaselineProjectedCost: row.BaselineProjectedCost,
 		CostDrift:             row.CostDrift,
 		Error:                 row.Error,
+		Location:              cloneLocation(row.Location),
 		Source:                row,
 	}
 

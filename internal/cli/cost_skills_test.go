@@ -159,7 +159,7 @@ func TestCostSkillsDocumentLiveJSONFields(t *testing.T) {
 		assert.Contains(t, drift, key)
 	}
 	for _, key := range jsonKeys(t, engine.OverviewSummary{}) {
-		if key == "potentialSavings" || key == "projectedDelta" {
+		if key == "potentialSavings" || key == "projectedDelta" || key == "display" {
 			continue
 		}
 		assert.Contains(t, drift, key)

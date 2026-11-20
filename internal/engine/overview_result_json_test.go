@@ -127,6 +127,6 @@ func TestRenderOverviewAsJSONMatchesRowResultShape(t *testing.T) {
 	var output OverviewJSONOutput
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &output))
 	require.Len(t, output.Resources, 1)
-	assert.Equal(t, result.Rows[0].Source, output.Resources[0])
+	assert.Equal(t, result.Rows[0].Source, output.Resources[0].OverviewRow)
 	assert.InDelta(t, result.Summary.TotalProjected, output.Summary.ProjectedMonthly, 1e-9)
 }

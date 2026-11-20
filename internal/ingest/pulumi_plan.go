@@ -68,6 +68,10 @@ type PulumiState struct {
 	DeletedWith string `json:"deletedWith,omitempty"`
 	// ReplaceWith names the resources whose replacement also replaces this one.
 	ReplaceWith []string `json:"replaceWith,omitempty"`
+	// SourcePosition is the raw position Pulumi recorded for the declaration.
+	SourcePosition string `json:"sourcePosition,omitempty"`
+	// StackTrace holds the recorded call frames, innermost first.
+	StackTrace []StackFrame `json:"stackTrace,omitempty"`
 }
 
 // PulumiResource contains the detailed information about a resource in a Pulumi step.

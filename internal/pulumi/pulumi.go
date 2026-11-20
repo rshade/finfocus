@@ -73,6 +73,7 @@ func (r *execRunner) Run(
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), extraEnv...)
+	configureChild(cmd)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -147,8 +148,32 @@ func FindProject(dir string) (string, error) {
 // pulumiProjectFile is the minimal structure of Pulumi.yaml/Pulumi.yml needed
 // to extract the project name and the optional backend URL.
 type pulumiProjectFile struct {
-	Name    string        `yaml:"name"`
-	Backend pulumiBackend `yaml:"backend"`
+	Name    string         `yaml:"name"`
+	Runtime projectRuntime `yaml:"runtime"`
+	Backend pulumiBackend  `yaml:"backend"`
+}
+
+// projectRuntime reads the runtime name from either spelling Pulumi accepts:
+// a bare string, or a mapping with a name key and options.
+type projectRuntime string
+
+// UnmarshalYAML reads the runtime as a bare string or as a mapping's name key,
+// and leaves it empty for any other node kind.
+func (r *projectRuntime) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		*r = projectRuntime(node.Value)
+	case yaml.DocumentNode, yaml.SequenceNode, yaml.AliasNode:
+	case yaml.MappingNode:
+		var mapped struct {
+			Name string `yaml:"name"`
+		}
+		if err := node.Decode(&mapped); err != nil {
+			return err
+		}
+		*r = projectRuntime(mapped.Name)
+	}
+	return nil
 }
 
 type pulumiBackend struct {
@@ -168,6 +193,16 @@ func GetProjectName(projectDir string) (string, error) {
 		return "", err
 	}
 	return proj.Name, nil
+}
+
+// GetProjectRuntime reads the runtime name (for example "nodejs" or "go")
+// from the project file in projectDir.
+func GetProjectRuntime(projectDir string) (string, error) {
+	proj, err := readProjectFile(projectDir)
+	if err != nil {
+		return "", err
+	}
+	return string(proj.Runtime), nil
 }
 
 func readProjectFile(projectDir string) (pulumiProjectFile, error) {
@@ -347,8 +382,9 @@ func runPulumiCommand(ctx context.Context, cfg pulumiCmdConfig) ([]byte, error) 
 	return stdout, nil
 }
 
-// Preview runs `pulumi preview --json` for the project at opts.ProjectDir and returns the
-// raw JSON output bytes. Errors are wrapped by PreviewError; context cancellation and
+// Preview runs `pulumi preview --json --show-sames` for the project at opts.ProjectDir and
+// returns the raw JSON output bytes. Unchanged resources are listed because their current
+// declaration may have moved. Errors are wrapped by PreviewError; context cancellation and
 // timeout produce descriptive errors.
 func Preview(ctx context.Context, opts PreviewOptions) ([]byte, error) {
 	var extraEnv []string
@@ -360,7 +396,7 @@ func Preview(ctx context.Context, opts PreviewOptions) ([]byte, error) {
 		stack:          opts.Stack,
 		timeout:        opts.Timeout,
 		defaultTimeout: DefaultPreviewTimeout,
-		args:           []string{"preview", "--json"},
+		args:           []string{"preview", "--json", "--show-sames"},
 		extraEnv:       extraEnv,
 		operation:      "preview",
 		logMessage:     "running pulumi preview --json (this may take a moment)...",

@@ -15,13 +15,25 @@
       "urn": "urn:pulumi:prod::myapp::pulumi:providers:aws::default",
       "type": "pulumi:providers:aws",
       "resourceId": "provider-aws-default",
-      "status": "active"
+      "status": "active",
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "✓ active"
+      }
     },
     {
       "urn": "urn:pulumi:prod::myapp::pulumi:providers:kubernetes::k8s",
       "type": "pulumi:providers:kubernetes",
       "resourceId": "provider-k8s-default",
-      "status": "active"
+      "status": "active",
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "✓ active"
+      }
     },
     {
       "urn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster",
@@ -32,13 +44,25 @@
         "arn": "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
         "endpoint": "https://ABCDEF0123456789.gr7.us-east-1.eks.amazonaws.com",
         "name": "prod-cluster"
+      },
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "✓ active"
       }
     },
     {
       "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-1",
       "type": "aws:ec2/instance:Instance",
       "resourceId": "i-0123456789abcdef0",
-      "status": "active"
+      "status": "active",
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "✓ active"
+      }
     },
     {
       "urn": "urn:pulumi:prod::myapp::kubernetes:core/v1:ConfigMap::app-config",
@@ -53,6 +77,12 @@
           "name": "app-config",
           "namespace": "default"
         }
+      },
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "✓ active"
       }
     }
   ],
@@ -61,7 +91,12 @@
     "projectedMonthly": 0,
     "projectedDelta": 0,
     "potentialSavings": 0,
-    "currency": "USD"
+    "currency": "USD",
+    "display": {
+      "projected": "$0.00",
+      "actual": "$0.00",
+      "delta": "$0.00"
+    }
   },
   "errors": []
 }

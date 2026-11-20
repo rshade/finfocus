@@ -1,0 +1,13 @@
+name: srcposyaml
+runtime: yaml
+resources:
+  web:
+    type: command:local:Command
+    properties:
+      create: echo web
+  worker:
+    type: command:local:Command
+    properties:
+      create: echo worker
+outputs:
+  web: ${web.stdout}

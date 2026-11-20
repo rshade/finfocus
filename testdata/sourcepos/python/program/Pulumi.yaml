@@ -1,0 +1,5 @@
+name: srcpospy
+runtime:
+  name: python
+  options:
+    virtualenv: venv

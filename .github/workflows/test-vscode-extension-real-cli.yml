@@ -1,0 +1,127 @@
+name: Test VS Code extension against finfocus
+
+# Runs the extension's real-CLI tests: the built finfocus, a deployed throwaway
+# Pulumi project on a local backend, and the recorder plugin. They skip in
+# test-vscode-extension.yml, which has no binary. The shutdown test sees plugin
+# and Pulumi descendants through /proc (Linux), the runner's environment token
+# (macOS) and parent pids (Windows).
+
+on:
+  pull_request:
+    paths:
+      - 'packages/vscode-finfocus/**'
+      - 'internal/**'
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'plugins/recorder/**'
+      - 'testdata/sourcepos/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.github/workflows/test-vscode-extension-real-cli.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/vscode-finfocus/**'
+      - 'internal/**'
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'plugins/recorder/**'
+      - 'testdata/sourcepos/**'
+
+permissions:
+  contents: read
+
+jobs:
+  real-cli:
+    name: Real finfocus tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: '**/go.sum'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v7
+
+      - name: Build finfocus and install the recorder plugin
+        run: |
+          exe=""
+          if [ "$RUNNER_OS" = "Windows" ]; then exe=".exe"; fi
+          version="$(git describe --tags --match 'v[0-9]*' --always --dirty)"
+          ldflags="-X 'github.com/rshade/finfocus/pkg/version.version=${version}'"
+          mkdir -p bin
+          go build -ldflags "$ldflags" -o "bin/finfocus${exe}" ./cmd/finfocus
+          go build -ldflags "$ldflags" -o "bin/finfocus-plugin-recorder${exe}" ./plugins/recorder/cmd
+          plugin_version="$(jq -r .version plugins/recorder/plugin.manifest.json)"
+          plugin_dir="$RUNNER_TEMP/finfocus-home/plugins/recorder/$plugin_version"
+          mkdir -p "$plugin_dir"
+          cp "bin/finfocus-plugin-recorder${exe}" plugins/recorder/plugin.manifest.json "$plugin_dir/"
+
+      - name: Deploy the fixture project to a local backend
+        run: |
+          native() { if [ "$RUNNER_OS" = "Windows" ]; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
+          exe=""
+          if [ "$RUNNER_OS" = "Windows" ]; then exe=".exe"; fi
+          scratch="$(native "$RUNNER_TEMP")/fixture"
+          project="$(packages/vscode-finfocus/test/fixtures/real/deploy-fixture.sh "$scratch")"
+          {
+            echo "FINFOCUS_BINARY=$(native "$PWD")/bin/finfocus${exe}"
+            echo "FINFOCUS_HOME=$(native "$RUNNER_TEMP")/finfocus-home"
+            echo "FINFOCUS_FIXTURE_PROJECT=$project"
+            echo "FINFOCUS_FIXTURE_STACK=dev"
+            echo "NODE_PATH=$project/node_modules"
+            echo "PULUMI_BACKEND_URL=file://$scratch/backend"
+            echo "PULUMI_CONFIG_PASSPHRASE=fixture-passphrase"
+          } >> "$GITHUB_ENV"
+        env:
+          PULUMI_CONFIG_PASSPHRASE: fixture-passphrase
+
+      - name: Show the recorded positions and the locations finfocus resolves
+        if: always()
+        run: |
+          cd "$FINFOCUS_FIXTURE_PROJECT"
+          pulumi stack export --stack dev | jq -c '.deployment.resources[] | {urn: (.urn | split("::") | last), sourcePosition, stackTrace}'
+          "$FINFOCUS_BINARY" overview --output json --format json --yes --state-only --stack dev | jq -c '.resources[] | {urn: (.urn | split("::") | last), location}'
+
+      - name: Install extension dependencies
+        working-directory: packages/vscode-finfocus
+        run: pnpm install --frozen-lockfile
+
+      - name: Real finfocus shutdown tests
+        working-directory: packages/vscode-finfocus
+        run: node --test test/integration/real_cli_shutdown.test.js
+
+      - name: Annotations against the real CLI (Linux)
+        if: runner.os == 'Linux'
+        working-directory: packages/vscode-finfocus
+        run: xvfb-run -a node_modules/.bin/vscode-test --label stable --grep 'annotations against the real CLI'
+
+      # Not on Windows: Pulumi (3.277.0) records no source position for a Node.js
+      # program there (see the step above), so there is no location to compare.
+      - name: Annotations against the real CLI
+        if: runner.os == 'macOS'
+        working-directory: packages/vscode-finfocus
+        run: node_modules/.bin/vscode-test --label stable --grep 'annotations against the real CLI'

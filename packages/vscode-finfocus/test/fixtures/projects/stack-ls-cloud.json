@@ -1,0 +1,4 @@
+[
+  {"name": "acme/shop/dev", "current": true, "lastUpdate": "2026-11-16T10:00:00.000Z", "updateInProgress": false, "resourceCount": 61, "url": "https://app.pulumi.com/acme/shop/dev"},
+  {"name": "acme/shop/prod", "current": false, "lastUpdate": "2026-11-15T10:00:00.000Z", "updateInProgress": false, "resourceCount": 80, "url": "https://app.pulumi.com/acme/shop/prod"}
+]

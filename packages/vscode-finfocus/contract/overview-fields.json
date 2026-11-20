@@ -1,0 +1,50 @@
+{
+  "command": "finfocus overview --output json --format json --yes",
+  "required": {
+    "metadata.stackName": "string",
+    "metadata.generatedAt": "string",
+    "resources": "array",
+    "resources[].urn": "string",
+    "resources[].type": "string",
+    "resources[].status": "string",
+    "resources[].display.projected": "string",
+    "resources[].display.actual": "string",
+    "resources[].display.delta": "string",
+    "resources[].display.status": "string",
+    "summary.currency": "string",
+    "summary.display.projected": "string",
+    "summary.display.actual": "string",
+    "summary.display.delta": "string",
+    "budgetDisplay.healthDisplay": "string",
+    "budgetDisplay.amountsDisplay": "string",
+    "budgetDisplay.footerDisplay": "string",
+    "budgetDisplay.details": "array",
+    "errors": "array",
+    "errors[].urn": "string",
+    "errors[].message": "string"
+  },
+  "optional": {
+    "metadata.isStateOnly": "boolean",
+    "resources[].location": "object",
+    "resources[].location.file": "string",
+    "resources[].location.line": "number",
+    "resources[].location.column": "number",
+    "resources[].modifiedAt": "string",
+    "resources[].projectedCost": "object",
+    "resources[].projectedCost.monthlyCost": "number"
+  },
+  "failure": {
+    "error_code": "string",
+    "message": "string",
+    "version": "string"
+  },
+  "placeholders": {
+    "unpriced": {
+      "path": "resources[].display.projected",
+      "value": "-",
+      "exemptStatuses": [
+        "deleting"
+      ]
+    }
+  }
+}

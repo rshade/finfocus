@@ -47,7 +47,7 @@ func TestOverviewQueryParityWithCLIJSON(t *testing.T) {
 		sources[row.URN] = row.Source
 	}
 	for _, row := range canonical.Resources {
-		assert.Equal(t, row, sources[row.URN])
+		assert.Equal(t, row.OverviewRow, sources[row.URN])
 	}
 	assert.InDelta(t, canonical.Summary.TotalActualMTD, page.Totals.TotalActual, 1e-9)
 	assert.InDelta(t, canonical.Summary.ProjectedMonthly, page.Totals.TotalProjected, 1e-9)

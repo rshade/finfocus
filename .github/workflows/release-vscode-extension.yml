@@ -1,0 +1,94 @@
+name: Release VS Code extension
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Extension release tag, e.g. vscode-finfocus-v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-vscode-extension-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  vsix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ startsWith(inputs.tag || github.event.release.tag_name, 'vscode-finfocus-v') }}
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    defaults:
+      run:
+        working-directory: packages/vscode-finfocus
+    steps:
+      - name: Demote extension release from GitHub latest
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "$TAG" --latest=false
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check the manifest against the tag and store rules
+        run: |
+          node <<'EOF'
+          const fs = require('node:fs');
+          const m = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const tag = process.env.TAG;
+          const expected = `vscode-finfocus-v${m.version}`;
+          const problems = [];
+          if (tag !== expected) problems.push(`tag ${tag} does not match package.json version (${expected})`);
+          if (!/^[a-z0-9][a-z0-9-]*$/.test(m.publisher)) problems.push(`publisher ${m.publisher} is not a valid Open VSX namespace`);
+          if (!fs.existsSync('LICENSE') || fs.statSync('LICENSE').size === 0) problems.push('LICENSE is missing or empty');
+          if (!m.license) problems.push('package.json has no license');
+          if (problems.length > 0) {
+            console.error(problems.join('\n'));
+            process.exit(1);
+          }
+          EOF
+
+      - name: Run the unit tests and type check
+        run: |
+          node --test "test/unit/*.test.js"
+          pnpm run typecheck
+
+      - name: Package the VSIX
+        run: |
+          mkdir -p ../../dist
+          pnpm exec vsce package --no-dependencies --out "../../dist/vscode-finfocus-${TAG#vscode-finfocus-v}.vsix"
+          pnpm exec vsce ls --no-dependencies
+
+      - name: Record the SHA-256
+        working-directory: dist
+        run: |
+          sha256sum -- *.vsix | tee SHA256SUMS
+          sha256sum -- *.vsix >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
+
+      - name: Upload the VSIX
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$TAG" dist/*.vsix dist/SHA256SUMS --clobber

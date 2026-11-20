@@ -81,7 +81,8 @@ var mcpServeFunc = func(ctx context.Context, root *cobra.Command, ver string) er
 // cancelOnShutdownSignal replaces cmd's context with one canceled by SIGINT or
 // SIGTERM, so the MCP server drains and returns instead of dying on the signal
 // with its deferred cleanup skipped. A clean drain exits 0, like finfocus --web.
-// Only the MCP entry points call it; no other command's signal handling changes.
+// The MCP entry points and the non-interactive overview call it; the TUI, web,
+// and analyzer commands own their signals.
 func cancelOnShutdownSignal(cmd *cobra.Command) context.CancelFunc {
 	parent := cmd.Context()
 	if parent == nil {

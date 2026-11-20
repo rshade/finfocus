@@ -69,7 +69,7 @@ func TestWithPlanRowsAndMetadata(t *testing.T) {
 	t.Parallel()
 	s := &Snapshot{
 		RawState:    sampleState(),
-		State:       convertStateResources(sampleState()),
+		State:       convertStateResources(sampleState(), nil),
 		StateStatus: Status{Loaded: true},
 	}
 	next := s.WithPlan(samplePlan())

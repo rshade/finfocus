@@ -1,0 +1,107 @@
+{
+  "metadata": {
+    "stackName": "dev",
+    "timeWindow": {
+      "start": "2026-11-01T00:00:00Z",
+      "end": "2026-11-18T00:00:00Z"
+    },
+    "hasChanges": false,
+    "totalResources": 4,
+    "pendingChanges": 0,
+    "generatedAt": "2026-11-18T00:00:00Z",
+    "isStateOnly": true
+  },
+  "resources": [
+    {
+      "urn": "urn:pulumi:dev::shop::aws:ec2/instance:Instance::windowsClientInstance",
+      "type": "aws:ec2/instance:Instance",
+      "resourceId": "synthetic-0",
+      "status": "active",
+      "projectedCost": {
+        "monthlyCost": 33.367999999999995,
+        "currency": "USD"
+      },
+      "recommendations": null,
+      "createdAt": "2026-11-17T00:00:00Z",
+      "modifiedAt": "2026-11-17T00:00:00Z",
+      "display": {
+        "projected": "$33.37",
+        "actual": "$0.44",
+        "delta": "-",
+        "status": "\u2713 active"
+      }
+    },
+    {
+      "urn": "urn:pulumi:dev::shop::aws:ec2/natGateway:NatGateway::clientNatGateway",
+      "type": "aws:ec2/natGateway:NatGateway",
+      "resourceId": "synthetic-1",
+      "status": "active",
+      "projectedCost": {
+        "monthlyCost": 32.85,
+        "currency": "USD"
+      },
+      "createdAt": "2026-11-17T00:00:00Z",
+      "modifiedAt": "2026-11-17T00:00:00Z",
+      "display": {
+        "projected": "$32.85",
+        "actual": "$0.43",
+        "delta": "-",
+        "status": "\u2713 active"
+      },
+      "recommendations": null
+    },
+    {
+      "urn": "urn:pulumi:dev::shop::aws:ec2/natGateway:NatGateway::webNatGateway",
+      "type": "aws:ec2/natGateway:NatGateway",
+      "resourceId": "synthetic-2",
+      "status": "active",
+      "projectedCost": {
+        "monthlyCost": 32.85,
+        "currency": "USD"
+      },
+      "createdAt": "2026-11-17T00:00:00Z",
+      "modifiedAt": "2026-11-17T00:00:00Z",
+      "display": {
+        "projected": "$32.85",
+        "actual": "$0.43",
+        "delta": "-",
+        "status": "\u2713 active"
+      },
+      "recommendations": null
+    },
+    {
+      "urn": "urn:pulumi:dev::shop::pulumi:providers:tailscale::tailscaleProvider",
+      "type": "pulumi:providers:tailscale",
+      "resourceId": "synthetic-3",
+      "status": "active",
+      "createdAt": "2026-11-17T00:00:00Z",
+      "modifiedAt": "2026-11-17T00:00:00Z",
+      "display": {
+        "projected": "-",
+        "actual": "-",
+        "delta": "-",
+        "status": "\u2713 active"
+      },
+      "recommendations": null
+    }
+  ],
+  "summary": {
+    "totalActualMTD": 2.2848201102552905,
+    "projectedMonthly": 173.60799999999995,
+    "projectedDelta": 0,
+    "potentialSavings": 13.14,
+    "currency": "USD",
+    "display": {
+      "projected": "$173.61",
+      "actual": "$2.28",
+      "delta": "$0.00"
+    }
+  },
+  "budgetDisplay": {
+    "healthDisplay": "",
+    "amountsDisplay": "",
+    "footerDisplay": "",
+    "details": []
+  },
+  "errors": []
+}
