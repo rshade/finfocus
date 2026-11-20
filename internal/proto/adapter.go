@@ -2037,6 +2037,7 @@ func (c *clientAdapter) GetRecommendations(
 			Sku:          sku,
 			Region:       region,
 			Tags:         resource.Properties,
+			Attributes:   resource.Attributes,
 		})
 	}
 

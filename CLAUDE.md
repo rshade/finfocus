@@ -1306,9 +1306,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   savings column states the amount; every surface renders it. The dismissal
   snapshot carries both fields (`NewRecommendationSnapshot`,
   `RecommendationFromSnapshot`). The recommendations cache key ends in
-  `/recs-v2` (before the profile suffix) because the stored result JSON
-  changed; bump it when a stored field is added, or when what a key holds
-  changes (`/recs-v2` retired entries holding only page one). Risk never reorders.
+  `/recs-v3` (before the profile suffix); bump it when a stored field is
+  added, or when what a key holds changes (`/recs-v2` retired entries holding
+  only page one, `/recs-v3` answers given before targets carried attributes).
+  Recommendation targets carry `attributes` (`BuildAttributes`) as well as
+  tags, because the 50-tag cap drops nested values. Risk never reorders.
 - Scoring (`internal/scoring`, off by default) pseudonymizes identifiers by
   default, only warns on failure, and never dismisses or hides anything.
   Scorer-only plugins list no cost capability, so routing drops them before

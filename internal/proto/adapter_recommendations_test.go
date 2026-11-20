@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -340,4 +341,42 @@ func TestClientAdapter_GetRecommendations_IncludeDismissed(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.False(t, got[1].GetIncludeDismissed())
 	assert.Equal(t, []string{"rec-1"}, got[1].GetExcludedRecommendationIds())
+}
+
+// TestClientAdapter_GetRecommendations_SendsTargetAttributes checks that each
+// target's attributes reach the plugin unchanged, alongside its tags.
+func TestClientAdapter_GetRecommendations_SendsTargetAttributes(t *testing.T) {
+	t.Parallel()
+
+	var got []*pbc.GetRecommendationsRequest
+	mockGRPC := &mockPbcCostSourceServiceClient{
+		getRecommendationsFunc: func(
+			_ context.Context, in *pbc.GetRecommendationsRequest, _ ...grpc.CallOption,
+		) (*pbc.GetRecommendationsResponse, error) {
+			got = append(got, in)
+			return &pbc.GetRecommendationsResponse{}, nil
+		},
+	}
+	attrs, err := structpb.NewStruct(map[string]any{
+		"rootBlockDevice": map[string]any{"volumeId": "vol-0abc"},
+	})
+	require.NoError(t, err)
+	adapter := &clientAdapter{client: mockGRPC}
+
+	_, err = adapter.GetRecommendations(context.Background(), &GetRecommendationsRequest{
+		TargetResources: []*ResourceDescriptor{
+			{
+				ID: "urn:web", Type: "aws:ec2/instance:Instance", Provider: "aws",
+				Properties: map[string]string{"instanceType": "t3.micro"}, Attributes: attrs,
+			},
+			{ID: "urn:bucket", Type: "aws:s3/bucket:Bucket", Provider: "aws"},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	targets := got[0].GetTargetResources()
+	require.Len(t, targets, 2)
+	assert.Same(t, attrs, targets[0].GetAttributes())
+	assert.Equal(t, "t3.micro", targets[0].GetTags()["instanceType"])
+	assert.Nil(t, targets[1].GetAttributes())
 }
