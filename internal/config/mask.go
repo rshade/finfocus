@@ -9,7 +9,7 @@ import (
 const RedactedValue = "[REDACTED]"
 
 // MaskedForDisplay returns a copy of c whose notification destination URLs,
-// SMTP credentials, and header values are replaced by RedactedValue, except a value that is exactly
+// SMTP credentials, PagerDuty routing keys, and header values are replaced by RedactedValue, except a value that is exactly
 // one ${NAME} reference, which holds no secret and is shown as written.
 //
 // Use it only for display (config get, config list). Config.Save marshals the
@@ -20,6 +20,7 @@ func (c *Config) MaskedForDisplay() *Config {
 	masked.Cost.Budgets = cloneBudgets(c.Cost.Budgets)
 	forEachDestination(masked.Cost.Budgets, func(_ string, dest *NotificationDestination) {
 		dest.URL = maskNotificationValue(dest.URL)
+		dest.RoutingKey = maskNotificationValue(dest.RoutingKey)
 		if dest.SMTP != nil {
 			dest.EmailConfig = maskEmailCredentials(&dest.EmailConfig)
 		}

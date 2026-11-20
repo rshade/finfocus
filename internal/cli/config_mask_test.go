@@ -15,7 +15,8 @@ const maskedConfig = `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD
     {"type":"webhook","url":"https://api.example.com/hooks/literal-url-secret",
      "headers":{"Authorization":"Bearer literal-header-secret","X-Ref":"${FINFOCUS_NOTIFY_API_TOKEN}"}},
     {"type":"email","smtp":{"host":"localhost","username":"smtp-user-secret@example.com","password":"smtp-password-secret"},
-     "from":"smtp-user-secret@example.com","to":["owner@example.com"]}
+     "from":"smtp-user-secret@example.com","to":["owner@example.com"]},
+    {"type":"pagerduty","routing_key":"literal-pagerduty-key"}
   ]}]}}}}`
 
 //nolint:paralleltest // sets env and the global config singleton
@@ -36,6 +37,7 @@ func TestConfigDisplayMasksNotificationSecrets(t *testing.T) {
 		assert.NotContains(t, out, "literal-header-secret", "args %v", args)
 		assert.NotContains(t, out, "smtp-user-secret@example.com", "args %v", args)
 		assert.NotContains(t, out, "smtp-password-secret", "args %v", args)
+		assert.NotContains(t, out, "literal-pagerduty-key", "args %v", args)
 		assert.Contains(t, out, "[REDACTED]", "args %v", args)
 		assert.Contains(t, out, "${FINFOCUS_NOTIFY_SLACK_URL}", "args %v", args)
 		assert.Contains(t, out, "${FINFOCUS_NOTIFY_API_TOKEN}", "args %v", args)
@@ -55,5 +57,6 @@ func TestConfigSetKeepsNotificationSecretsInFile(t *testing.T) {
 	assert.Contains(t, string(data), "Bearer literal-header-secret")
 	assert.Contains(t, string(data), "smtp-user-secret@example.com")
 	assert.Contains(t, string(data), "smtp-password-secret")
+	assert.Contains(t, string(data), "literal-pagerduty-key")
 	assert.NotContains(t, string(data), "[REDACTED]")
 }

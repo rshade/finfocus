@@ -382,14 +382,15 @@ func hintFor(err error) (string, string) {
 	case strings.Contains(err.Error(), "invalid currency code"):
 		return "Use a 3-letter uppercase ISO 4217 code such as USD.", "currency: USD"
 	case errors.Is(err, ErrNotificationTypeInvalid):
-		return "Supported destination types: slack, webhook, email.", "type: slack"
+		return "Supported destination types: slack, webhook, email, pagerduty.", "type: slack"
 	case errors.Is(err, ErrNotificationURLRequired), errors.Is(err, ErrNotificationHTTPSRequired):
 		return "Use an https:// URL with a host, or a ${FINFOCUS_NOTIFY_*} reference in the global config.",
 			"url: ${FINFOCUS_NOTIFY_SLACK_URL}"
 	case errors.Is(err, ErrNotificationMethodInvalid):
 		return "Use POST (the default) or PUT.", "method: POST"
 	case errors.Is(err, ErrNotificationFieldNotAllowed):
-		return "channel applies to slack, method and headers to webhook, and SMTP settings to email.", ""
+		return "Use channel for slack, method and headers for webhook, SMTP settings for email, " +
+			"and routing_key, severity, and dedup_key for pagerduty.", ""
 	case errors.Is(err, ErrNotificationHeaderNameEmpty):
 		return "Give every header a name.", "headers:\n  Authorization: Bearer ${FINFOCUS_NOTIFY_API_TOKEN}"
 	case errors.Is(err, ErrNotificationVariableNotAllowed), errors.Is(err, ErrNotificationReferenceMalformed):

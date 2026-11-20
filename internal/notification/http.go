@@ -44,24 +44,8 @@ func sendJSON(
 	headers map[string]string,
 	body any,
 ) error {
-	payload, err := json.Marshal(body)
+	resp, err := requestJSON(ctx, client, method, target, headers, body)
 	if err != nil {
-		return fmt.Errorf("encoding request body: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, target, bytes.NewReader(payload))
-	if err != nil {
-		return errors.New("building request failed")
-	}
-	req.Header.Set("Content-Type", "application/json")
-	for name, value := range headers {
-		req.Header.Set(name, value)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		if urlErr, ok := errors.AsType[*url.Error](err); ok {
-			return urlErr.Err
-		}
 		return err
 	}
 	defer resp.Body.Close()
@@ -71,4 +55,35 @@ func sendJSON(
 		return fmt.Errorf("%w: status %d", ErrUnexpectedStatus, resp.StatusCode)
 	}
 	return nil
+}
+
+// requestJSON sends a JSON request. The caller owns the response body.
+func requestJSON(
+	ctx context.Context,
+	client *http.Client,
+	method, target string,
+	headers map[string]string,
+	body any,
+) (*http.Response, error) {
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("encoding request body: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, target, bytes.NewReader(payload))
+	if err != nil {
+		return nil, errors.New("building request failed")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			return nil, urlErr.Err
+		}
+		return nil, err
+	}
+	return resp, nil
 }

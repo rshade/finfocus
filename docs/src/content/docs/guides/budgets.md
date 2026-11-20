@@ -497,9 +497,8 @@ Overall Health: CRITICAL
 
 ## Budget Notifications
 
-An alert threshold can send a message to Slack, an HTTPS endpoint, or email
-recipients when a cost command finds that the threshold was crossed. Notifications are opt-in per
-run, so local runs stay quiet while CI sends.
+Cost commands can send notifications when a budget crosses a threshold.
+Enable notifications on the individual local or CI runs that need them.
 
 ### Configure Destinations
 
@@ -537,7 +536,7 @@ Add `notifications` to any alert, in any scope (`global`, `providers.<name>`,
 
 | Field     | Applies to | Required | Description                                                       |
 | --------- | ---------- | -------- | ----------------------------------------------------------------- |
-| `type`    | all        | Yes      | `slack`, `webhook`, or `email`                                   |
+| `type`    | all        | Yes      | `slack`, `webhook`, `email`, or `pagerduty`                                   |
 | `url`     | `slack`, `webhook` | Yes      | `https://` URL with a host, or a `${FINFOCUS_NOTIFY_*}` reference |
 | `channel` | `slack`    | No       | Channel override sent with the message                            |
 | `method`  | `webhook`  | No       | `POST` (default) or `PUT`                                         |
@@ -601,6 +600,39 @@ same SMTP transaction. The default subject is
 include `{{threshold}}` to insert the threshold percentage as a number.
 The plain-text body includes the budget, scope, spend or forecast, alert
 type, and FinFocus version.
+
+### Configure PagerDuty
+
+Add an [Events API v2 integration](https://docs.pagerduty.com/developer/send-alert-event)
+to the PagerDuty service that should receive budget incidents. Store its
+integration key as `FINFOCUS_NOTIFY_PAGERDUTY_KEY` in your environment or CI
+secrets, then add this destination to the alert in your global config:
+
+```jsonc
+{
+  "type": "pagerduty",
+  "routing_key": "${FINFOCUS_NOTIFY_PAGERDUTY_KEY}",
+  "severity": "critical",
+  "dedup_key": "per-threshold"
+}
+```
+
+Choose `critical`, `error`, `warning` (the default), or `info` on each
+threshold. For alerts at 80% and 100%, you can set the first to `warning`
+and the second to `critical`.
+The default endpoint is `https://events.pagerduty.com/v2/enqueue`. Set
+`url` to `https://events.eu.pagerduty.com/v2/enqueue` for an EU service.
+The native destination sends the Events API payload directly.
+
+In `per-threshold` mode, repeated runs in the same month send the same
+deduplication key for the same project, scope, threshold, and alert type.
+PagerDuty can use that key to update an open incident. Choose `per-run`
+to let PagerDuty generate a new key for each delivery. FinFocus sends
+trigger events only. Resolve incidents in PagerDuty or configure its
+auto-resolution policy.
+
+The dry-run preview shows the action and severity with a masked routing
+key. `config get` and `config list` also mask literal routing keys.
 
 ### Send Notifications
 
@@ -682,13 +714,14 @@ JSON event:
   ```
 
 - Warnings and logs never contain a URL, a variable's value, a secret header
-  value, or a response body. A literal header value is treated as secret when
+  value, or a routing key. A literal header value is treated as secret when
   it's at least 8 characters long or the header is `Authorization`,
   `Proxy-Authorization`, `Cookie`, or a name containing `token`, `key`, or
-  `secret`.
+  `secret`. PagerDuty warnings may include sanitized error details from
+  the Events API.
   `config get` and `config list` show those values as `[REDACTED]`, except a
   value that's only a `${NAME}` reference. The same masking applies to
-  SMTP usernames and passwords.
+  SMTP usernames, SMTP passwords, and PagerDuty routing keys.
 - Nothing about notifications is written to stdout, so `--output json` and
   `--output ndjson` stay parseable.
 - Results with mixed currencies skip budget evaluation, so no notification

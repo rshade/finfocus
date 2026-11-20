@@ -217,6 +217,7 @@ func TestBudgetHealthPayloadOmitsNotificationDestinations(t *testing.T) {
 							To:   []string{"private-recipient@example.com"},
 						},
 					},
+					{Type: config.NotificationTypePagerDuty, RoutingKey: "web-hidden-pagerduty-key"},
 				},
 			}},
 		},
@@ -242,6 +243,7 @@ func TestBudgetHealthPayloadOmitsNotificationDestinations(t *testing.T) {
 	assert.NotContains(t, out, "smtp-secret-user")
 	assert.NotContains(t, out, "smtp-secret-password")
 	assert.NotContains(t, out, "private-recipient@example.com")
+	assert.NotContains(t, out, "web-hidden-pagerduty-key")
 	assert.NotContains(t, out, "notifications")
 
 	// The payload is no wider than the budget shape of

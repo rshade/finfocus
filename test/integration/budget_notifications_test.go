@@ -243,6 +243,60 @@ func TestBudgetNotifications(t *testing.T) {
 		assert.Empty(t, messages)
 	})
 
+	t.Run("pagerduty opt-in and deduplication", func(t *testing.T) {
+		recv.setStatus(http.StatusAccepted)
+		const routingKey = "test-pagerduty-integration-key"
+		cfg := fmt.Sprintf(`{"logging":{"file":""},"cost":{"budgets":{"global":{"amount":100,"currency":"USD",
+		  "alerts":[{"type":"actual","threshold":0,"notifications":[{"type":"pagerduty",
+		   "url":%q,"routing_key":"${FINFOCUS_NOTIFY_PD_KEY}","severity":"critical"}]}]}}}}`, recv.srv.URL+"/v2/enqueue")
+		env := []string{"FINFOCUS_NOTIFY_PD_KEY=" + routingKey}
+
+		baseline := run(t, cfg, env, "--output", "json")
+		require.Zero(t, baseline.exitCode, baseline.stderr)
+		assert.Contains(t, baseline.stderr, "pass --notify")
+		assert.Empty(t, recv.take())
+
+		preview := run(t, cfg, env, "--output", "json", "--notify", "--dry-run")
+		require.Zero(t, preview.exitCode, preview.stderr)
+		assert.Contains(t, preview.stderr, "trigger, severity critical, routing_key [REDACTED]")
+		assert.NotContains(t, preview.stderr+preview.stdout, routingKey)
+		assert.Empty(t, recv.take())
+
+		project := t.TempDir()
+		require.NoError(
+			t,
+			os.WriteFile(filepath.Join(project, "Pulumi.yaml"), []byte("name: test-project\nruntime: go\n"), 0o600),
+		)
+		var keys []string
+		for range 2 {
+			sent := run(t, cfg, env, "--output", "json", "--notify", "--debug", "--project-dir", project)
+			require.Zero(t, sent.exitCode, sent.stderr)
+			assert.True(t, json.Valid([]byte(sent.stdout)))
+			assert.NotContains(t, sent.stderr+sent.stdout, routingKey)
+			got := recv.take()
+			require.Len(t, got, 1)
+			assert.Equal(t, "/v2/enqueue", got[0].Path)
+			assert.Equal(t, "trigger", got[0].Body["event_action"])
+			assert.Equal(t, routingKey, got[0].Body["routing_key"])
+			assert.Equal(t, "test-project", got[0].Body["payload"].(map[string]any)["group"])
+			keys = append(keys, got[0].Body["dedup_key"].(string))
+		}
+		assert.Equal(t, keys[0], keys[1])
+		assert.True(t, strings.HasPrefix(keys[0], "finfocus:test-project:global:0:actual:"))
+
+		recv.setStatus(http.StatusBadRequest)
+		args := []string{"--output", "json", "--exit-on-threshold", "--exit-code", "4"}
+		noNotify := run(t, cfg, env, args...)
+		failed := run(t, cfg, env, append(args, "--notify")...)
+		assert.Equal(t, 4, failed.exitCode, failed.stderr)
+		assert.Equal(t, noNotify.stdout, failed.stdout)
+		assert.Equal(t, 1, strings.Count(failed.stderr, "warning: pagerduty notification"))
+		assert.NotContains(t, failed.stderr, "budget notification not delivered")
+		assert.Contains(t, failed.stderr, "status 400")
+		assert.NotContains(t, failed.stderr+failed.stdout, routingKey)
+		assert.Len(t, recv.take(), 1)
+	})
+
 	t.Run("project config referencing GITHUB_TOKEN is rejected", func(t *testing.T) {
 		recv.setStatus(http.StatusOK)
 		project := t.TempDir()

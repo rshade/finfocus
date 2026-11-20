@@ -58,6 +58,9 @@ func (s ScopeType) IsValid() bool {
 
 // ScopedBudgetStatus represents the evaluated state of a scoped budget.
 type ScopedBudgetStatus struct {
+	// EvaluatedAt records the clock sample used to calculate the forecast.
+	EvaluatedAt time.Time `json:"-" yaml:"-"`
+
 	// ScopeType identifies the budget scope category.
 	ScopeType ScopeType `json:"scope_type"`
 
@@ -514,6 +517,7 @@ func newScopedBudgetStatus(
 	}
 
 	status := &ScopedBudgetStatus{
+		EvaluatedAt:  time.Now(),
 		ScopeType:    scope,
 		ScopeKey:     key,
 		Budget:       scopedBudgetWithoutDestinations(*budget),
@@ -716,8 +720,8 @@ func enrichScopedBudgetStatus(status *ScopedBudgetStatus, budget *config.ScopedB
 		return
 	}
 
-	// Forecast: linear extrapolation from current spend
-	now := time.Now()
+	// Forecast: linear extrapolation from current spend.
+	now := status.EvaluatedAt
 	currentDay := now.Day()
 	totalDays := daysInMonth(now)
 	if currentDay == 0 {

@@ -48,7 +48,7 @@ func TestNotificationDestinationValidate(t *testing.T) {
 			dest:      config.NotificationDestination{Type: "sms", URL: "https://example.com"},
 			wantErr:   config.ErrNotificationTypeInvalid,
 			wantField: "type",
-			contains:  "slack, webhook, email",
+			contains:  "slack, webhook, email, pagerduty",
 		},
 		{
 			name:      "empty url",

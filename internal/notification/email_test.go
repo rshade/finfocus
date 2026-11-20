@@ -273,10 +273,10 @@ func TestEmailExpansionAndPreview(t *testing.T) {
 	dispatcher := NewDispatcher(nil, lookup)
 	preview := dispatcher.Deliver(t.Context(), []Delivery{delivery}, Options{DryRun: true})[0]
 	require.Equal(t, OutcomeDryRun, preview.Outcome, preview.Reason)
-	assert.Contains(t, preview.RecipientSummary, "To: other@example.com, [REDACTED]")
-	assert.Contains(t, preview.RecipientSummary, `Cc: "copy alerts"@example.com`)
-	assert.NotContains(t, preview.RecipientSummary, smtpTestUsername)
-	assert.NotContains(t, preview.RecipientSummary, smtpTestPassword)
+	assert.Contains(t, preview.DryRunSummary, "To: other@example.com, [REDACTED]")
+	assert.Contains(t, preview.DryRunSummary, `Cc: "copy alerts"@example.com`)
+	assert.NotContains(t, preview.DryRunSummary, smtpTestUsername)
+	assert.NotContains(t, preview.DryRunSummary, smtpTestPassword)
 
 	delivery.Destination.Subject = "${FINFOCUS_NOTIFY_INJECT}"
 	injected := dispatcher.Deliver(t.Context(), []Delivery{delivery}, Options{})[0]
