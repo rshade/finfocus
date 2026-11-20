@@ -51,5 +51,5 @@ finfocus carbon actual [flags]
 
 ## See also
 
-- [finfocus carbon](./finfocus_carbon.md) -
+- [`finfocus carbon`](./finfocus_carbon.md) -
   Query provider-reported historical carbon emissions

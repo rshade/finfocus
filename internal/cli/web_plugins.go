@@ -332,6 +332,18 @@ func preparePluginChange(name string) error {
 	return err
 }
 
+// reuseInstalledVersion overwrites a version directory that is already on
+// disk. The dashboard planned that version, and a retry has to replace the
+// files so a plugin that installed but did not load can be opened.
+func reuseInstalledVersion(dir, name, version string, opts *registry.InstallOptions) {
+	if version == "" || opts == nil {
+		return
+	}
+	if _, err := os.Stat(filepath.Join(dir, name, version)); err == nil {
+		opts.Force = true
+	}
+}
+
 func installConfirmedPlugin(
 	ctx context.Context,
 	name string,
@@ -351,11 +363,7 @@ func installConfirmedPlugin(
 		AcceptMissingChecksum: request.AcceptMissingChecksum,
 		OnEvent:               forwardProgress(report),
 	}
-	if request.Version != "" {
-		if _, statErr := os.Stat(filepath.Join(dir, name, request.Version)); statErr == nil {
-			opts.Force = true
-		}
-	}
+	reuseInstalledVersion(dir, name, request.Version, &opts)
 	if _, err := registry.NewInstaller(dir).Install(ctx, spec, opts, nil); err != nil {
 		return err
 	}

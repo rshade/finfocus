@@ -33,7 +33,7 @@ Query provider-reported historical carbon emissions
 
 ## See also
 
-- [finfocus](./finfocus.md) -
+- [`finfocus`](./finfocus.md) -
   FinFocus CLI and plugin host
-- [finfocus carbon actual](./finfocus_carbon_actual.md) -
+- [`finfocus carbon actual`](./finfocus_carbon_actual.md) -
   Report available monthly AWS emissions with source provenance

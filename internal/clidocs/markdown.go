@@ -71,7 +71,17 @@ func seeAlsoItem(item string) string {
 	if !ok {
 		return item
 	}
-	return link + " -\n  " + desc
+	return commandLink(link) + " -\n  " + desc
+}
+
+// commandLink marks the see-also command path as code. Vale skips code spans,
+// so the lowercase command stays the path a person types.
+func commandLink(link string) string {
+	label, dest, ok := strings.Cut(link, "](")
+	if !ok || !strings.HasPrefix(label, "[") {
+		return link
+	}
+	return "[`" + strings.TrimPrefix(label, "[") + "`](" + dest
 }
 
 // fenceLanguage labels examples as shell and everything else (usage lines,

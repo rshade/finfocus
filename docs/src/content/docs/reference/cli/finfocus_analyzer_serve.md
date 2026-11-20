@@ -64,5 +64,5 @@ finfocus analyzer serve [flags]
 
 ## See also
 
-- [finfocus analyzer](./finfocus_analyzer.md) -
+- [`finfocus analyzer`](./finfocus_analyzer.md) -
   Pulumi Analyzer plugin commands

@@ -237,7 +237,7 @@ release has no checksum file, or when the registry could not be verified.
 With no sources, the list says to add a name and an HTTPS index URL, then
 choose Add registry. Every release from a custom registry requires a matching
 checksum, regardless of the secure plugin mode setting. Custom catalog
-entries cannot replace a built-in name.
+entries can't replace a built-in name.
 
 ### Logs view
 

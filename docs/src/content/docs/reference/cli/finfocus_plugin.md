@@ -33,27 +33,27 @@ Plugin management commands
 
 ## See also
 
-- [finfocus](./finfocus.md) -
+- [`finfocus`](./finfocus.md) -
   FinFocus CLI and plugin host
-- [finfocus plugin certify](./finfocus_plugin_certify.md) -
+- [`finfocus plugin certify`](./finfocus_plugin_certify.md) -
   Run certification tests for a plugin
-- [finfocus plugin conformance](./finfocus_plugin_conformance.md) -
+- [`finfocus plugin conformance`](./finfocus_plugin_conformance.md) -
   Run conformance tests against a plugin binary
-- [finfocus plugin init](./finfocus_plugin_init.md) -
+- [`finfocus plugin init`](./finfocus_plugin_init.md) -
   Initialize a new plugin development project
-- [finfocus plugin inspect](./finfocus_plugin_inspect.md) -
+- [`finfocus plugin inspect`](./finfocus_plugin_inspect.md) -
   Inspect a plugin's capabilities and field mappings
-- [finfocus plugin install](./finfocus_plugin_install.md) -
+- [`finfocus plugin install`](./finfocus_plugin_install.md) -
   Install a plugin from registry or URL
-- [finfocus plugin list](./finfocus_plugin_list.md) -
+- [`finfocus plugin list`](./finfocus_plugin_list.md) -
   List installed plugins
-- [finfocus plugin registry](./finfocus_plugin_registry.md) -
+- [`finfocus plugin registry`](./finfocus_plugin_registry.md) -
   Manage custom plugin registries
-- [finfocus plugin remove](./finfocus_plugin_remove.md) -
+- [`finfocus plugin remove`](./finfocus_plugin_remove.md) -
   Remove an installed plugin
-- [finfocus plugin update](./finfocus_plugin_update.md) -
+- [`finfocus plugin update`](./finfocus_plugin_update.md) -
   Update an installed plugin to the newest stable release
-- [finfocus plugin upgrade](./finfocus_plugin_upgrade.md) -
+- [`finfocus plugin upgrade`](./finfocus_plugin_upgrade.md) -
   Upgrade a plugin project to a newer finfocus-spec version
-- [finfocus plugin validate](./finfocus_plugin_validate.md) -
+- [`finfocus plugin validate`](./finfocus_plugin_validate.md) -
   Validate installed plugins

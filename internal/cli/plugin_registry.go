@@ -104,6 +104,9 @@ func newRegistryInstallCmd(service *registry.CustomRegistryService) *cobra.Comma
 		Args:  cobra.ExactArgs(registryCommandPair),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			if secureErr := registry.CheckSecurePlugins(false); secureErr != nil {
+				return toValidationError(ctx, secureErr)
+			}
 			plugin, err := service.Resolve(ctx, args[0], args[1])
 			if err != nil {
 				return err

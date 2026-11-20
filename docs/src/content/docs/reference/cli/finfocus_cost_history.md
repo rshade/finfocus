@@ -53,19 +53,19 @@ The flag is ignored for Pulumi.
 
 ## See also
 
-- [finfocus cost](./finfocus_cost.md) -
+- [`finfocus cost`](./finfocus_cost.md) -
   Cost calculation commands
-- [finfocus cost history collect](./finfocus_cost_history_collect.md) -
+- [`finfocus cost history collect`](./finfocus_cost_history_collect.md) -
   Store projected costs for Pulumi stack checkpoints
-- [finfocus cost history collect-daily](./finfocus_cost_history_collect-daily.md) -
+- [`finfocus cost history collect-daily`](./finfocus_cost_history_collect-daily.md) -
   Store daily actual costs for a stack
-- [finfocus cost history diff](./finfocus_cost_history_diff.md) -
+- [`finfocus cost history diff`](./finfocus_cost_history_diff.md) -
   Compare resources between two stored cost snapshots
-- [finfocus cost history export](./finfocus_cost_history_export.md) -
+- [`finfocus cost history export`](./finfocus_cost_history_export.md) -
   Export stored cost history as JSON, CSV, or NDJSON
-- [finfocus cost history list](./finfocus_cost_history_list.md) -
+- [`finfocus cost history list`](./finfocus_cost_history_list.md) -
   List stored cost histories for the current project
-- [finfocus cost history prune](./finfocus_cost_history_prune.md) -
+- [`finfocus cost history prune`](./finfocus_cost_history_prune.md) -
   Delete old projected-cost snapshots for one stack
-- [finfocus cost history view](./finfocus_cost_history_view.md) -
+- [`finfocus cost history view`](./finfocus_cost_history_view.md) -
   Chart stored projected costs for the current project

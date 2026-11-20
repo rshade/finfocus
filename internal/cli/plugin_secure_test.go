@@ -37,6 +37,12 @@ func TestPluginInstallUpdate_SecurePluginsRejectsInput(t *testing.T) {
 			wantErr: config.EnvSecurePlugins + " must be one of",
 		},
 		{
+			name:    "registry install rejects a bad value",
+			env:     "maybe",
+			args:    []string{"plugin", "registry", "install", "workspace", "demo"},
+			wantErr: config.EnvSecurePlugins + " must be one of",
+		},
+		{
 			name:    "dashboard rejects a bad value",
 			env:     "maybe",
 			args:    []string{"--web", "--no-browser"},

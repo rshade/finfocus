@@ -60,5 +60,5 @@ finfocus config routes test <resource-type> [region] [flags]
 
 ## See also
 
-- [finfocus config routes](./finfocus_config_routes.md) -
+- [`finfocus config routes`](./finfocus_config_routes.md) -
   Plugin routing commands
