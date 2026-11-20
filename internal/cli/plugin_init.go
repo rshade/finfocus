@@ -16,6 +16,7 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginname"
 	"github.com/rshade/finfocus/internal/pluginskill"
 	"github.com/rshade/finfocus/pkg/version"
 )
@@ -1753,7 +1754,7 @@ type Calculator struct {
 
 // NewCalculator creates a new {{NAME}} cost calculator plugin.
 func NewCalculator() *Calculator {
-	base := pluginsdk.NewBasePlugin("{{NAME}}")
+	base := pluginsdk.NewBasePlugin(PluginName)
 
 	// Configure supported providers
 	providers := []string{"{{PROVIDERS_LIST}}"}
@@ -1766,8 +1767,12 @@ func NewCalculator() *Calculator {
 	}
 }
 
-// Plugin version constants.
+// Plugin identity and version constants.
 const (
+	// PluginName is the plugin's install name. Name(), GetPluginInfo, the
+	// logger, and every result Source use it, so the plugin reports one name
+	// everywhere. finfocus plugin conformance warns when they differ.
+	PluginName = "{{NAME}}"
 	// PluginVersion is the semantic version of this plugin.
 	PluginVersion = "0.1.0"
 	// SpecVersion is the finfocus-spec protocol version this plugin was compiled
@@ -1778,7 +1783,7 @@ const (
 // GetPluginInfo returns metadata about this plugin for discovery and compatibility verification.
 func (c *Calculator) GetPluginInfo(_ context.Context, _ *pbc.GetPluginInfoRequest) (*pbc.GetPluginInfoResponse, error) {
 	return &pbc.GetPluginInfoResponse{
-		Name:        "{{NAME}}",
+		Name:        PluginName,
 		Version:     PluginVersion,
 		SpecVersion: SpecVersion,
 		Providers:   []string{"{{PROVIDERS_LIST}}"},
@@ -2555,22 +2560,10 @@ func createProjectDirectory(path string, force bool) error {
 // IsValidPluginName reports whether the provided name satisfies the plugin naming rules.
 // The name must be between 2 and 50 characters, contain only lowercase letters (`a`–`z`),
 // digits (`0`–`9`) or hyphens (`-`), and must not start or end with a hyphen.
-// It returns true when all conditions are met, false otherwise.
+// It returns true when all conditions are met, false otherwise. The rule lives in
+// pluginname.Valid, which the registry and conformance suite share.
 func IsValidPluginName(name string) bool {
-	if len(name) < 2 || len(name) > 50 {
-		return false
-	}
-
-	for _, r := range name {
-		isLower := r >= 'a' && r <= 'z'
-		isDigit := r >= '0' && r <= '9'
-		if !isLower && !isDigit && r != '-' {
-			return false
-		}
-	}
-
-	// Cannot start or end with hyphen
-	return name[0] != '-' && name[len(name)-1] != '-'
+	return pluginname.Valid(name)
 }
 
 // installInitSkills installs the plugin agent skills into a new project unless

@@ -173,6 +173,37 @@ func (s *Suite) registerDefaultTests() {
 			TestFunc:        testBatchHandling,
 		},
 	}
+	s.testCases = append(s.testCases, nameTestCases()...)
+}
+
+// nameTestCases are the advisory plugin name checks. They only pass or warn.
+func nameTestCases() []TestCase {
+	return []TestCase{
+		{
+			Name:            "Name_MatchesInstallName",
+			Category:        CategoryProtocol,
+			Description:     "Warns when the plugin reports a name other than its install name",
+			Timeout:         DefaultTimeout,
+			RequiredMethods: []string{methodName},
+			TestFunc:        testNameMatchesInstallName,
+		},
+		{
+			Name:            "Name_MatchesPluginInfo",
+			Category:        CategoryProtocol,
+			Description:     "Warns when Name and GetPluginInfo report different names",
+			Timeout:         DefaultTimeout,
+			RequiredMethods: []string{methodName},
+			TestFunc:        testNameMatchesPluginInfo,
+		},
+		{
+			Name:            "Name_IsCanonicalForm",
+			Category:        CategoryProtocol,
+			Description:     "Warns when the reported name is not lowercase-hyphenated or carries the binary prefix",
+			Timeout:         DefaultTimeout,
+			RequiredMethods: []string{methodName},
+			TestFunc:        testNameIsCanonicalForm,
+		},
+	}
 }
 
 // GetTestCases returns the filtered list of test cases based on configuration.
@@ -256,6 +287,7 @@ func (s *Suite) Run(ctx context.Context) (*SuiteReport, error) {
 	// Create runner
 	runner := NewRunner(s.logger, s.config.Verbosity)
 	runner.probe = resolveProbe(s.config.Probe, providers)
+	runner.identity = ResolveExpectedName(s.config.PluginPath, s.config.ExpectedName)
 
 	// Run tests with restart support
 	results := runner.RunTests(suiteCtx, testCases, connectFn)
@@ -308,6 +340,8 @@ func calculateSummary(results []TestResult) Summary {
 			summary.Skipped++
 		case StatusError:
 			summary.Errors++
+		case StatusWarn:
+			summary.Warnings++
 		default:
 			// Unknown status - count as error to surface the issue
 			summary.Errors++

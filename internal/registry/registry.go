@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/Masterminds/semver/v3"
 	"golang.org/x/sync/errgroup"
@@ -251,7 +252,10 @@ func (r *Registry) findBinary(dir string, meta map[string]string) string {
 }
 
 // Open launches plugin processes and returns active gRPC clients with a cleanup function.
-// If onlyName is non-empty, only that specific plugin is opened.
+// If onlyName is non-empty and is an installed plugin's install name or catalog
+// alias, only that plugin is opened. Any other non-empty onlyName may be a name
+// a plugin reports, which is unknown until it runs, so every plugin is opened
+// and the caller filters with pluginhost.Client.MatchesName.
 func (r *Registry) Open(
 	ctx context.Context,
 	onlyName string,
@@ -283,11 +287,15 @@ func (r *Registry) Open(
 			Msg("plugin warning")
 	}
 
-	var filteredPlugins []PluginInfo
-	for _, plugin := range plugins {
-		if onlyName == "" || plugin.Name == onlyName {
-			filteredPlugins = append(filteredPlugins, plugin)
-		}
+	filteredPlugins := filterByInstallName(plugins, onlyName)
+	matchReported := onlyName != "" && len(filteredPlugins) == 0
+	if matchReported {
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "registry").
+			Str("plugin_filter", onlyName).
+			Msg("plugin filter names no install name or alias; opening every plugin to match reported names")
+		filteredPlugins = plugins
 	}
 
 	log.Debug().
@@ -297,6 +305,9 @@ func (r *Registry) Open(
 		Msg("latest plugins discovered after filtering")
 
 	clients := r.openPlugins(ctx, filteredPlugins)
+	if matchReported {
+		clients = keepReportedMatches(clients, onlyName)
+	}
 	cleanup := func() {
 		for _, c := range clients {
 			_ = c.Close()
@@ -364,6 +375,9 @@ func (r *Registry) openPlugin(ctx context.Context, plugin PluginInfo) *pluginhos
 		return nil
 	}
 
+	client.Aliases = CatalogAliases(plugin.Name)
+	warnNameMismatch(ctx, client)
+
 	// Merge registry-level metadata (e.g., region) into the client's plugin metadata.
 	// This ensures routing decisions can use registry metadata even if the plugin
 	// didn't report it via GetPluginInfo.
@@ -379,6 +393,71 @@ func (r *Registry) openPlugin(ctx context.Context, plugin PluginInfo) *pluginhos
 		Msg("plugin connected successfully")
 
 	return client
+}
+
+// nameMismatchWarned records the install|reported pairs already warned about,
+// so a dashboard that reopens plugins, or several stacks sharing them, warns
+// once per process.
+var nameMismatchWarned sync.Map //nolint:gochecknoglobals // once-per-process warning set
+
+// warnNameMismatch warns once per process when a plugin reports a name other
+// than its install name. Both names are accepted; the plugin should report
+// its install name.
+func warnNameMismatch(ctx context.Context, client *pluginhost.Client) {
+	if client.InstallName == "" || client.Name == client.InstallName {
+		return
+	}
+	if _, seen := nameMismatchWarned.LoadOrStore(client.InstallName+"|"+client.Name, struct{}{}); seen {
+		return
+	}
+	logging.FromContext(ctx).Warn().
+		Ctx(ctx).
+		Str("component", "registry").
+		Str("install_name", client.InstallName).
+		Str("reported_name", client.Name).
+		Msg("plugin reports a name that differs from its install name; both are accepted")
+}
+
+// ResetNameMismatchWarningsForTest clears the once-per-process warning set.
+// It exists for tests only; tests that call it must not run in parallel.
+func ResetNameMismatchWarningsForTest() {
+	nameMismatchWarned.Clear()
+}
+
+// keepReportedMatches keeps the clients that report name and closes the rest,
+// so a filter that only a running plugin can answer still returns just that
+// plugin.
+func keepReportedMatches(clients []*pluginhost.Client, name string) []*pluginhost.Client {
+	kept := clients[:0]
+	for _, c := range clients {
+		if c.MatchesName(name) {
+			kept = append(kept, c)
+			continue
+		}
+		_ = c.Close()
+	}
+	return kept
+}
+
+// filterByInstallName keeps the plugins whose install name is name, or else
+// those whose catalog aliases include it. An empty name keeps every plugin.
+func filterByInstallName(plugins []PluginInfo, name string) []PluginInfo {
+	if name == "" {
+		return plugins
+	}
+	var byInstall, byAlias []PluginInfo
+	for _, plugin := range plugins {
+		switch {
+		case plugin.Name == name:
+			byInstall = append(byInstall, plugin)
+		case slices.Contains(CatalogAliases(plugin.Name), name):
+			byAlias = append(byAlias, plugin)
+		}
+	}
+	if len(byInstall) > 0 {
+		return byInstall
+	}
+	return byAlias
 }
 
 // PluginInfo contains metadata about a discovered plugin.

@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,15 +16,32 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 )
 
+// defaultRoutePlugins are the plugins buildStandardRoutingConfig names.
+// `config routes test` simulates only installed plugins, so tests install them.
+var defaultRoutePlugins = []string{"aws-public", "aws-ce", "recorder"} //nolint:gochecknoglobals // test fixture
+
 // setupConfigRoutesTest sets up an isolated test environment for config routes tests.
-// It creates a temporary HOME directory, suppresses log output, and resets the
-// resolved project directory to ensure "global" source detection.
-func setupConfigRoutesTest(t *testing.T) string {
+// It creates a temporary HOME and FINFOCUS_HOME, installs fake plugin binaries
+// (the given names, or defaultRoutePlugins when none are given), suppresses log
+// output, and resets the resolved project directory to ensure "global" source
+// detection.
+func setupConfigRoutesTest(t *testing.T, plugins ...string) string {
 	t.Helper()
 	testHome := t.TempDir()
 	t.Setenv("HOME", testHome)
 	t.Setenv("USERPROFILE", testHome)
+	t.Setenv("FINFOCUS_HOME", filepath.Join(testHome, ".finfocus"))
+	t.Setenv("FINFOCUS_PLUGIN_DIR", "")
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	if len(plugins) == 0 {
+		plugins = defaultRoutePlugins
+	}
+	for _, name := range plugins {
+		dir := filepath.Join(testHome, ".finfocus", "plugins", name, "v0.0.1")
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+		createMockPluginBinary(t, dir, "finfocus-plugin-"+name)
+	}
 
 	origProjectDir := config.GetResolvedProjectDir()
 	config.SetResolvedProjectDir("")

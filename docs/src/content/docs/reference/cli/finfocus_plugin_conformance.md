@@ -34,6 +34,19 @@ The built-in probe is an AWS EC2 instance. When the plugin lists providers and
 none is AWS, the probes that need a supported type are skipped, with the reason
 in the report. Use --provider and --resource-type to probe with a resource the
 plugin prices; the sentinel probes are then skipped too.
+
+Three checks compare the plugin's names and only ever warn: a warning never
+fails the run, changes the exit code, or blocks certification.
+
+  Name_MatchesInstallName
+      The name the plugin reports equals its install name. The install name
+      comes from --expected-name, else the <plugins>/<name>/<version>/ layout
+      the binary sits in, else its finfocus-plugin-<name> file name.
+  Name_MatchesPluginInfo
+      Name and GetPluginInfo report the same name.
+  Name_IsCanonicalForm
+      The reported name is lowercase letters and digits in hyphen-separated
+      groups, without the finfocus-plugin- prefix.
 ```
 
 ```text
@@ -58,6 +71,9 @@ finfocus plugin conformance <plugin-path> [flags]
   # Use stdio mode
   finfocus plugin conformance --mode stdio ./plugins/aws-cost
 
+  # Check a freshly built binary against the name it will be installed under
+  finfocus plugin conformance --expected-name aws-public ./bin/finfocus-plugin-aws-public
+
   # Probe a Kubernetes-only plugin with a resource it prices
   finfocus plugin conformance --provider kubernetes \
     --resource-type kubernetes:apps/v1:Deployment ./plugins/opencost
@@ -67,6 +83,7 @@ finfocus plugin conformance <plugin-path> [flags]
 
 ```text
       --category strings       Filter by category (repeatable): protocol, error, performance, context
+      --expected-name string   Install name the plugin should report (default: derived from the binary path)
       --filter string          Regex filter for test names
   -h, --help[=true|false]      help for conformance
       --mode string            Communication mode: tcp, stdio (default "tcp")

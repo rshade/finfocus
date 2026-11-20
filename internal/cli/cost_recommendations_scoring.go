@@ -142,19 +142,19 @@ func validateScoringFlags(params costRecommendationsParams, cfg config.ResolvedS
 }
 
 // findScorerClient returns the named plugin when it advertises the scoring capability.
-// Otherwise it returns a warning describing what is missing.
+// Otherwise it returns a warning describing what is missing. The name is
+// resolved with pluginhost.ResolveName (install name, then alias, then
+// reported name).
 func findScorerClient(clients []*pluginhost.Client, name string) (*pluginhost.Client, string) {
-	for _, c := range clients {
-		if c.Name != name {
-			continue
-		}
-		if !c.HasCapability(pluginhost.CapabilityRecommendationScoring) {
-			return nil, fmt.Sprintf("plugin %q does not advertise the %s capability; recommendations are unscored",
-				name, pluginhost.CapabilityRecommendationScoring)
-		}
-		return c, ""
+	c, _, _ := pluginhost.ResolveName(clients, name)
+	if c == nil {
+		return nil, fmt.Sprintf("scoring plugin %q not found; recommendations are unscored", name)
 	}
-	return nil, fmt.Sprintf("scoring plugin %q not found; recommendations are unscored", name)
+	if !c.HasCapability(pluginhost.CapabilityRecommendationScoring) {
+		return nil, fmt.Sprintf("plugin %q does not advertise the %s capability; recommendations are unscored",
+			name, pluginhost.CapabilityRecommendationScoring)
+	}
+	return c, ""
 }
 
 // resolveScorerClient locates the configured scorer among the open clients. When --adapter

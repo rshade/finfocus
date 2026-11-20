@@ -165,10 +165,8 @@ func selectCapablePlugin(clients []*pluginhost.Client, capability, explicit stri
 		pluginhost.CapabilityAllocation: "--allocator",
 	}[capability]
 	if explicit != "" {
-		for _, c := range candidates {
-			if c.Name == explicit {
-				return c, nil
-			}
+		if c, _, _ := pluginhost.ResolveName(clients, explicit); c != nil && c.HasCapability(capability) {
+			return c, nil
 		}
 		return nil, &pluginChoiceError{msg: fmt.Sprintf("plugin %q is not installed or lacks %s (available: %s)",
 			explicit, capability, strings.Join(names, ", "))}
