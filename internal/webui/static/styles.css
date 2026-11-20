@@ -1021,6 +1021,26 @@ button:disabled {
   min-width: 0;
 }
 
+.estimate-details {
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) 1fr;
+  gap: 0.25rem 1rem;
+  margin: 1rem 0 0;
+}
+
+.estimate-details[hidden] {
+  display: none;
+}
+
+.estimate-details dt {
+  font-weight: 600;
+}
+
+.estimate-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .estimate-table {
   min-width: 0;
   table-layout: fixed;

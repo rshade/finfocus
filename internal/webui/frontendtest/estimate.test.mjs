@@ -17,6 +17,7 @@ class Node {
   addEventListener(k,fn) { this.listeners.set(k,fn); }
   dispatch(k,extra={}) { this.listeners.get(k)?.({target:this,preventDefault(){},...extra}); }
   focus() { this.doc.activeElement=this; }
+  setSelectionRange(start,end) { this.selectionStart=start; this.selectionEnd=end; }
   showModal() { this.open=true; }
   close() { this.open=false; this.dispatch('close'); }
   get isConnected() { return this===this.doc || Boolean(this.parent?.isConnected); }
@@ -35,7 +36,7 @@ async function setup(view) {
  const container=document.createElement('div');document.append(container);const mounted=mod.namespace.mount(container,{api,stream});
  return{container,calls,mounted,document,emit:(name,data)=>listeners.get(name)?.(data)};
 }
-const baseline = (label='base') => ({resource:{id:'urn:real'}, pricingMode:'', pricingModes:[{id:'opaque-mode',label:'Hourly provider',rate:'USD 30/hour',detailsDisplay:'Pricing tiers: server-formatted tier'}],display:{baseline:'USD 60 baseline',modified:'USD 60 modified',change:'$0.00 →',arrow:'→',properties:[{key:'size',originalValue:'2',currentValue:'2',delta:'$0.00 →'},{key:'label',originalValue:'old',currentValue:label,delta:'$0.00 →'}]}});
+const baseline = (label='base') => ({resource:{id:'urn:real'}, pricingMode:'', pricingModes:[{id:'opaque-mode',label:'Hourly provider',rate:'USD 30/hour',detailsDisplay:'Pricing tiers: server-formatted tier'}],display:{baseline:'USD 60 baseline',modified:'USD 60 modified',change:'$0.00 →',arrow:'→',properties:[{key:'size',originalValue:'2',currentValue:'2',delta:'$0.00 →',defaultVisible:true},{key:'label',originalValue:'old',currentValue:label,delta:'$0.00 →',defaultVisible:true}]}});
 async function loaded() { const t=await setup('estimate');assert.equal(t.calls[0].path,'/api/estimate/resources');t.calls[0].resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();assert.match(t.calls[1].path,/baseline\?urn=urn%3Areal/);t.calls[1].resolve(baseline());await flush();return t; }
 test('estimate picker uses a readable resource name while requests retain the full URN',async()=>{
  const t=await setup('estimate');
@@ -50,12 +51,12 @@ test('estimate picker uses a readable resource name while requests retain the fu
 test('estimate Enter preserves exact overrides and renders only server display strings',async()=>{
  const t=await loaded();assert.match(t.container.textContent,/server-formatted tier/);const input=t.container.querySelectorAll('.estimate-input').find(n=>n.dataset.key==='size');input.value=' 3 ';input.dispatch('keydown',{key:'Enter'});
  const call=t.calls.at(-1);assert.equal(call.path,'/api/estimate/recalculate');assert.deepEqual(JSON.parse(JSON.stringify(call.body.overrides)),{size:' 3 ',label:'base'});
- call.resolve({display:{...baseline().display,baseline:'precise BASE',modified:'precise MODIFIED',change:'server delta ↑',properties:[{key:'size',originalValue:'2',currentValue:' 3 ',delta:'server property delta'}]}});await flush();assert.match(t.container.textContent,/precise BASE/);assert.match(t.container.textContent,/server delta ↑/);assert.match(t.container.textContent,/server property delta/);assert.equal(t.document.activeElement.dataset.key,'size');t.mounted.unmount();
+ call.resolve({display:{...baseline().display,baseline:'precise BASE',modified:'precise MODIFIED',change:'server delta ↑',properties:[{key:'size',originalValue:'2',currentValue:' 3 ',delta:'server property delta',defaultVisible:true}]}});await flush();assert.match(t.container.textContent,/precise BASE/);assert.match(t.container.textContent,/server delta ↑/);assert.match(t.container.textContent,/server property delta/);assert.equal(t.document.activeElement.dataset.key,'size');t.mounted.unmount();
 });
 test('estimate sends only the edited property when another value has newlines a text input drops',async()=>{
  const t=await setup('estimate');t.calls[0].resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
  const script='#!/bin/bash\n\nyum update -y\n';
- t.calls[1].resolve({...baseline(),display:{...baseline().display,properties:[{key:'instanceType',originalValue:'t3.micro',currentValue:'t3.micro',delta:'$0.00 →'},{key:'userData',originalValue:script,currentValue:script,delta:'$0.00 →'}]}});await flush();
+ t.calls[1].resolve({...baseline(),display:{...baseline().display,properties:[{key:'instanceType',originalValue:'t3.micro',currentValue:'t3.micro',delta:'$0.00 →',defaultVisible:true},{key:'userData',originalValue:script,currentValue:script,delta:'$0.00 →',defaultVisible:true}]}});await flush();
  const input=t.container.querySelectorAll('.estimate-input').find(n=>n.dataset.key==='instanceType');input.value='t3.large';input.dispatch('keydown',{key:'Enter'});
  assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.overrides)),{instanceType:'t3.large'});t.mounted.unmount();
 });
@@ -71,7 +72,7 @@ test('estimate result keeps focus and unsent typing in the field the person move
  const t=await loaded();const inputs=t.container.querySelectorAll('.estimate-input');
  const size=inputs.find(n=>n.dataset.key==='size'),label=inputs.find(n=>n.dataset.key==='label');
  size.value='3';size.dispatch('blur');label.focus();label.value='typing';
- t.calls.at(-1).resolve({display:{...baseline().display,properties:[{key:'size',originalValue:'2',currentValue:'3',delta:'server size delta'},{key:'label',originalValue:'old',currentValue:'base',delta:'$0.00 →'}]}});await flush();
+ t.calls.at(-1).resolve({display:{...baseline().display,properties:[{key:'size',originalValue:'2',currentValue:'3',delta:'server size delta',defaultVisible:true},{key:'label',originalValue:'old',currentValue:'base',delta:'$0.00 →',defaultVisible:true}]}});await flush();
  const after=t.container.querySelectorAll('.estimate-input');
  assert.equal(after.find(n=>n.dataset.key==='label').value,'typing');assert.equal(after.find(n=>n.dataset.key==='size').value,'3');
  assert.equal(t.document.activeElement.dataset.key,'label');assert.match(t.container.textContent,/server size delta/);
@@ -96,7 +97,7 @@ test('a failed baseline keeps rows and modes, then edits and mode changes retry'
     error: 'estimate data unavailable',
     code: 'estimate_unavailable',
     pricingModes: [{ id: 'hourly', label: 'Hourly provider', rate: 'USD 10/hour' }],
-    display: { properties: [{ key: 'size', originalValue: '2', currentValue: '2', delta: '' }] },
+    display: { properties: [{ key: 'size', originalValue: '2', currentValue: '2', delta: '', defaultVisible: true }] },
   });
   await flush();
   assert.match(t.container.textContent, /estimate data unavailable/);
@@ -121,7 +122,7 @@ test('a failed baseline keeps rows and modes, then edits and mode changes retry'
     pricingMode: 'hourly',
     display: {
       baseline: 'USD 20 baseline', modified: 'USD 40 modified', change: '+$20.00 ↑',
-      properties: [{ key: 'size', originalValue: '2', currentValue: '4', delta: '+$20.00 ↑' }],
+      properties: [{ key: 'size', originalValue: '2', currentValue: '4', delta: '+$20.00 ↑', defaultVisible: true }],
     },
   });
   await flush();
@@ -293,7 +294,7 @@ test('a toggle overlapping preview changes refreshes the selected source and bas
  const resources=[{id:'urn:real',type:'aws:ec2:Instance',properties:{size:9}}];
  t.calls.at(-1).resolve({resources});await flush();
  const refreshed=t.calls.at(-1);assert.match(refreshed.path,/baseline\?urn=urn%3Areal/);assert.equal(refreshed.body,null);
- const result=baseline();result.display.properties=[{key:'size',originalValue:'9',currentValue:'9',delta:'$0.00 →'}];
+ const result=baseline();result.display.properties=[{key:'size',originalValue:'9',currentValue:'9',delta:'$0.00 →',defaultVisible:true}];
  refreshed.resolve(result);await flush();
  const input=t.container.querySelector('.estimate-input');assert.equal(input.dataset.original,'9');assert.equal(input.value,'9');
  t.emit('ready',{});const count=t.calls.length;t.calls.at(-1).resolve({resources});await flush();
@@ -327,11 +328,127 @@ test('estimate shows the server-formatted SPOT tag beside the priced side only',
  assert.equal(badges[0].textContent,'SPOT · risk 0.12 · -62% vs on-demand');
  assert.equal(badges[0].parent.textContent.startsWith('Modified:'),true);t.mounted.unmount();
 });
-test('reserved terraform metadata is not offered as an editable property',async()=>{
+const row=(key,value,extra={})=>({key,originalValue:value,currentValue:value,delta:'',class:'other',editable:true,defaultVisible:false,overridden:false,...extra});
+async function withProperties(properties,display={}){
  const t=await setup('estimate');
- t.calls[0].resolve({resources:[{id:'aws_instance.web',type:'aws:ec2/instance:Instance'}]});await flush();
- const base=baseline();base.display.properties=[{key:'terraform:address',originalValue:'aws_instance.web',currentValue:'aws_instance.web',delta:''},{key:'size',originalValue:'2',currentValue:'2',delta:''}];
- t.calls[1].resolve(base);await flush();
- const keys=t.container.querySelectorAll('.estimate-input').map(n=>n.dataset.key);
- assert.deepEqual(keys,['size']);t.mounted.unmount();
+ t.calls[0].resolve({resources:[{id:'urn:real',type:'aws:ec2/instance:Instance'}]});await flush();
+ const base=baseline();base.display={...base.display,properties,details:[],curated:true,note:'',...display};
+ t.calls[1].resolve(base);await flush();return t;
+}
+const renderedKeys=t=>t.container.querySelectorAll('.estimate-input').map(n=>n.dataset.key);
+test('estimate renders only default-visible rows, in the server order',async()=>{
+ const t=await withProperties([
+  row('instanceType','t3.micro',{class:'pricing',provenance:'sku',defaultVisible:true}),
+  row('tenancy','default',{class:'pricing',provenance:'plugin-input',defaultVisible:true}),
+  row('ami','ami-1'),row('subnetId','subnet-1'),
+ ]);
+ assert.deepEqual(renderedKeys(t),['instanceType','tenancy']);t.mounted.unmount();
+});
+test('estimate renders a terraform-prefixed row exactly as the server sent it',async()=>{
+ const t=await withProperties([row('terraform:address','aws_instance.web',{defaultVisible:true}),row('size','2',{defaultVisible:true})]);
+ assert.deepEqual(renderedKeys(t),['terraform:address','size']);t.mounted.unmount();
+});
+test('Show all properties reveals the other rows with no request and hides them again',async()=>{
+ const t=await withProperties([
+  row('instanceType','t3.micro',{class:'pricing',defaultVisible:true}),row('ami','ami-1'),row('subnetId','subnet-1'),
+ ]);
+ const toggle=t.container.querySelector('#estimate-show-advanced');assert.ok(toggle);
+ assert.match(t.container.textContent,/Show all properties/);
+ const count=t.calls.length;
+ toggle.checked=true;toggle.dispatch('change');
+ assert.deepEqual(renderedKeys(t),['instanceType','ami','subnetId']);assert.equal(t.calls.length,count);
+ toggle.checked=false;toggle.dispatch('change');
+ assert.deepEqual(renderedKeys(t),['instanceType']);assert.equal(t.calls.length,count);t.mounted.unmount();
+});
+test('the fallback note shows in the status line only when the type is not curated',async()=>{
+ const note='Pricing inputs are not curated for this resource type; all safe properties are shown.';
+ const fallback=await withProperties([row('engine','mysql',{defaultVisible:true})],{curated:false,note});
+ assert.match(fallback.container.textContent,/not curated for this resource type/);fallback.mounted.unmount();
+ const curated=await withProperties([row('instanceType','t3.micro',{class:'pricing',defaultVisible:true})]);
+ assert.doesNotMatch(curated.container.textContent,/not curated/);
+ assert.match(curated.container.textContent,/Estimate calculated/);curated.mounted.unmount();
+});
+test('Show all properties is separate from Show all resources',async()=>{
+ const t=await withProperties([row('instanceType','t3.micro',{class:'pricing',defaultVisible:true}),row('ami','ami-1')]);
+ const advanced=t.container.querySelector('#estimate-show-advanced'),resources=t.container.querySelector('#estimate-show-all');
+ assert.notEqual(advanced,resources);const count=t.calls.length;
+ advanced.checked=true;advanced.dispatch('change');assert.equal(t.calls.length,count);
+ resources.checked=true;resources.dispatch('change');assert.equal(t.calls.at(-1).path,'/api/estimate/resources?showAll=true');t.mounted.unmount();
+});
+const detailsOf=t=>t.container.querySelector('.estimate-details');
+test('identity details render as a read-only list with no input, and never enter overrides',async()=>{
+ const t=await withProperties([row('instanceType','t3.micro',{class:'pricing',defaultVisible:true})],
+  {details:[{key:'arn',value:'arn:aws:ec2:us-east-1:1:instance/i-1'},{key:'pulumi:cloudId',value:'i-1'}]});
+ const details=detailsOf(t);assert.ok(details);assert.equal(details.tagName,'dl');
+ assert.equal(details.querySelectorAll('input').length,0);
+ assert.deepEqual(details.querySelectorAll('dt').map(n=>n.textContent),['arn','pulumi:cloudId']);
+ assert.deepEqual(details.querySelectorAll('dd').map(n=>n.textContent),['arn:aws:ec2:us-east-1:1:instance/i-1','i-1']);
+ assert.deepEqual(renderedKeys(t),['instanceType']);
+ const input=t.container.querySelector('.estimate-input');input.value='t3.large';input.dispatch('keydown',{key:'Enter'});
+ assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.overrides)),{instanceType:'t3.large'});t.mounted.unmount();
+});
+test('the identity details list is hidden when the resource has none',async()=>{
+ const t=await withProperties([row('instanceType','t3.micro',{class:'pricing',defaultVisible:true})]);
+ assert.equal(detailsOf(t).hidden,true);t.mounted.unmount();
+});
+test('a failed baseline still shows identity details',async()=>{
+ const t=await setup('estimate');
+ t.calls[0].resolve({resources:[{id:'urn:real',type:'aws:ec2/instance:Instance'}]});await flush();
+ t.calls[1].resolve({status:'unavailable',error:'estimate data unavailable',code:'estimate_unavailable',pricingModes:[],
+  display:{properties:[row('instanceType','t3.micro',{class:'pricing',defaultVisible:true})],details:[{key:'id',value:'i-1'}],curated:true,note:''}});await flush();
+ assert.deepEqual(detailsOf(t).querySelectorAll('dt').map(n=>n.textContent),['id']);t.mounted.unmount();
+});
+const twoEditable=()=>withProperties([
+ row('instanceType','t3.micro',{class:'pricing',defaultVisible:true}),row('ami','ami-1'),row('subnetId','subnet-1'),
+]);
+const inputFor=(t,key)=>t.container.querySelectorAll('.estimate-input').find(n=>n.dataset.key===key);
+test('a toggle round trip keeps values, overrides and deltas',async()=>{
+ const t=await twoEditable();const toggle=t.container.querySelector('#estimate-show-advanced');
+ toggle.checked=true;toggle.dispatch('change');
+ inputFor(t,'ami').value='ami-2';inputFor(t,'ami').dispatch('keydown',{key:'Enter'});
+ t.calls.at(-1).resolve({display:{...baseline().display,properties:[
+  row('instanceType','t3.micro',{class:'pricing',defaultVisible:true,delta:'+$5.00 ↑'}),
+  row('ami','ami-1',{currentValue:'ami-2',overridden:true,defaultVisible:true,delta:'+$1.00 ↑'}),row('subnetId','subnet-1')],details:[],curated:true,note:''}});await flush();
+ toggle.checked=false;toggle.dispatch('change');toggle.checked=true;toggle.dispatch('change');toggle.checked=false;toggle.dispatch('change');
+ assert.deepEqual(renderedKeys(t),['instanceType','ami']);
+ assert.equal(inputFor(t,'ami').value,'ami-2');
+ assert.match(t.container.textContent,/\+\$5\.00 ↑/);assert.match(t.container.textContent,/\+\$1\.00 ↑/);
+ inputFor(t,'instanceType').value='t3.large';inputFor(t,'instanceType').dispatch('keydown',{key:'Enter'});
+ assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.overrides)),{ami:'ami-2',instanceType:'t3.large'});t.mounted.unmount();
+});
+test('a row with an edit in flight stays visible when the toggle goes off, before the server answers',async()=>{
+ const t=await twoEditable();const toggle=t.container.querySelector('#estimate-show-advanced');
+ toggle.checked=true;toggle.dispatch('change');
+ inputFor(t,'ami').value='ami-2';inputFor(t,'ami').dispatch('blur');
+ toggle.checked=false;toggle.dispatch('change');
+ assert.deepEqual(renderedKeys(t),['instanceType','ami']);assert.equal(inputFor(t,'ami').value,'ami-2');
+ inputFor(t,'instanceType').value='t3.large';inputFor(t,'instanceType').dispatch('keydown',{key:'Enter'});
+ assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.overrides)),{ami:'ami-2',instanceType:'t3.large'});t.mounted.unmount();
+});
+test('unsent typing in an advanced row survives toggling off',async()=>{
+ const t=await twoEditable();const toggle=t.container.querySelector('#estimate-show-advanced');
+ toggle.checked=true;toggle.dispatch('change');inputFor(t,'subnetId').value='typing';
+ toggle.checked=false;toggle.dispatch('change');
+ assert.equal(inputFor(t,'subnetId').value,'typing');t.mounted.unmount();
+});
+test('focus and selection stay on the same key across a toggle and a recalculation',async()=>{
+ const t=await twoEditable();const toggle=t.container.querySelector('#estimate-show-advanced');
+ const first=inputFor(t,'instanceType');first.focus();first.selectionStart=1;first.selectionEnd=3;
+ toggle.checked=true;toggle.dispatch('change');
+ assert.equal(t.document.activeElement.dataset.key,'instanceType');
+ assert.deepEqual([t.document.activeElement.selectionStart,t.document.activeElement.selectionEnd],[1,3]);
+ const ami=inputFor(t,'ami');ami.focus();ami.selectionStart=0;ami.selectionEnd=2;
+ inputFor(t,'instanceType').value='t3.large';inputFor(t,'instanceType').dispatch('blur');
+ t.calls.at(-1).resolve({display:{...baseline().display,properties:[
+  row('instanceType','t3.micro',{class:'pricing',defaultVisible:true,currentValue:'t3.large',overridden:true}),row('ami','ami-1'),row('subnetId','subnet-1')],details:[],curated:true,note:''}});await flush();
+ assert.equal(t.document.activeElement.dataset.key,'ami');
+ assert.deepEqual([t.document.activeElement.selectionStart,t.document.activeElement.selectionEnd],[0,2]);t.mounted.unmount();
+});
+test('a late response after a toggle keeps the toggle and rows the person chose',async()=>{
+ const t=await twoEditable();const toggle=t.container.querySelector('#estimate-show-advanced');
+ inputFor(t,'instanceType').value='t3.large';inputFor(t,'instanceType').dispatch('keydown',{key:'Enter'});const pending=t.calls.at(-1);
+ toggle.checked=true;toggle.dispatch('change');
+ pending.resolve({display:{...baseline().display,properties:[
+  row('instanceType','t3.micro',{class:'pricing',defaultVisible:true,currentValue:'t3.large',overridden:true}),row('ami','ami-1'),row('subnetId','subnet-1')],details:[],curated:true,note:''}});await flush();
+ assert.equal(toggle.checked,true);assert.deepEqual(renderedKeys(t),['instanceType','ami','subnetId']);t.mounted.unmount();
 });

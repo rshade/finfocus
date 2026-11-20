@@ -225,12 +225,18 @@ func TestEstimatePropertyProjectionParity(t *testing.T) {
 			model.applyResult(&engine.EstimateResult{Deltas: []engine.CostDelta{{Property: "alpha", CostChange: 99}}})
 			result := &engine.EstimateResult{Deltas: tc.deltas}
 			model.applyResult(result)
+			uncurated := func(row PropertyRow) PropertyRow {
+				row.Class, row.Editable, row.DefaultVisible = viewmodel.PropertyClassOther, true, true
+				return row
+			}
 			assert.Equal(t, []PropertyRow{
-				{Key: "alpha", OriginalValue: "2", CurrentValue: "2"},
-				{Key: "middle", OriginalValue: "true", CurrentValue: "false", CostDelta: tc.wantDelta},
-				{Key: "zeta", OriginalValue: "last", CurrentValue: "last"},
+				uncurated(PropertyRow{Key: "alpha", OriginalValue: "2", CurrentValue: "2"}),
+				uncurated(
+					PropertyRow{Key: "middle", OriginalValue: "true", CurrentValue: "false", CostDelta: tc.wantDelta},
+				),
+				uncurated(PropertyRow{Key: "zeta", OriginalValue: "last", CurrentValue: "last"}),
 			}, model.properties)
-			web := viewmodel.BuildEstimateDisplay(context.Background(), resource, result, model.GetOverrides())
+			web := viewmodel.BuildEstimateDisplay(context.Background(), resource, result, model.GetOverrides(), nil)
 			require.Len(t, web.Properties, 3)
 			for i, row := range model.properties {
 				assert.Equal(t, row.Key, web.Properties[i].Key)

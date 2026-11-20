@@ -4,25 +4,28 @@ import { spotBadge } from '../spot.js';
 // Cost values, deltas and pricing labels are computed and formatted by Go.
 export function mount(container, { api, stream }) {
   let alive = true, generation = 0, requestAbort, resourceAbort, resourceGeneration = 0, calculationPending = false;
-  let sourceVersions = new Map();
+  let sourceVersions = new Map(), lastDisplay;
   const heading = el('h2', { tabindex: '-1', text: 'What-If Cost Analysis' });
   const resource = el('select', { id: 'estimate-resource' });
   const mode = el('select', { id: 'estimate-mode' });
   const showAll = el('input', { id: 'estimate-show-all', type: 'checkbox' });
+  const showAdvanced = el('input', { id: 'estimate-show-advanced', type: 'checkbox' });
   const error = el('p', { id: 'estimate-calculation-error', class: 'error-banner', role: 'alert' }); error.hidden = true;
   const resourceError = el('p', { id: 'estimate-resource-error', class: 'error-banner', role: 'alert' }); resourceError.hidden = true;
   const status = el('p', { role: 'status', text: 'Loading estimate resources…' });
   const comparison = el('div', { class: 'totals-bar', 'aria-label': 'Estimate comparison' });
   const pricing = el('div', { 'aria-label': 'Pricing details' });
   const body = el('tbody');
+  const details = el('dl', { class: 'estimate-details', 'aria-label': 'Read-only resource metadata' }); details.hidden = true;
   const table = el('table', { class: 'overview-table estimate-table', role: 'table' },
     el('caption', { text: 'Edit a current property value, then press Enter or leave the field to recalculate.' }),
     el('thead', {}, el('tr', {}, ...['Property', 'Original', 'Current', 'Cost delta'].map(text => el('th', { scope: 'col', text })))), body);
   container.append(heading, el('div', { class: 'toolbar estimate-toolbar' },
     el('label', { class: 'filter-label', for: 'estimate-resource' }, 'Resource', resource),
     el('label', { class: 'filter-label', for: 'estimate-mode' }, 'Pricing mode', mode),
-    el('label', { class: 'filter-label estimate-show-all', for: 'estimate-show-all' }, showAll, 'Show all resources')), resourceError, error, status, comparison, pricing,
-    el('div', { class: 'table-wrap' }, table));
+    el('label', { class: 'filter-label estimate-show-all', for: 'estimate-show-all' }, showAll, 'Show all resources'),
+    el('label', { class: 'filter-label estimate-show-all', for: 'estimate-show-advanced' }, showAdvanced, 'Show all properties')), resourceError, error, status, comparison, pricing,
+    el('div', { class: 'table-wrap' }, table), details);
 
   function begin(message) {
     requestAbort?.abort(); requestAbort = new AbortController();
@@ -57,17 +60,28 @@ export function mount(container, { api, stream }) {
       if (item.detailsDisplay) pricing.append(el('pre', { text: item.detailsDisplay }));
     }
   }
-  function renderRows(properties, focusKey) {
+  function renderDetails(items) {
+    details.replaceChildren();
+    for (const item of items ?? []) details.append(el('dt', { text: item.key }), el('dd', { text: item.value }));
+    details.hidden = !(items ?? []).length;
+  }
+  function renderRows(properties, focusKey, keepSent = false) {
     // A result can land while the person types in another field, so that field keeps its unsent text and focus.
-    const typing = new Map();
+    const typing = new Map(), pinned = new Set(), sent = new Map();
     let active;
     for (const input of body.querySelectorAll('.estimate-input')) {
       if (input.value !== input.dataset.submitted) typing.set(input.dataset.key, input.value);
+      // An edit that differs from the original is an override even before the server confirms it, so its row stays.
+      if (input.value !== input.dataset.original) {
+        pinned.add(input.dataset.key);
+        // A re-render of the same response has no newer server value, so a sent edit keeps its text.
+        if (keepSent && input.value === input.dataset.submitted) sent.set(input.dataset.key, input.value);
+      }
       if (input === document.activeElement) active = { key: input.dataset.key, start: input.selectionStart, end: input.selectionEnd };
     }
     const focus = active?.key ?? focusKey;
     body.replaceChildren();
-    const editable = (properties ?? []).filter(row => !String(row.key).startsWith('terraform:'));
+    const editable = (properties ?? []).filter(row => showAdvanced.checked || row.defaultVisible || pinned.has(row.key));
     for (const row of editable) {
       const input = el('input', { class: 'estimate-input filter-input', type: 'text', 'aria-label': `Current ${row.key}`,
         dataset: { key: row.key } });
@@ -76,6 +90,7 @@ export function mount(container, { api, stream }) {
       input.dataset.original = input.value;
       input.value = row.currentValue;
       input.dataset.submitted = input.value;
+      if (sent.has(row.key)) { input.value = sent.get(row.key); input.dataset.submitted = input.value; }
       if (typing.has(row.key)) input.value = typing.get(row.key);
       input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); recalculate(row.key); } });
       input.addEventListener('blur', () => { if (input.isConnected && input.value !== input.dataset.submitted) recalculate(); });
@@ -92,14 +107,18 @@ export function mount(container, { api, stream }) {
   }
   function render(result, focusKey) {
     const display = result.display;
+    lastDisplay = display;
+    renderDetails(display.details);
     comparison.replaceChildren(el('p', { text: `Baseline: ${display.baseline}` }, spotBadge(display.baselineSpot)),
       el('p', { text: `Modified: ${display.modified}` }, spotBadge(display.modifiedSpot)), el('p', { text: `Change: ${display.change}` }));
     renderModes(result);
     renderRows(display.properties, focusKey);
-    status.textContent = 'Estimate calculated.';
+    status.textContent = display.note ? `Estimate calculated. ${display.note}` : 'Estimate calculated.';
   }
   function renderFailure(result) {
     comparison.replaceChildren();
+    lastDisplay = result.display;
+    renderDetails(result.display?.details);
     renderModes(result);
     renderRows(result.display?.properties);
   }
@@ -122,7 +141,7 @@ export function mount(container, { api, stream }) {
   }
   function selectResource() {
     mode.replaceChildren(el('option', { value: '', text: 'Automatic provider' })); mode.value = '';
-    body.replaceChildren(); comparison.replaceChildren(); pricing.replaceChildren();
+    body.replaceChildren(); comparison.replaceChildren(); pricing.replaceChildren(); renderDetails([]); lastDisplay = undefined;
     recalculate();
   }
   async function loadResources() {
@@ -154,7 +173,7 @@ export function mount(container, { api, stream }) {
         requestAbort?.abort(); generation += 1; calculationPending = false;
         error.hidden = true;
         mode.replaceChildren(el('option', { value: '', text: 'Automatic provider' })); mode.value = '';
-        body.replaceChildren(); comparison.replaceChildren(); pricing.replaceChildren();
+        body.replaceChildren(); comparison.replaceChildren(); pricing.replaceChildren(); renderDetails([]); lastDisplay = undefined;
         status.textContent = result.hiddenCount > 0
           ? 'Only known non-billable resources are available. Enable Show all resources to inspect them.'
           : 'No resources available for estimation. Check the stack and launch filters.';
@@ -169,6 +188,7 @@ export function mount(container, { api, stream }) {
     }
   }
   showAll.addEventListener('change', () => loadResources());
+  showAdvanced.addEventListener('change', () => renderRows(lastDisplay?.properties, undefined, true));
   resource.addEventListener('change', selectResource);
   mode.addEventListener('change', () => recalculate());
   const unsubs = [stream.on('ready', () => loadResources()), stream.on('snapshot', snapshot => { if (snapshot.ready) loadResources(); })];

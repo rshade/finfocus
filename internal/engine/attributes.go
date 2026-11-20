@@ -126,10 +126,12 @@ func attributeValue(ctx context.Context, key string, value any) (*structpb.Value
 	}
 }
 
-// redactedProperties applies the attribute redaction rules (credential-like
+// RedactedProperties applies the attribute redaction rules (credential-like
 // and "__" keys, Pulumi secrets, unrepresentable values) to properties sent as
 // EstimateCost attributes. Unlike BuildAttributes it keeps top-level ref keys
-// and applies no size cap, matching what EstimateCost sent before.
-func redactedProperties(ctx context.Context, props map[string]any) map[string]any {
+// and applies no size cap, matching what EstimateCost sent before. Callers that
+// show properties to a person use it too, so an editor lists what a request
+// would send.
+func RedactedProperties(ctx context.Context, props map[string]any) map[string]any {
 	return attributeStruct(ctx, props, false).AsMap()
 }

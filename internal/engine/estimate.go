@@ -102,7 +102,7 @@ func (e *Engine) estimateCost(
 	// Validate the properties sent to plugins. Opaque secrets and internal
 	// metadata are redacted from requests and must not block cost estimation.
 	validationResource := *request.Resource
-	validationResource.Properties = redactedProperties(ctx, request.Resource.Properties)
+	validationResource.Properties = RedactedProperties(ctx, request.Resource.Properties)
 	if err := validationResource.Validate(); err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func (e *Engine) tryEstimateCostRPC(
 
 	baselineReq, err := proto.BuildEstimateCostRequest(
 		resourceType,
-		redactedProperties(ctx, request.Resource.Properties),
+		RedactedProperties(ctx, request.Resource.Properties),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("build baseline request: %w", err)
@@ -264,7 +264,7 @@ func (e *Engine) tryEstimateCostRPC(
 
 	modifiedProps := mergePropertiesWithOverrides(request.Resource.Properties, request.PropertyOverrides)
 
-	modifiedReq, err := proto.BuildEstimateCostRequest(resourceType, redactedProperties(ctx, modifiedProps))
+	modifiedReq, err := proto.BuildEstimateCostRequest(resourceType, RedactedProperties(ctx, modifiedProps))
 	if err != nil {
 		return nil, fmt.Errorf("build modified request: %w", err)
 	}

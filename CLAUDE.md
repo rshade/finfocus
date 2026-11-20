@@ -737,6 +737,16 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
 - The overview docs page is `docs/src/content/docs/commands/overview.md`.
+- What-If property policy (`specs/2021-estimate-pricing-inputs/`): the policy
+  lives in `internal/viewmodel` (`BuildEstimatePropertyPlan`); JavaScript never
+  classifies, and the terminal model and the web handlers call the same plan.
+  The plan redacts through `engine.RedactedProperties`. Identity keys are exact
+  (`id`, `arn`, `urn`, or a `pulumi:`/`terraform:` prefix), never a suffix match,
+  and `RejectIdentityOverrides` backs the 400 `identity_override` answer. A new
+  reviewed mapping in `estimate_inputs_mappings.go` needs its row in the
+  provenance test: a `sku` or `region` key must be one `proto.ResolveSKUAndRegion`
+  reads. `defaultVisible` is true for a pricing row, an edited row, and every row
+  of an uncurated type; the page filters on it and never refetches on the toggle.
 - Web proxy access (`specs/2011-web-allowed-host-trusted-proxy/`): `--allowed-host`
   (exact normalized names, no wildcard or IP; `StringArray`, not `StringSlice`,
   so an empty value reaches validation) widens `hostCheck` and `isOwnOrigin`;

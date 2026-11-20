@@ -1,0 +1,13 @@
+{
+  "steps": [
+    {
+      "op": "same",
+      "urn": "urn:pulumi:dev::inputs::pulumi:pulumi:Stack::inputs-dev",
+      "newState": {
+        "urn": "urn:pulumi:dev::inputs::pulumi:pulumi:Stack::inputs-dev",
+        "type": "pulumi:pulumi:Stack",
+        "inputs": {}
+      }
+    }
+  ]
+}

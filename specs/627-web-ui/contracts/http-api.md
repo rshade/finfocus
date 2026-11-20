@@ -240,8 +240,17 @@ the TUI and browser; JavaScript renders their financial strings verbatim.
 | POST | `/api/estimate/recalculate` | `{ urn, overrides: map[string]string, pricingMode? }` | `EstimateResult` fields plus `{ pricingMode, display }` |
 
 `display` contains server-formatted `baseline`, `modified`, `change`, `arrow`,
-and `properties: [{ key, originalValue, currentValue, delta }]`. The browser
-renders these strings directly; cost arithmetic and formatting are shared with
+and `properties: [{ key, originalValue, currentValue, delta, class, provenance,
+editable, defaultVisible, overridden }]`, plus `details: [{ key, value }]`,
+`curated`, and `note` (spec 2021, additive). `viewmodel.BuildEstimatePropertyPlan`
+builds them, through `viewmodel.BuildEstimateDisplay` on both paths and through
+`baselineFailureDisplay` on a failed baseline. It redacts with
+`engine.RedactedProperties` and takes the usage hints of
+`(*engine.Engine).DiscoverPricingSpec`, which now runs before `display` on the
+baseline and the recalculate path. `viewmodel.RejectIdentityOverrides` backs the
+`400` / `identity_override` answer on recalculate. See
+[specs/2021-estimate-pricing-inputs/contracts/http-api.md](../../2021-estimate-pricing-inputs/contracts/http-api.md).
+The browser renders these strings directly; cost arithmetic and formatting are shared with
 the estimate TUI. Properties and property deltas follow the shared secret and
 credential redaction rules before reaching any browser.
 
@@ -256,7 +265,10 @@ Later on-demand previews retain the existing shared row membership.
 Current preview properties override the
 source descriptor by URN. A missing source/engine returns `503`; an unknown URN
 returns `404`. Recalculation requires at least one override and passes the
-original map unchanged as `engine.EstimateRequest.PropertyOverrides`.
+original map unchanged as `engine.EstimateRequest.PropertyOverrides`. An
+override that names identity metadata (`id`, `arn`, `urn`, or a `pulumi:` or
+`terraform:` key) answers `400` / `identity_override` before the resource lookup
+and prices nothing.
 
 `pricingModes` comes from `eng.DiscoverPricingSpec`: each entry carries an
 opaque `id`, server-rendered `label`, `rate`, and `detailsDisplay` (tiers,
@@ -288,7 +300,7 @@ provider with its existing `--adapter` option. A provider failure on
 `error`, `code: "estimate_unavailable"`, `resource`, `pricingModes`, and
 `display.properties`. A success carries no `status`; the browser treats the
 marker as a failed estimate. Those rows come from
-`viewmodel.BuildEstimatePropertyRows` with no cost deltas, and the comparison
+`viewmodel.BuildEstimatePropertyPlan` with no cost deltas, and the comparison
 strings stay empty. `eng.DiscoverPricingSpec` still runs on that failure, on
 its own deadline. The body goes through the same redaction as a successful
 estimate. `400` / `invalid_pricing_mode` stays `{ error, code }` only.

@@ -381,6 +381,7 @@ func RenderEstimateHelp() string {
 	shortcuts := []string{
 		"↑/↓: Navigate",
 		"Enter: Edit property",
+		"a: All properties",
 		"Esc: Cancel edit",
 		"q: Quit",
 	}

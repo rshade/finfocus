@@ -1,0 +1,27 @@
+┌───────────────────────┐
+│ What-If Cost Analysis │
+└───────────────────────┘
+
+Provider: aws
+Type: aws:rds/instance:Instance
+ID: urn:golden
+
+Baseline:  $0.00/mo (USD)
+Modified:  $0.00/mo (USD)
+
+Change:    $0.00 →/mo
+
+Property Changes:
+------------------------------------------------------------
+  Property             Original        Modified        Δ Cost
+                                                             
+→ engine              mysql          mysql          
+  instanceClass       db.t3.micro    db.t3.micro    
+
+
+Read-only:
+  arn: arn:aws:rds:us-east-1:1:db:x
+
+Pricing inputs are not curated for this resource type; all safe properties are shown.
+
+↑/↓: Navigate | Enter: Edit property | a: All properties | Esc: Cancel edit | q: Quit

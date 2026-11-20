@@ -19,16 +19,22 @@ func TestEstimateDisplay(t *testing.T) {
 		TotalChange: 30,
 		Deltas:      []engine.CostDelta{{Property: "size", CostChange: 30}},
 	}
-	got := BuildEstimateDisplay(context.Background(), resource, result, map[string]string{"size": "3"})
+	got := BuildEstimateDisplay(context.Background(), resource, result, map[string]string{"size": "3"}, nil)
 	assert.Equal(t, "€60.00/mo (EUR)", got.Baseline)
 	assert.Equal(t, "€90.00/mo (EUR)", got.Modified)
 	assert.Equal(t, "+$30.00 ↑", got.Change)
 	assert.Equal(t, "↑", got.Arrow)
 	assert.Equal(
 		t,
-		[]EstimateProperty{{Key: "size", OriginalValue: "2", CurrentValue: "3", Delta: "+$30.00 ↑"}},
+		[]EstimateProperty{{
+			Key: "size", OriginalValue: "2", CurrentValue: "3", Delta: "+$30.00 ↑",
+			Class: PropertyClassOther, Editable: true, DefaultVisible: true, Overridden: true,
+		}},
 		got.Properties,
 	)
+	assert.False(t, got.Curated)
+	assert.Equal(t, EstimateFallbackNote, got.Note)
+	assert.Empty(t, got.Details)
 	for _, tc := range []struct {
 		delta float64
 		want  string
@@ -48,8 +54,12 @@ func TestEstimatePricingDisplay(t *testing.T) {
 	} {
 		assert.Equal(t, tc.want, FormatPricingRate(tc.mode))
 	}
-	assert.Empty(t, BuildEstimateDisplay(context.Background(), nil, nil, nil).Properties)
-	assert.Equal(t, "$0.00 →", BuildEstimateDisplay(context.Background(), nil, &engine.EstimateResult{}, nil).Change)
+	assert.Empty(t, BuildEstimateDisplay(context.Background(), nil, nil, nil, nil).Properties)
+	assert.Equal(
+		t,
+		"$0.00 →",
+		BuildEstimateDisplay(context.Background(), nil, &engine.EstimateResult{}, nil, nil).Change,
+	)
 }
 
 func TestEstimatePricingDetails(t *testing.T) {
@@ -101,6 +111,7 @@ func TestEstimatePropertyProjection(t *testing.T) {
 				&engine.ResourceDescriptor{Properties: properties},
 				&engine.EstimateResult{Deltas: tc.deltas},
 				overrides,
+				nil,
 			)
 			require.Len(t, display.Properties, 3)
 			for i, row := range rows {
@@ -111,4 +122,58 @@ func TestEstimatePropertyProjection(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEstimateDisplayCuratedCarriesPlanFields(t *testing.T) {
+	t.Parallel()
+	resource := &engine.ResourceDescriptor{
+		Type: "aws:ec2/instance:Instance",
+		Properties: map[string]any{
+			"instanceType": "t3.micro", "ami": "ami-1", "arn": "arn:aws:ec2:us-east-1:1:instance/i-1",
+		},
+	}
+	result := &engine.EstimateResult{Deltas: []engine.CostDelta{{Property: "instanceType", CostChange: 10}}}
+
+	got := BuildEstimateDisplay(context.Background(), resource, result, nil, nil)
+
+	require.Len(t, got.Properties, 2)
+	assert.Equal(t, "instanceType", got.Properties[0].Key)
+	assert.Equal(t, PropertyClassPricing, got.Properties[0].Class)
+	assert.Equal(t, ProvenanceSKU, got.Properties[0].Provenance)
+	assert.True(t, got.Properties[0].DefaultVisible)
+	assert.Equal(t, "+$10.00 ↑", got.Properties[0].Delta)
+	assert.Equal(t, "ami", got.Properties[1].Key)
+	assert.False(t, got.Properties[1].DefaultVisible)
+	assert.Equal(t, []EstimateDetail{{Key: "arn", Value: "arn:aws:ec2:us-east-1:1:instance/i-1"}}, got.Details)
+	assert.True(t, got.Curated)
+	assert.Empty(t, got.Note)
+}
+
+func TestNewEstimatePropertyDisplayWithoutDeltas(t *testing.T) {
+	t.Parallel()
+	plan := planFor(ec2Type, map[string]any{"instanceType": "t3.micro"}, nil, nil)
+
+	got := NewEstimatePropertyDisplay(plan, []engine.CostDelta{{Property: "instanceType", CostChange: 5}}, false)
+
+	require.Len(t, got.Properties, 1)
+	assert.Empty(t, got.Properties[0].Delta)
+	assert.NotNil(t, got.Details)
+	assert.True(t, got.Curated)
+}
+
+func TestUsageHintsFlattensEveryMode(t *testing.T) {
+	t.Parallel()
+
+	found := engine.PricingDiscovery{Modes: []engine.PricingMode{
+		{MetricHints: []engine.PricingMetricHint{{Metric: "a"}, {Metric: "b"}}},
+		{},
+		{MetricHints: []engine.PricingMetricHint{{Metric: "c", Unit: "GB"}}},
+	}}
+
+	assert.Equal(
+		t,
+		[]engine.PricingMetricHint{{Metric: "a"}, {Metric: "b"}, {Metric: "c", Unit: "GB"}},
+		UsageHints(found),
+	)
+	assert.Empty(t, UsageHints(engine.PricingDiscovery{}))
 }

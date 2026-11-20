@@ -41,6 +41,12 @@ type EstimateProperty struct {
 	OriginalValue string `json:"originalValue"`
 	CurrentValue  string `json:"currentValue"`
 	Delta         string `json:"delta"`
+	// Class is pricing or other; identity rows are listed in EstimateDisplay.Details.
+	Class          PropertyClass   `json:"class"`
+	Provenance     InputProvenance `json:"provenance,omitempty"`
+	Editable       bool            `json:"editable"`
+	DefaultVisible bool            `json:"defaultVisible"`
+	Overridden     bool            `json:"overridden"`
 }
 
 // EstimateDisplay contains the presentation shared by estimate transports.
@@ -53,17 +59,54 @@ type EstimateDisplay struct {
 	BaselineSpot string             `json:"baselineSpot,omitempty"`
 	ModifiedSpot string             `json:"modifiedSpot,omitempty"`
 	Properties   []EstimateProperty `json:"properties"`
+	// Details is read-only identity metadata, sorted by key.
+	Details []EstimateDetail `json:"details"`
+	// Curated is true when the type has reviewed pricing inputs present.
+	Curated bool `json:"curated"`
+	// Note is the fallback text when Curated is false.
+	Note string `json:"note,omitempty"`
+}
+
+// NewEstimatePropertyDisplay projects a plan and its deltas into the display
+// fields every transport shares. Deltas are formatted only when withDeltas is true.
+func NewEstimatePropertyDisplay(plan EstimatePropertyPlan, deltas []engine.CostDelta, withDeltas bool) EstimateDisplay {
+	if withDeltas {
+		ApplyEstimateDeltas(plan.Rows, deltas)
+	}
+	display := EstimateDisplay{
+		Properties: make([]EstimateProperty, 0, len(plan.Rows)),
+		Details:    plan.Details,
+		Curated:    plan.Curated,
+		Note:       plan.Note,
+	}
+	if display.Details == nil {
+		display.Details = []EstimateDetail{}
+	}
+	for _, row := range plan.Rows {
+		property := EstimateProperty{
+			Key: row.Key, OriginalValue: row.OriginalValue, CurrentValue: row.CurrentValue,
+			Class: row.Class, Provenance: row.Provenance, Editable: row.Editable,
+			DefaultVisible: row.DefaultVisible, Overridden: row.Overridden,
+		}
+		if withDeltas {
+			property.Delta = FormatEstimateDelta(row.CostDelta).Text
+		}
+		display.Properties = append(display.Properties, property)
+	}
+	return display
 }
 
 // BuildEstimateDisplay formats estimates using shared TUI conventions. Sensitive
-// source properties are removed before conversion to strings.
+// source properties are removed before conversion to strings. Hints are the
+// usage metrics discovered for the resource type, or nil when discovery failed.
 func BuildEstimateDisplay(
 	ctx context.Context,
 	resource *engine.ResourceDescriptor,
 	result *engine.EstimateResult,
 	overrides map[string]string,
+	hints []engine.PricingMetricHint,
 ) EstimateDisplay {
-	display := EstimateDisplay{Properties: []EstimateProperty{}}
+	display := EstimateDisplay{Properties: []EstimateProperty{}, Details: []EstimateDetail{}}
 	if result == nil {
 		return display
 	}
@@ -85,15 +128,12 @@ func BuildEstimateDisplay(
 	if resource == nil {
 		return display
 	}
-	props := engine.BuildAttributes(ctx, resource.Properties).AsMap()
-	rows := BuildEstimatePropertyRows(props, overrides)
-	ApplyEstimateDeltas(rows, result.Deltas)
-	for _, row := range rows {
-		display.Properties = append(display.Properties, EstimateProperty{
-			Key: row.Key, OriginalValue: row.OriginalValue, CurrentValue: row.CurrentValue,
-			Delta: FormatEstimateDelta(row.CostDelta).Text,
-		})
-	}
+	plan := BuildEstimatePropertyPlan(ctx, resource, overrides, hints)
+	shared := NewEstimatePropertyDisplay(plan, result.Deltas, true)
+	display.Properties = shared.Properties
+	display.Details = shared.Details
+	display.Curated = shared.Curated
+	display.Note = shared.Note
 
 	return display
 }
@@ -117,6 +157,12 @@ type EstimatePropertyRow struct {
 	OriginalValue string
 	CurrentValue  string
 	CostDelta     float64
+	// The fields below are set by BuildEstimatePropertyPlan.
+	Class          PropertyClass
+	Provenance     InputProvenance
+	Editable       bool
+	DefaultVisible bool
+	Overridden     bool
 }
 
 // BuildEstimatePropertyRows applies the shared property order and value projection.

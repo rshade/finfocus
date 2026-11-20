@@ -58,7 +58,7 @@ func TestEstimateDisplayCarriesSpotLabels(t *testing.T) {
 			display := BuildEstimateDisplay(context.Background(), nil, &engine.EstimateResult{
 				Baseline: &engine.CostResult{Monthly: 60},
 				Modified: tt.modified,
-			}, nil)
+			}, nil, nil)
 			assert.Equal(t, tt.wantBaseline, display.BaselineSpot)
 			assert.Equal(t, tt.wantModified, display.ModifiedSpot)
 		})
