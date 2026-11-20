@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.10](https://github.com/rshade/finfocus/compare/v0.5.9...v0.5.10) (2026-11-20)
+
+
+### Added
+
+* **engine:** batch actual cost on every actual-cost path ([088ab95](https://github.com/rshade/finfocus/commit/088ab95950a4cc0b4f79ac36bdfa2c28dc2dadf3))
+* **notification:** add PagerDuty budget alerts ([#2270](https://github.com/rshade/finfocus/issues/2270)) ([7701746](https://github.com/rshade/finfocus/commit/7701746404d41e66bfd3cf09f87ddd8cf0726679))
+* **notification:** send budget alerts by SMTP email ([#2268](https://github.com/rshade/finfocus/issues/2268)) ([c9b24e0](https://github.com/rshade/finfocus/commit/c9b24e0b1764af9fc5c30a160a9d794df1ab5b65))
+* **registry:** add custom plugin sources ([#2272](https://github.com/rshade/finfocus/issues/2272)) ([c6a887e](https://github.com/rshade/finfocus/commit/c6a887ec2af6ecc0c4fb4782265f2958fc0a82af))
+* **registry:** require checksums.txt when FINFOCUS_SECURE_PLUGINS is on ([#2261](https://github.com/rshade/finfocus/issues/2261)) ([d603276](https://github.com/rshade/finfocus/commit/d603276b1340a60344128886cd052df8e704ac45))
+* **tui:** add interactive cost history ([#2263](https://github.com/rshade/finfocus/issues/2263)) ([ad0c4b6](https://github.com/rshade/finfocus/commit/ad0c4b6b209abd2d32bd0620c59045ae490babca))
+* **vscode:** add cost extension with result cache and incomplete marker ([#2244](https://github.com/rshade/finfocus/issues/2244)) ([70b4fd9](https://github.com/rshade/finfocus/commit/70b4fd937292c469e480c0372f7a9273d09defca))
+* **web:** add interactive cost history controls ([#2266](https://github.com/rshade/finfocus/issues/2266)) ([419be8d](https://github.com/rshade/finfocus/commit/419be8d197f32ccfc3cab3004caaea748ea41e47))
+* **web:** polish custom registry confirmation ([#2276](https://github.com/rshade/finfocus/issues/2276)) ([a5387d2](https://github.com/rshade/finfocus/commit/a5387d220b32ae94bd643d19c247a13eaba02d8f))
+* **webui:** expose cost cluster allocation through a web API hook ([#2279](https://github.com/rshade/finfocus/issues/2279)) ([7935bd3](https://github.com/rshade/finfocus/commit/7935bd3523e7bd5e979810c506282dfe32cdb7ae))
+
+
+### Fixed
+
+* **conformance:** probe with the plugin's own resource instead of AWS ([#2255](https://github.com/rshade/finfocus/issues/2255)) ([52613ab](https://github.com/rshade/finfocus/commit/52613ab0ebd514915764326746073a8b37bec3c6))
+* **engine:** send attributes on GetRecommendations target resources ([#2282](https://github.com/rshade/finfocus/issues/2282)) ([d2ddf6c](https://github.com/rshade/finfocus/commit/d2ddf6c18fdd92b3b56847b17aa97a4bc192ee31)), closes [#2281](https://github.com/rshade/finfocus/issues/2281)
+
+
+### Dependencies
+
+* update go dependencies ([#2251](https://github.com/rshade/finfocus/issues/2251)) ([e3e81c0](https://github.com/rshade/finfocus/commit/e3e81c00091400e9e7b1ec073314095cebd381c5))
+
+
+### Documentation
+
+* correct cost history file paths ([9a5adee](https://github.com/rshade/finfocus/commit/9a5adee7bf21488e640cf604eba66279121cd26d)), closes [#2196](https://github.com/rshade/finfocus/issues/2196)
+* correct cost history file paths ([#2233](https://github.com/rshade/finfocus/issues/2233)) ([9a5adee](https://github.com/rshade/finfocus/commit/9a5adee7bf21488e640cf604eba66279121cd26d))
+* correct stale Docker, Vantage, and install facts ([ae7abb6](https://github.com/rshade/finfocus/commit/ae7abb6f5a5e5d5dd1a7b407a90c451049278afc)), closes [#2217](https://github.com/rshade/finfocus/issues/2217)
+* correct stale Docker, Vantage, and install facts ([#2236](https://github.com/rshade/finfocus/issues/2236)) ([ae7abb6](https://github.com/rshade/finfocus/commit/ae7abb6f5a5e5d5dd1a7b407a90c451049278afc))
+* **plugins:** update the cloudzero page for v0.1.1 ([#2259](https://github.com/rshade/finfocus/issues/2259)) ([5a1ae41](https://github.com/rshade/finfocus/commit/5a1ae41cadb6738bf9abbe727af332fc6fa69516))
+* record why Google.WordList stays off ([#2256](https://github.com/rshade/finfocus/issues/2256)) ([c4caeb8](https://github.com/rshade/finfocus/commit/c4caeb84e9ab866f70a92dc46234494c73ba0cb0)), closes [#2224](https://github.com/rshade/finfocus/issues/2224)
+* satisfy Google.Contractions and re-enable it ([c6ea737](https://github.com/rshade/finfocus/commit/c6ea73722913eb262ea5bc957725e767d931fc23)), closes [#2225](https://github.com/rshade/finfocus/issues/2225)
+* satisfy Google.Contractions and re-enable it ([#2262](https://github.com/rshade/finfocus/issues/2262)) ([c6ea737](https://github.com/rshade/finfocus/commit/c6ea73722913eb262ea5bc957725e767d931fc23))
+* satisfy Google.EmDash and re-enable it ([4c78e5e](https://github.com/rshade/finfocus/commit/4c78e5e2e16ebf222d50a525e80b600d1dfdebcc)), closes [#2220](https://github.com/rshade/finfocus/issues/2220)
+* satisfy Google.EmDash and re-enable it ([#2241](https://github.com/rshade/finfocus/issues/2241)) ([4c78e5e](https://github.com/rshade/finfocus/commit/4c78e5e2e16ebf222d50a525e80b600d1dfdebcc))
+* satisfy Google.FirstPerson and re-enable it ([e36490c](https://github.com/rshade/finfocus/commit/e36490c458c1f69f8a5611e5b6d38053c655a291)), closes [#2222](https://github.com/rshade/finfocus/issues/2222)
+* satisfy Google.FirstPerson and re-enable it ([#2248](https://github.com/rshade/finfocus/issues/2248)) ([e36490c](https://github.com/rshade/finfocus/commit/e36490c458c1f69f8a5611e5b6d38053c655a291))
+* satisfy Google.OxfordComma and re-enable it ([7679e7d](https://github.com/rshade/finfocus/commit/7679e7dbf1c30bfdb6ce9a0def6cefbd4077703f)), closes [#2221](https://github.com/rshade/finfocus/issues/2221)
+* satisfy Google.OxfordComma and re-enable it ([#2243](https://github.com/rshade/finfocus/issues/2243)) ([7679e7d](https://github.com/rshade/finfocus/commit/7679e7dbf1c30bfdb6ce9a0def6cefbd4077703f))
+* satisfy Google.Quotes and re-enable it ([772331a](https://github.com/rshade/finfocus/commit/772331a1b5edaf2a6b5fcae0b3d3ead84848cf3c)), closes [#2219](https://github.com/rshade/finfocus/issues/2219)
+* satisfy Google.Quotes and re-enable it ([#2239](https://github.com/rshade/finfocus/issues/2239)) ([772331a](https://github.com/rshade/finfocus/commit/772331a1b5edaf2a6b5fcae0b3d3ead84848cf3c))
+* satisfy Google.Semicolons and re-enable it ([e770384](https://github.com/rshade/finfocus/commit/e770384c3aceaa00212bfd205fc5fe26f0ba3d65)), closes [#2223](https://github.com/rshade/finfocus/issues/2223)
+* satisfy Google.Semicolons and re-enable it ([#2254](https://github.com/rshade/finfocus/issues/2254)) ([e770384](https://github.com/rshade/finfocus/commit/e770384c3aceaa00212bfd205fc5fe26f0ba3d65))
+* satisfy Google.Timeless and re-enable it ([c91883a](https://github.com/rshade/finfocus/commit/c91883af4acec0f2842c42c6e6974a6f0e5e876f)), closes [#2217](https://github.com/rshade/finfocus/issues/2217)
+* satisfy Google.Timeless and re-enable it ([#2215](https://github.com/rshade/finfocus/issues/2215)) ([c91883a](https://github.com/rshade/finfocus/commit/c91883af4acec0f2842c42c6e6974a6f0e5e876f))
+* satisfy Google.Units and re-enable it ([139600a](https://github.com/rshade/finfocus/commit/139600a20fda024c74db360233ab704778edc265)), closes [#2218](https://github.com/rshade/finfocus/issues/2218)
+* satisfy Google.Units and re-enable it ([#2235](https://github.com/rshade/finfocus/issues/2235)) ([139600a](https://github.com/rshade/finfocus/commit/139600a20fda024c74db360233ab704778edc265))
+
 ## [0.5.9](https://github.com/rshade/finfocus/compare/v0.5.8...v0.5.9) (2026-11-19)
 
 
