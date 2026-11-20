@@ -956,7 +956,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   cannot shadow a built-in name. A name offered by two sources is left out of
   the catalog. Installs require `checksums.txt` and cannot skip or accept a
   missing checksum. The first install from a source needs its name typed;
-  editing that source clears the confirmation. `plugin update` refuses a
+  editing that source clears the confirmation. The Plugins dialog focuses
+  `#plugin-registry-confirmation` in that case and puts the disabled reason
+  in `#plugin-confirm-reason` (missing checksum, unverified source, or a
+  typed name that does not match). An empty registry list says to add a
+  name and an HTTPS index URL. `plugin update` refuses a
   plugin whose installed record names a custom registry. Web install and
   update both use `PluginInstall` when the request names a registry. MCP
   exposes `plugin registry list` only; add, remove, and install take

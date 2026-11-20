@@ -231,7 +231,11 @@ will be installed. A missing checksum file is named before the install
 continues, unless `FINFOCUS_SECURE_PLUGINS` is on: then the page refuses the
 release and nothing is installed. A checksum that doesn't match stops the install.
 Custom registries require the user to type the exact registry name on the
-first install. Every release from a custom registry requires a matching
+first install. That field takes focus, and Confirm stays disabled until the
+typed name matches. The dialog says when the name does not match, when the
+release has no checksum file, or when the registry could not be verified.
+With no sources, the list says to add a name and an HTTPS index URL, then
+choose Add registry. Every release from a custom registry requires a matching
 checksum, regardless of the secure plugin mode setting. Custom catalog
 entries cannot replace a built-in name.
 

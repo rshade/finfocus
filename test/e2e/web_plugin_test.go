@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -247,6 +248,8 @@ func TestWebUIPluginCustomRegistry(t *testing.T) {
 		"FINFOCUS_GITHUB_API="+host.URL, "SSL_CERT_FILE="+ca)
 	page := webPage(t, browser, session, playwright.ColorSchemeLight)
 	webRoute(t, page, "plugins")
+	webWait(t, page, `() => (document.querySelector('#plugin-registry-list')?.textContent || '').includes('Add registry')`)
+	require.Contains(t, mustText(t, page, "#plugin-registry-list"), "HTTPS index URL")
 	require.NoError(t, page.Locator("#plugin-registry-name").Fill("workspace"))
 	require.NoError(t, page.Locator("#plugin-registry-url").Fill(host.URL+"/registry.json"))
 	require.NoError(t, page.Locator("#plugin-registry-add").Click())
@@ -259,13 +262,23 @@ func TestWebUIPluginCustomRegistry(t *testing.T) {
 		`() => document.querySelector('#plugin-confirm-dialog[open] #plugin-registry-confirmation') !== null`,
 	)
 	require.Contains(t, mustText(t, page, "#plugin-confirm-summary"), "workspace")
+	focused, err := page.Evaluate(`() => document.activeElement?.id`)
+	require.NoError(t, err)
+	require.Equal(t, "plugin-registry-confirmation", focused)
+	require.Contains(t, mustText(t, page, "#plugin-confirm-reason"), "does not match")
 
 	confirmButton := page.Locator("#plugin-confirm-accept")
 	disabled, err := confirmButton.IsDisabled()
 	require.NoError(t, err)
 	require.True(t, disabled)
+	require.NoError(t, page.Locator("#plugin-registry-confirmation").Fill("other"))
+	disabled, err = confirmButton.IsDisabled()
+	require.NoError(t, err)
+	require.True(t, disabled)
+	require.Contains(t, mustText(t, page, "#plugin-confirm-reason"), "does not match")
 	require.NoError(t, page.Locator("#plugin-registry-confirmation").Fill("workspace"))
 	disabled, err = confirmButton.IsDisabled()
 	require.NoError(t, err)
 	require.False(t, disabled)
+	require.Empty(t, strings.TrimSpace(mustText(t, page, "#plugin-confirm-reason")))
 }
