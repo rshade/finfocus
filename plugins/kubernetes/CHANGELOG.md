@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.14](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.13...kubernetes-v0.1.14) (2026-11-20)
+
+
+### Dependencies
+
+* update go dependencies ([#2251](https://github.com/rshade/finfocus/issues/2251)) ([e3e81c0](https://github.com/rshade/finfocus/commit/e3e81c00091400e9e7b1ec073314095cebd381c5))
+
 ## [0.1.13](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.12...kubernetes-v0.1.13) (2026-11-19)
 
 
