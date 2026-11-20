@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -23,17 +22,9 @@ import (
 var clusterCallTimeouts = engine.DefaultClusterCallTimeouts() //nolint:gochecknoglobals // tests shorten it
 
 type costClusterParams struct {
-	context     string
-	namespace   string
-	selectors   []string
-	groupBy     string
-	policyPath  string
-	showPolicy  bool
-	usageSource string
-	allocator   string
-	output      string
-	fromStr     string
-	toStr       string
+	query      clusterQuery
+	showPolicy bool
+	output     string
 }
 
 // NewCostClusterCmd creates `finfocus cost cluster`.
@@ -60,21 +51,21 @@ With --from and --to, the report prices actual spend over that window
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&params.context, "context", "", "Kubeconfig context (default: current context)")
-	f.StringVar(&params.namespace, "namespace", "",
+	f.StringVar(&params.query.context, "context", "", "Kubeconfig context (default: current context)")
+	f.StringVar(&params.query.namespace, "namespace", "",
 		"Only allocate workloads in this namespace (omits idle and cluster rows)")
-	f.StringArrayVar(&params.selectors, "selector", nil, "Pod label selector key=value (repeatable)")
-	f.StringVar(&params.groupBy, "group-by", "namespace",
+	f.StringArrayVar(&params.query.selectors, "selector", nil, "Pod label selector key=value (repeatable)")
+	f.StringVar(&params.query.groupBy, "group-by", defaultClusterGroupBy,
 		"Group by: namespace, controller, pod, node, pulumi-stack, label:<key>")
-	f.StringVar(&params.policyPath, "policy", "",
+	f.StringVar(&params.query.policyPath, "policy", "",
 		"Allocation policy file (default: project or global allocation.hujson)")
 	f.BoolVar(&params.showPolicy, "show-policy", false, "Print the effective allocation policy and exit")
-	f.StringVar(&params.usageSource, "usage-source", "", "Usage-source plugin to use when several are installed")
-	f.StringVar(&params.allocator, "allocator", "", "Allocator plugin to use when several are installed")
+	f.StringVar(&params.query.usageSource, "usage-source", "", "Usage-source plugin to use when several are installed")
+	f.StringVar(&params.query.allocator, "allocator", "", "Allocator plugin to use when several are installed")
 	f.StringVar(&params.output, "output", "",
 		"Output format: table, json, or ndjson (default from output.default_format, else table)")
-	f.StringVar(&params.fromStr, "from", "", "Window start (2006-01-02 or RFC3339)")
-	f.StringVar(&params.toStr, "to", "", "Window end (2006-01-02 or RFC3339); defaults to now when --from is set")
+	f.StringVar(&params.query.from, "from", "", "Window start (2006-01-02 or RFC3339)")
+	f.StringVar(&params.query.to, "to", "", "Window end (2006-01-02 or RFC3339); defaults to now when --from is set")
 	return cmd
 }
 
@@ -84,22 +75,10 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	if !isValidOutputFormat(engine.OutputFormat(format)) {
 		return unsupportedOutputError(ctx, format, "table, json, ndjson")
 	}
-	// Every check before openPlugins is user input, so each exits 2. A
-	// policy file is the user's, whether named by --policy or discovered.
-	if err := engine.ValidateClusterGroupBy(params.groupBy); err != nil {
-		return toValidationError(ctx, err)
-	}
-	selector, err := parseSelectors(params.selectors)
+	// Every check before openPlugins is user input, so each exits 2.
+	in, err := parseClusterQuery(ctx, params.query)
 	if err != nil {
-		return toValidationError(ctx, err)
-	}
-	from, to, err := resolveClusterWindow(params.fromStr, params.toStr)
-	if err != nil {
-		return toValidationError(ctx, err)
-	}
-	policy, err := config.ResolveAllocationPolicy(ctx, params.policyPath)
-	if err != nil {
-		return toValidationError(ctx, err)
+		return clusterCommandError(ctx, err)
 	}
 
 	clients, cleanup, err := openPlugins(ctx, "", nil)
@@ -108,25 +87,14 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	}
 	defer cleanup()
 
-	policyOut := clusterPolicyOutput{Source: policySourceLabel(policy.Source)}
-
 	if params.showPolicy {
-		allocClient, selErr := selectCapablePlugin(clients, pluginhost.CapabilityAllocation, params.allocator)
-		if selErr != nil {
-			return pluginSelectionError(ctx, selErr)
+		policy, policyErr := buildClusterPolicy(ctx, clients, in)
+		if policyErr != nil {
+			return clusterCommandError(ctx, policyErr)
 		}
-		effective, digest, showErr := engine.ShowAllocationPolicy(ctx, clusterAllocator(allocClient), policy.JSON)
-		if showErr != nil {
-			return policyError(ctx, showErr, allocClient.Name, policy)
-		}
-		policyOut.Digest, policyOut.Effective = digest, effective
-		return renderPolicy(cmd, format, policyOut)
+		return renderPolicy(cmd, format, policy)
 	}
 
-	usage, usageName, alloc, err := clusterPlugins(ctx, clients, params, policy)
-	if err != nil {
-		return err
-	}
 	cfg := config.GetGlobalConfig()
 	eng, _, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(cfg.SpecDir), cfg)
 	defer cacheCleanup()
@@ -134,86 +102,12 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 		return toValidationError(ctx, profileErr)
 	}
 
-	res, err := engine.RunClusterAllocation(
-		ctx,
-		usage,
-		alloc,
-		eng,
-		engine.ClusterRequest{
-			Scope:      params.context,
-			Namespace:  params.namespace,
-			Selector:   selector,
-			PolicyJSON: policy.JSON,
-			From:       from,
-			To:         to,
-		},
-	)
+	report, err := buildClusterReport(ctx, clients, eng, in)
 	if err != nil {
-		return clusterRunError(ctx, err, usageName)
+		return clusterCommandError(ctx, err)
 	}
-	groups, err := engine.GroupClusterRows(res.Rows, params.groupBy)
-	if err != nil {
-		return err
-	}
-	printClusterWarnings(cmd, format, res.Warnings)
-	policyOut.Digest, policyOut.Effective = res.PolicyDigest, res.EffectivePolicy
-	return renderClusterResult(cmd, format, newClusterOutput(res, groups, params.groupBy, policyOut))
-}
-
-// clusterPlugins selects the usage source (and its name, empty for a set) and
-// the allocator for a cluster run. A policy file is the user's input, so the
-// allocator checks it with the same usage-free call --show-policy makes,
-// before any usage is gathered or priced: a bad policy fails fast and cannot
-// be confused with an allocator rejecting the plugins' data.
-func clusterPlugins(
-	ctx context.Context, clients []*pluginhost.Client, params costClusterParams, policy config.AllocationPolicy,
-) (engine.UsageSource, string, engine.Allocator, error) {
-	usage, usageName, err := selectUsageSource(clients, params.usageSource)
-	if err != nil {
-		return nil, "", nil, pluginSelectionError(ctx, err)
-	}
-	allocClient, err := selectCapablePlugin(clients, pluginhost.CapabilityAllocation, params.allocator)
-	if err != nil {
-		return nil, "", nil, pluginSelectionError(ctx, err)
-	}
-	alloc := clusterAllocator(allocClient)
-	if len(policy.JSON) > 0 {
-		if _, _, checkErr := engine.ShowAllocationPolicy(ctx, alloc, policy.JSON); checkErr != nil {
-			return nil, "", nil, policyError(ctx, checkErr, allocClient.Name, policy)
-		}
-	}
-	return usage, usageName, alloc, nil
-}
-
-// clusterRunError maps a RunClusterAllocation failure. Two failures are the
-// user's to fix, so they exit 2: several installed usage sources serving the
-// requested mode (choose with --usage-source), and a usage source answering
-// InvalidArgument, because the GetStats request holds only --context,
-// --namespace, --selector, and the window. usageName names the source in that
-// message when one was selected. Other failures, including an allocator
-// rejecting a request that carries the plugins' usage and prices, exit 1.
-func clusterRunError(ctx context.Context, err error, usageName string) error {
-	if ambiguous, ok := errors.AsType[*engine.AmbiguousUsageSourceError](err); ok {
-		return toValidationError(ctx, fmt.Errorf("%w; choose one with --usage-source", ambiguous))
-	}
-	if rejected, ok := errors.AsType[*engine.UsageRequestError](err); ok {
-		return toValidationError(ctx, &engine.UsageRequestError{Source: usageName, Err: rejected.Err})
-	}
-	return err
-}
-
-// policyError maps a failure of the usage-free allocator call. An allocator
-// rejecting a policy file the user supplied exits 2 and names the allocator
-// and the file; the built-in default policy is not the user's, so a rejection
-// of it stays exit 1 like any other allocator failure.
-func policyError(ctx context.Context, err error, allocator string, policy config.AllocationPolicy) error {
-	rejected, ok := errors.AsType[*engine.PolicyRejectedError](err)
-	if !ok || len(policy.JSON) == 0 {
-		return err
-	}
-	return toValidationError(ctx, &engine.PolicyRejectedError{
-		Allocator: allocator, Source: policy.Source, Err: rejected.Err,
-	})
+	printClusterWarnings(cmd, format, report.Warnings)
+	return renderClusterResult(cmd, format, report)
 }
 
 // pluginChoiceError reports a --usage-source or --allocator value that names no
@@ -222,15 +116,6 @@ func policyError(ctx context.Context, err error, allocator string, policy config
 type pluginChoiceError struct{ msg string }
 
 func (e *pluginChoiceError) Error() string { return e.msg }
-
-// pluginSelectionError makes a *pluginChoiceError exit 2; other selection failures
-// pass through.
-func pluginSelectionError(ctx context.Context, err error) error {
-	if _, ok := errors.AsType[*pluginChoiceError](err); ok {
-		return toValidationError(ctx, err)
-	}
-	return err
-}
 
 // selectUsageSource returns the usage source for a cluster run and its plugin
 // name: the explicit --usage-source plugin, the only installed one, or, when
@@ -290,8 +175,7 @@ func selectCapablePlugin(clients []*pluginhost.Client, capability, explicit stri
 	}
 	switch len(candidates) {
 	case 0:
-		return nil, fmt.Errorf("no installed plugin provides %s; install one with: finfocus plugin install kubernetes",
-			capability)
+		return nil, &engine.ClusterPluginMissingError{Capability: capability}
 	case 1:
 		return candidates[0], nil
 	default:

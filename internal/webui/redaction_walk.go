@@ -109,7 +109,7 @@ func trustedSource(v reflect.Value, keyed bool) (reflect.Value, bool) {
 }
 
 func redactObject(v reflect.Value, object map[string]any, depth int) any {
-	if sensitiveRecord(object) || history.IsPulumiSecret(object) {
+	if sensitiveRecord(v, object) || history.IsPulumiSecret(object) {
 		return nil
 	}
 	fields := structFields(v)
@@ -154,16 +154,38 @@ func redactSlice(v reflect.Value, items []any, drop []bool, depth int) []any {
 	indexed := v.IsValid() && (v.Kind() == reflect.Slice || v.Kind() == reflect.Array)
 	out := make([]any, 0, len(items))
 	for i, item := range items {
-		if droppedFromArray(item) || (i < len(drop) && drop[i]) {
-			continue
-		}
 		var child reflect.Value
 		if indexed && i < v.Len() {
 			child = v.Index(i)
 		}
+		if droppedFromArray(child, item) || (i < len(drop) && drop[i]) {
+			continue
+		}
 		out = append(out, redactNode(child, item, false, depth+1))
 	}
 	return out
+}
+
+// isDataField reports whether the record's name field holds domain data, such
+// as a cluster group key, rather than a property name: the Go struct that
+// produced the record tags the field datakey:"true", and that field is a
+// string equal to the decoded value. Any doubt fails closed.
+func isDataField(v reflect.Value, record map[string]any, field string) bool {
+	v = derefValue(v)
+	if !v.IsValid() || v.Kind() != reflect.Struct {
+		return false
+	}
+	ref, ok := structFields(v)[field]
+	if !ok || !ref.keyed {
+		return false
+	}
+	value, err := v.FieldByIndexErr(ref.index)
+	if err != nil {
+		return false
+	}
+	value = derefValue(value)
+	decoded, ok := record[field].(string)
+	return ok && value.IsValid() && value.Kind() == reflect.String && value.String() == decoded
 }
 
 // childOf finds the Go value behind a JSON key. It returns an invalid value

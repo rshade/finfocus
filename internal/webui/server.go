@@ -349,6 +349,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	s.registerEstimate(mux)
 	s.registerRecommendations(mux)
 	s.registerForecast(mux)
+	s.registerCluster(mux)
 	s.registerHistory(mux)
 	s.registerConfig(mux)
 	s.registerPlugins(mux)

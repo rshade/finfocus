@@ -91,10 +91,13 @@ func BudgetHealthPayload(ctx context.Context, result *engine.BudgetResult) []eng
 }
 
 // sensitiveRecord recognizes named property diffs and estimate deltas without
-// introducing another credential rule list.
-func sensitiveRecord(record map[string]any) bool {
+// introducing another credential rule list. v is the Go value that produced
+// the record, when known: a name field it marks as data (see isDataField) is
+// not a property name.
+func sensitiveRecord(v reflect.Value, record map[string]any) bool {
 	for _, field := range []string{"key", "property"} {
-		if name, ok := record[field].(string); ok && engine.IsHiddenPropertyKey(name) {
+		name, ok := record[field].(string)
+		if ok && engine.IsHiddenPropertyKey(name) && !isDataField(v, record, field) {
 			return true
 		}
 	}
@@ -116,8 +119,8 @@ func sensitiveRecord(record map[string]any) bool {
 	return false
 }
 
-func droppedFromArray(item any) bool {
-	if record, ok := item.(map[string]any); ok && sensitiveRecord(record) {
+func droppedFromArray(v reflect.Value, item any) bool {
+	if record, ok := item.(map[string]any); ok && sensitiveRecord(v, record) {
 		return true
 	}
 	return history.IsPulumiSecret(item)

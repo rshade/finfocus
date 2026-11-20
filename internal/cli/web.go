@@ -510,6 +510,8 @@ func webSessionOptions(
 		RecommendationHistory: data.recommendationHistory,
 		Trends:                data.tableTrends,
 		Forecast:              data.forecast,
+		Cluster:               data.cluster,
+		ClusterPolicy:         data.clusterPolicy,
 		HistoryView:           data.historyView,
 		HistoryDiff:           data.historyDiff,
 		HistoryResource:       data.historyResource,

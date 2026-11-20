@@ -13,9 +13,9 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 )
 
-func sampleClusterOutput(scoped bool) clusterOutput {
+func sampleClusterOutput(scoped bool) engine.ClusterReport {
 	idle := 7.0
-	out := clusterOutput{
+	out := engine.ClusterReport{
 		Mode: engine.ModeRunRate, Period: "monthly", Currency: "USD", GroupBy: "namespace",
 		Total: 100, Idle: &idle,
 		Groups: []engine.ClusterGroup{
@@ -23,7 +23,7 @@ func sampleClusterOutput(scoped bool) clusterOutput {
 				Notes: []string{"spot node priced on-demand"}},
 			{Key: "__idle__", TotalCost: 7, Rows: 1},
 		},
-		Policy: clusterPolicyOutput{Source: "built-in defaults", Digest: strings.Repeat("a", 64),
+		Policy: engine.ClusterPolicy{Source: "built-in defaults", Digest: strings.Repeat("a", 64),
 			Effective: json.RawMessage(`{"version":1}`)},
 	}
 	if scoped {
@@ -32,7 +32,7 @@ func sampleClusterOutput(scoped bool) clusterOutput {
 	return out
 }
 
-func renderTo(t *testing.T, format string, out clusterOutput) string {
+func renderTo(t *testing.T, format string, out engine.ClusterReport) string {
 	t.Helper()
 	var buf bytes.Buffer
 	cmd := &cobra.Command{}
@@ -96,7 +96,7 @@ func TestRenderCluster_ScopeFooter(t *testing.T) {
 				Mode: engine.ModeRunRate, Period: "monthly", Currency: "USD", Total: 60, Idle: 0,
 				NamespaceScoped: tt.namespace, SelectorScoped: tt.selector,
 			}
-			out := newClusterOutput(res, nil, "namespace", clusterPolicyOutput{})
+			out := engine.NewClusterReport(res, nil, "namespace", engine.ClusterPolicy{})
 			assert.Nil(t, out.Idle)
 			assert.Contains(t, renderTo(t, outputFormatTable, out), tt.want)
 
@@ -121,7 +121,11 @@ func TestRenderCluster_UnscopedJSONReportsIdle(t *testing.T) {
 	res := &engine.ClusterResult{Mode: engine.ModeRunRate, Period: "monthly", Currency: "USD", Total: 100, Idle: 40}
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(
-		[]byte(renderTo(t, outputFormatJSON, newClusterOutput(res, nil, "namespace", clusterPolicyOutput{}))), &got))
+		[]byte(
+			renderTo(t, outputFormatJSON, engine.NewClusterReport(res, nil, "namespace", engine.ClusterPolicy{})),
+		),
+		&got,
+	))
 	assert.InDelta(t, 40, got["idle"], 1e-9)
 	assert.Equal(t, false, got["namespace_scoped"])
 	assert.Equal(t, false, got["selector_scoped"])
@@ -165,7 +169,7 @@ func TestRenderCluster_HistoricalPeriod(t *testing.T) {
 		Mode: engine.ModeHistorical, Period: "2026-09-28 to 2026-10-05, 7 days",
 		Priced: []engine.PricedSummary{{ID: "n1", Monthly: windowTotal, Priced: true}},
 	}
-	copied := newClusterOutput(res, nil, "namespace", clusterPolicyOutput{})
+	copied := engine.NewClusterReport(res, nil, "namespace", engine.ClusterPolicy{})
 	assert.Equal(t, engine.ModeHistorical, copied.Mode)
 	assert.Equal(t, "2026-09-28 to 2026-10-05, 7 days", copied.Period)
 	require.Len(t, copied.Priced, 1)
@@ -186,7 +190,7 @@ func TestRenderCluster_NDJSON(t *testing.T) {
 	assert.Equal(t, "payments", second["key"])
 }
 
-func capacityClusterOutput() clusterOutput {
+func capacityClusterOutput() engine.ClusterReport {
 	out := sampleClusterOutput(false)
 	out.Capacity = []engine.CapacityGroup{
 		{CapacityType: "on-demand", TotalCost: 55, IdleCost: ptrFloat(3), Nodes: 2, Rows: 4},
@@ -216,7 +220,7 @@ func TestRenderCluster_CapacityTable(t *testing.T) {
 
 func ptrFloat(v float64) *float64 { return &v }
 
-func scopedCapacityOutput() clusterOutput {
+func scopedCapacityOutput() engine.ClusterReport {
 	out := capacityClusterOutput()
 	out.Idle, out.NamespaceScoped = nil, true
 	for i := range out.Capacity {
@@ -269,18 +273,8 @@ func TestRenderCluster_CapacityJSON(t *testing.T) {
 
 	var empty map[string]any
 	require.NoError(t, json.Unmarshal([]byte(renderTo(t, outputFormatJSON,
-		newClusterOutput(&engine.ClusterResult{}, nil, "namespace", clusterPolicyOutput{}))), &empty))
+		engine.NewClusterReport(&engine.ClusterResult{}, nil, "namespace", engine.ClusterPolicy{}))), &empty))
 	assert.Equal(t, []any{}, empty["capacity"], "capacity is an empty array, never null")
-}
-
-func TestNewClusterOutput_CarriesCapacity(t *testing.T) {
-	t.Parallel()
-
-	res := &engine.ClusterResult{Capacity: []engine.CapacityGroup{{CapacityType: "spot", TotalCost: 1}}}
-	out := newClusterOutput(res, nil, "namespace", clusterPolicyOutput{})
-	require.Len(t, out.Capacity, 1)
-	assert.Equal(t, "spot", out.Capacity[0].CapacityType)
-	assert.NotNil(t, newClusterOutput(&engine.ClusterResult{}, nil, "namespace", clusterPolicyOutput{}).Capacity)
 }
 
 func TestRenderCluster_NDJSONSummaryCarriesCapacity(t *testing.T) {
