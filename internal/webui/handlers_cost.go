@@ -37,13 +37,28 @@ func (s *Server) registerCost(mux *http.ServeMux) {
 
 // beginQuery joins active operations on shutdown and links request/session cancellation.
 func (s *Session) beginQuery(request context.Context) (context.Context, func(), error) {
+	return s.beginQueryWithin(request, queryTimeout)
+}
+
+// noQueryDeadline makes beginQueryWithin add no deadline of its own.
+const noQueryDeadline time.Duration = 0
+
+// beginQueryWithin is beginQuery with its own timeout. noQueryDeadline adds
+// none: the request and the session still cancel the query.
+func (s *Session) beginQueryWithin(request context.Context, timeout time.Duration) (context.Context, func(), error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed || s.eng == nil {
 		return nil, nil, errors.New("session unavailable")
 	}
 	s.workers.Add(1)
-	ctx, cancel := context.WithTimeout(request, queryTimeout)
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(request, timeout)
+	} else {
+		ctx, cancel = context.WithCancel(request)
+	}
 	stop := context.AfterFunc(s.ctx, cancel)
 	var once sync.Once
 	return ctx, func() { once.Do(func() { stop(); cancel(); s.workers.Done() }) }, nil

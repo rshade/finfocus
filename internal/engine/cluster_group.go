@@ -21,7 +21,7 @@ const groupByChoices = "namespace, controller, pod, node, pulumi-stack, label:<k
 
 // ClusterGroup is the aggregate of cluster rows sharing a group key.
 type ClusterGroup struct {
-	Key        string   `json:"key"`
+	Key        string   `json:"key"                   datakey:"true"`
 	CPUCost    float64  `json:"cpu_cost"`
 	MemCost    float64  `json:"mem_cost"`
 	TotalCost  float64  `json:"total_cost"`

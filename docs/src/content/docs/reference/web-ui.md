@@ -176,6 +176,28 @@ spend CSV are summarized below it, with their date range. A failed query
 clears earlier results and shows the message `cost forecast` prints for the
 same settings.
 
+### Cluster allocation API
+
+`finfocus cost cluster` is reachable through the HTTP API, through the same
+Go methods the command calls. The dashboard has no Cluster view yet. A
+request takes `context`, `namespace`, `selector` (a list of `key=value`),
+`groupBy`, `from`, `to`, `usageSource`, `allocator`, and `policy`, each in
+the syntax of the flag of the same name. `policy` is the allocation policy's
+HuJSON text: the server never opens a path from the page. Without it, the
+project and then the global `allocation.hujson` apply, named by tier
+(`project allocation.hujson`) rather than by path.
+
+The answer is the `--output json` document plus `status` and `display`
+strings. When no installed plugin provides `usage_stats` or `allocation`,
+the answer is still HTTP 200, with `status: "unavailable"` and the missing
+`capability`. Each plugin call keeps the command's own deadline, so a long
+historical window isn't cut short.
+
+Meanwhile, the Overview's cluster rows show the same live allocation: expand
+a cluster to list its namespaces and idle capacity.
+
+![Overview with an EKS cluster expanded into live namespace allocation rows, with idle capacity first](./screenshots/web-overview-cluster.png)
+
 ### Estimate controls
 
 The resource picker uses the same live inventory as `finfocus cost estimate`,
@@ -411,6 +433,12 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST /api/forecast/query` when no resource was priced, or priced resources use two currencies | 422 | `no_forecast` | The message `cost forecast` prints, such as `no cost data available`. |
 | `POST /api/forecast/query` before the session has loaded | 503 | `not_ready` | `forecast data is loading` |
 | `POST /api/forecast/query` whose pricing fails | 502 | `forecast_unavailable` | `forecast data unavailable` |
+| `POST /api/cluster/query` | 200 | - | The `cost cluster --output json` document plus `status: "ok"` and `display` strings. The body takes `context`, `namespace`, `selector`, `groupBy`, `from`, `to`, `usageSource`, `allocator`, and `policy` (HuJSON text, not a path), each in the flag's syntax. |
+| `POST /api/cluster/query` or `/api/cluster/policy` when no plugin provides `usage_stats` or `allocation` | 200 | `cluster_plugin_missing` | `status: "unavailable"`, the missing `capability`, and the message `cost cluster` prints. |
+| `POST /api/cluster/policy` | 200 | - | The `cost cluster --show-policy --output json` document (`source`, `digest`, `effective`) plus `status: "ok"` and `display`. The body takes `allocator` and `policy`. |
+| `POST /api/cluster/query` or `/api/cluster/policy` with input `cost cluster` rejects with exit 2 | 400 | `invalid_cluster_query` | The message `cost cluster` prints for the same flags. |
+| `POST /api/cluster/query` or `/api/cluster/policy` before the session has loaded | 503 | `not_ready` | `cluster data is loading` |
+| `POST /api/cluster/query` or `/api/cluster/policy` whose plugins fail | 502 | `cluster_unavailable` | `cluster data unavailable` |
 | `GET /api/logs/status` | 200 | - | `enabled`, `capacity`, `retained`, `dropped`, and `sources` (each with `name` and `kind`, `core` or `plugin`). |
 | `GET /api/logs/status` while web logs are off | 200 | - | `enabled` is false. `capacity`, `retained`, and `dropped` are 0. `sources` is an empty list. |
 | `GET /api/logs/stream` | 200 | - | Server-sent events: `snapshot` (`entries`, `sources`, `dropped`, `capacity`), then `log` for each new entry, and `gap` (`missed`) when entries were lost between a reconnect and its replay. Each frame's `id` is the entry's `seq`. Send `Last-Event-ID` to resume. A comment line is sent every 15 seconds. |

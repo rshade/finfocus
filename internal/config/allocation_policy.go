@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -34,36 +35,81 @@ type AllocationPolicy struct {
 // ax-go's config error code and exit 2 and names the file instead of "config".
 func ResolveAllocationPolicy(ctx context.Context, flagPath string) (AllocationPolicy, error) {
 	if flagPath != "" {
-		return readAllocationPolicy(ctx, flagPath)
+		return readAllocationPolicy(ctx, flagPath, flagPath)
 	}
-	var candidates []string
-	if dir := GetResolvedProjectDir(); dir != "" {
-		candidates = append(candidates, filepath.Join(dir, AllocationPolicyFile))
-	}
-	candidates = append(candidates, filepath.Join(ResolveConfigDir(), AllocationPolicyFile))
-	for _, path := range candidates {
-		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+	for _, c := range allocationPolicyCandidates() {
+		if _, err := os.Stat(c.path); errors.Is(err, os.ErrNotExist) {
 			continue
 		}
-		return readAllocationPolicy(ctx, path)
+		return readAllocationPolicy(ctx, c.path, c.path)
 	}
 	return AllocationPolicy{}, nil
 }
 
-func readAllocationPolicy(ctx context.Context, path string) (AllocationPolicy, error) {
+// Labels that name a discovered allocation policy by its tier.
+const (
+	ProjectAllocationPolicyLabel = "project " + AllocationPolicyFile
+	GlobalAllocationPolicyLabel  = "global " + AllocationPolicyFile
+)
+
+// ResolveDiscoveredAllocationPolicy finds the policy ResolveAllocationPolicy
+// finds without a flag, but names it by its tier (ProjectAllocationPolicyLabel
+// or GlobalAllocationPolicyLabel) instead of its path, in the result and in
+// every error. The web dashboard uses it, so no server path reaches the page.
+func ResolveDiscoveredAllocationPolicy(ctx context.Context) (AllocationPolicy, error) {
+	for _, c := range allocationPolicyCandidates() {
+		if _, err := os.Stat(c.path); errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		return readAllocationPolicy(ctx, c.path, c.label)
+	}
+	return AllocationPolicy{}, nil
+}
+
+type allocationPolicyCandidate struct {
+	path  string
+	label string
+}
+
+// allocationPolicyCandidates lists the discovered policy files in precedence
+// order: the project config dir, then the global one.
+func allocationPolicyCandidates() []allocationPolicyCandidate {
+	var candidates []allocationPolicyCandidate
+	if dir := GetResolvedProjectDir(); dir != "" {
+		candidates = append(candidates, allocationPolicyCandidate{
+			path: filepath.Join(dir, AllocationPolicyFile), label: ProjectAllocationPolicyLabel,
+		})
+	}
+	return append(candidates, allocationPolicyCandidate{
+		path: filepath.Join(ResolveConfigDir(), AllocationPolicyFile), label: GlobalAllocationPolicyLabel,
+	})
+}
+
+// readAllocationPolicy reads the policy file at path. source names it in
+// errors and in the result: the path itself, or a label that hides it.
+func readAllocationPolicy(ctx context.Context, path, source string) (AllocationPolicy, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return AllocationPolicy{}, policyReadError(path, err)
+		return AllocationPolicy{}, policyReadError(source, err)
 	}
 	defer func() { _ = f.Close() }()
+	return ParseAllocationPolicy(ctx, f, source)
+}
+
+// ParseAllocationPolicy reads a policy document from r with the same HuJSON
+// rules, size limit, and error text as a policy file. source is the file path
+// or, for text a caller supplied, a label such as "request body"; errors name
+// it and the result carries it as the policy source. A null document is no
+// policy (plugin defaults).
+func ParseAllocationPolicy(ctx context.Context, r io.Reader, source string) (AllocationPolicy, error) {
 	var data json.RawMessage
-	if parseErr := ax.ParseConfig(ctx, f, &data); parseErr != nil {
-		return AllocationPolicy{}, policyParseError(ctx, path, parseErr)
+	if parseErr := ax.ParseConfig(ctx, r, &data); parseErr != nil {
+		return AllocationPolicy{}, policyParseError(ctx, source, parseErr)
 	}
 	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
 		data = nil
 	}
-	return AllocationPolicy{JSON: data, Source: path}, nil
+	return AllocationPolicy{JSON: data, Source: source}, nil
 }
 
 // policyReadError names the file once: an [fs.PathError] would repeat it.
