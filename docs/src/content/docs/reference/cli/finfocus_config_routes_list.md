@@ -57,5 +57,5 @@ finfocus config routes list [flags]
 
 ## See also
 
-- [finfocus config routes](./finfocus_config_routes.md) -
+- [`finfocus config routes`](./finfocus_config_routes.md) -
   Plugin routing commands

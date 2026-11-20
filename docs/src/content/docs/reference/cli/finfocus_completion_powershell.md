@@ -51,5 +51,5 @@ finfocus completion powershell [flags]
 
 ## See also
 
-- [finfocus completion](./finfocus_completion.md) -
+- [`finfocus completion`](./finfocus_completion.md) -
   Generate the autocompletion script for the specified shell

@@ -17,9 +17,10 @@ import (
 
 // InstalledPlugin represents an installed plugin entry in config file.
 type InstalledPlugin struct {
-	Name    string `yaml:"name"    json:"name"`
-	URL     string `yaml:"url"     json:"url"`
-	Version string `yaml:"version" json:"version"`
+	Name     string `yaml:"name"               json:"name"`
+	URL      string `yaml:"url"                json:"url"`
+	Version  string `yaml:"version"            json:"version"`
+	Registry string `yaml:"registry,omitempty" json:"registry,omitempty"`
 }
 
 // InstalledPluginsConfig holds the installed plugins list.

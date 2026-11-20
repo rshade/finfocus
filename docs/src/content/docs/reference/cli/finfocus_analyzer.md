@@ -56,13 +56,13 @@ that appear in the CLI output.
 
 ## See also
 
-- [finfocus](./finfocus.md) -
+- [`finfocus`](./finfocus.md) -
   FinFocus CLI and plugin host
-- [finfocus analyzer check](./finfocus_analyzer_check.md) -
+- [`finfocus analyzer check`](./finfocus_analyzer_check.md) -
   Verify analyzer setup health
-- [finfocus analyzer install](./finfocus_analyzer_install.md) -
+- [`finfocus analyzer install`](./finfocus_analyzer_install.md) -
   Install the Pulumi analyzer plugin
-- [finfocus analyzer serve](./finfocus_analyzer_serve.md) -
+- [`finfocus analyzer serve`](./finfocus_analyzer_serve.md) -
   Start the Pulumi Analyzer gRPC server
-- [finfocus analyzer uninstall](./finfocus_analyzer_uninstall.md) -
+- [`finfocus analyzer uninstall`](./finfocus_analyzer_uninstall.md) -
   Uninstall the Pulumi analyzer plugin

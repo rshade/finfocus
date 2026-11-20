@@ -39,21 +39,21 @@ Cost calculation commands
 
 ## See also
 
-- [finfocus](./finfocus.md) -
+- [`finfocus`](./finfocus.md) -
   FinFocus CLI and plugin host
-- [finfocus cost actual](./finfocus_cost_actual.md) -
+- [`finfocus cost actual`](./finfocus_cost_actual.md) -
   Fetch actual historical costs
-- [finfocus cost anomalies](./finfocus_cost_anomalies.md) -
+- [`finfocus cost anomalies`](./finfocus_cost_anomalies.md) -
   List resources whose month-to-date run-rate diverged from the projection
-- [finfocus cost cluster](./finfocus_cost_cluster.md) -
+- [`finfocus cost cluster`](./finfocus_cost_cluster.md) -
   Break down Kubernetes cluster cost by namespace, controller, pod, node, or label
-- [finfocus cost estimate](./finfocus_cost_estimate.md) -
+- [`finfocus cost estimate`](./finfocus_cost_estimate.md) -
   Estimate costs for what-if scenarios
-- [finfocus cost forecast](./finfocus_cost_forecast.md) -
+- [`finfocus cost forecast`](./finfocus_cost_forecast.md) -
   Project future monthly spend from current cost and plugin growth
-- [finfocus cost history](./finfocus_cost_history.md) -
+- [`finfocus cost history`](./finfocus_cost_history.md) -
   Collect and view projected cost history
-- [finfocus cost projected](./finfocus_cost_projected.md) -
+- [`finfocus cost projected`](./finfocus_cost_projected.md) -
   Calculate projected costs from a Pulumi or Terraform plan
-- [finfocus cost recommendations](./finfocus_cost_recommendations.md) -
+- [`finfocus cost recommendations`](./finfocus_cost_recommendations.md) -
   Get cost optimization recommendations

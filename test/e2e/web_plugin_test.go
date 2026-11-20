@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -116,7 +117,11 @@ func TestWebUIPluginCatalogInstallAndSettings(t *testing.T) {
 	}`)
 	webTab(t, page, "#plugin-confirm-accept")
 	require.NoError(t, page.Keyboard().Press("Enter"))
-	webWait(t, page, `() => document.querySelector('#plugin-message')?.textContent.includes('next time this plugin is launched')`)
+	webWait(
+		t,
+		page,
+		`() => document.querySelector('#plugin-message')?.textContent.includes('next time this plugin is launched')`,
+	)
 
 	projectConfig := filepath.Join(session.project, ".finfocus", "config.hujson")
 	saved, err := os.ReadFile(projectConfig)
@@ -211,4 +216,56 @@ func writeRelease(t *testing.T, w http.ResponseWriter, origin, assetName string,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	require.NoError(t, json.NewEncoder(w).Encode(release))
+}
+
+//nolint:paralleltest // Browser journey shares the Playwright driver process.
+func TestWebUIPluginCustomRegistry(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("SSL_CERT_FILE trust for the TLS fixture is supported on Linux")
+	}
+	f := newWebFixture(t)
+	host := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/registry.json":
+			_, _ = io.WriteString(w, `{"schema_version":"1.0.0","plugins":{"provisioning":{
+				"name":"provisioning","description":"Infrastructure plugin","repository":"company/provisioning",
+				"author":"Company","supported_providers":["custom"],"min_spec_version":"0.1.0"}}}`)
+		case "/repos/company/provisioning/releases/latest", "/repos/company/provisioning/releases/tags/0.1.0":
+			writeRelease(t, w, "https://"+r.Host, "provisioning.tar.gz", 100)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(host.Close)
+	ca := filepath.Join(t.TempDir(), "registry-ca.pem")
+	require.NoError(t, os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{
+		Type: "CERTIFICATE", Bytes: host.Certificate().Raw,
+	}), 0o600))
+
+	browser := webBrowser(t)
+	session := f.start(t, filepath.Join(f.root, "testdata/simple-plan.json"), false,
+		"FINFOCUS_GITHUB_API="+host.URL, "SSL_CERT_FILE="+ca)
+	page := webPage(t, browser, session, playwright.ColorSchemeLight)
+	webRoute(t, page, "plugins")
+	require.NoError(t, page.Locator("#plugin-registry-name").Fill("workspace"))
+	require.NoError(t, page.Locator("#plugin-registry-url").Fill(host.URL+"/registry.json"))
+	require.NoError(t, page.Locator("#plugin-registry-add").Click())
+	webWait(t, page, `() => document.querySelector('#plugin-install-provisioning') !== null`)
+	require.Contains(t, mustText(t, page, "#plugin-registry-list"), "workspace")
+	require.NoError(t, page.Locator("#plugin-install-provisioning").Click())
+	webWait(
+		t,
+		page,
+		`() => document.querySelector('#plugin-confirm-dialog[open] #plugin-registry-confirmation') !== null`,
+	)
+	require.Contains(t, mustText(t, page, "#plugin-confirm-summary"), "workspace")
+
+	confirmButton := page.Locator("#plugin-confirm-accept")
+	disabled, err := confirmButton.IsDisabled()
+	require.NoError(t, err)
+	require.True(t, disabled)
+	require.NoError(t, page.Locator("#plugin-registry-confirmation").Fill("workspace"))
+	disabled, err = confirmButton.IsDisabled()
+	require.NoError(t, err)
+	require.False(t, disabled)
 }

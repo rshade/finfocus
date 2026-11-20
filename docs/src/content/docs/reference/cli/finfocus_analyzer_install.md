@@ -64,5 +64,5 @@ finfocus analyzer install [flags]
 
 ## See also
 
-- [finfocus analyzer](./finfocus_analyzer.md) -
+- [`finfocus analyzer`](./finfocus_analyzer.md) -
   Pulumi Analyzer plugin commands

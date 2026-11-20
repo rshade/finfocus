@@ -62,28 +62,13 @@ func ShallowMergeYAML(target *Config, overlayPath string) error {
 		return fmt.Errorf("reading overlay file %s: %w", overlayPath, err)
 	}
 
-	// Try to parse as Hujson/JSON first (ax.ParseConfig strips comments and
-	// trailing commas before delegating to encoding/json, so a genuine Hujson
-	// overlay - like the skeleton SaveProjectSkeleton writes - parses here;
-	// plain json.Unmarshal would reject its "//" comments outright).
-	var overlay map[string]json.RawMessage
-	if parseErr := ax.ParseConfig(context.Background(), bytes.NewReader(data), &overlay); parseErr != nil {
-		// Hujson/JSON parsing failed, try YAML as fallback for legacy files
-		var yamlOverlay map[string]any
-		if yamlErr := yaml.Unmarshal(data, &yamlOverlay); yamlErr != nil {
-			return fmt.Errorf("parsing overlay file from %s (tried Hujson and YAML): %w", overlayPath, yamlErr)
-		}
-		// Convert YAML map to JSON RawMessage map
-		overlay = make(map[string]json.RawMessage)
-		for key, value := range yamlOverlay {
-			if !knownTopLevelKeys[key] {
-				continue
-			}
-			jsonBytes, marshalErr := json.Marshal(value)
-			if marshalErr != nil {
-				return fmt.Errorf("converting overlay section %q to JSON: %w", key, marshalErr)
-			}
-			overlay[key] = jsonBytes
+	overlay, err := parseProjectOverlay(data, overlayPath)
+	if err != nil {
+		return err
+	}
+	for key := range overlay {
+		if pluginRegistryKey(key) != "" {
+			return fmt.Errorf("%w: %s", ErrPluginRegistriesGlobalOnly, key)
 		}
 	}
 
@@ -103,6 +88,31 @@ func ShallowMergeYAML(target *Config, overlayPath string) error {
 	}
 
 	return nil
+}
+
+func parseProjectOverlay(data []byte, path string) (map[string]json.RawMessage, error) {
+	// HuJSON preserves support for line comments and trailing commas.
+	var overlay map[string]json.RawMessage
+	if err := ax.ParseConfig(context.Background(), bytes.NewReader(data), &overlay); err == nil {
+		return overlay, nil
+	}
+
+	var legacy map[string]any
+	if err := yaml.Unmarshal(data, &legacy); err != nil {
+		return nil, fmt.Errorf("parsing overlay file from %s (tried Hujson and YAML): %w", path, err)
+	}
+	overlay = make(map[string]json.RawMessage)
+	for key, value := range legacy {
+		if !knownTopLevelKeys[key] && pluginRegistryKey(key) == "" {
+			continue
+		}
+		jsonBytes, err := json.Marshal(value)
+		if err != nil {
+			return nil, fmt.Errorf("converting overlay section %q to JSON: %w", key, err)
+		}
+		overlay[key] = jsonBytes
+	}
+	return overlay, nil
 }
 
 func applyCostSection(target *Config, data []byte) error {

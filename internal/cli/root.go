@@ -367,7 +367,7 @@ func newPluginCmd() *cobra.Command {
 	cmd.AddCommand(
 		NewPluginValidateCmd(), NewPluginListCmd(), NewPluginInitCmd(),
 		NewPluginInstallCmd(), NewPluginUpdateCmd(), NewPluginUpgradeCmd(), NewPluginRemoveCmd(),
-		NewPluginConformanceCmd(), NewPluginCertifyCmd(), NewPluginInspectCmd(),
+		NewPluginConformanceCmd(), NewPluginCertifyCmd(), NewPluginInspectCmd(), newPluginRegistryCmd(),
 	)
 	return cmd
 }

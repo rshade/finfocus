@@ -63,5 +63,5 @@ finfocus cost recommendations undismiss <recommendation-id> [flags]
 
 ## See also
 
-- [finfocus cost recommendations](./finfocus_cost_recommendations.md) -
+- [`finfocus cost recommendations`](./finfocus_cost_recommendations.md) -
   Get cost optimization recommendations

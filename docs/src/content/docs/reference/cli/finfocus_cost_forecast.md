@@ -97,5 +97,5 @@ finfocus cost forecast [flags]
 
 ## See also
 
-- [finfocus cost](./finfocus_cost.md) -
+- [`finfocus cost`](./finfocus_cost.md) -
   Cost calculation commands

@@ -134,6 +134,7 @@ async function open() {
   const t = await setup('plugins');
   assert.equal(t.calls[0].path, '/api/plugins/catalog');
   t.calls[0].resolve(catalog());
+  t.calls[1].resolve({ registries: [] });
   await flush();
   return t;
 }
@@ -471,7 +472,7 @@ test('an empty secret is omitted and a typed replacement is sent', async () => {
   const secret = t.container.querySelector('#plugin-setting-api_key');
   assert.equal(secret.value, '');
   t.container.querySelector('#plugin-save').dispatch('click');
-  assert.equal(t.calls.length, 2);
+  assert.equal(t.calls.length, 3);
   assert.match(t.container.querySelector('#plugin-message').textContent, /No changes/);
 
   secret.value = 'next-secret';
@@ -519,5 +520,88 @@ test('a stored secret bool can be removed even though it renders as a masked inp
   t.container.querySelector('#plugin-clear-allow_credentials').checked = true;
   t.container.querySelector('#plugin-save').dispatch('click');
   assert.deepEqual(body(t.calls.at(-1)).changes, [{ key: 'plugins.aws.allow_credentials', clear: true }]);
+  t.mounted.unmount();
+});
+
+test('custom registry panel adds, refreshes, and removes sources', async () => {
+  const t = await open();
+  const inputName = t.container.querySelector('#plugin-registry-name');
+  const inputURL = t.container.querySelector('#plugin-registry-url');
+  const inputTrust = t.container.querySelector('#plugin-registry-trust');
+  inputName.value = 'work';
+  inputURL.value = 'https://registry.example/index.json';
+  inputTrust.value = 'experimental';
+  t.container.querySelector('#plugin-registry-form').dispatch('submit');
+  const add = t.calls.at(-1);
+  assert.equal(add.path, '/api/plugins/registries');
+  assert.deepEqual(body(add), { name: 'work', url: inputURL.value, trust: 'experimental' });
+  add.resolve(null);
+  await flush();
+  const index = t.calls.filter((call) => call.path === '/api/plugins/catalog').at(-1);
+  const next = catalog();
+  next.plugins[0].registry = 'work';
+  index.resolve(next);
+  t.calls.filter((call) => call.path === '/api/plugins/registries' && call.body === null).at(-1).resolve({
+    registries: [{ name: 'work', url: 'https://registry.example/index.json', trust: 'experimental' }],
+  });
+  await flush();
+  assert.match(t.container.querySelector('#plugins-list').textContent, /Registry: work/);
+  assert.match(t.container.querySelector('#plugin-registries').textContent, /registry\.example\/index\.json/);
+  const originalCatalogCalls = t.calls.filter((call) => call.path === '/api/plugins/catalog').length;
+  t.container.querySelector('#plugin-registry-refresh').dispatch('click');
+  assert.equal(t.calls.filter((call) => call.path === '/api/plugins/catalog').length, originalCatalogCalls + 1);
+  t.calls.filter((call) => call.path === '/api/plugins/catalog').at(-1).resolve(next);
+  t.calls.filter((call) => call.path === '/api/plugins/registries' && call.body === null).at(-1).resolve({
+    registries: [{ name: 'work', url: 'https://registry.example/index.json', trust: 'experimental' }],
+  });
+  await flush();
+
+  t.container.querySelector('#plugin-registry-remove-work').dispatch('click');
+  assert.equal(t.calls.at(-1).path, '/api/plugin-registries/work');
+  t.calls.at(-1).resolve(null);
+  await flush();
+  t.calls.filter((call) => call.path === '/api/plugins/catalog').at(-1).resolve(catalog());
+  t.calls.filter((call) => call.path === '/api/plugins/registries' && call.body === null).at(-1).resolve({ registries: [] });
+  await flush();
+  assert.match(t.container.querySelector('#plugin-registries').textContent, /No custom registries/);
+  t.mounted.unmount();
+});
+
+test('first custom install requires the exact registry name and source revision', async () => {
+  const t = await setup('plugins');
+  const next = catalog();
+  next.plugins[0].registry = 'work';
+  t.calls[0].resolve(next);
+  await flush();
+  t.container.querySelector('#plugin-install-recorder').dispatch('click');
+  assert.deepEqual(body(t.calls.at(-1)), { action: 'install', version: '1.2.3', registry: 'work' });
+  t.calls.at(-1).resolve(plan({
+    registry: 'work',
+    registryRevision: 'source-revision',
+    registryConfirmationRequired: true,
+  }));
+  await flush();
+  const accept = t.container.querySelector('#plugin-confirm-accept');
+  const typed = t.container.querySelector('#plugin-registry-confirmation');
+  assert.equal(accept.disabled, true);
+  typed.value = 'WORK';
+  typed.dispatch('input');
+  accept.dispatch('click');
+  assert.equal(t.calls.some((call) => call.path === '/api/plugins/recorder/install'), false);
+  typed.value = 'work';
+  typed.dispatch('input');
+  assert.equal(accept.disabled, false);
+  accept.dispatch('click');
+  assert.equal(t.calls.at(-1).path, '/api/plugins/recorder/install');
+  assert.deepEqual(body(t.calls.at(-1)), {
+    version: '1.2.3',
+    repository: 'rshade/finfocus-plugin-recorder',
+    securityLevel: 'community',
+    acceptMissingChecksum: false,
+    acceptFallbackFrom: '',
+    registry: 'work',
+    registryRevision: 'source-revision',
+    registryConfirmation: 'work',
+  });
   t.mounted.unmount();
 });

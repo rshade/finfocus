@@ -47,6 +47,8 @@ type InstallOptions struct {
 	// secureMode is set by the installer when FINFOCUS_SECURE_PLUGINS forced the
 	// checksum policy, so a failure can name the variable.
 	secureMode bool
+	// registrySource persists provenance for custom installs.
+	registrySource string
 }
 
 // InstallResult contains the result of a plugin installation.
@@ -64,6 +66,8 @@ type InstallResult struct {
 type Installer struct {
 	client    *GitHubClient
 	pluginDir string
+	// recordInstalled overrides provenance persistence in tests.
+	recordInstalled func(config.InstalledPlugin) error
 }
 
 // HintsForEntry builds asset naming hints from a registry entry.
@@ -179,11 +183,15 @@ func (i *Installer) installFromRegistry(
 		return nil, fmt.Errorf("failed to access registry: %w", err)
 	}
 
-	// Validate entry
 	if validateErr := ValidateRegistryEntry(*entry); validateErr != nil {
 		return nil, validateErr
 	}
+	return i.installCatalogEntry(ctx, spec, entry, opts, report)
+}
 
+func (i *Installer) installCatalogEntry(
+	ctx context.Context, spec *PluginSpecifier, entry *RegistryEntry, opts InstallOptions, report progressReport,
+) (*InstallResult, error) {
 	// Parse repository
 	owner, repo, err := parseOwnerRepo(entry.Repository)
 	if err != nil {
@@ -331,6 +339,9 @@ func (i *Installer) installRelease(
 	hints *AssetNamingHints,
 ) (*InstallResult, error) {
 	version := CanonicalVersion(release.TagName, tagPrefixOf(hints))
+	if opts.registrySource != "" && !IsValidVersion(version) {
+		return nil, errors.New("custom registry release does not have a semantic version")
+	}
 
 	// Determine plugin directory
 	pluginDir := i.pluginDir
@@ -405,17 +416,13 @@ func (i *Installer) installRelease(
 		}
 	}
 
-	// Save to config unless --no-save
-	if !opts.NoSave {
-		plugin := config.InstalledPlugin{
-			Name:    name,
-			URL:     fmt.Sprintf("github.com/%s", repository),
-			Version: version,
-		}
-		if addErr := config.AddInstalledPlugin(plugin); addErr != nil {
-			// Non-fatal, just warn
-			report.msg(fmt.Sprintf("Warning: failed to save to config: %v", addErr))
-		}
+	if saveErr := i.persistInstall(installDir, config.InstalledPlugin{
+		Name:     name,
+		URL:      fmt.Sprintf("github.com/%s", repository),
+		Version:  version,
+		Registry: opts.registrySource,
+	}, opts, report); saveErr != nil {
+		return nil, saveErr
 	}
 
 	report.msg(fmt.Sprintf("Successfully installed %s@%s", name, version))
@@ -425,6 +432,38 @@ func (i *Installer) installRelease(
 		Version: version,
 		Path:    installDir,
 	}, nil
+}
+
+// persistInstall writes provenance. A custom install fails when that write
+// fails. A built-in install warns and still succeeds. NoSave writes nothing.
+// A new custom directory holds only this attempt, so a failed save removes
+// it. A forced overwrite already replaced the previous files, and deleting
+// the directory would not restore them.
+func (i *Installer) persistInstall(
+	installDir string, plugin config.InstalledPlugin, opts InstallOptions, report progressReport,
+) error {
+	if opts.NoSave {
+		return nil
+	}
+	addErr := i.saveProvenance(plugin)
+	if addErr == nil {
+		return nil
+	}
+	if opts.registrySource == "" {
+		report.msg(fmt.Sprintf("Warning: failed to save to config: %v", addErr))
+		return nil
+	}
+	if !opts.Force {
+		_ = os.RemoveAll(installDir)
+	}
+	return fmt.Errorf("saving custom registry install: %w", addErr)
+}
+
+func (i *Installer) saveProvenance(plugin config.InstalledPlugin) error {
+	if i.recordInstalled != nil {
+		return i.recordInstalled(plugin)
+	}
+	return config.AddInstalledPlugin(plugin)
 }
 
 // downloadAndVerify downloads the release asset to a temp file, optionally verifies
@@ -746,10 +785,9 @@ func (i *Installer) Update(
 	}
 	defer unlock()
 
-	// Get installed plugin info
-	installed, err := config.GetInstalledPlugin(name)
+	installed, err := loadUpdatePlugin(name)
 	if err != nil {
-		return nil, fmt.Errorf("plugin %q is not installed", name)
+		return nil, err
 	}
 
 	// Look up in registry first, then try as URL
@@ -851,6 +889,18 @@ func (i *Installer) Update(
 		NewVersion: newVersion,
 		Path:       result.Path,
 	}, nil
+}
+
+func loadUpdatePlugin(name string) (*config.InstalledPlugin, error) {
+	installed, err := config.GetInstalledPlugin(name)
+	if err != nil {
+		return nil, fmt.Errorf("plugin %q is not installed", name)
+	}
+	if installed.Registry != "" {
+		return nil, fmt.Errorf("plugin %q belongs to custom registry %q; use plugin registry install to update it",
+			name, installed.Registry)
+	}
+	return installed, nil
 }
 
 // resolvePluginSource resolves the GitHub owner, repo, and asset hints for a plugin.

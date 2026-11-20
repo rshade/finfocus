@@ -123,6 +123,7 @@ function describePlugin(plugin) {
   if (plugin.providers?.length) parts.push(`Providers: ${plugin.providers.join(', ')}`);
   if (plugin.capabilities?.length) parts.push(`Capabilities: ${plugin.capabilities.join(', ')}`);
   if (plugin.repository) parts.push(`Repository: ${plugin.repository}`);
+  if (plugin.registry) parts.push(`Registry: ${plugin.registry}`);
   return parts.join('. ');
 }
 
@@ -145,6 +146,7 @@ function operationSummary(plan) {
     `Repository ${plan.repository ?? ''}`,
     `Security level ${plan.securityLevel ?? ''}`,
   ];
+  if (plan.registry) lines.push(`Registry ${plan.registry}`);
   if (plan.checksumFile === 'missing') lines.push('This release has no checksum file.');
   if (plan.fallbackFrom) {
     lines.push(`Version ${plan.fallbackFrom} has no files. Confirm to use version ${plan.version} instead.`);
@@ -163,8 +165,10 @@ export function mount(container, { api }) {
   let settingsTier = 'project';
   let pending = null;
   let holdPending = false;
+  let confirming = null;
   let operationSource = null;
   let catalogGeneration = 0;
+  let registriesGeneration = 0;
   let settingsGeneration = 0;
   let planGeneration = 0;
   const usedIds = new Set();
@@ -172,6 +176,37 @@ export function mount(container, { api }) {
   const message = el('p', { id: 'plugin-message', class: 'config-message', role: 'status' });
   const errorBanner = el('div', { id: 'plugin-error', class: 'error-banner', role: 'alert' });
   const progress = el('p', { id: 'plugin-progress', class: 'config-note', role: 'status' });
+  const registryList = el('div', { id: 'plugin-registry-list' });
+  const registryStatus = el('p', { id: 'plugin-registry-status', class: 'config-note', role: 'status' });
+  const registryName = el('input', {
+    id: 'plugin-registry-name', required: '', class: 'filter-input',
+  });
+  const registryURL = el('input', {
+    id: 'plugin-registry-url', class: 'filter-input', type: 'url', required: '', autocomplete: 'off',
+  });
+  const registryTrust = el('select', { id: 'plugin-registry-trust', class: 'filter-input' },
+    el('option', { value: 'community', text: 'Community' }),
+    el('option', { value: 'experimental', text: 'Experimental' }),
+  );
+  const registrySHA256 = el('input', {
+    id: 'plugin-registry-sha256', class: 'filter-input', pattern: '[A-Fa-f0-9]{64}',
+  });
+  const addRegistry = el('button', { id: 'plugin-registry-add', type: 'submit', text: 'Add registry' });
+  const refreshRegistries = el('button', { id: 'plugin-registry-refresh', type: 'button', text: 'Refresh registries' });
+  const registryForm = el('form', { id: 'plugin-registry-form', class: 'toolbar plugin-registry-form' },
+    registryField('Registry name', registryName),
+    registryField('HTTPS index URL', registryURL),
+    registryField('Trust', registryTrust),
+    registryField('Index SHA-256 (optional)', registrySHA256),
+    addRegistry,
+    refreshRegistries,
+  );
+  const registries = el('section', { id: 'plugin-registries', 'aria-labelledby': 'plugin-registries-heading' },
+    el('h3', { id: 'plugin-registries-heading', text: 'Registries' }),
+    registryForm,
+    registryStatus,
+    registryList,
+  );
   const list = el('div', { id: 'plugins-list' });
   const settings = el('section', { id: 'plugin-settings' });
   const summary = el('div', { id: 'plugin-confirm-summary' });
@@ -195,6 +230,7 @@ export function mount(container, { api }) {
     message,
     errorBanner,
     progress,
+    registries,
     list,
     settings,
     dialog);
@@ -206,6 +242,93 @@ export function mount(container, { api }) {
   accept.addEventListener('click', () => { void confirmPending(); });
   cancel.addEventListener('click', () => { if (dialog.open) dialog.close(); });
   dialog.addEventListener('close', () => { if (!holdPending) pending = null; });
+  registryForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const body = {
+      name: registryName.value.trim(),
+      url: registryURL.value.trim(),
+      trust: registryTrust.value || 'community',
+    };
+    const sha256 = registrySHA256.value.trim();
+    if (sha256) body.sha256 = sha256;
+    void changeRegistry(addRegistry, async () => {
+      await api.post('/api/plugins/registries', body);
+      registryName.value = '';
+      registryURL.value = '';
+      registrySHA256.value = '';
+    }, 'Registry added.');
+  });
+  refreshRegistries.addEventListener('click', () => {
+    hideError();
+    void refreshRegistryCatalog();
+  });
+
+  function registryField(label, input) {
+    return el('label', { class: 'filter-label', text: label }, input);
+  }
+
+  function renderRegistries(rows) {
+    if (rows.length === 0) {
+      registryList.replaceChildren(el('p', { class: 'config-note', text: 'No custom registries.' }));
+      return;
+    }
+    registryList.replaceChildren(el('div', { class: 'table-wrap' },
+      el('table', { class: 'config-table' },
+        el('caption', { text: 'Custom registry sources' }),
+        el('thead', {}, el('tr', {},
+          el('th', { text: 'Registry' }),
+          el('th', { text: 'Index' }),
+          el('th', { text: 'Trust' }),
+          el('th', { text: 'Actions' }),
+        )),
+        el('tbody', {}, ...rows.map((row) => el('tr', {},
+          el('th', { scope: 'row', text: row.name }),
+          el('td', { class: 'plugin-registry-url', text: row.url }),
+          el('td', { text: row.trust }),
+          el('td', {}, actionButton(`plugin-registry-remove-${row.name}`, `Remove ${row.name}`, (button) => (
+            changeRegistry(button, () => api.del(`/api/plugin-registries/${encodeURIComponent(row.name)}`), 'Registry removed.')
+          ))),
+        ))),
+      )));
+  }
+
+  async function loadRegistries(loadedMessage = '') {
+    const generation = ++registriesGeneration;
+    registryStatus.textContent = 'Loading registries…';
+    try {
+      const data = await api.get('/api/plugins/registries');
+      if (!alive || generation !== registriesGeneration) return;
+      renderRegistries(Array.isArray(data?.registries) ? data.registries : []);
+      registryStatus.textContent = loadedMessage;
+    } catch (err) {
+      if (!alive || generation !== registriesGeneration) return;
+      registryStatus.textContent = 'Registries could not be loaded.';
+      showError(err);
+    }
+  }
+
+  async function refreshRegistryCatalog(loadedMessage) {
+    refreshRegistries.disabled = true;
+    const loading = loadRegistries(loadedMessage);
+    const generation = registriesGeneration;
+    await Promise.all([loading, loadCatalog(false)]);
+    if (alive && generation === registriesGeneration) refreshRegistries.disabled = false;
+  }
+
+  async function changeRegistry(button, change, loadedMessage) {
+    if (button.disabled) return;
+    button.disabled = true;
+    hideError();
+    try {
+      await change();
+      if (alive) await refreshRegistryCatalog(loadedMessage);
+    } catch (err) {
+      if (alive) showError(err);
+    } finally {
+      if (alive && button.isConnected) button.disabled = false;
+    }
+  }
+
 
   function setMessage(text) {
     message.textContent = text;
@@ -227,6 +350,7 @@ export function mount(container, { api }) {
     holdPending = true;
     if (dialog.open) dialog.close();
     holdPending = false;
+    accept.disabled = confirming === pending || !canConfirm(pending);
     dialog.showModal();
   }
 
@@ -269,7 +393,7 @@ export function mount(container, { api }) {
 
   function loadCatalog(initial) {
     const generation = ++catalogGeneration;
-    api.get('/api/plugins/catalog').then((data) => {
+    return api.get('/api/plugins/catalog').then((data) => {
       if (!alive || generation !== catalogGeneration) return;
       plugins = Array.isArray(data?.plugins) ? data.plugins : [];
       renderList();
@@ -354,11 +478,12 @@ export function mount(container, { api }) {
     try {
       const body = { action };
       if (version) body.version = version;
+      if (plugin.registry && action !== 'remove') body.registry = plugin.registry;
       const plan = await api.post(`/api/plugins/${encodeURIComponent(plugin.name)}/plan`, body);
       if (!alive || generation !== planGeneration) return;
       pending = { kind: 'operation', plan, action: plan?.action || action };
       title.textContent = `Confirm ${pending.action}`;
-      summary.textContent = operationSummary(plan);
+      fillOperationSummary(pending);
       showDialog();
     } catch (err) {
       if (!alive) return;
@@ -366,6 +491,38 @@ export function mount(container, { api }) {
     } finally {
       if (alive && button.isConnected) button.disabled = false;
     }
+  }
+
+  function canConfirm(current) {
+    if (current?.kind !== 'operation' || !current.plan.registry) return true;
+    const { plan, registryInput } = current;
+    return plan.checksumFile === 'present' && Boolean(plan.registryRevision)
+      && (!plan.registryConfirmationRequired || registryInput?.value === plan.registry);
+  }
+
+  function fillOperationSummary(current) {
+    const { plan } = current;
+    summary.replaceChildren(el('p', { text: operationSummary(plan) }));
+    if (!plan.registry) return;
+    if (plan.checksumFile !== 'present') {
+      summary.append(el('p', { class: 'config-note', text: 'Custom registries require release checksums.' }));
+      return;
+    }
+    if (!plan.registryRevision) {
+      summary.append(el('p', { class: 'config-note', text: 'The registry could not be verified.' }));
+      return;
+    }
+    if (!plan.registryConfirmationRequired) return;
+    const input = el('input', {
+      id: 'plugin-registry-confirmation',
+      class: 'filter-input',
+      type: 'text',
+      autocomplete: 'off',
+      spellcheck: 'false',
+    });
+    current.registryInput = input;
+    input.addEventListener('input', () => { accept.disabled = confirming === current || !canConfirm(current); });
+    summary.append(registryField(`Type ${plan.registry} to confirm this registry`, input));
   }
 
   async function validatePlugin(plugin, button) {
@@ -527,6 +684,7 @@ export function mount(container, { api }) {
       settings.replaceChildren();
       setHidden(settings, true);
       setHidden(list, false);
+      setHidden(registries, false);
       return;
     }
     if (!settingsView.projectAvailable && settingsTier === 'project') settingsTier = 'global';
@@ -581,6 +739,7 @@ export function mount(container, { api }) {
     ].filter((node) => node != null));
     setHidden(settings, false);
     setHidden(list, true);
+    setHidden(registries, true);
   }
 
   async function openSettings(plugin, button) {
@@ -655,7 +814,8 @@ export function mount(container, { api }) {
 
   async function confirmPending() {
     const current = pending;
-    if (!current || !alive) return;
+    if (!current || !alive || confirming === current || !canConfirm(current)) return;
+    confirming = current;
     accept.disabled = true;
     try {
       if (current.kind === 'settings') {
@@ -680,17 +840,25 @@ export function mount(container, { api }) {
         });
       } else {
         const action = current.action === 'update' ? 'update' : 'install';
-        accepted = await api.post(`/api/plugins/${name}/${action}`, {
+        const body = {
           version: plan.version,
           repository: plan.repository ?? '',
           securityLevel: plan.securityLevel ?? '',
-          acceptMissingChecksum: plan.checksumFile === 'missing',
+          acceptMissingChecksum: !plan.registry && plan.checksumFile === 'missing',
           acceptFallbackFrom: plan.fallbackFrom ?? '',
-        });
+        };
+        if (plan.registry) {
+          body.registry = plan.registry;
+          body.registryRevision = plan.registryRevision;
+          if (current.registryInput) body.registryConfirmation = current.registryInput.value;
+        }
+        accepted = await api.post(`/api/plugins/${name}/${action}`, body);
       }
       if (!alive) return;
-      pending = null;
-      if (dialog.open) dialog.close();
+      if (pending === current) {
+        pending = null;
+        if (dialog.open) dialog.close();
+      }
       if (accepted?.operationId) {
         applyProgress(container, { phase: 'resolve', message: 'Operation started.' });
         listen(accepted.operationId);
@@ -701,12 +869,14 @@ export function mount(container, { api }) {
       if (!alive) return;
       showError(err);
     } finally {
-      if (alive) accept.disabled = false;
+      if (confirming === current) confirming = null;
+      if (alive && pending) accept.disabled = confirming === pending || !canConfirm(pending);
     }
   }
 
   list.replaceChildren(el('p', { class: 'view-loading', role: 'status', text: 'Loading plugins…' }));
   loadCatalog(true);
+  void loadRegistries();
 
   return {
     unmount() {

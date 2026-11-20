@@ -71,7 +71,7 @@ The header links to nine views, and a tenth, Logs, when you turn it on. Each has
 | Forecast | `#/forecast` | Monthly cost projected from the current month, with the growth model or a statistical model fitted to a spend CSV, its bounds, the plan baseline, budget, and warnings |
 | Carbon | `#/carbon` | Provider-published monthly carbon emissions for complete UTC months, with source, provider, grouping, period, model version, and retrieval time per record |
 | Config | `#/config` | Effective configuration, the tier each value comes from, and edits to known settings in the project or global file |
-| Plugins | `#/plugins` | Built-in catalog, installed versions, install, update, remove, validate, and per-plugin settings |
+| Plugins | `#/plugins` | Catalog and custom registries, installed versions, release operations, and per-plugin settings |
 | Logs | `#/logs` | Live log lines from FinFocus and its plugins. Shown only when [web logs are enabled](#logs-view). |
 
 ### Overview controls
@@ -236,7 +236,8 @@ running session keeps its startup configuration.
 
 | Control | Effect |
 | --- | --- |
-| Catalog row | Shows the name, description, providers, capabilities, security level, installed versions, and the newest catalog version. An older install is marked update-available. |
+| **Registries** | Adds, removes, and refreshes global HTTPS registry sources. |
+| Catalog row | Shows the source, name, description, providers, capabilities, security level, installed versions, and the newest catalog version. An older install is marked update-available. |
 | Outside the catalog | An installed plugin that isn't a catalog entry. Validate, settings, and remove stay available. Install and update aren't offered. |
 | **Install** / **Update** / **Remove** | Opens a confirmation that names the plugin, version, repository, and security level. The download or delete starts after confirmation. |
 | Progress | Shows the current phase and, while downloading, bytes received and the total when the host reports one. |
@@ -251,6 +252,10 @@ newest release has no files yet, the confirmation names the older version that
 will be installed. A missing checksum file is named before the install
 continues, unless `FINFOCUS_SECURE_PLUGINS` is on: then the page refuses the
 release and nothing is installed. A checksum that doesn't match stops the install.
+Custom registries require the user to type the exact registry name on the
+first install. Every release from a custom registry requires a matching
+checksum, regardless of the secure plugin mode setting. Custom catalog
+entries can't replace a built-in name.
 
 ### Logs view
 

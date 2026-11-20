@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +18,25 @@ import (
 	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/webui"
 )
+
+func TestReuseInstalledVersion(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "demo", "v1.0.0"), 0o750))
+
+	present := registry.InstallOptions{}
+	reuseInstalledVersion(dir, "demo", "v1.0.0", &present)
+	assert.True(t, present.Force)
+
+	missing := registry.InstallOptions{}
+	reuseInstalledVersion(dir, "demo", "v9.9.9", &missing)
+	assert.False(t, missing.Force)
+
+	latest := registry.InstallOptions{}
+	reuseInstalledVersion(dir, "demo", "", &latest)
+	assert.False(t, latest.Force)
+}
 
 func TestRefuseMissingChecksumInSecureMode(t *testing.T) {
 	t.Run("on refuses with a conflict the page can show", func(t *testing.T) {
