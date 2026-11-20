@@ -77,7 +77,7 @@ before the code it covers. Go tests are colocated and use testify.
 - [X] T027 Add both endpoints and their errors to the API table, and a note that the Cluster view is pending, in docs/src/content/docs/reference/web-ui.md
 - [X] T028 Render the nearest existing view (Overview with cluster expansion) with Playwright against a populated stack, call `/api/cluster/query` from that page, compare with the Web UI Fit section; when a kind or opencost cluster with the kubernetes plugin is reachable, also compare the endpoint with `cost cluster --output json` there; record the result, including whether a live cluster was available, in specs/2021-cluster-web-hook/quickstart.md and spec.md
 - [X] T029 Run `make test-e2e-web`
-- [ ] T030 After the PR opens, file one UX-only `web-ui` follow-up issue for the Cluster view (layout, rendering, interaction, copy, accessibility; no engine, API, redaction, or data-shape work)
+- [X] T030 After the PR opens, file one UX-only `web-ui` follow-up issue for the Cluster view (#2280) (layout, rendering, interaction, copy, accessibility; no engine, API, redaction, or data-shape work)
 
 ## Phase 8: Polish
 

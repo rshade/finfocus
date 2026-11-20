@@ -225,7 +225,8 @@ CLI's `--show-policy --output json`.
   `state-cluster-expansion` fixture; both endpoints matched the CLI JSON
   there (details in `quickstart.md`).
 - **Follow-up issue scope**: UX only (layout, rendering, interaction, copy,
-  accessibility). No engine, API, redaction, or data-shape work.
+  accessibility). No engine, API, redaction, or data-shape work. Filed as
+  #2280.
 
 ## Success Criteria *(mandatory)*
 
