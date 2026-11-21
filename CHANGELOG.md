@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.11](https://github.com/rshade/finfocus/compare/v0.5.10...v0.5.11) (2026-11-21)
+
+
+### Added
+
+* **estimate:** show pricing inputs first in What-If ([#2288](https://github.com/rshade/finfocus/issues/2288)) ([088f547](https://github.com/rshade/finfocus/commit/088f547724adaac6a5e1565d926345c0a33da950))
+* **webui:** add a Cluster view for cost cluster allocation ([#2285](https://github.com/rshade/finfocus/issues/2285)) ([a008af0](https://github.com/rshade/finfocus/commit/a008af08a95ac81867f72f39fd8be5720fac021f))
+
 ## [0.5.10](https://github.com/rshade/finfocus/compare/v0.5.9...v0.5.10) (2026-11-20)
 
 
