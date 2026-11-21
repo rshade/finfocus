@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -16,7 +17,9 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/pluginname"
 	"github.com/rshade/finfocus/internal/proto"
+	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/router"
 )
@@ -52,6 +55,15 @@ type RoutesTestOutput struct {
 	Mode         string             `json:"mode"`
 	Matches      []RouteMatchOutput `json:"matches"`
 	Features     map[string]string  `json:"features"`
+	// Warnings lists routing entries that need attention: names that match no
+	// installed plugin (not simulated) and former names. Omitted when empty.
+	Warnings []RouteWarningOutput `json:"warnings,omitempty"`
+}
+
+// RouteWarningOutput is a warning about one routing entry in the test output.
+type RouteWarningOutput struct {
+	Plugin  string `json:"plugin"`
+	Message string `json:"message"`
 }
 
 // RouteMatchOutput represents a single plugin match in the test output.
@@ -177,8 +189,13 @@ func NewConfigRoutesTestCmd() *cobra.Command {
 		Short: "Test plugin selection for a resource type",
 		Long: `Simulate plugin routing for a resource type and show match details.
 
-This command does not contact plugins. It uses configured routing rules and
-synthetic plugin metadata to show which plugin would be selected per feature.`,
+This command does not contact plugins. It uses configured routing rules,
+the installed plugins, and synthetic plugin metadata to show which plugin would
+be selected per feature. A routing entry is simulated when it names an
+installed plugin by its install name (as 'finfocus plugin list' shows it) or a
+former name from the plugin catalog. Other entries are reported as warnings;
+run 'finfocus config validate' to check them against the names running
+plugins report.`,
 		Example: `  # Test routing for EC2 instances
   finfocus config routes test aws:ec2/instance:Instance
 
@@ -223,15 +240,7 @@ func runConfigRoutesTest(cmd *cobra.Command, args []string, outputFormat string)
 
 	if cfg.Routing == nil {
 		if outputFormat == outputFormatJSON {
-			return renderRoutesTestJSON(
-				cmd,
-				resourceType,
-				region,
-				provider,
-				"automatic",
-				nil,
-				nil,
-			)
+			return renderRoutesTestJSON(cmd, resourceType, region, provider, "automatic", routesSimulation{})
 		}
 		cmd.Printf("Plugin selection for %s (provider: %s", resourceType, providerLabel(resourceType, provider))
 		if region != "" {
@@ -243,63 +252,150 @@ func runConfigRoutesTest(cmd *cobra.Command, args []string, outputFormat string)
 		return nil
 	}
 
-	matches, featureMatches, err := simulatePluginSelection(cmd.Context(), cfg.Routing, resourceType, region, provider)
+	installed, err := installedRoutePlugins()
+	if err != nil {
+		return err
+	}
+	sim, err := simulatePluginSelection(cmd.Context(), cfg.Routing, installed, resourceType, region, provider)
 	if err != nil {
 		return err
 	}
 
 	if outputFormat == outputFormatJSON {
-		return renderRoutesTestJSON(
-			cmd,
-			resourceType,
-			region,
-			provider,
-			"configured",
-			matches,
-			featureMatches,
-		)
+		return renderRoutesTestJSON(cmd, resourceType, region, provider, "configured", sim)
 	}
 
-	return renderRoutesTestTable(cmd, resourceType, region, provider, matches, featureMatches)
+	return renderRoutesTestTable(cmd, resourceType, region, provider, sim)
 }
 
-func buildSyntheticClients(routing *config.RoutingConfig) []*pluginhost.Client {
+// routesSimulation is what `config routes test` reports for one resource.
+type routesSimulation struct {
+	matches        []router.PluginMatch
+	featureMatches map[string]router.PluginMatch
+	warnings       []RouteWarningOutput
+}
+
+// installedRoutePlugin is an installed plugin as routes test sees it without
+// launching it: its install name and its catalog aliases.
+type installedRoutePlugin struct {
+	name    string
+	aliases []string
+}
+
+// installedRoutePlugins lists the installed plugins (latest version of each)
+// with their catalog aliases. It never launches a plugin.
+func installedRoutePlugins() ([]installedRoutePlugin, error) {
+	plugins, _, err := registry.NewDefault().ListLatestPlugins()
+	if err != nil {
+		return nil, fmt.Errorf("listing installed plugins: %w", err)
+	}
+	installed := make([]installedRoutePlugin, 0, len(plugins))
+	for _, plugin := range plugins {
+		installed = append(
+			installed,
+			installedRoutePlugin{name: plugin.Name, aliases: registry.CatalogAliases(plugin.Name)},
+		)
+	}
+	return installed, nil
+}
+
+// buildSyntheticClients builds one stand-in client per installed plugin that a
+// routing entry names, by install name or catalog alias, and a warning for
+// every other entry. A stand-in serves every provider unless all entries
+// naming it use patterns.
+func buildSyntheticClients(
+	routing *config.RoutingConfig,
+	installed []installedRoutePlugin,
+) ([]*pluginhost.Client, []RouteWarningOutput) {
 	if routing == nil {
-		return nil
+		return nil, nil
 	}
 
-	clients := make([]*pluginhost.Client, 0, len(routing.Plugins))
+	var clients []*pluginhost.Client
+	var warnings []RouteWarningOutput
+	byName := make(map[string]*pluginhost.Client)
 	for _, pluginCfg := range routing.Plugins {
-		supportedProviders := []string{router.ProviderWildcard}
-		if len(pluginCfg.Patterns) > 0 {
-			supportedProviders = []string{providerPatternOnly}
+		plugin, viaAlias, found := findInstalledRoutePlugin(installed, pluginCfg.Name)
+		if !found {
+			if pluginCfg.Name != "" {
+				warnings = append(warnings, RouteWarningOutput{
+					Plugin:  pluginCfg.Name,
+					Message: notInstalledRouteMessage(installed, pluginCfg.Name),
+				})
+			}
+			continue
+		}
+		if viaAlias {
+			warnings = append(warnings, RouteWarningOutput{
+				Plugin:  pluginCfg.Name,
+				Message: router.AliasWarning(pluginCfg.Name, plugin.name, true),
+			})
 		}
 
-		clients = append(clients, &pluginhost.Client{
-			Name: pluginCfg.Name,
-			Metadata: &proto.PluginMetadata{
-				Name:               pluginCfg.Name,
-				SupportedProviders: supportedProviders,
-				Metadata:           map[string]string{},
-			},
-		})
+		client, exists := byName[plugin.name]
+		if !exists {
+			client = &pluginhost.Client{
+				Name:        plugin.name,
+				InstallName: plugin.name,
+				Aliases:     plugin.aliases,
+				Metadata: &proto.PluginMetadata{
+					Name:               plugin.name,
+					SupportedProviders: []string{providerPatternOnly},
+					Metadata:           map[string]string{},
+				},
+			}
+			byName[plugin.name] = client
+			clients = append(clients, client)
+		}
+		if len(pluginCfg.Patterns) == 0 {
+			client.Metadata.SupportedProviders = []string{router.ProviderWildcard}
+		}
 	}
 
-	return clients
+	return clients, warnings
+}
+
+// findInstalledRoutePlugin finds the installed plugin a routing entry names by
+// install name, or else by catalog alias.
+func findInstalledRoutePlugin(installed []installedRoutePlugin, name string) (installedRoutePlugin, bool, bool) {
+	for _, plugin := range installed {
+		if plugin.name == name {
+			return plugin, false, true
+		}
+	}
+	for _, plugin := range installed {
+		if slices.Contains(plugin.aliases, name) {
+			return plugin, true, true
+		}
+	}
+	return installedRoutePlugin{}, false, false
+}
+
+// notInstalledRouteMessage explains why an entry is not simulated, suggesting
+// the install name when the entry is the binary name of an installed plugin.
+func notInstalledRouteMessage(installed []installedRoutePlugin, name string) string {
+	const prefix = "does not match an installed plugin; not simulated"
+	if bare, ok := strings.CutPrefix(name, pluginname.BinaryPrefix); ok {
+		if _, _, found := findInstalledRoutePlugin(installed, bare); found {
+			return fmt.Sprintf("%s (did you mean %q?)", prefix, bare)
+		}
+	}
+	return prefix + " (run 'finfocus config validate' to check reported plugin names)"
 }
 
 func simulatePluginSelection(
 	ctx context.Context,
 	routing *config.RoutingConfig,
+	installed []installedRoutePlugin,
 	resourceType, region, provider string,
-) ([]router.PluginMatch, map[string]router.PluginMatch, error) {
-	clients := buildSyntheticClients(routing)
+) (routesSimulation, error) {
+	clients, warnings := buildSyntheticClients(routing, installed)
 	rt, err := router.NewRouter(
 		router.WithConfig(routing),
 		router.WithClients(clients),
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating router: %w", err)
+		return routesSimulation{}, fmt.Errorf("creating router: %w", err)
 	}
 
 	resource := engine.ResourceDescriptor{
@@ -332,7 +428,7 @@ func simulatePluginSelection(
 		return uniqueMatches[i].Priority > uniqueMatches[j].Priority
 	})
 
-	return uniqueMatches, featureMatches, nil
+	return routesSimulation{matches: uniqueMatches, featureMatches: featureMatches, warnings: warnings}, nil
 }
 
 // providerLabel returns provider for display, adding the raw package when it
@@ -348,9 +444,9 @@ func providerLabel(resourceType, provider string) string {
 func renderRoutesTestTable(
 	cmd *cobra.Command,
 	resourceType, region, provider string,
-	matches []router.PluginMatch,
-	featureMatches map[string]router.PluginMatch,
+	sim routesSimulation,
 ) error {
+	matches, featureMatches := sim.matches, sim.featureMatches
 	out := cmd.OutOrStdout()
 	fmt.Fprintf(out, "Plugin selection for %s (provider: %s", resourceType, providerLabel(resourceType, provider))
 	if region != "" {
@@ -392,14 +488,21 @@ func renderRoutesTestTable(
 		fmt.Fprintf(out, "  %s: %s (priority %d)\n", feature, match.Client.Name, match.Priority)
 	}
 
+	if len(sim.warnings) > 0 {
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Warnings:")
+		for _, warning := range sim.warnings {
+			fmt.Fprintf(out, "  %s: %s\n", warning.Plugin, warning.Message)
+		}
+	}
+
 	return nil
 }
 
 func renderRoutesTestJSON(
 	cmd *cobra.Command,
 	resourceType, region, provider, mode string,
-	matches []router.PluginMatch,
-	featureMatches map[string]router.PluginMatch,
+	sim routesSimulation,
 ) error {
 	output := RoutesTestOutput{
 		ResourceType: resourceType,
@@ -408,9 +511,10 @@ func renderRoutesTestJSON(
 		Mode:         mode,
 		Matches:      []RouteMatchOutput{},
 		Features:     make(map[string]string),
+		Warnings:     sim.warnings,
 	}
 
-	for i, match := range matches {
+	for i, match := range sim.matches {
 		output.Matches = append(output.Matches, RouteMatchOutput{
 			Rank:        i + 1,
 			Plugin:      match.Client.Name,
@@ -423,7 +527,7 @@ func renderRoutesTestJSON(
 
 	for _, feature := range router.ValidFeatureNames() {
 		output.Features[feature] = ""
-		if featureMatch, ok := featureMatches[feature]; ok {
+		if featureMatch, ok := sim.featureMatches[feature]; ok {
 			output.Features[feature] = featureMatch.Client.Name
 		}
 	}

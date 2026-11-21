@@ -16,8 +16,13 @@ Test plugin selection for a resource type
 ```text
 Simulate plugin routing for a resource type and show match details.
 
-This command does not contact plugins. It uses configured routing rules and
-synthetic plugin metadata to show which plugin would be selected per feature.
+This command does not contact plugins. It uses configured routing rules,
+the installed plugins, and synthetic plugin metadata to show which plugin would
+be selected per feature. A routing entry is simulated when it names an
+installed plugin by its install name (as 'finfocus plugin list' shows it) or a
+former name from the plugin catalog. Other entries are reported as warnings;
+run 'finfocus config validate' to check them against the names running
+plugins report.
 ```
 
 ```text

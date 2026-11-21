@@ -62,6 +62,11 @@ func (r *SuiteReport) WriteTable(w io.Writer) error {
 		if result.Status == StatusSkip && result.Error != "" {
 			fprintf("  (%s)\n", result.Error)
 		}
+
+		// Show warning message
+		if result.Status == StatusWarn && result.Error != "" {
+			fprintf("  Warning: %s\n", result.Error)
+		}
 	}
 
 	fprintln()
@@ -75,6 +80,10 @@ func (r *SuiteReport) WriteTable(w io.Writer) error {
 
 	if r.Summary.Errors > 0 {
 		fprintf("Errors: %d\n", r.Summary.Errors)
+	}
+
+	if r.Summary.Warnings > 0 {
+		fprintf("Warnings: %d\n", r.Summary.Warnings)
 	}
 
 	return writeErr
@@ -160,6 +169,9 @@ type (
 		Time      string        `xml:"time,attr"`
 		Failure   *junitFailure `xml:"failure,omitempty"`
 		Skipped   *junitSkipped `xml:"skipped,omitempty"`
+		// SystemOut carries a warning on a passing testcase; JUnit has no
+		// warning state, and a failure would break CI that reads the file.
+		SystemOut string `xml:"system-out,omitempty"`
 	}
 
 	junitTestsuite struct {
@@ -221,6 +233,8 @@ func (r *SuiteReport) buildJUnitTestcases() []junitTestcase {
 			tc.Skipped = &junitSkipped{
 				Message: res.Error,
 			}
+		case StatusWarn:
+			tc.SystemOut = "WARNING: " + res.Error
 		case StatusPass:
 			// No additional elements needed for passing tests
 		}
@@ -270,6 +284,8 @@ func getStatusIcon(status Status) string {
 		return "⊘"
 	case StatusError:
 		return "!"
+	case StatusWarn:
+		return "⚠"
 	default:
 		return "?"
 	}

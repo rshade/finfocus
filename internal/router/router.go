@@ -135,8 +135,18 @@ type DefaultRouter struct {
 	// patterns is the compiled pattern cache.
 	patterns map[compiledPatternKey]*CompiledPattern
 
-	// pluginConfig caches plugin routing config by name for fast lookup.
-	pluginConfig map[string]*config.PluginRouting
+	// entries indexes routing entries by the name they were written with.
+	entries map[string]*config.PluginRouting
+
+	// resolved maps each routing entry name to the client it refers to,
+	// resolved once with pluginhost.ResolveName.
+	resolved map[string]*pluginhost.Client
+
+	// configFor maps each client to the routing entry that refers to it.
+	configFor map[*pluginhost.Client]*config.PluginRouting
+
+	// unmatched lists routing entry names that refer to no client.
+	unmatched []string
 
 	// mu protects patterns map.
 	mu sync.RWMutex
@@ -187,21 +197,17 @@ func WithClients(clients []*pluginhost.Client) Option {
 // The returned error is non-nil if any configured pattern fails to compile.
 func NewRouter(opts ...Option) (*DefaultRouter, error) {
 	r := &DefaultRouter{
-		patterns:     make(map[compiledPatternKey]*CompiledPattern),
-		pluginConfig: make(map[string]*config.PluginRouting),
+		patterns:  make(map[compiledPatternKey]*CompiledPattern),
+		entries:   make(map[string]*config.PluginRouting),
+		resolved:  make(map[string]*pluginhost.Client),
+		configFor: make(map[*pluginhost.Client]*config.PluginRouting),
 	}
 
 	for _, opt := range opts {
 		opt(r)
 	}
 
-	// Build plugin config lookup map
-	if r.config != nil {
-		for i := range r.config.Plugins {
-			plugin := &r.config.Plugins[i]
-			r.pluginConfig[plugin.Name] = plugin
-		}
-	}
+	r.resolveEntries()
 
 	// Pre-compile all patterns
 	if r.config != nil {
@@ -217,6 +223,46 @@ func NewRouter(opts ...Option) (*DefaultRouter, error) {
 	}
 
 	return r, nil
+}
+
+// resolveEntries matches each routing entry to the client it names, by
+// install name, catalog alias, or reported name. An entry that resolves by
+// reported name applies to every client reporting that name. A later entry
+// for the same client replaces an earlier one, as a repeated name always has.
+func (r *DefaultRouter) resolveEntries() {
+	if r.config == nil {
+		return
+	}
+	for i := range r.config.Plugins {
+		entry := &r.config.Plugins[i]
+		r.entries[entry.Name] = entry
+		client, kind, _ := pluginhost.ResolveName(r.clients, entry.Name)
+		if client == nil {
+			if entry.Name != "" && !slices.Contains(r.unmatched, entry.Name) {
+				r.unmatched = append(r.unmatched, entry.Name)
+			}
+			continue
+		}
+		r.resolved[entry.Name] = client
+		if kind != pluginhost.MatchReported {
+			r.configFor[client] = entry
+			continue
+		}
+		// A reported name can belong to several plugins (one install per
+		// region, for example); the entry restricts every one of them.
+		for _, c := range r.clients {
+			if c != nil && c.Name == entry.Name {
+				r.configFor[c] = entry
+			}
+		}
+	}
+}
+
+// UnmatchedEntries returns the routing entry names that refer to no loaded
+// plugin. Their feature and pattern restrictions apply to nothing, so callers
+// with real plugins should warn about them.
+func (r *DefaultRouter) UnmatchedEntries() []string {
+	return slices.Clone(r.unmatched)
 }
 
 type compiledPatternKey struct {
@@ -257,12 +303,13 @@ func (r *DefaultRouter) SelectPlugins(
 
 	// First pass: check declarative patterns (highest precedence)
 	if r.config != nil {
-		for _, pluginCfg := range r.config.Plugins {
+		for i := range r.config.Plugins {
+			pluginCfg := r.config.Plugins[i]
 			// Check patterns if configured
 			if len(pluginCfg.Patterns) > 0 {
 				if r.matchesAnyPattern(pluginCfg, resource.Type) {
-					client := r.findClient(pluginCfg.Name)
-					if client != nil && r.matchesFeature(client, pluginCfg, feature) {
+					client := r.effectiveClient(&r.config.Plugins[i])
+					if client != nil && !r.hasMatch(matches, client) && r.matchesFeature(client, pluginCfg, feature) {
 						// Check region compatibility
 						pluginReg := PluginRegion(client)
 						if !RegionMatches(pluginReg, resourceRegion) {
@@ -317,7 +364,7 @@ func (r *DefaultRouter) SelectPlugins(
 	// Second pass: automatic provider-based matching for plugins without patterns
 	for _, client := range r.clients {
 		// Skip if already matched by pattern
-		if r.hasMatch(matches, client.Name) {
+		if r.hasMatch(matches, client) {
 			continue
 		}
 
@@ -325,7 +372,7 @@ func (r *DefaultRouter) SelectPlugins(
 		matchReason := r.matchesProvider(client, provider)
 		if matchReason == MatchReasonAutomatic || matchReason == MatchReasonGlobal {
 			// Look up plugin config once for feature, region, and priority checks
-			pcfg, hasConfig := r.pluginConfig[client.Name]
+			pcfg, hasConfig := r.configFor[client]
 			var pluginCfg config.PluginRouting
 			if hasConfig {
 				pluginCfg = *pcfg
@@ -520,32 +567,52 @@ func (r *DefaultRouter) matchesProvider(client *pluginhost.Client, provider stri
 	return MatchReasonNoMatch
 }
 
-// findClient finds a client by name.
-func (r *DefaultRouter) findClient(name string) *pluginhost.Client {
-	for _, client := range r.clients {
-		if client.Name == name {
-			return client
-		}
+// effectiveClient returns the client a routing entry refers to when the entry
+// is the one in effect for it. When two entries name the same plugin (its
+// install name and an alias, say), only the later one applies, in the pattern
+// pass as in the automatic pass.
+func (r *DefaultRouter) effectiveClient(entry *config.PluginRouting) *pluginhost.Client {
+	client := r.findClient(entry.Name)
+	if client == nil || r.configFor[client] != entry {
+		return nil
 	}
-	return nil
+	return client
 }
 
-// hasMatch checks if a plugin name is already in the matches list.
-func (r *DefaultRouter) hasMatch(matches []PluginMatch, name string) bool {
+// findClient returns the client a routing entry name refers to, or nil.
+func (r *DefaultRouter) findClient(name string) *pluginhost.Client {
+	return r.resolved[name]
+}
+
+// hasMatch checks whether a client, or another client reporting the same
+// name, is already in the matches list. Matches stay unique by reported name
+// because the engine groups work by it (recommendation targets, batches,
+// rate-limit bookkeeping).
+func (r *DefaultRouter) hasMatch(matches []PluginMatch, client *pluginhost.Client) bool {
 	for _, m := range matches {
-		if m.Client.Name == name {
+		if m.Client == client || m.Client.Name == client.Name {
 			return true
 		}
 	}
 	return false
 }
 
-// ShouldFallback returns true if fallback is enabled for a plugin.
+// ShouldFallback returns true if fallback is enabled for a plugin. pluginName
+// may be any name of the plugin (install name, alias, or reported name; the
+// engine passes the reported name), and it reads the routing entry that refers
+// to that plugin whatever name the entry used. Without a loaded plugin it reads
+// the entry written with that exact name. Unknown plugins default to true.
 func (r *DefaultRouter) ShouldFallback(pluginName string) bool {
-	if cfg, ok := r.pluginConfig[pluginName]; ok {
+	if client, _, _ := pluginhost.ResolveName(r.clients, pluginName); client != nil {
+		if cfg, ok := r.configFor[client]; ok {
+			return cfg.FallbackEnabled()
+		}
+		return true
+	}
+	if cfg, ok := r.entries[pluginName]; ok {
 		return cfg.FallbackEnabled()
 	}
-	return true // Default to true
+	return true
 }
 
 // Validate performs eager validation of the routing configuration.

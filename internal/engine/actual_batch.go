@@ -83,11 +83,12 @@ func (e *Engine) batchActualCosts(ctx context.Context, request ActualCostRequest
 // by the adapter filter. Only plugins with batch_cost are kept, so a verdict
 // always stands in for the first call of that resource's chain.
 func (e *Engine) actualBatchPlugins(ctx context.Context, request ActualCostRequest) []*pluginBatch {
+	adapterAllows := e.adapterFilter(request.Adapter)
 	var groups []*pluginBatch
 	for i, resource := range request.Resources {
 		matches, _ := e.selectPluginMatchesForResource(ctx, resource, actualCostsFeature)
 		j := slices.IndexFunc(matches, func(m PluginMatch) bool {
-			return request.Adapter == "" || m.Client.Name == request.Adapter
+			return adapterAllows(m.Client)
 		})
 		if j < 0 || !matches[j].Client.HasCapability(batchCostCapability) {
 			continue

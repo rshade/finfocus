@@ -19,6 +19,10 @@ const (
 	StatusSkip Status = "skip"
 	// StatusError indicates an infrastructure error (plugin crash, timeout, connection lost).
 	StatusError Status = "error"
+	// StatusWarn indicates an advisory finding (such as a plugin name that
+	// differs from its install name). It is reported but never fails the run,
+	// changes the exit code, or blocks certification.
+	StatusWarn Status = "warn"
 )
 
 // Category represents a test grouping for filtering.
@@ -138,6 +142,9 @@ type TestContext struct {
 	// Probe is the resource the test sends when it needs one. Unset means the
 	// built-in AWS probe.
 	Probe ProbeResource
+	// Identity is the name the plugin is expected to report, resolved once per
+	// suite run from SuiteConfig.ExpectedName and the binary path.
+	Identity PluginIdentity
 }
 
 // probeResource returns the probe, or the built-in one when none is set.
@@ -204,6 +211,9 @@ type SuiteConfig struct {
 	// suite reads the plugin's providers and skips the probes that need a
 	// resource type when the plugin does not price AWS.
 	Probe ProbeResource
+	// ExpectedName is the install name the plugin should report (optional).
+	// Without it the suite derives the name from the binary path.
+	ExpectedName string
 }
 
 // Summary contains aggregate test counts.
@@ -218,6 +228,8 @@ type Summary struct {
 	Skipped int `json:"skipped"`
 	// Errors is the count of tests with error status.
 	Errors int `json:"errors"`
+	// Warnings is the count of tests with warn status. They are not failures.
+	Warnings int `json:"warnings"`
 }
 
 // SuiteReport is the aggregate report for a conformance suite run.

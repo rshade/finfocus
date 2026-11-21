@@ -34,14 +34,15 @@ const (
 // --timeout, --category (repeatable: protocol, error, performance, context), and --filter (regex for test names).
 func NewPluginConformanceCmd() *cobra.Command {
 	var (
-		mode       string
-		verbosity  string
-		output     string
-		outputFile string
-		timeout    string
-		categories []string
-		filter     string
-		probe      probeFlags
+		mode         string
+		verbosity    string
+		output       string
+		outputFile   string
+		timeout      string
+		categories   []string
+		filter       string
+		probe        probeFlags
+		expectedName string
 	)
 
 	cmd := &cobra.Command{
@@ -66,7 +67,20 @@ Some probes send a resource and depend on its type:
 The built-in probe is an AWS EC2 instance. When the plugin lists providers and
 none is AWS, the probes that need a supported type are skipped, with the reason
 in the report. Use --provider and --resource-type to probe with a resource the
-plugin prices; the sentinel probes are then skipped too.`,
+plugin prices; the sentinel probes are then skipped too.
+
+Three checks compare the plugin's names and only ever warn: a warning never
+fails the run, changes the exit code, or blocks certification.
+
+  Name_MatchesInstallName
+      The name the plugin reports equals its install name. The install name
+      comes from --expected-name, else the <plugins>/<name>/<version>/ layout
+      the binary sits in, else its finfocus-plugin-<name> file name.
+  Name_MatchesPluginInfo
+      Name and GetPluginInfo report the same name.
+  Name_IsCanonicalForm
+      The reported name is lowercase letters and digits in hyphen-separated
+      groups, without the finfocus-plugin- prefix.`,
 		Example: `  # Basic conformance check
   finfocus plugin conformance ./plugins/aws-cost
 
@@ -82,13 +96,16 @@ plugin prices; the sentinel probes are then skipped too.`,
   # Use stdio mode
   finfocus plugin conformance --mode stdio ./plugins/aws-cost
 
+  # Check a freshly built binary against the name it will be installed under
+  finfocus plugin conformance --expected-name aws-public ./bin/finfocus-plugin-aws-public
+
   # Probe a Kubernetes-only plugin with a resource it prices
   finfocus plugin conformance --provider kubernetes \
     --resource-type kubernetes:apps/v1:Deployment ./plugins/opencost`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPluginConformanceCmd(
-				cmd, args[0], mode, verbosity, output, outputFile, timeout, categories, filter, probe,
+				cmd, args[0], mode, verbosity, output, outputFile, timeout, categories, filter, probe, expectedName,
 			)
 		},
 	}
@@ -103,6 +120,8 @@ plugin prices; the sentinel probes are then skipped too.`,
 		&categories, "category", nil, "Filter by category (repeatable): protocol, error, performance, context",
 	)
 	cmd.Flags().StringVar(&filter, "filter", "", "Regex filter for test names")
+	cmd.Flags().StringVar(&expectedName, "expected-name", "",
+		"Install name the plugin should report (default: derived from the binary path)")
 	probe.register(cmd)
 
 	return cmd
@@ -146,12 +165,13 @@ func runPluginConformanceCmd(
 	categories []string,
 	filter string,
 	probe probeFlags,
+	expectedName string,
 ) error {
 	ctx := cmd.Context()
 	output = resolveOutputFormat(cmd, "output", output)
 
 	// Validate inputs and create suite config
-	cfg, err := buildSuiteConfig(ctx, pluginPath, mode, verbosity, timeout, categories, filter, probe)
+	cfg, err := buildSuiteConfig(ctx, pluginPath, mode, verbosity, timeout, categories, filter, probe, expectedName)
 	if err != nil {
 		return err
 	}
@@ -188,6 +208,7 @@ func buildSuiteConfig(
 	categories []string,
 	filter string,
 	probe probeFlags,
+	expectedName string,
 ) (conformance.SuiteConfig, error) {
 	// Validate plugin path exists
 	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
@@ -227,14 +248,15 @@ func buildSuiteConfig(
 	logger := logging.FromContext(ctx)
 
 	return conformance.SuiteConfig{
-		PluginPath: pluginPath,
-		CommMode:   conformance.CommMode(mode),
-		Verbosity:  conformance.Verbosity(verbosity),
-		Timeout:    timeoutDuration,
-		Categories: categoryList,
-		TestFilter: filter,
-		Logger:     *logger,
-		Probe:      probeResource,
+		PluginPath:   pluginPath,
+		CommMode:     conformance.CommMode(mode),
+		Verbosity:    conformance.Verbosity(verbosity),
+		Timeout:      timeoutDuration,
+		Categories:   categoryList,
+		TestFilter:   filter,
+		Logger:       *logger,
+		Probe:        probeResource,
+		ExpectedName: expectedName,
 	}, nil
 }
 

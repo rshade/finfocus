@@ -4,7 +4,9 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"sync"
 )
 
@@ -37,6 +39,10 @@ func GetEmbeddedRegistry() (*EmbeddedRegistry, error) {
 				"failed to parse embedded registry: %w",
 				errEmbeddedRegistry,
 			)
+			return
+		}
+		if namesErr := ValidateCatalogNames(slices.Collect(maps.Values(embeddedRegistry.Plugins))); namesErr != nil {
+			errEmbeddedRegistry = fmt.Errorf("invalid embedded registry: %w", namesErr)
 		}
 	})
 	return embeddedRegistry, errEmbeddedRegistry
@@ -131,5 +137,19 @@ func overlayEntries() ([]RegistryEntry, error) {
 	for _, entry := range doc.Plugins {
 		extras = append(extras, entry)
 	}
+	if namesErr := ValidateCatalogNames(extras); namesErr != nil {
+		return nil, fmt.Errorf("catalog overlay: %w", namesErr)
+	}
 	return extras, nil
+}
+
+// CatalogAliases returns the former names the catalog lists for a plugin, or
+// nil when the plugin has no catalog entry (a URL or local install) or the
+// catalog cannot be read. It reads the FINFOCUS_CATALOG_FILE overlay too.
+func CatalogAliases(installName string) []string {
+	entry, err := GetPlugin(installName)
+	if err != nil || entry == nil {
+		return nil
+	}
+	return slices.Clone(entry.Aliases)
 }

@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
+
+	"github.com/rshade/finfocus/internal/pluginname"
 )
 
 // RegistryEntry represents a plugin in the embedded registry.
@@ -34,6 +37,10 @@ type RegistryEntry struct {
 	DeprecationMessage string `json:"deprecation_message,omitempty"`
 	// Replacement is the catalog name to use instead of a deprecated plugin.
 	Replacement string `json:"replacement,omitempty"`
+	// Aliases are former names of the plugin (such as the name an older
+	// release reported). Routing entries and --adapter values written with
+	// one keep matching the plugin after it is renamed.
+	Aliases []string `json:"aliases,omitempty"`
 }
 
 // DeprecationNotice is empty when the entry is current. A deprecated entry
@@ -131,6 +138,14 @@ func ValidateRegistryEntry(entry RegistryEntry) error {
 	if entry.Replacement != "" && !pluginNamePattern.MatchString(entry.Replacement) {
 		return fmt.Errorf("registry entry %q has invalid replacement %q", entry.Name, entry.Replacement)
 	}
+	for _, alias := range entry.Aliases {
+		if !pluginname.Valid(alias) {
+			return fmt.Errorf("registry entry %q has invalid alias %q", entry.Name, alias)
+		}
+		if alias == entry.Name {
+			return fmt.Errorf("registry entry %q alias %q repeats its own name", entry.Name, alias)
+		}
+	}
 	return nil
 }
 
@@ -205,4 +220,25 @@ func ParseGitHubURL(url string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid GitHub URL format: %s", url)
 	}
 	return matches[1], matches[2], nil
+}
+
+// ValidateCatalogNames checks that every plugin name and alias in a catalog
+// refers to one entry, so a routing name or --adapter value can never mean two
+// plugins.
+func ValidateCatalogNames(entries []RegistryEntry) error {
+	sorted := slices.Clone(entries)
+	slices.SortFunc(sorted, func(a, b RegistryEntry) int { return strings.Compare(a.Name, b.Name) })
+
+	owner := make(map[string]string)
+	for _, entry := range sorted {
+		for _, name := range append([]string{entry.Name}, entry.Aliases...) {
+			if prev, taken := owner[name]; taken && prev != entry.Name {
+				pair := []string{prev, entry.Name}
+				slices.Sort(pair)
+				return fmt.Errorf("catalog name %q is a name of both %q and %q", name, pair[0], pair[1])
+			}
+			owner[name] = entry.Name
+		}
+	}
+	return nil
 }
