@@ -18,6 +18,16 @@ func FormatPricingDetails(mode engine.PricingMode) string {
 	return b.String()
 }
 
+// UsageHints flattens the metric hints of every discovered mode, in mode order,
+// for the estimate property plan. Failed or empty discovery gives none.
+func UsageHints(found engine.PricingDiscovery) []engine.PricingMetricHint {
+	var hints []engine.PricingMetricHint
+	for _, mode := range found.Modes {
+		hints = append(hints, mode.MetricHints...)
+	}
+	return hints
+}
+
 func writePricingTiers(b *strings.Builder, tiers []engine.PricingTierOption) {
 	if len(tiers) == 0 {
 		return

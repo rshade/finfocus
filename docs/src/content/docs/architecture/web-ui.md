@@ -344,6 +344,13 @@ reads as part of the page rather than an add-on:
    Cost history section after their last block. Both render `display`
    strings only.
 
+The Estimate view fills these slots with a property editor. Its table lists
+pricing inputs, the toolbar holds **Show all properties** beside **Show all
+resources**, the status line carries the fallback note, and a read-only
+definition list of identity metadata (`.estimate-details`) sits in slot 7. The
+rows, their class, and their default visibility come from
+`viewmodel.BuildEstimatePropertyPlan`; the page only renders and filters them.
+
 The Overview is the reference. A feature that adds columns, badges, deltas, or
 a detail section extends it. A feature with its own data and controls becomes
 a new view built from the same slots. Neither adds arithmetic to the

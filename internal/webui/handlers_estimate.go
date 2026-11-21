@@ -152,6 +152,10 @@ func (s *Server) handleEstimateRecalculate(w http.ResponseWriter, r *http.Reques
 		s.writeError(w, http.StatusBadRequest, "invalid_query", "resource urn and property overrides required")
 		return
 	}
+	if err := viewmodel.RejectIdentityOverrides(query.Overrides); err != nil {
+		s.writeError(w, http.StatusBadRequest, "identity_override", err.Error())
+		return
+	}
 	s.serveEstimate(w, r, query, false)
 }
 
@@ -202,8 +206,9 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 			return
 		}
 		// Discovery has its own deadline and still runs when the price call failed.
-		modes := estimatePricingModes(eng.DiscoverPricingSpec(ctx, resource))
-		display := baselineFailureDisplay(ctx, resource)
+		found := eng.DiscoverPricingSpec(ctx, resource)
+		modes := estimatePricingModes(found)
+		display := baselineFailureDisplay(ctx, resource, viewmodel.NewEstimateInputContext(found, query.PricingMode))
 		done()
 		s.WriteJSON(w, http.StatusOK, estimateBaselineFailure{
 			Status:       estimateStatusUnavailable,
@@ -216,7 +221,14 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 		return
 	}
 	result = cloneData(result)
-	display := viewmodel.BuildEstimateDisplay(ctx, resource, result, query.Overrides)
+	found := eng.DiscoverPricingSpec(ctx, resource)
+	display := viewmodel.BuildEstimateDisplay(
+		ctx,
+		resource,
+		result,
+		query.Overrides,
+		viewmodel.NewEstimateInputContext(found, query.PricingMode),
+	)
 	if !baseline {
 		done()
 		s.WriteJSON(w, http.StatusOK, struct {
@@ -227,7 +239,7 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 		}{result, display, query.PricingMode})
 		return
 	}
-	modes := estimatePricingModes(eng.DiscoverPricingSpec(ctx, resource))
+	modes := estimatePricingModes(found)
 	done()
 	s.WriteJSON(w, http.StatusOK, struct {
 		Resource     *engine.ResourceDescriptor `json:"resource"`
@@ -272,20 +284,13 @@ func estimatePricingModes(found engine.PricingDiscovery) []estimateMode {
 
 // baselineFailureDisplay lists editable properties with no cost deltas. The
 // price call failed, so a zero delta would claim a comparison that did not run.
-func baselineFailureDisplay(ctx context.Context, resource *engine.ResourceDescriptor) viewmodel.EstimateDisplay {
-	display := viewmodel.EstimateDisplay{Properties: []viewmodel.EstimateProperty{}}
-	if resource == nil {
-		return display
-	}
-	props := engine.BuildAttributes(ctx, resource.Properties).AsMap()
-	for _, row := range viewmodel.BuildEstimatePropertyRows(props, nil) {
-		display.Properties = append(display.Properties, viewmodel.EstimateProperty{
-			Key:           row.Key,
-			OriginalValue: row.OriginalValue,
-			CurrentValue:  row.CurrentValue,
-		})
-	}
-	return display
+func baselineFailureDisplay(
+	ctx context.Context,
+	resource *engine.ResourceDescriptor,
+	input viewmodel.EstimateInputContext,
+) viewmodel.EstimateDisplay {
+	plan := viewmodel.BuildEstimatePropertyPlan(ctx, resource, nil, input)
+	return viewmodel.NewEstimatePropertyDisplay(plan, nil, false)
 }
 
 func (s *Server) writeEstimateError(w http.ResponseWriter, err error) {

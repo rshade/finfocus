@@ -295,3 +295,84 @@ func TestAttrsCacheSuffixUnencodableStruct(t *testing.T) {
 
 	assert.Empty(t, attrsCacheSuffix(invalid))
 }
+
+func TestRedactedProperties(t *testing.T) {
+	t.Parallel()
+
+	secret := map[string]any{testPulumiSecretSig: "1", "ciphertext": "AAAA"}
+	tests := []struct {
+		name  string
+		props map[string]any
+		want  map[string]any
+	}{
+		{
+			name:  "nil input",
+			props: nil,
+			want:  map[string]any{},
+		},
+		{
+			name: "credential-like key dropped",
+			props: map[string]any{
+				"instanceType": "t3.micro",
+				"password":     "p",
+				"apiToken":     "t",
+			},
+			want: map[string]any{"instanceType": "t3.micro"},
+		},
+		{
+			name:  "double-underscore key dropped",
+			props: map[string]any{"instanceType": "t3.micro", "__defaults": []any{}},
+			want:  map[string]any{"instanceType": "t3.micro"},
+		},
+		{
+			name:  "pulumi secret value dropped",
+			props: map[string]any{"instanceType": "t3.micro", "userData": secret},
+			want:  map[string]any{"instanceType": "t3.micro"},
+		},
+		{
+			name:  "unrepresentable value dropped",
+			props: map[string]any{"instanceType": "t3.micro", "callback": make(chan int)},
+			want:  map[string]any{"instanceType": "t3.micro"},
+		},
+		{
+			name:  "top-level ref key kept",
+			props: map[string]any{"ref": "x", "ref.vpc.urn": "urn:y"},
+			want:  map[string]any{"ref": "x", "ref.vpc.urn": "urn:y"},
+		},
+		{
+			name: "nested credential and tag named arn",
+			props: map[string]any{
+				"tags":     map[string]any{"arn": "a", "secret": "s"},
+				"identity": "keep",
+			},
+			want: map[string]any{
+				"tags":     map[string]any{"arn": "a"},
+				"identity": "keep",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, RedactedProperties(context.Background(), tt.props))
+		})
+	}
+}
+
+func TestRedactedPropertiesIgnoresSizeLimit(t *testing.T) {
+	t.Parallel()
+
+	props := map[string]any{
+		"instanceType": "t3.micro",
+		"userData":     strings.Repeat("x", pluginsdk.MaxAttributesBytes+1),
+	}
+
+	require.Nil(t, BuildAttributes(context.Background(), props),
+		"precondition: BuildAttributes drops an oversize descriptor")
+
+	got := RedactedProperties(context.Background(), props)
+
+	assert.Equal(t, "t3.micro", got["instanceType"])
+	assert.Contains(t, got, "userData")
+}

@@ -54,6 +54,10 @@ type EstimateModel struct {
 
 	// Editable properties
 	properties []PropertyRow
+	details    []viewmodel.EstimateDetail
+	note       string
+	curated    bool
+	showAll    bool
 	focusedRow int
 	editMode   bool
 	editBuffer string
@@ -159,14 +163,22 @@ func (m *EstimateModel) WithEstimateCallback(
 	return m
 }
 
-// initializeProperties extracts properties from the resource into editable rows.
-func (m *EstimateModel) initializeProperties() {
-	if m.resource == nil || m.resource.Properties == nil {
-		m.properties = []PropertyRow{}
+// ApplyPricingDiscovery replans the editor from a pricing-spec discovery and
+// selects its first mode. The web display uses the same context.
+func (m *EstimateModel) ApplyPricingDiscovery(found engine.PricingDiscovery) {
+	if m == nil {
 		return
 	}
+	m.pricingSpecLoading = false
+	m.pricingModes = found.Modes
+	m.pricingMode = 0
+	m.replan()
+}
 
-	m.properties = viewmodel.BuildEstimatePropertyRows(m.resource.Properties, nil)
+// initializeProperties builds the editable rows and read-only details from the
+// shared property plan, the same policy the web editor uses.
+func (m *EstimateModel) initializeProperties() {
+	m.applyPlan(m.buildPlan(nil))
 }
 
 // applyResult applies an estimate result to the model state.
@@ -213,9 +225,7 @@ func (m *EstimateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleRecalculateComplete(msg)
 
 	case estimatePricingSpecMsg:
-		m.pricingSpecLoading = false
-		m.pricingModes = msg.discovery.Modes
-		m.pricingMode = 0
+		m.ApplyPricingDiscovery(msg.discovery)
 		if m.estimateFn != nil && len(m.pricingModes) > 0 {
 			return m, m.triggerRecalculation()
 		}
@@ -249,7 +259,7 @@ func (m *EstimateModel) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyDown:
-		if m.focusedRow < len(m.properties)-1 {
+		if m.focusedRow < len(m.visibleIndexes())-1 {
 			m.focusedRow++
 		}
 		return m, nil
@@ -260,9 +270,9 @@ func (m *EstimateModel) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.selectPricingMode(m.pricingMode + 1)
 
 	case tea.KeyEnter:
-		if len(m.properties) > 0 && m.focusedRow < len(m.properties) {
+		if index, ok := m.focusedPropertyIndex(); ok {
 			m.editMode = true
-			m.editBuffer = m.properties[m.focusedRow].CurrentValue
+			m.editBuffer = m.properties[index].CurrentValue
 		}
 		return m, nil
 
@@ -271,9 +281,12 @@ func (m *EstimateModel) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	default:
-		if msg.Text == "q" {
+		switch msg.Text {
+		case "q":
 			m.state = EstimateStateQuitting
 			return m, tea.Quit
+		case "a":
+			m.toggleShowAll()
 		}
 	}
 
@@ -285,6 +298,7 @@ func (m *EstimateModel) selectPricingMode(index int) tea.Cmd {
 		return nil
 	}
 	m.pricingMode = index
+	m.replan()
 	if m.estimateFn != nil || m.recalculateFn != nil {
 		return m.triggerRecalculation()
 	}
@@ -296,10 +310,12 @@ func (m *EstimateModel) handleEditModeKey(msg tea.KeyPressMsg) (tea.Model, tea.C
 	switch msg.Code {
 	case tea.KeyEnter:
 		// Commit the edit
-		if m.focusedRow < len(m.properties) {
-			m.properties[m.focusedRow].CurrentValue = m.editBuffer
+		key, had := m.focusedKey()
+		if index, ok := m.focusedPropertyIndex(); ok {
+			m.properties[index].SetCurrentValue(m.editBuffer, m.curated)
 		}
 		m.editMode = false
+		m.restoreFocus(key, had)
 
 		// Trigger recalculation if callback is set
 		if m.recalculateFn != nil || m.estimateFn != nil {
@@ -350,6 +366,10 @@ func (m *EstimateModel) triggerRecalculation() tea.Cmd {
 	mode := ""
 	if len(m.pricingModes) > 0 && m.pricingMode < len(m.pricingModes) {
 		mode = m.pricingModes[m.pricingMode].ID()
+	}
+
+	if err := viewmodel.RejectIdentityOverrides(overrides); err != nil {
+		return func() tea.Msg { return estimateRecalculateMsg{err: err, generation: generation} }
 	}
 
 	return func() tea.Msg {
@@ -439,18 +459,15 @@ func (m *EstimateModel) renderEditingView() string {
 	)
 	output += "\n\n"
 
-	// Property table with edit buffer if in edit mode
-	if m.editMode && m.focusedRow < len(m.properties) {
-		// Show the edit buffer in the property table
-		propsCopy := make([]PropertyRow, len(m.properties))
-		copy(propsCopy, m.properties)
-		propsCopy[m.focusedRow].CurrentValue = m.editBuffer + "▌" // Cursor indicator
-		output += RenderPropertyTable(propsCopy, m.focusedRow, true)
-	} else {
-		output += RenderPropertyTable(m.properties, m.focusedRow, false)
-	}
-
+	output += m.renderPropertySection()
 	output += "\n\n"
+
+	if details := RenderReadOnlyDetails(m.details); details != "" {
+		output += details + "\n\n"
+	}
+	if note := renderEstimateNote(m.note); note != "" {
+		output += note + "\n\n"
+	}
 
 	// Help text
 	output += RenderEstimateHelp()

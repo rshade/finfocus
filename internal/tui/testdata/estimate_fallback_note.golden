@@ -1,0 +1,26 @@
+┌───────────────────────┐
+│ What-If Cost Analysis │
+└───────────────────────┘
+
+Provider: aws
+Type: aws:ec2/vpc:Vpc
+ID: urn:golden
+
+Baseline:  $0.00/mo (USD)
+Modified:  $0.00/mo (USD)
+
+Change:    $0.00 →/mo
+
+Property Changes:
+------------------------------------------------------------
+  Property             Original        Modified        Δ Cost
+                                                             
+→ cidrBlock           10.0.0.0/16    10.0.0.0/16    
+
+
+Read-only:
+  arn: arn:aws:ec2:us-east-1:1:vpc/vpc-1
+
+Pricing inputs are not curated for this resource type; all safe properties are shown.
+
+↑/↓: Navigate | Enter: Edit property | a: All properties | Esc: Cancel edit | q: Quit

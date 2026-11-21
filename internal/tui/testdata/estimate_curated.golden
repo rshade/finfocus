@@ -1,0 +1,25 @@
+┌───────────────────────┐
+│ What-If Cost Analysis │
+└───────────────────────┘
+
+Provider: aws
+Type: aws:ec2/instance:Instance
+ID: urn:golden
+
+Baseline:  $0.00/mo (USD)
+Modified:  $0.00/mo (USD)
+
+Change:    $0.00 →/mo
+
+Property Changes:
+------------------------------------------------------------
+  Property             Original        Modified        Δ Cost
+                                                             
+→ instanceType        t3.micro       t3.micro       
+
+
+Read-only:
+  arn: arn:aws:ec2:us-east-1:1:instance/i-1
+  pulumi:cloudId: i-1
+
+↑/↓: Navigate | Enter: Edit property | a: All properties | Esc: Cancel edit | q: Quit

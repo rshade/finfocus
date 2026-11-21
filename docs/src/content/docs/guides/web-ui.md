@@ -216,6 +216,37 @@ still apply. Interactive plan estimation uses the same default eligibility
 policy. An explicit `cost estimate --provider ... --resource-type ...` remains
 available for inspecting a specific type.
 
+## Edit the inputs that change the price
+
+For the resource types FinFocus has reviewed, What-If lists the pricing inputs
+first and hides the rest. An EC2 instance shows `instanceType`, `region` and
+`availabilityZone` when the resource sets them, and `tenancy`. Reviewed types are
+EC2 instances, EBS volumes, RDS instances, Lambda functions, DynamoDB tables,
+load balancers (`lb` and `alb`), ElastiCache clusters, S3 buckets, and NAT
+gateways. A reviewed plugin input the resource does not carry, such as an S3
+bucket's `storageClass` or a Lambda function's `requestsPerMonth`, is an empty
+row you can fill in. Those rows, and the plugin inputs the resource does carry,
+appear only while the aws-public plugin serves the estimate. `instanceType` and
+other SKU or region inputs stay for every plugin. A value you typed stays
+visible if you switch to a plugin that drops the row.
+
+- **Show all properties** reveals every other safe property. It filters the rows
+  already loaded, so it doesn't send a request and keeps your edits, deltas, and the
+  focused field. A property you changed stays visible when you turn it off.
+- **Read-only details** lists identity metadata under the table: `id`, `arn`,
+  `urn`, and Pulumi or Terraform bookkeeping keys. It has no inputs.
+  The server rejects an override of one of these keys with `400` and
+  `identity_override` and prices nothing. A tag named `arn`, or an input such as
+  `subnetId`, stays editable.
+- **Fallback note.** A type that isn't reviewed, or a reviewed type with none of
+  its pricing inputs, shows every safe property, and the status line says
+  "Pricing inputs are not curated for this resource type; all safe properties
+  are shown."
+
+A usage metric that the plugin's pricing spec names also counts as a pricing
+input when a property has exactly that name. Credential-like properties and
+Pulumi secrets never appear.
+
 ## Forecast from past spend
 
 Open **Forecast** to project monthly cost. The default is the plugins' growth

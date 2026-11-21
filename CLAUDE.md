@@ -741,6 +741,20 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
 - The overview docs page is `docs/src/content/docs/commands/overview.md`.
+- What-If property policy (`specs/2021-estimate-pricing-inputs/`): the policy
+  lives in `internal/viewmodel` (`BuildEstimatePropertyPlan`); JavaScript never
+  classifies, and the terminal model and the web handlers call the same plan.
+  The plan redacts through `engine.RedactedProperties`. Identity keys are exact
+  (`id`, `arn`, `urn`, or a `pulumi:`/`terraform:` prefix), never a suffix match,
+  and `RejectIdentityOverrides` backs the 400 `identity_override` answer. A new
+  reviewed mapping in `estimate_inputs_mappings.go` needs its row in the
+  provenance test: a `sku` or `region` key must be one `proto.ResolveSKUAndRegion`
+  reads. `defaultVisible` is true for a pricing row, an edited row, and every row
+  of an uncurated type; the page filters on it and never refetches on the toggle.
+  A reviewed `plugin-input` the descriptor lacks is an empty usage row, and that
+  row applies only when the mapping's plugin (`aws-public`) serves the estimate.
+  `sku` and `region` rows apply for every plugin. `NewEstimateInputContext`
+  reads the discovery the estimate already ran. JavaScript still does not classify.
 - Web proxy access (`specs/2011-web-allowed-host-trusted-proxy/`): `--allowed-host`
   (exact normalized names, no wildcard or IP; `StringArray`, not `StringSlice`,
   so an empty value reaches validation) widens `hostCheck` and `isOwnOrigin`;
@@ -1517,7 +1531,11 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 2021-estimate-pricing-inputs: Added Go 1.27.4 with plain browser JavaScript, `internal/engine`, `internal/proto`, finfocus-spec `pluginsdk/mapping`, Bubble Tea v2, and testify
+
 ## Active Technologies
+
+- Go 1.27.4 with plain browser JavaScript, `internal/engine`, `internal/proto`, finfocus-spec `pluginsdk/mapping`, Bubble Tea v2, and testify (2021-estimate-pricing-inputs)
 
 - `packages/vscode-finfocus` (2017-vscode-cost-extension): plain CommonJS JavaScript with JSDoc types (`tsc --checkJs`), VS Code API `^1.90.0`, no runtime dependencies; unit tests under `node --test`, editor tests under `@vscode/test-cli`
 - Go 1.27.4 (`go.mod`), finfocus-spec v0.7.12 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only; `github.com/pulumi/esc-sdk/sdk` v0.14.0; `github.com/rshade/goarima` (statistical forecast; never tag the fork, pin a commit)

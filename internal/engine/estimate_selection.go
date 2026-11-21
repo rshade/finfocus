@@ -70,7 +70,7 @@ func (e *Engine) estimateSelectedFallback(
 	modifiedResource := *request.Resource
 	modifiedResource.Properties = mergePropertiesWithOverrides(request.Resource.Properties, request.PropertyOverrides)
 	validationResource := modifiedResource
-	validationResource.Properties = redactedProperties(ctx, modifiedResource.Properties)
+	validationResource.Properties = RedactedProperties(ctx, modifiedResource.Properties)
 	if err = validationResource.Validate(); err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (e *Engine) selectedProjectedCost(
 ) (*CostResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, perResourceTimeout)
 	defer cancel()
-	resource.Properties = redactedProperties(ctx, resource.Properties)
+	resource.Properties = RedactedProperties(ctx, resource.Properties)
 	result, err := e.getProjectedCostFromPlugin(ctx, client, resource, e.usageProfile)
 	if err != nil {
 		return nil, err
