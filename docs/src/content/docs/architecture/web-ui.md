@@ -124,8 +124,10 @@ One name, or none, builds exactly one.
   another offer waits for that first launch rather than starting its own.
   Stacks that differ only in credentials declared under
   `esc.plugins.<name>.credentials` also share, when the plugin advertises
-  `supports_per_request_credentials`. That process starts without the declared
-  ESC values, and each stack's client attaches its own to every call.
+  `supports_per_request_credentials` and writes `PORT=<port>` to its output
+  before the host connects. That process starts without the declared ESC values,
+  and the client for each stack attaches its own to every call. A plugin that
+  doesn't announce its port keeps its credentials in a separate process.
   Each stack holds its own
   `Client` copy. Closing it releases one hold, and the last release stops the
   process. The pool, not a stack, owns each process's launch context, so

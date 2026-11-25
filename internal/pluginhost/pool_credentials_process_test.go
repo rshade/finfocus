@@ -84,6 +84,13 @@ func serveCredentialProcess(mode string) error {
 	})
 }
 
+// unsetAmbientCredential keeps a developer's own variable out of the plugin.
+func unsetAmbientCredential(t *testing.T) {
+	t.Helper()
+	t.Setenv(credentialVariable, "")
+	require.NoError(t, os.Unsetenv(credentialVariable))
+}
+
 type processReport struct{ call, env, pid string }
 
 func report(t *testing.T, client *pluginhost.Client) processReport {
@@ -99,6 +106,7 @@ func report(t *testing.T, client *pluginhost.Client) processReport {
 // Not parallel: it sets the process environment.
 func TestPoolCredentials_UnannouncedPortIsIsolated(t *testing.T) {
 	isolatePoolConfig(t)
+	unsetAmbientCredential(t)
 	t.Setenv(credentialProcessEnv, "unannounced")
 	binary, err := os.Executable()
 	require.NoError(t, err)
@@ -137,6 +145,7 @@ func TestPoolCredentials_RealProcesses(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.mode, func(t *testing.T) {
 			isolatePoolConfig(t)
+			unsetAmbientCredential(t)
 			t.Setenv(credentialProcessEnv, tt.mode)
 			binary, err := os.Executable()
 			require.NoError(t, err)

@@ -565,7 +565,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   inject from redacted `pluginValue` or `config.effective()`: the config
   loader shallow-replaces the whole `plugins` object.
 - ESC is the highest-precedence plugin environment source, and only for names
-  the plugin advertises or that `esc.plugins.<name>.variables` lists.
+  the plugin advertises, that `esc.plugins.<name>.variables` lists, or that
+  `esc.plugins.<name>.credentials` maps (a shared process gets those per call
+  instead).
   `appendDeliveredEnv` removes an inherited `KEY=` entry only for names in
   `Delivered.Overrides`. The projected cache key hashes `name`, the ESC
   reference, and the revision key, never the value. The `esc` config section

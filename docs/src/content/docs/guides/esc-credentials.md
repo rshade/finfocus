@@ -96,7 +96,8 @@ variable for it. The plugin may receive those variables without an entry in
 `variables`.
 
 FinFocus shares the process only when the plugin reports that it reads
-credentials from each call. The process then starts without those ESC values,
+credentials from each call and announces its port on its own output, as plugins
+built with the SDK do. The process then starts without those ESC values,
 and FinFocus sends the values of the stack that makes a call with that call. A
 stack without them sends none, and the plugin uses the credentials it inherits
 from the shell. Stacks that differ in any other value keep separate processes.
@@ -108,7 +109,7 @@ from calls, and a value that can't be sent with a call. The limits are 16
 credentials, 4096 printable ASCII characters for each value, and 16384
 characters for all values. A JSON key file with line breaks doesn't fit.
 
-A shared process handles the credentials of every stack that uses it. Declare
+A shared process handles the credentials of several stacks. Declare
 `credentials` only for a plugin you trust to keep them apart.
 
 ### Self-hosted Pulumi Cloud

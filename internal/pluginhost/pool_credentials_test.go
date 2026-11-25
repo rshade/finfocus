@@ -71,6 +71,9 @@ type launchSpec struct {
 	optOut   bool
 	echo     bool
 	infoFail bool
+	// infoError is the text of a failed GetPluginInfo.
+	infoError string
+	settings  []*pbc.PluginSetting
 }
 
 // credentialLauncher serves a pluginsdk plugin for every Start, so credentials
@@ -81,8 +84,11 @@ type credentialLauncher struct {
 	specs []launchSpec
 	// gate, when set, holds every Start until it closes.
 	gate chan struct{}
+	// unannounced makes every process that must announce its port fail to.
+	unannounced bool
 
 	mu        sync.Mutex
+	refused   int
 	processes []*fakeProcess
 }
 
@@ -93,6 +99,11 @@ func (l *credentialLauncher) Start(
 		<-l.gate
 	}
 	l.mu.Lock()
+	if err := pluginhost.RefuseUnannouncedForTest(ctx); err != nil && l.unannounced {
+		l.refused++
+		l.mu.Unlock()
+		return nil, nil, err
+	}
 	spec := launchSpec{}
 	if len(l.specs) > 0 {
 		spec = l.specs[min(len(l.processes), len(l.specs)-1)]
@@ -118,12 +129,12 @@ func (l *credentialLauncher) Start(
 		defer close(done)
 		_ = pluginsdk.Serve(serveCtx, pluginsdk.ServeConfig{
 			Plugin: served, Listener: listener, Logger: &quiet,
-			PluginInfo: pluginsdk.NewPluginInfo(poolPlugin, "v1.0.0"),
+			PluginInfo: pluginsdk.NewPluginInfo(poolPlugin, "v1.0.0", pluginsdk.WithSettings(spec.settings...)),
 			UnaryInterceptors: []grpc.UnaryServerInterceptor{func(
 				ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,
 			) (any, error) {
 				if spec.infoFail && strings.HasSuffix(info.FullMethod, "/GetPluginInfo") {
-					return nil, status.Error(codes.Unavailable, "not now")
+					return nil, status.Error(codes.Unavailable, "not now "+spec.infoError)
 				}
 				return handler(ctx, req)
 			}},
@@ -349,8 +360,10 @@ func TestPoolCredentials_ServicesBuiltFromConnCarryThem(t *testing.T) {
 	pool := newTestPool(t)
 	client := acquire(declaredContext(t, api, "a"), t, pool, launcher)
 
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
 	resp, err := pbc.NewCostSourceServiceClient(client.Conn).
-		Supports(t.Context(), &pbc.SupportsRequest{Resource: &pbc.ResourceDescriptor{}})
+		Supports(ctx, &pbc.SupportsRequest{Resource: &pbc.ResourceDescriptor{}})
 	require.NoError(t, err)
 	assert.Equal(t, secretA, resp.GetReason())
 }
@@ -521,6 +534,87 @@ func TestPoolCredentials_SupportLostIsReplacedByAnIsolatedProcess(t *testing.T) 
 			assert.Equal(t, noCredential, carried(t, b))
 		})
 	}
+}
+
+// The record of a process must say what it received. A plugin that advertises
+// another setting after the restart did not receive it, so a later open that
+// needs it starts a process that does.
+//
+//nolint:paralleltest // isolatePoolConfig sets FINFOCUS_HOME and FINFOCUS_PROJECT_DIR
+func TestPoolCredentials_SettingAdvertisedAfterRestartIsNotRecorded(t *testing.T) {
+	const regionEnv = "RECORDER_REGION=eu"
+	tests := []struct {
+		name        string
+		unannounced bool
+		want        [][]string
+		carried     string
+	}{
+		{name: "credentials with each call", want: [][]string{{}, {regionEnv}}, carried: secretA},
+		{
+			name: "failed port proof", unannounced: true, carried: noCredential,
+			want: [][]string{tokenEnv(secretA), append([]string{regionEnv}, tokenEnv(secretA)...)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolatePoolConfig(t)
+			api := credentialAPI(t)
+			region := []*pbc.PluginSetting{{
+				Key: "region", Env: "RECORDER_REGION", Type: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+			}}
+			launcher := &credentialLauncher{
+				t: t, unannounced: tt.unannounced, specs: []launchSpec{{}, {settings: region}},
+			}
+			pool := newTestPool(t)
+
+			first := acquire(declaredContext(t, api, "a-eu"), t, pool, launcher)
+			second := acquire(declaredContext(t, api, "a-eu"), t, pool, launcher)
+
+			assert.ElementsMatch(t, tt.want, normalize(launcher.running()))
+			assert.NotEqual(t, first.DeliveredDigest, second.DeliveredDigest)
+			assert.Equal(t, tt.carried, carried(t, second))
+		})
+	}
+}
+
+// A failed port proof is remembered even when the replacement process reports
+// no information, so later opens do not wait for an announcement again.
+//
+//nolint:paralleltest // isolatePoolConfig sets FINFOCUS_HOME and FINFOCUS_PROJECT_DIR
+func TestPoolCredentials_FailedProofIsRememberedWithoutInformation(t *testing.T) {
+	isolatePoolConfig(t)
+	api := credentialAPI(t)
+	launcher := &credentialLauncher{t: t, unannounced: true, specs: []launchSpec{{}, {infoFail: true}, {}}}
+	pool := newTestPool(t)
+
+	acquire(declaredContext(t, api, "a"), t, pool, launcher)
+	b := acquire(declaredContext(t, api, "b"), t, pool, launcher)
+
+	assert.Equal(t, 1, launcher.refused)
+	assert.ElementsMatch(t, [][]string{tokenEnv(secretA), tokenEnv(secretB)}, launcher.running())
+	assert.Equal(t, noCredential, carried(t, b))
+}
+
+// The first launch has credentials in its environment, and what it answers is
+// logged before the host knows how credentials will travel.
+// Not parallel: it sets the process environment.
+func TestPoolCredentials_LaunchErrorIsMasked(t *testing.T) {
+	isolatePoolConfig(t)
+	const inherited = "test-secret-inherited"
+	t.Setenv("RECORDER_SECRET_ACCESS_KEY", inherited)
+	api := credentialAPI(t)
+	launcher := &credentialLauncher{
+		t: t, specs: []launchSpec{{infoFail: true, infoError: secretA + " and " + inherited}},
+	}
+	pool := newTestPool(t)
+	var logs lockedBuffer
+	logger := logging.NewLogger(logging.Config{Level: "debug", Format: "json"}).Output(&logs)
+
+	acquire(logger.WithContext(declaredContext(t, api, "a")), t, pool, launcher)
+
+	assert.Contains(t, logs.String(), "not now")
+	assert.NotContains(t, logs.String(), secretA)
+	assert.NotContains(t, logs.String(), inherited)
 }
 
 // A process of a plugin that reported no information holds no credentials for
@@ -711,7 +805,9 @@ func TestPoolCredentials_EchoedSecretIsMasked(t *testing.T) {
 	logger := logging.NewLogger(logging.Config{Level: "debug", Format: "json"}).Output(&logs)
 	client := acquire(logger.WithContext(declaredContext(t, api, "a")), t, pool, launcher)
 
-	_, err := client.API.Supports(logger.WithContext(t.Context()),
+	ctx, cancel := context.WithTimeout(logger.WithContext(t.Context()), 5*time.Second)
+	defer cancel()
+	_, err := client.API.Supports(ctx,
 		&pbc.SupportsRequest{Resource: &pbc.ResourceDescriptor{}})
 
 	require.Error(t, err)

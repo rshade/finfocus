@@ -61,6 +61,9 @@ type Pool struct {
 	// advertised holds each binary's GetPluginInfo settings, learned from its
 	// first launch that answered.
 	advertised map[binaryID]advertisement
+	// unproven holds the binaries whose process did not prove that it holds its
+	// port. They keep their credentials in the environment from then on.
+	unproven map[binaryID]bool
 	// learning is closed when the launch that will teach a binary's settings
 	// ends. Requests with another offer wait on it instead of launching a
 	// second process whose environment may turn out the same.
@@ -83,9 +86,6 @@ type binaryID struct {
 type advertisement struct {
 	settings    []*pbc.PluginSetting
 	credentials bool
-	// unproven means a process did not prove that it holds its port. The binary
-	// keeps its credentials in the environment from then on.
-	unproven bool
 }
 
 type keyKind int
@@ -130,6 +130,7 @@ func NewPool(parent context.Context) *Pool {
 		entries:    map[poolKey]*poolEntry{},
 		live:       map[*poolEntry]struct{}{},
 		advertised: map[binaryID]advertisement{},
+		unproven:   map[binaryID]bool{},
 		learning:   map[binaryID]chan struct{}{},
 	}
 }
@@ -231,8 +232,9 @@ func (p *Pool) take(
 func (p *Pool) keyFor(ctx context.Context, bin binaryID, in launchInputs, predict bool) (poolKey, launchInputs) {
 	p.mu.Lock()
 	learned, known := p.advertised[bin]
+	unproven := p.unproven[bin]
 	p.mu.Unlock()
-	if learned.unproven {
+	if unproven {
 		in.credentials = credentialPlan{mapping: in.credentials.mapping}
 	}
 	if !predict || !in.named || !known {
@@ -446,8 +448,10 @@ func (p *Pool) registerLocked(entry *poolEntry, bin binaryID, outcome launchOutc
 		p.advertised[bin] = advertisement{
 			settings:    outcome.info.GetSettings(),
 			credentials: advertisesCredentials(outcome.info),
-			unproven:    outcome.state.unproven || p.advertised[bin].unproven,
 		}
+	}
+	if outcome.state.unproven {
+		p.unproven[bin] = true
 	}
 	entry.state = outcome.state
 	entry.final = finalKeyFor(bin, outcome.state)

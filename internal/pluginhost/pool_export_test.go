@@ -1,6 +1,9 @@
 package pluginhost
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // PoolHoldsForTest sums the holds of every entry the pool still tracks, so a
 // test can wait until requesters have joined a launch instead of sleeping.
@@ -33,4 +36,13 @@ func PoolLearnWaitersForTest(p *Pool) int {
 // and to announce its port.
 func SetBindTimeoutForTest(launcher *ProcessLauncher, timeout time.Duration) {
 	launcher.bindTimeout = timeout
+}
+
+// RefuseUnannouncedForTest returns the launcher error for a process that must
+// announce its port and did not, or nil when ctx does not require it.
+func RefuseUnannouncedForTest(ctx context.Context) error {
+	if announcedPortRequired(ctx) {
+		return errPortNotAnnounced
+	}
+	return nil
 }

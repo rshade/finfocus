@@ -67,7 +67,9 @@ already receives changes the account and nothing else.
 
 `TraceInterceptor` wraps every plugin connection and logs the error. It reads
 the set from the call context, so it masks values before logging and before
-returning. Status details that contain a value are dropped. Names are not
+returning. The launch calls have no set, but the first launch has the values in
+its environment, so their errors are masked with the same values as the excerpt
+of a plugin that exits early. Status details that contain a value are dropped. Names are not
 masked in plugin text: they are the plugin's public vocabulary, and the host
 never writes them.
 

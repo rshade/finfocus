@@ -39,5 +39,6 @@ digest and connection.
 
 ## `advertisement` (per binary)
 
-`settings`, `credentials` (advertises support), and `unproven` (a process did
-not announce its port, so the binary stays isolated).
+`settings` and `credentials` (advertises support). `Pool.unproven` separately
+holds the binaries whose process did not announce its port, which stay isolated
+even when the replacement reported no information.

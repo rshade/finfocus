@@ -13,11 +13,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -271,6 +273,7 @@ func TestProcessLauncher_NoRedialAfterExit(t *testing.T) {
 			t.Parallel()
 			listener, err := net.Listen("tcp", "127.0.0.1:0")
 			require.NoError(t, err)
+			t.Cleanup(func() { _ = listener.Close() })
 			received := make(chan int, 16)
 			go func() {
 				for {
@@ -279,6 +282,7 @@ func TestProcessLauncher_NoRedialAfterExit(t *testing.T) {
 						close(received)
 						return
 					}
+					_ = conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 					data, _ := io.ReadAll(conn)
 					_ = conn.Close()
 					received <- len(data)
@@ -295,6 +299,7 @@ func TestProcessLauncher_NoRedialAfterExit(t *testing.T) {
 			}
 			conn, err := NewProcessLauncher().tryConnect(t.Context(), listener.Addr().String(), hasExited)
 			require.NoError(t, err)
+			t.Cleanup(func() { _ = conn.Close() })
 
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
@@ -352,6 +357,42 @@ func TestProcessLauncher_WaitForAnnouncedPort(t *testing.T) {
 	}
 }
 
+// The same holds for a connection that worked before the plugin exited.
+func TestProcessLauncher_NoReconnectAfterExit(t *testing.T) {
+	t.Parallel()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	server := grpc.NewServer()
+	pbc.RegisterCostSourceServiceServer(server, namedServer{})
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(server.Stop)
+	var exited atomic.Bool
+	conn, err := NewProcessLauncher().tryConnect(t.Context(), listener.Addr().String(), exited.Load)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	client := pbc.NewCostSourceServiceClient(conn)
+	_, err = client.Name(ctx, &pbc.NameRequest{})
+	require.NoError(t, err)
+
+	exited.Store(true)
+	server.Stop()
+
+	require.Eventually(t, func() bool {
+		_, err = client.Name(ctx, &pbc.NameRequest{})
+		return err != nil && strings.Contains(err.Error(), errPluginExited.Error())
+	}, 5*time.Second, 10*time.Millisecond, "the connection was not refused")
+}
+
+type namedServer struct {
+	pbc.UnimplementedCostSourceServiceServer
+}
+
+func (namedServer) Name(context.Context, *pbc.NameRequest) (*pbc.NameResponse, error) {
+	return &pbc.NameResponse{Name: "recorder"}, nil
+}
+
 // Each platform reports a finished process differently, so this runs on all.
 func TestPluginProcess_HasExited(t *testing.T) {
 	t.Parallel()
@@ -387,7 +428,7 @@ func TestPluginProcess_HasExitedBeforeItsOutputCloses(t *testing.T) {
 	require.Eventually(t, proc.hasExited, 5*time.Second, 5*time.Millisecond)
 	select {
 	case <-proc.exited:
-		t.Log("the output closed early; the delay was not exercised")
+		assert.Fail(t, "the output closed early, so the delay was not exercised")
 	default:
 	}
 }

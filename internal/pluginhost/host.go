@@ -221,15 +221,18 @@ func applyAdvertisedSettings(
 		return pluginConnection{}, launchState{}, err
 	}
 	if !next.channel {
-		if started.info != nil {
-			unproven := next.unproven
+		// A process that replaced an unproven one received next, as below.
+		if started.info != nil && !next.unproven {
 			next = in.state(ctx, started.info.GetSettings(), false)
-			next.unproven = unproven
 		}
 		return started, next, nil
 	}
 	settled := in.stateFor(ctx, started.info, next.settings)
-	if settled.channel || sameDelivery(next.delivered, settled.delivered) {
+	if settled.channel {
+		// The process received next, even if it now advertises other settings.
+		return started, next, nil
+	}
+	if sameDelivery(next.delivered, settled.delivered) {
 		return started, settled, nil
 	}
 	return restartPlugin(ctx, launcher, binPath, in, started, settled)

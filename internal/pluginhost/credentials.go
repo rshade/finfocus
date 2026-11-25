@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"maps"
+	"os"
 	"slices"
 
 	"google.golang.org/grpc"
@@ -152,17 +153,20 @@ func (s credentialStats) HandleRPC(ctx context.Context, event stats.RPCStats) {
 	s.Handler.HandleRPC(ctx, event)
 }
 
-// maskCredentials removes the values that ctx attached to a call from the
-// error the plugin answered with. The status code is kept. A status detail
+// maskCredentials removes the credentials that ctx attached to a call, or
+// delivered in the environment of the process being launched, from the error
+// the plugin answered with. The status code is kept. A status detail
 // that holds a value is dropped, since its encoding cannot be edited safely.
 func maskCredentials(ctx context.Context, err error) error {
 	if err == nil {
 		return nil
 	}
-	values := attachedValues(ctx)
+	values := append(attachedValues(ctx), launchValues(ctx)...)
 	if len(values) == 0 {
 		return err
 	}
+	// Longest first, so a value that contains another is masked whole.
+	slices.SortFunc(values, func(a, b string) int { return len(b) - len(a) })
 	original := status.Convert(err).Proto()
 	masked := status.Convert(err).Proto()
 	masked.Message = maskSecrets(masked.GetMessage(), values)
@@ -177,8 +181,17 @@ func maskCredentials(ctx context.Context, err error) error {
 	return status.ErrorProto(masked)
 }
 
-// attachedValues returns the credential values ctx carries, longest first, so
-// a value that contains another is masked whole.
+// launchValues returns the secrets in the whole environment of the process that
+// ctx launches, chosen as for the excerpt of a plugin that exits early.
+func launchValues(ctx context.Context) []string {
+	delivered, ok := DeliveredEnvFromContext(ctx)
+	if !ok {
+		return nil
+	}
+	return credentialValues(appendDeliveredEnv(ctx, os.Environ()), delivered.Origins)
+}
+
+// attachedValues returns the credential values ctx carries.
 func attachedValues(ctx context.Context) []string {
 	set, err := pluginsdk.ExtractCredentials(ctx)
 	if err != nil {
@@ -190,6 +203,5 @@ func attachedValues(ctx context.Context) []string {
 			values = append(values, value)
 		}
 	}
-	slices.SortFunc(values, func(a, b string) int { return len(b) - len(a) })
 	return values
 }
