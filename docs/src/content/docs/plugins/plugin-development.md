@@ -70,7 +70,10 @@ finfocus plugin conformance --expected-name acme-cost ./bin/finfocus-plugin-acme
 FinFocus still routes to a plugin whose names differ, and logs a warning. To
 rename a published plugin, first add its old name to the plugin's entry in
 the FinFocus plugin catalog (`aliases`), so routing rules and `--adapter`
-values written with the old name keep working.
+values written with the old name keep working. Because the catalog is
+built into FinFocus, an older FinFocus release doesn't know the alias.
+Release the renamed plugin after the FinFocus release that adds the alias,
+and tell users to upgrade FinFocus before they upgrade the plugin.
 
 ## Best Practices
 

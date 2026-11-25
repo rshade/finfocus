@@ -280,24 +280,23 @@ func installLabel(c *pluginhost.Client) string {
 
 // sharedPluginWarnings warns when two routing entries with different names
 // refer to the same plugin (its install name and an alias, say). The router
-// applies only the later entry, so the earlier one's rules have no effect.
+// applies only the later entry, so the earlier one's rules have no effect for
+// that plugin. Entries resolve to plugins the way the router resolves them.
 func sharedPluginWarnings(entries []config.PluginRouting, clients []*pluginhost.Client) []ValidationWarning {
 	var warnings []ValidationWarning
 	byClient := make(map[*pluginhost.Client]string)
 	for _, entry := range entries {
-		client, _, _ := pluginhost.ResolveName(clients, entry.Name)
-		if client == nil {
-			continue
+		for _, client := range entryClients(clients, entry.Name) {
+			if earlier, seen := byClient[client]; seen && earlier != entry.Name {
+				warnings = append(warnings, ValidationWarning{
+					Plugin: entry.Name,
+					Field:  pluginNameField,
+					Message: fmt.Sprintf("%q and %q refer to the same plugin; only %q applies",
+						earlier, entry.Name, entry.Name),
+				})
+			}
+			byClient[client] = entry.Name
 		}
-		if earlier, seen := byClient[client]; seen && earlier != entry.Name {
-			warnings = append(warnings, ValidationWarning{
-				Plugin: entry.Name,
-				Field:  pluginNameField,
-				Message: fmt.Sprintf("%q and %q refer to the same plugin; only %q applies",
-					earlier, entry.Name, entry.Name),
-			})
-		}
-		byClient[client] = entry.Name
 	}
 	return warnings
 }

@@ -355,6 +355,37 @@ func TestActualCostAndErrorsFailedBatchRetryPricesResourcesAlone(t *testing.T) {
 	assert.InDelta(t, 2.0, result.Results[1].TotalCost, 1e-9)
 }
 
+func TestActualCostAndErrorsBatchesPluginsThatShareAReportedName(t *testing.T) {
+	t.Parallel()
+	from, to, _ := actualWindow()
+
+	recA, recB := &actualCallRecorder{}, &actualCallRecorder{}
+	twinA := makeBatchCapableClient("twin", recA.api(t))
+	twinA.InstallName = "twin-a"
+	twinB := makeBatchCapableClient("twin", recB.api(t))
+	twinB.InstallName = "twin-b"
+	router := &mockRouter{
+		selectPluginsFunc: func(_ context.Context, resource ResourceDescriptor, _ string) []PluginMatch {
+			if resource.ID == "i-001" {
+				return []PluginMatch{{Client: twinA, Priority: 10, Fallback: true}}
+			}
+			return []PluginMatch{{Client: twinB, Priority: 10, Fallback: true}}
+		},
+	}
+	eng := New([]*pluginhost.Client{twinA, twinB}, nil).WithRouter(router)
+
+	_, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), ActualCostRequest{
+		Resources: []ResourceDescriptor{instanceWithProps("i-001", nil), instanceWithProps("i-002", nil)},
+		From:      from, To: to,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, [][]string{{"i-001"}}, recA.batches)
+	assert.Equal(t, [][]string{{"i-002"}}, recB.batches, "each resource goes to the plugin it matched")
+	assert.Empty(t, recA.unary)
+	assert.Empty(t, recB.unary)
+}
+
 func TestActualCostAndErrorsAdapterBatchesTheNamedPlugin(t *testing.T) {
 	t.Parallel()
 	from, to, _ := actualWindow()

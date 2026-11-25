@@ -188,6 +188,33 @@ func TestRouter_ReportedNameEntryRestrictsEveryPluginReportingIt(t *testing.T) {
 		"plugins sharing a reported name match once, as before: the engine groups work by reported name")
 }
 
+func TestRouter_ReportedNamePatternStillAppliesToPluginsNotOverridden(t *testing.T) {
+	t.Parallel()
+
+	first := &pluginhost.Client{
+		Name: "shared", InstallName: "shared-us-east-1",
+		Metadata: &proto.PluginMetadata{SupportedProviders: []string{"aws"}},
+	}
+	second := &pluginhost.Client{
+		Name: "shared", InstallName: "shared-us-west-2",
+		Metadata: &proto.PluginMetadata{SupportedProviders: []string{"aws"}},
+	}
+	r, err := NewRouter(
+		WithConfig(&config.RoutingConfig{Plugins: []config.PluginRouting{
+			{Name: "shared", Patterns: []config.ResourcePattern{{Type: "glob", Pattern: "aws:eks:*"}}},
+			{Name: "shared-us-east-1", Features: []string{"ActualCosts"}},
+		}}),
+		WithClients([]*pluginhost.Client{first, second}),
+	)
+	require.NoError(t, err)
+
+	eks := engine.ResourceDescriptor{Type: "aws:eks:Cluster"}
+	matches := r.SelectPlugins(context.Background(), eks, "ProjectedCosts")
+	require.Len(t, matches, 1, "the later entry overrides only the plugin installed as shared-us-east-1")
+	assert.Same(t, second, matches[0].Client)
+	assert.Equal(t, MatchReasonPattern, matches[0].MatchReason)
+}
+
 func TestRouter_TwoEntriesForOnePluginUseTheLastOne(t *testing.T) {
 	t.Parallel()
 

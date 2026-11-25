@@ -141,3 +141,17 @@ func TestValidateRoutingConfig_TwoEntriesForOnePlugin(t *testing.T) {
 	),
 		"warnings: %v", result.WarningMessages())
 }
+
+func TestValidateRoutingConfig_LaterEntryOverridesOneOfTwoPluginsSharingAReportedName(t *testing.T) {
+	t.Parallel()
+
+	first := &pluginhost.Client{Name: "shared", InstallName: "shared-a"}
+	second := &pluginhost.Client{Name: "shared", InstallName: "shared-b"}
+	result := router.ValidateRoutingConfig(routingFor("shared", "shared-b"),
+		[]*pluginhost.Client{first, second})
+
+	assert.True(t, result.Valid)
+	require.Len(t, result.Warnings, 1, "only the plugin installed as shared-b loses the earlier rule")
+	assert.Equal(t, `"shared" and "shared-b" refer to the same plugin; only "shared-b" applies`,
+		result.Warnings[0].Message)
+}

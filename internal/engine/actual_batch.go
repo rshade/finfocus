@@ -94,7 +94,7 @@ func (e *Engine) actualBatchPlugins(ctx context.Context, request ActualCostReque
 			continue
 		}
 		client := matches[j].Client
-		k := slices.IndexFunc(groups, func(g *pluginBatch) bool { return g.plugin.Name == client.Name })
+		k := slices.IndexFunc(groups, func(g *pluginBatch) bool { return g.plugin == client })
 		if k < 0 {
 			groups = append(groups, &pluginBatch{plugin: client, hasBatch: true})
 			k = len(groups) - 1

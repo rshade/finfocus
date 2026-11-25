@@ -138,10 +138,6 @@ type DefaultRouter struct {
 	// entries indexes routing entries by the name they were written with.
 	entries map[string]*config.PluginRouting
 
-	// resolved maps each routing entry name to the client it refers to,
-	// resolved once with pluginhost.ResolveName.
-	resolved map[string]*pluginhost.Client
-
 	// configFor maps each client to the routing entry that refers to it.
 	configFor map[*pluginhost.Client]*config.PluginRouting
 
@@ -199,7 +195,6 @@ func NewRouter(opts ...Option) (*DefaultRouter, error) {
 	r := &DefaultRouter{
 		patterns:  make(map[compiledPatternKey]*CompiledPattern),
 		entries:   make(map[string]*config.PluginRouting),
-		resolved:  make(map[string]*pluginhost.Client),
 		configFor: make(map[*pluginhost.Client]*config.PluginRouting),
 	}
 
@@ -236,26 +231,37 @@ func (r *DefaultRouter) resolveEntries() {
 	for i := range r.config.Plugins {
 		entry := &r.config.Plugins[i]
 		r.entries[entry.Name] = entry
-		client, kind, _ := pluginhost.ResolveName(r.clients, entry.Name)
-		if client == nil {
+		clients := entryClients(r.clients, entry.Name)
+		if len(clients) == 0 {
 			if entry.Name != "" && !slices.Contains(r.unmatched, entry.Name) {
 				r.unmatched = append(r.unmatched, entry.Name)
 			}
 			continue
 		}
-		r.resolved[entry.Name] = client
-		if kind != pluginhost.MatchReported {
-			r.configFor[client] = entry
-			continue
-		}
-		// A reported name can belong to several plugins (one install per
-		// region, for example); the entry restricts every one of them.
-		for _, c := range r.clients {
-			if c != nil && c.Name == entry.Name {
-				r.configFor[c] = entry
-			}
+		for _, c := range clients {
+			r.configFor[c] = entry
 		}
 	}
+}
+
+// entryClients returns the clients a routing entry name applies to: the one
+// plugin it names by install name or catalog alias, or, for a reported name,
+// every plugin reporting it (one install per region, for example).
+func entryClients(clients []*pluginhost.Client, name string) []*pluginhost.Client {
+	client, kind, _ := pluginhost.ResolveName(clients, name)
+	if client == nil {
+		return nil
+	}
+	if kind != pluginhost.MatchReported {
+		return []*pluginhost.Client{client}
+	}
+	var reporting []*pluginhost.Client
+	for _, c := range clients {
+		if c != nil && c.Name == name {
+			reporting = append(reporting, c)
+		}
+	}
+	return reporting
 }
 
 // UnmatchedEntries returns the routing entry names that refer to no loaded
@@ -308,9 +314,10 @@ func (r *DefaultRouter) SelectPlugins(
 			// Check patterns if configured
 			if len(pluginCfg.Patterns) > 0 {
 				if r.matchesAnyPattern(pluginCfg, resource.Type) {
-					client := r.effectiveClient(&r.config.Plugins[i])
-					if client != nil && !r.hasMatch(matches, client) && r.matchesFeature(client, pluginCfg, feature) {
-						// Check region compatibility
+					for _, client := range r.effectiveClients(&r.config.Plugins[i]) {
+						if r.hasMatch(matches, client) || !r.matchesFeature(client, pluginCfg, feature) {
+							continue
+						}
 						pluginReg := PluginRegion(client)
 						if !RegionMatches(pluginReg, resourceRegion) {
 							log.Warn().
@@ -567,21 +574,19 @@ func (r *DefaultRouter) matchesProvider(client *pluginhost.Client, provider stri
 	return MatchReasonNoMatch
 }
 
-// effectiveClient returns the client a routing entry refers to when the entry
-// is the one in effect for it. When two entries name the same plugin (its
+// effectiveClients returns, in client order, every client for which a routing
+// entry is the one in effect. An entry written with a reported name applies to
+// every client reporting it. When two entries name the same plugin (its
 // install name and an alias, say), only the later one applies, in the pattern
 // pass as in the automatic pass.
-func (r *DefaultRouter) effectiveClient(entry *config.PluginRouting) *pluginhost.Client {
-	client := r.findClient(entry.Name)
-	if client == nil || r.configFor[client] != entry {
-		return nil
+func (r *DefaultRouter) effectiveClients(entry *config.PluginRouting) []*pluginhost.Client {
+	var clients []*pluginhost.Client
+	for _, client := range r.clients {
+		if client != nil && r.configFor[client] == entry {
+			clients = append(clients, client)
+		}
 	}
-	return client
-}
-
-// findClient returns the client a routing entry name refers to, or nil.
-func (r *DefaultRouter) findClient(name string) *pluginhost.Client {
-	return r.resolved[name]
+	return clients
 }
 
 // hasMatch checks whether a client, or another client reporting the same

@@ -113,7 +113,7 @@ func TestRegistry_Open_WarnsOnceWhenReportedNameDiffers(t *testing.T) {
 	t.Cleanup(ResetNameMismatchWarningsForTest)
 
 	var logs bytes.Buffer
-	ctx := zerolog.New(&logs).Level(zerolog.DebugLevel).WithContext(context.Background())
+	ctx := zerolog.New(zerolog.SyncWriter(&logs)).Level(zerolog.DebugLevel).WithContext(context.Background())
 	for range 2 {
 		reg, _ := identityRegistry(t)
 		clients, cleanup, err := reg.Open(ctx, "")
