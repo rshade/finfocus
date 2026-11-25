@@ -263,6 +263,9 @@ malformed input files, bad dates) exit 2 through `toValidationError`
 - **TUI changes**: render the view and read it, then run
   `go test -run TestGolden ./internal/tui/...` (`UPDATE_GOLDEN=1` to
   regenerate). `assert.Contains` alone is not enough.
+- **Refused connections**: assert the `dial tcp` prefix, never
+  `connection refused`. Windows words it differently, and only the nightly
+  runs the full unit suite there. Use a privileged port (2, 3), not a closed listener.
 - **Expected plugin failures**: log expected errors with `t.Logf`; fail only
   when the required error is absent. `connection refused`, `context deadline
   exceeded`, or `EOF` in logs of a passing test are normal.

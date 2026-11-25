@@ -237,17 +237,19 @@ func TestPagerDutyAcceptedWithSlowResponseBody(t *testing.T) {
 
 func TestPagerDutyConnectionRefused(t *testing.T) {
 	t.Parallel()
-	srv := httptest.NewTLSServer(nil)
-	srv.Close()
+	// Nothing listens on a privileged port; a closed ephemeral port can be
+	// taken by a parallel test's server.
 	delivery := notification.Delivery{
 		Destination: config.NotificationDestination{
-			Type: "pagerduty", URL: srv.URL + "/v2/enqueue", RoutingKey: pagerDutyTestKey,
+			Type: "pagerduty", URL: "https://127.0.0.1:2/v2/enqueue", RoutingKey: pagerDutyTestKey,
 		},
 		Event: testEvent(80),
 	}
-	result := notification.NewDispatcher(srv.Client(), nil).
+	result := notification.NewDispatcher(nil, nil).
 		Deliver(t.Context(), []notification.Delivery{delivery}, notification.Options{})[0]
 	assert.Equal(t, notification.OutcomeFailed, result.Outcome)
-	assert.Contains(t, result.Reason, "connection refused")
+	// The rest of the text is the operating system's: Windows does not say
+	// "connection refused".
+	assert.Contains(t, result.Reason, "dial tcp [REDACTED]: ")
 	assert.NotContains(t, result.Reason, pagerDutyTestKey)
 }
