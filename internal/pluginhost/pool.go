@@ -45,6 +45,11 @@ type poolContextKey struct{}
 // would receive and keys on that (a final key). Every running process is also
 // registered under the final key of what it actually received, so a stack
 // whose ESC environments hold values the plugin never sees still shares it.
+//
+// Holders whose declared credentials differ can share a process of a plugin
+// that reads credentials from each call (specs/2023-per-request-credentials/).
+// That process starts without any holder's values, and each holder's client
+// attaches its own.
 type Pool struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -55,7 +60,7 @@ type Pool struct {
 	closed  bool
 	// advertised holds each binary's GetPluginInfo settings, learned from its
 	// first launch that answered.
-	advertised map[binaryID][]*pbc.PluginSetting
+	advertised map[binaryID]advertisement
 	// learning is closed when the launch that will teach a binary's settings
 	// ends. Requests with another offer wait on it instead of launching a
 	// second process whose environment may turn out the same.
@@ -74,6 +79,15 @@ type binaryID struct {
 	stamp string
 }
 
+// advertisement is what a binary's GetPluginInfo answer says about its launches.
+type advertisement struct {
+	settings    []*pbc.PluginSetting
+	credentials bool
+	// unproven means a process did not prove that it holds its port. The binary
+	// keeps its credentials in the environment from then on.
+	unproven bool
+}
+
 type keyKind int
 
 const (
@@ -85,6 +99,9 @@ type poolKey struct {
 	binary binaryID
 	kind   keyKind
 	env    string
+	// channel separates a process that reads credentials from calls from one
+	// with the same environment that does not. Only final keys set it.
+	channel bool
 }
 
 // poolEntry is one shared process. holds counts requesters still waiting for
@@ -95,6 +112,7 @@ type poolEntry struct {
 	learning chan struct{}
 	keys     []poolKey
 	final    poolKey
+	state    launchState
 	ready    chan struct{}
 	client   *Client
 	err      error
@@ -111,7 +129,7 @@ func NewPool(parent context.Context) *Pool {
 		cancel:     cancel,
 		entries:    map[poolKey]*poolEntry{},
 		live:       map[*poolEntry]struct{}{},
-		advertised: map[binaryID][]*pbc.PluginSetting{},
+		advertised: map[binaryID]advertisement{},
 		learning:   map[binaryID]chan struct{}{},
 	}
 }
@@ -136,6 +154,7 @@ func (p *Pool) Acquire(ctx context.Context, launcher Launcher, binPath string) (
 		return nil, err
 	}
 	in := resolveLaunchInputs(ctx)
+	in.credentials = resolveCredentialPlan(ctx, in.installName, in.sources.escOffer)
 	bin := binaryID{path: binPath, stamp: binaryStamp(binPath)}
 	predict, learn := true, true
 	for {
@@ -150,7 +169,7 @@ func (p *Pool) Acquire(ctx context.Context, launcher Launcher, binPath string) (
 			}
 			continue
 		}
-		client, next, err := p.take(ctx, entry, key, launched)
+		client, next, err := p.take(ctx, entry, key, in, launched)
 		if err != nil {
 			return nil, err
 		}
@@ -177,7 +196,9 @@ const (
 // settings than the pool learned, so the offer key, which needs no
 // prediction, is used next. A running process that does not answer is
 // evicted and the same key launches a replacement.
-func (p *Pool) take(ctx context.Context, entry *poolEntry, key poolKey, launched bool) (*Client, retryKind, error) {
+func (p *Pool) take(
+	ctx context.Context, entry *poolEntry, key poolKey, in launchInputs, launched bool,
+) (*Client, retryKind, error) {
 	select {
 	case <-entry.ready:
 	case <-ctx.Done():
@@ -193,7 +214,7 @@ func (p *Pool) take(ctx context.Context, entry *poolEntry, key poolKey, launched
 		return nil, retryWithoutPrediction, nil
 	}
 	if launched || responds(ctx, entry.client) {
-		return p.holderClient(entry), retrySameKey, nil
+		return p.holderClient(ctx, entry, in), retrySameKey, nil
 	}
 	_ = p.release(entry)
 	if err := ctx.Err(); err != nil {
@@ -208,18 +229,17 @@ func (p *Pool) take(ctx context.Context, entry *poolEntry, key poolKey, launched
 // process would receive, launches with it directly (no restart), and keys on
 // it. Otherwise it keys on the launch environment and the whole ESC offer.
 func (p *Pool) keyFor(ctx context.Context, bin binaryID, in launchInputs, predict bool) (poolKey, launchInputs) {
-	offer := poolKey{binary: bin, kind: offerKey, env: environmentKey(in)}
-	if !predict || !in.named {
-		return offer, in
-	}
 	p.mu.Lock()
-	settings, known := p.advertised[bin]
+	learned, known := p.advertised[bin]
 	p.mu.Unlock()
-	if !known {
-		return offer, in
+	if learned.unproven {
+		in.credentials = credentialPlan{mapping: in.credentials.mapping}
 	}
-	in.delivered = in.sources.resolve(ctx, in.installName, settings)
-	return poolKey{binary: bin, kind: finalKey, env: deliveryKey(in.delivered)}, in
+	if !predict || !in.named || !known {
+		return poolKey{binary: bin, kind: offerKey, env: environmentKey(in)}, in
+	}
+	in.start = in.state(ctx, learned.settings, learned.credentials && in.credentials.usable())
+	return finalKeyFor(bin, in.start), in
 }
 
 // Close stops every process the pool started, held or not, and waits for
@@ -423,9 +443,14 @@ func (p *Pool) evict(entry *poolEntry) {
 // turned out wrong stops pointing at it.
 func (p *Pool) registerLocked(entry *poolEntry, bin binaryID, outcome launchOutcome) {
 	if outcome.info != nil {
-		p.advertised[bin] = outcome.info.GetSettings()
+		p.advertised[bin] = advertisement{
+			settings:    outcome.info.GetSettings(),
+			credentials: advertisesCredentials(outcome.info),
+			unproven:    outcome.state.unproven || p.advertised[bin].unproven,
+		}
 	}
-	entry.final = poolKey{binary: bin, kind: finalKey, env: deliveryKey(outcome.delivered)}
+	entry.state = outcome.state
+	entry.final = finalKeyFor(bin, outcome.state)
 	keys := entry.keys[:0]
 	for _, key := range entry.keys {
 		if key.kind == finalKey && key != entry.final {
@@ -470,9 +495,19 @@ func (p *Pool) forgetLocked(entry *poolEntry) {
 }
 
 // holderClient gives each holder its own Client so per-holder writes, such as
-// the registry's metadata merge, never race. Conn and API are shared.
-func (p *Pool) holderClient(entry *poolEntry) *Client {
+// the registry's metadata merge, never race. Conn and API are shared, unless
+// the process reads credentials from calls: then they attach this holder's,
+// and the digest covers them, so cost cache keys still tell holders apart.
+func (p *Pool) holderClient(ctx context.Context, entry *poolEntry, in launchInputs) *Client {
 	held := *entry.client
+	if entry.state.channel {
+		full := in.state(ctx, entry.state.settings, false).delivered
+		held.DeliveredDigest = in.credentials.digest(full.Digest)
+		if in.credentials.set.Len() > 0 {
+			held.Conn = newCredentialConn(entry.client.Conn, in.credentials.set)
+			held.API = proto.NewCostSourceClient(held.Conn)
+		}
+	}
 	held.Metadata = cloneMetadata(entry.client.Metadata)
 	var once sync.Once
 	var closeErr error
@@ -526,6 +561,11 @@ func binaryStamp(binPath string) string {
 	return strconv.FormatInt(info.Size(), 10) + "/" + strconv.FormatInt(info.ModTime().UnixNano(), 10)
 }
 
+// finalKeyFor returns the key of a process that received state.
+func finalKeyFor(bin binaryID, state launchState) poolKey {
+	return poolKey{binary: bin, kind: finalKey, env: deliveryKey(state.delivered), channel: state.channel}
+}
+
 // deliveryKey hashes the exact environment a process receives and its
 // delivered digest, which carries each ESC value's reference and revision.
 func deliveryKey(delivered Delivered) string {
@@ -553,7 +593,7 @@ func deliveryKey(delivered Delivered) string {
 // value, the parent environment and the plugin's config values (a descriptor
 // can pick up a config value the launch pairs did not show), and the whole ESC
 // offer (value, reference, and revision), including names allowed only after
-// the plugin advertises them. Values are hashed, never kept or logged.
+// the plugin advertises them, and the declared credential map. Values are hashed, never kept or logged.
 func environmentKey(in launchInputs) string {
 	sum := sha256.New()
 	write := func(parts ...string) {
@@ -563,11 +603,11 @@ func environmentKey(in launchInputs) string {
 		}
 	}
 	write("launch")
-	for _, pair := range slices.Sorted(slices.Values(in.delivered.Pairs)) {
+	for _, pair := range slices.Sorted(slices.Values(in.start.delivered.Pairs)) {
 		write(pair)
 	}
 	write("overrides")
-	for _, name := range slices.Sorted(maps.Keys(in.delivered.Overrides)) {
+	for _, name := range slices.Sorted(maps.Keys(in.start.delivered.Overrides)) {
 		write(name)
 	}
 	write("parent")
@@ -588,6 +628,8 @@ func environmentKey(in launchInputs) string {
 	for _, name := range slices.Sorted(maps.Keys(offer.Values)) {
 		write(name, offer.Values[name], offer.Origins[name].String(), offer.Fingerprints[name])
 	}
+	write("credentials")
+	write(in.credentials.mapping...)
 	return hex.EncodeToString(sum.Sum(nil))
 }
 

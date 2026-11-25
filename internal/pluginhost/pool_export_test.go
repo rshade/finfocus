@@ -1,5 +1,7 @@
 package pluginhost
 
+import "time"
+
 // PoolHoldsForTest sums the holds of every entry the pool still tracks, so a
 // test can wait until requesters have joined a launch instead of sleeping.
 func PoolHoldsForTest(p *Pool) int {
@@ -25,4 +27,10 @@ func PoolLearnWaitersForTest(p *Pool) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.learnWaiters
+}
+
+// SetBindTimeoutForTest shortens how long launcher waits for a plugin to bind
+// and to announce its port.
+func SetBindTimeoutForTest(launcher *ProcessLauncher, timeout time.Duration) {
+	launcher.bindTimeout = timeout
 }

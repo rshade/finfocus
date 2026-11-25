@@ -2,6 +2,7 @@ package esc
 
 import (
 	"context"
+	"maps"
 	"net/http"
 	"sync"
 	"time"
@@ -23,6 +24,8 @@ type Delivery struct {
 type PluginOptions struct {
 	Environments *[]string
 	Variables    []string
+	// Credentials maps a credential name to the variable that holds it.
+	Credentials map[string]string
 }
 
 // Options configures one Source. Every field is a plain value.
@@ -123,6 +126,15 @@ func (s *Source) Variables(plugin string) []string {
 	return append([]string(nil), opts.Variables...)
 }
 
+// Credentials returns the configured credential names of plugin, each with the
+// variable that holds its value.
+func (s *Source) Credentials(plugin string) map[string]string {
+	if s == nil {
+		return nil
+	}
+	return maps.Clone(s.opts.PerPlugin[plugin].Credentials)
+}
+
 func copyOptions(opts Options) Options {
 	if opts.Global != nil {
 		list := append([]string(nil), (*opts.Global)...)
@@ -134,6 +146,7 @@ func copyOptions(opts Options) Options {
 	copied := make(map[string]PluginOptions, len(opts.PerPlugin))
 	for name, plugin := range opts.PerPlugin {
 		plugin.Variables = append([]string(nil), plugin.Variables...)
+		plugin.Credentials = maps.Clone(plugin.Credentials)
 		if plugin.Environments != nil {
 			list := append([]string(nil), (*plugin.Environments)...)
 			plugin.Environments = &list

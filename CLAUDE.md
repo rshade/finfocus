@@ -630,6 +630,32 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   there. A launch whose requesters all leave is cancelled (`entry.stop`). The launch context is `WithoutCancel(requester)` cancelled by the
   pool, never the requester's context. Holders get a `Client` copy with cloned
   `Metadata` (the registry merge writes it); `Close` releases one hold.
+- Per-request credentials (`specs/2023-per-request-credentials/`, #1539): stacks
+  that differ only in declared credentials share one pool process of a plugin
+  that advertises `supports_per_request_credentials`. The host opt-in is
+  `esc.plugins.<name>.credentials` (credential name to ESC variable). Plugins
+  choose the names, so core never derives one and keeps no table; aws-ce
+  rejects any name it does not know. Declaring a variable there also allows it
+  in the environment on every other path. Such a process starts without the
+  declared ESC values (`launchState.channel`, resolved by dropping them from the
+  ESC offer), and each holder's `Client.Conn` and `API` attach its own set
+  (`credentialConn`), so build a service from `Conn` or `API`, never from a raw
+  connection. `channel` is part of the final pool key, and the declared map is
+  part of the offer key: without them a stack could get a process that has
+  neither its environment values nor a plugin that reads calls. A process
+  launched without the values that does not advertise support is replaced by
+  one that has them. `DeliveredDigest` is the holder's full resolution plus the
+  declared map, or cost cache keys would mix stacks or survive a remap. A set `pluginsdk.NewCredentials` refuses keeps
+  its stack isolated. Launchers dial through `dialPlugin`, never
+  `ax.GRPCDial`: it masks attached values in plugin errors for both the log
+  (`TraceInterceptor`) and the OpenTelemetry span (`credentialStats`), which
+  records the error before any interceptor runs and which `AX_OTEL_DEBUG`
+  prints. `ProcessLauncher` connections never dial again after the process
+  exits (`hasExited`, not the `exited` channel, which waits for output that a
+  surviving child holds open). A process gets credentials only after it wrote
+  `PORT=<port>` to its own output (`waitForAnnouncedPort`): the port is free
+  before the plugin binds it, so a reply on the port proves nothing. Keep a
+  credential set out of struct fields: `%+v` of a `Client` would print it.
 - Secure plugin mode (`FINFOCUS_SECURE_PLUGINS`, #164): env only, off by
   default, through `config.ResolveSecurePlugins` (a bad value is exit 2). When on,
   `registry.applySecurePlugins` forces `RequireChecksumFile`, drops

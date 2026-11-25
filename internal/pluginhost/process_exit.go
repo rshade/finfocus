@@ -3,11 +3,14 @@ package pluginhost
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"os"
 	"os/exec"
 	"regexp"
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"unicode"
 	"unicode/utf8"
 
@@ -63,6 +66,18 @@ func (pp *pluginProcess) stop() {
 	_ = killProcessGroup(pp.cmd)
 	<-pp.exited
 	closeLogTap(pp.cmd)
+}
+
+// hasExited reports whether the process is gone. Unlike the exited channel, it
+// does not wait for output that a surviving child holds open. Once cmd.Wait has
+// seen the exit, Signal answers ErrProcessDone, or on Windows EINVAL, because
+// the process handle is released there. A nil process has not exited.
+func (pp *pluginProcess) hasExited() bool {
+	if pp == nil {
+		return false
+	}
+	err := pp.cmd.Process.Signal(syscall.Signal(0))
+	return errors.Is(err, os.ErrProcessDone) || errors.Is(err, syscall.EINVAL)
 }
 
 // exitStatus describes how the process ended. Call it only after exited is closed.

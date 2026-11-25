@@ -956,7 +956,7 @@ type CostSourceClient interface {
 }
 
 // NewCostSourceClient creates a new cost source client using the real proto client.
-func NewCostSourceClient(conn *grpc.ClientConn) CostSourceClient {
+func NewCostSourceClient(conn grpc.ClientConnInterface) CostSourceClient {
 	return &clientAdapter{
 		client: pbc.NewCostSourceServiceClient(conn),
 	}

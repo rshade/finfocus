@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -19,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/logging"
 )
 
@@ -185,7 +187,7 @@ func TestProcessLauncher_CreateCloseFn(t *testing.T) {
 	}
 	defer listener.Close()
 
-	conn, err := launcher.tryConnect(context.Background(), listener.Addr().String())
+	conn, err := launcher.tryConnect(context.Background(), listener.Addr().String(), nil)
 	if err != nil {
 		cmd.Process.Kill()
 		t.Fatalf("failed to create test connection: %v", err)
@@ -236,7 +238,7 @@ func TestProcessLauncher_TryConnect(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			start := time.Now()
-			conn, connectErr := launcher.tryConnect(tt.ctx, tt.address)
+			conn, connectErr := launcher.tryConnect(tt.ctx, tt.address, nil)
 			if conn != nil {
 				t.Cleanup(func() { require.NoError(t, conn.Close()) })
 			}
@@ -252,6 +254,144 @@ func TestProcessLauncher_TryConnect(t *testing.T) {
 	}
 }
 
+// A gRPC connection dials again after it drops. Once the plugin exited, another
+// program may hold its port, and a call could hand it credentials.
+func TestProcessLauncher_NoRedialAfterExit(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		// exits answers each check in turn; the last answer repeats.
+		exits []bool
+	}{
+		{name: "exited before the dial", exits: []bool{true}},
+		{name: "exited during the dial", exits: []bool{false, true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			require.NoError(t, err)
+			received := make(chan int, 16)
+			go func() {
+				for {
+					conn, acceptErr := listener.Accept()
+					if acceptErr != nil {
+						close(received)
+						return
+					}
+					data, _ := io.ReadAll(conn)
+					_ = conn.Close()
+					received <- len(data)
+				}
+			}()
+			var mu sync.Mutex
+			checks := 0
+			hasExited := func() bool {
+				mu.Lock()
+				defer mu.Unlock()
+				answer := tt.exits[min(checks, len(tt.exits)-1)]
+				checks++
+				return answer
+			}
+			conn, err := NewProcessLauncher().tryConnect(t.Context(), listener.Addr().String(), hasExited)
+			require.NoError(t, err)
+
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			_, err = pbc.NewCostSourceServiceClient(conn).Name(ctx, &pbc.NameRequest{})
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), errPluginExited.Error())
+			require.NoError(t, conn.Close())
+			require.NoError(t, listener.Close())
+			for size := range received {
+				assert.Zero(t, size, "the program that holds the port now received bytes")
+			}
+		})
+	}
+}
+
+// Another program can hold the port before the plugin binds it. It can answer a
+// dial, but it cannot write to the plugin's output.
+func TestProcessLauncher_WaitForAnnouncedPort(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		output  string
+		exited  bool
+		wantErr error
+	}{
+		{name: "announced", output: "PORT=4242\n"},
+		{name: "announced after other output", output: "starting\nPORT=4242\n"},
+		{name: "not announced", output: "starting\n", wantErr: errPortNotAnnounced},
+		{name: "another port", output: "PORT=4243\n", wantErr: errPortNotAnnounced},
+		{name: "incomplete line", output: "PORT=4242", wantErr: errPortNotAnnounced},
+		{name: "exited, as after a port collision", exited: true, wantErr: errPluginExited},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			launcher := NewProcessLauncher()
+			launcher.bindTimeout = 300 * time.Millisecond
+			var stdout lockedBuffer
+			_, err := stdout.Write([]byte(tt.output))
+			require.NoError(t, err)
+			exited := make(chan struct{})
+			if tt.exited {
+				close(exited)
+			}
+
+			err = launcher.waitForAnnouncedPort(t.Context(), 4242, &stdout, exited)
+
+			if tt.wantErr == nil {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorIs(t, err, tt.wantErr)
+		})
+	}
+}
+
+// Each platform reports a finished process differently, so this runs on all.
+func TestPluginProcess_HasExited(t *testing.T) {
+	t.Parallel()
+	binary, err := os.Executable()
+	require.NoError(t, err)
+	cmd := exec.Command(binary)
+	cmd.Env = append(os.Environ(), "FINFOCUS_TEST_CREDENTIAL_PLUGIN=opted-out")
+	configureProcessGroup(cmd)
+	require.NoError(t, cmd.Start())
+	proc := watchProcess(cmd)
+	t.Cleanup(proc.stop)
+
+	assert.False(t, proc.hasExited(), "the plugin is serving")
+	proc.stop()
+	assert.True(t, proc.hasExited())
+	assert.False(t, (*pluginProcess)(nil).hasExited())
+}
+
+// A child that keeps the plugin's output open delays the end of cmd.Wait, not
+// the plugin's exit.
+func TestPluginProcess_HasExitedBeforeItsOutputCloses(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("needs a POSIX shell")
+	}
+	cmd := exec.Command("sh", "-c", "sleep 30 & exit 0")
+	cmd.Stdout = &bytes.Buffer{}
+	configureProcessGroup(cmd)
+	require.NoError(t, cmd.Start())
+	proc := watchProcess(cmd)
+	t.Cleanup(proc.stop)
+
+	require.Eventually(t, proc.hasExited, 5*time.Second, 5*time.Millisecond)
+	select {
+	case <-proc.exited:
+		t.Log("the output closed early; the delay was not exercised")
+	default:
+	}
+}
+
 func TestProcessLauncher_IsConnectionReady(t *testing.T) {
 	t.Parallel()
 
@@ -264,7 +404,7 @@ func TestProcessLauncher_IsConnectionReady(t *testing.T) {
 	}
 	defer listener.Close()
 
-	conn, err := launcher.tryConnect(context.Background(), listener.Addr().String())
+	conn, err := launcher.tryConnect(context.Background(), listener.Addr().String(), nil)
 	if err != nil {
 		t.Fatalf("failed to create test connection: %v", err)
 	}

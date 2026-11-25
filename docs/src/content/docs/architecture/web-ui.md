@@ -122,6 +122,10 @@ One name, or none, builds exactly one.
   covers everything the stack's ESC environments offer, because a value for an
   advertised setting is allowed only after `GetPluginInfo`, and a request with
   another offer waits for that first launch rather than starting its own.
+  Stacks that differ only in credentials declared under
+  `esc.plugins.<name>.credentials` also share, when the plugin advertises
+  `supports_per_request_credentials`. That process starts without the declared
+  ESC values, and each stack's client attaches its own to every call.
   Each stack holds its own
   `Client` copy. Closing it releases one hold, and the last release stops the
   process. The pool, not a stack, owns each process's launch context, so

@@ -19,9 +19,6 @@ import (
 	"golang.org/x/term"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/rshade/ax-go"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus/internal/constants"
@@ -29,15 +26,16 @@ import (
 )
 
 const (
-	defaultTimeout      = 10 * time.Second
-	connectionDelay     = 100 * time.Millisecond
-	connectionTimeout   = 100 * time.Millisecond
-	processWaitDelay    = 100 * time.Millisecond // Time to wait for I/O after killing process
-	pluginBindTimeout   = 60 * time.Second       // Time to wait for plugin to bind (large plugins need more time)
-	ciPluginBindTimeout = 120 * time.Second      // Increased timeout for CI environments
-	bindCheckInterval   = 100 * time.Millisecond // Interval between bind checks
-	stdoutPortFallback  = 5 * time.Second        // Time to wait for stdout port before full timeout
-	bindWaitPrecision   = 100 * time.Millisecond // Rounding of the bind wait shown in a timeout error
+	defaultTimeout        = 10 * time.Second
+	connectionDelay       = 100 * time.Millisecond
+	connectionTimeout     = 100 * time.Millisecond
+	processWaitDelay      = 100 * time.Millisecond // Time to wait for I/O after killing process
+	pluginBindTimeout     = 60 * time.Second       // Time to wait for plugin to bind (large plugins need more time)
+	ciPluginBindTimeout   = 120 * time.Second      // Increased timeout for CI environments
+	bindCheckInterval     = 100 * time.Millisecond // Interval between bind checks
+	announceCheckInterval = 20 * time.Millisecond  // Interval between checks for an announced port
+	stdoutPortFallback    = 5 * time.Second        // Time to wait for stdout port before full timeout
+	bindWaitPrecision     = 100 * time.Millisecond // Rounding of the bind wait shown in a timeout error
 
 	// Retry configuration for port collision handling.
 	maxPortRetries    = 5
@@ -273,6 +271,13 @@ func (p *ProcessLauncher) startOnce(
 	if bindErr != nil {
 		proc.stop()
 		return nil, nil, bindFailure(ctx, path, proc, out, bindErr, time.Since(bindStart))
+	}
+
+	if announcedPortRequired(ctx) {
+		if err = p.waitForAnnouncedPort(ctx, connectPort, &out.stdout, proc.exited); err != nil {
+			proc.stop()
+			return nil, nil, bindFailure(ctx, path, proc, out, err, time.Since(bindStart))
+		}
 	}
 
 	log.Debug().
@@ -562,6 +567,53 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 	return assignedPort, nil
 }
 
+// errPortNotAnnounced reports that a plugin did not write the port core connects
+// to on its output in time.
+var errPortNotAnnounced = errors.New("plugin did not announce its port")
+
+type announcedPortContextKey struct{}
+
+// withAnnouncedPortRequired returns a context under which a launch connects
+// only after the plugin has announced its port.
+func withAnnouncedPortRequired(ctx context.Context) context.Context {
+	return context.WithValue(ctx, announcedPortContextKey{}, true)
+}
+
+func announcedPortRequired(ctx context.Context) bool {
+	required, _ := ctx.Value(announcedPortContextKey{}).(bool)
+	return required
+}
+
+// waitForAnnouncedPort waits until the plugin has written "PORT=<port>" to its
+// output. pluginsdk writes that line right after it listens on loopback, and
+// only the launched process can write to the pipe, so it proves which process
+// holds the port. Something else answering on the port proves nothing: the
+// port is free for a moment before the plugin binds it.
+func (p *ProcessLauncher) waitForAnnouncedPort(
+	ctx context.Context, port int, stdout *lockedBuffer, exited <-chan struct{},
+) error {
+	ctx, cancel := context.WithTimeout(ctx, p.pluginBindTimeout())
+	defer cancel()
+	ticker := time.NewTicker(announceCheckInterval)
+	defer ticker.Stop()
+	want := fmt.Appendf(nil, "PORT=%d", port)
+	for {
+		for line := range bytes.Lines(stdout.Snapshot()) {
+			complete, ended := bytes.CutSuffix(line, []byte("\n"))
+			if ended && bytes.Equal(bytes.TrimSpace(complete), want) {
+				return nil
+			}
+		}
+		select {
+		case <-exited:
+			return errPluginExited
+		case <-ctx.Done():
+			return errPortNotAnnounced
+		case <-ticker.C:
+		}
+	}
+}
+
 // parsePortFromStdout scans the captured stdout data for a port number.
 // It recognizes bare port numbers or PORT=NNNNN lines (case-insensitive).
 // Returns the parsed port and true if found, or 0 and false otherwise.
@@ -784,7 +836,7 @@ func (p *ProcessLauncher) connectToPlugin(
 			return nil, fmt.Errorf("timeout connecting to plugin: %w", connCtx.Err())
 		}
 
-		conn, err := p.tryConnect(connCtx, address)
+		conn, err := p.tryConnect(connCtx, address, proc.hasExited)
 		if err != nil {
 			time.Sleep(connectionDelay)
 			continue
@@ -799,10 +851,32 @@ func (p *ProcessLauncher) connectToPlugin(
 	}
 }
 
-func (p *ProcessLauncher) tryConnect(ctx context.Context, address string) (*grpc.ClientConn, error) {
-	return ax.GRPCDial(ctx, address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(TraceInterceptor()))
+// tryConnect creates the connection to a plugin. gRPC dials again whenever the
+// connection drops, and once the process has exited another program may hold
+// the port, while a call can carry credentials. TCP cannot name its peer, so
+// the dialer checks the process before and after it connects. A nil hasExited
+// never refuses.
+func (p *ProcessLauncher) tryConnect(
+	ctx context.Context, address string, hasExited func() bool,
+) (*grpc.ClientConn, error) {
+	if hasExited == nil {
+		hasExited = func() bool { return false }
+	}
+	return dialPlugin(ctx, address,
+		grpc.WithContextDialer(func(ctx context.Context, address string) (net.Conn, error) {
+			if hasExited() {
+				return nil, errPluginExited
+			}
+			conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
+			if err != nil {
+				return nil, err
+			}
+			if hasExited() {
+				_ = conn.Close()
+				return nil, errPluginExited
+			}
+			return conn, nil
+		}))
 }
 
 func (p *ProcessLauncher) isConnectionReady(ctx context.Context, conn *grpc.ClientConn) bool {

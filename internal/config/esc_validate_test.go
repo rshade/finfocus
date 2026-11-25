@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -58,6 +59,50 @@ func TestValidateESCKnownCatalogPlugin(t *testing.T) {
 		assert.NotEqual(t, "esc.plugins.recorder", warning.Path)
 	}
 	assert.True(t, result.Valid)
+}
+
+func TestValidateESCCredentials(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	restore := SetESCCatalogNamesForTest([]string{"recorder"})
+	t.Cleanup(restore)
+	const (
+		nameText     = "esc.plugins.recorder.credentials: a credential name must start with a letter"
+		variableText = "esc.plugins.recorder.credentials: every value must be an environment variable name"
+		reservedText = "esc.plugins.recorder.credentials: a value names a variable reserved for plugin startup"
+	)
+	tooMany := make([]string, 0, 17)
+	for i := range 17 {
+		tooMany = append(tooMany, fmt.Sprintf(`"name%d": "OK_NAME"`, i))
+	}
+	tests := []struct {
+		name    string
+		entries string
+		want    string
+	}{
+		{name: "valid", entries: `"access_key_id": "AWS_ACCESS_KEY_ID", "vantage-token": "VANTAGE_TOKEN"`},
+		{name: "empty", entries: ``},
+		{name: "one variable under two names", entries: `"a": "OK_NAME", "b": "OK_NAME"`},
+		{name: "bad name", entries: `"test secret": "OK_NAME"`, want: nameText},
+		{name: "names equal without case", entries: `"Token": "OK_NAME", "token": "OTHER"`, want: nameText},
+		{name: "long name", entries: `"` + strings.Repeat("a", 65) + `": "OK_NAME"`, want: nameText},
+		{name: "too many", entries: strings.Join(tooMany, ","), want: nameText},
+		{name: "bad variable", entries: `"token": "test secret"`, want: variableText},
+		{name: "reserved variable", entries: `"token": "FINFOCUS_PLUGIN_PORT"`, want: reservedText},
+	}
+	for _, tt := range tests { //nolint:paralleltest // the parent sets FINFOCUS_HOME and the catalog names
+		t.Run(tt.name, func(t *testing.T) {
+			result, _ := ValidateConfigSource("config.hujson",
+				[]byte(`{"esc": {"plugins": {"recorder": {"credentials": {`+tt.entries+`}}}}}`))
+			joined := joinMessages(result)
+			if tt.want == "" {
+				assert.True(t, result.Valid, joined)
+				return
+			}
+			assert.False(t, result.Valid)
+			assert.Contains(t, joined, tt.want)
+			assert.NotContains(t, joined, "test secret")
+		})
+	}
 }
 
 func joinMessages(result ValidationResult) string {
