@@ -28,6 +28,16 @@
       "enabled": false
     },
     {
+      "description": "k8s.io/kube-openapi has no releases, so its version must be the one k8s.io/apimachinery requires. #2290 moved it alone to a commit on structured-merge-diff/v7 while apimachinery v0.37 stayed on v6, and the kubernetes and prometheus plugins stopped compiling. A k8s.io/client-go update brings the matching version in.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "k8s.io/kube-openapi"
+      ],
+      "enabled": false
+    },
+    {
       "description": "gh-aw generates .github/workflows/*.lock.yml via 'gh aw compile'. Their pinned action SHAs and container tags are managed by gh-aw (recompiling bumps them), so Renovate must not touch them: edits would be reverted on the next compile and can break the gh-aw integrity manifest.",
       "matchFileNames": [
         ".github/workflows/*.lock.yml"
