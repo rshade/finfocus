@@ -1306,7 +1306,7 @@ func (e *Engine) GetActualCostWithOptions(
 	// rateLimitedPlugins records a plugin that rate-limited a batch for a
 	// resource. The unary worker must not call that plugin again. Any other
 	// batch failure leaves the resource to the per-resource worker pool.
-	rateLimitedPlugins := make(map[int]string)
+	rateLimitedPlugins := make(map[int]*pluginhost.Client)
 	for idx, verdict := range e.batchActualCosts(ctx, request) {
 		switch {
 		case verdict.result != nil:
@@ -1375,7 +1375,7 @@ func (e *Engine) GetActualCostWithOptions(
 				if !adapterAllows(client) {
 					continue
 				}
-				if rateLimitedPlugins[j.index] == client.Name {
+				if rateLimitedPlugins[j.index] == client {
 					limitErr := fmt.Errorf("plugin %s: %w", client.Name, errBatchRateLimited)
 					if partialErr == nil {
 						partialErr = limitErr
@@ -1744,7 +1744,7 @@ func (e *Engine) getActualCostForResource(
 
 		var costResult *CostResult
 		var err error
-		if batch.answers(client.Name) {
+		if batch.answers(client) {
 			costResult, err = batch.outcome()
 		} else {
 			costResult, err = e.actualFromPlugin(ctx, client, resource, request.From, request.To, 0)

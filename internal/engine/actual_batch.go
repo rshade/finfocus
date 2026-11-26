@@ -21,17 +21,18 @@ import (
 )
 
 // actualBatchVerdict is what a BatchCost call answered for one resource. The
-// named plugin was already asked: either result is set, or err says why it has
-// no price. A resource with no verdict is priced one by one.
+// plugin was already asked: either result is set, or err says why it has no
+// price. A resource with no verdict is priced one by one.
 type actualBatchVerdict struct {
-	plugin string
+	plugin *pluginhost.Client
 	result *CostResult
 	err    error
 }
 
-// answers reports whether the verdict stands in for a call to the plugin.
-func (v actualBatchVerdict) answers(pluginName string) bool {
-	return v.plugin != "" && v.plugin == pluginName
+// answers reports whether the verdict stands in for a call to the client. It
+// compares the client, not its name: two installs can report the same name.
+func (v actualBatchVerdict) answers(client *pluginhost.Client) bool {
+	return v.plugin != nil && v.plugin == client
 }
 
 // outcome is the verdict as a single-resource call would have returned it. A
@@ -68,7 +69,7 @@ func (e *Engine) batchActualCosts(ctx context.Context, request ActualCostRequest
 			}
 			if limitErr != nil {
 				for _, ir := range group.resources {
-					verdicts[ir.index] = actualBatchVerdict{plugin: pb.plugin.Name, err: limitErr}
+					verdicts[ir.index] = actualBatchVerdict{plugin: pb.plugin, err: limitErr}
 				}
 				continue
 			}
@@ -198,7 +199,7 @@ func (e *Engine) priceActualBatch(
 	for _, br := range batchResults {
 		billedFrom, _ := resourceActualStart(request.Resources[br.index], request.From, request.To)
 		keepRequestedWindow(br.actualResult, request.From, billedFrom, request.To)
-		verdict, ok := actualVerdictFor(ctx, plugin.Name, br, request)
+		verdict, ok := actualVerdictFor(ctx, plugin, br, request)
 		if !ok {
 			continue
 		}
@@ -212,18 +213,19 @@ func (e *Engine) priceActualBatch(
 
 func actualVerdictFor(
 	ctx context.Context,
-	pluginName string,
+	plugin *pluginhost.Client,
 	br batchResult,
 	request ActualCostRequest,
 ) (actualBatchVerdict, bool) {
 	log := logging.FromContext(ctx)
+	pluginName := plugin.Name
 	resourceType := request.Resources[br.index].Type
 	switch {
 	case br.rateLimited:
 		if errors.Is(br.err, errBatchRateLimited) {
-			return actualBatchVerdict{plugin: pluginName, err: br.err}, true
+			return actualBatchVerdict{plugin: plugin, err: br.err}, true
 		}
-		return actualBatchVerdict{plugin: pluginName, err: batchRateLimitError(br.err)}, true
+		return actualBatchVerdict{plugin: plugin, err: batchRateLimitError(br.err)}, true
 	case br.unanswered:
 		log.Debug().
 			Ctx(ctx).
@@ -258,10 +260,10 @@ func actualVerdictFor(
 			Str("resource_type", resourceType).
 			Err(br.err).
 			Msg("per-resource error in batch actual cost result")
-		return actualBatchVerdict{plugin: pluginName, err: pluginStatusError(br.err)}, true
+		return actualBatchVerdict{plugin: plugin, err: pluginStatusError(br.err)}, true
 	case br.actualResult != nil:
-		return actualBatchVerdict{plugin: pluginName, result: br.actualResult}, true
+		return actualBatchVerdict{plugin: plugin, result: br.actualResult}, true
 	default:
-		return actualBatchVerdict{plugin: pluginName, err: ErrNoCostData}, true
+		return actualBatchVerdict{plugin: plugin, err: ErrNoCostData}, true
 	}
 }
