@@ -3,9 +3,11 @@ package router
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/pluginname"
 )
 
 // ValidationResult contains the results of configuration validation.
@@ -83,12 +85,6 @@ func ValidateRoutingConfig(cfg *config.RoutingConfig, clients []*pluginhost.Clie
 		return result
 	}
 
-	// Build plugin name lookup
-	pluginNames := make(map[string]bool)
-	for _, client := range clients {
-		pluginNames[client.Name] = true
-	}
-
 	// Track seen plugin names for duplicate detection
 	seenPlugins := make(map[string]int) // maps plugin name to config index
 
@@ -114,13 +110,21 @@ func ValidateRoutingConfig(cfg *config.RoutingConfig, clients []*pluginhost.Clie
 		}
 		seenPlugins[plugin.Name] = i
 
-		// Validate plugin exists
-		if !pluginNames[plugin.Name] {
+		// Validate plugin exists, by install name, catalog alias, or reported name
+		notFound, warnings := checkPluginName(plugin.Name, clients)
+		if notFound != "" {
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
 				Plugin:  plugin.Name,
 				Field:   pluginNameField,
-				Message: "plugin not found",
+				Message: notFound,
+			})
+		}
+		for _, warning := range warnings {
+			result.Warnings = append(result.Warnings, ValidationWarning{
+				Plugin:  plugin.Name,
+				Field:   pluginNameField,
+				Message: warning,
 			})
 		}
 
@@ -185,6 +189,7 @@ func ValidateRoutingConfig(cfg *config.RoutingConfig, clients []*pluginhost.Clie
 		}
 	}
 
+	result.Warnings = append(result.Warnings, sharedPluginWarnings(cfg.Plugins, clients)...)
 	return result
 }
 
@@ -218,4 +223,80 @@ func (r ValidationResult) WarningMessages() []string {
 		}
 	}
 	return messages
+}
+
+// checkPluginName resolves a routing entry name against the loaded clients
+// with pluginhost.ResolveName. It returns the not-found message when the name
+// refers to no plugin (with a hint when it is a binary name of an installed
+// plugin), and warnings when the name is a catalog alias or also matches a
+// second plugin.
+func checkPluginName(name string, clients []*pluginhost.Client) (string, []string) {
+	client, kind, ambiguous := pluginhost.ResolveName(clients, name)
+	if client == nil {
+		msg := "plugin not found"
+		if bare, ok := strings.CutPrefix(name, pluginname.BinaryPrefix); ok {
+			if suggested, _, _ := pluginhost.ResolveName(clients, bare); suggested != nil {
+				msg += fmt.Sprintf(" (did you mean %q?)", bare)
+			}
+		}
+		return msg, nil
+	}
+
+	var warnings []string
+	if kind == pluginhost.MatchAlias {
+		warnings = append(warnings, AliasWarning(name, client.InstallName, name == client.Name))
+	}
+	if ambiguous {
+		for _, other := range clients {
+			if other != nil && other != client && other.MatchesName(name) {
+				warnings = append(warnings, fmt.Sprintf(
+					"%q also matches the plugin installed as %q; using the plugin installed as %q",
+					name, installLabel(other), installLabel(client)))
+				break
+			}
+		}
+	}
+	return "", warnings
+}
+
+// AliasWarning is the message for a routing name that resolves through a
+// catalog alias. While the plugin still reports the alias (it has not been
+// renamed yet) the name will be retired; afterwards it is a former name.
+func AliasWarning(alias, installName string, stillReported bool) string {
+	if stillReported {
+		return fmt.Sprintf("%q will be retired; use %q", alias, installName)
+	}
+	return fmt.Sprintf("%q is a former name of %q; use %q", alias, installName, installName)
+}
+
+// installLabel names a client by its install name, or by its reported name
+// when it was opened outside the registry.
+func installLabel(c *pluginhost.Client) string {
+	if c.InstallName != "" {
+		return c.InstallName
+	}
+	return c.Name
+}
+
+// sharedPluginWarnings warns when two routing entries with different names
+// refer to the same plugin (its install name and an alias, say). The router
+// applies only the later entry, so the earlier one's rules have no effect for
+// that plugin. Entries resolve to plugins the way the router resolves them.
+func sharedPluginWarnings(entries []config.PluginRouting, clients []*pluginhost.Client) []ValidationWarning {
+	var warnings []ValidationWarning
+	byClient := make(map[*pluginhost.Client]string)
+	for _, entry := range entries {
+		for _, client := range entryClients(clients, entry.Name) {
+			if earlier, seen := byClient[client]; seen && earlier != entry.Name {
+				warnings = append(warnings, ValidationWarning{
+					Plugin: entry.Name,
+					Field:  pluginNameField,
+					Message: fmt.Sprintf("%q and %q refer to the same plugin; only %q applies",
+						earlier, entry.Name, entry.Name),
+				})
+			}
+			byClient[client] = entry.Name
+		}
+	}
+	return warnings
 }

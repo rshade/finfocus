@@ -1021,10 +1021,34 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - `DefaultPluginDir()` is `config.New().PluginDir` (`FINFOCUS_PLUGIN_DIR`,
   then `plugin_dir`, then the plugins directory under the resolved home).
   Install and discovery share it.
+- Plugin names (`specs/2278-plugin-name-conformance/`): a client has an
+  `InstallName` (set by `openPlugin`), catalog `Aliases`
+  (`RegistryEntry.Aliases`, read through `CatalogAliases`), and the reported
+  `Name`. Every name a user types (routing `name`, `--adapter`,
+  `--usage-source`/`--allocator`, `scoring.plugin`) goes through
+  `pluginhost.MatchesName` or `ResolveName` (precedence install, alias,
+  reported); never compare it to `client.Name`. Output keeps the reported
+  name. A plugin's old name belongs in the catalog's `aliases`, never in Go
+  code; `ValidateCatalogNames` keeps every name and alias unique, and
+  `builtinNames` reserves aliases from custom registries too.
+  `Open(ctx, name)` filters by install name or alias without a launch; any
+  other name opens every plugin and keeps only those reporting it (commands
+  such as `cost projected` have no engine-side adapter filter).
+  `config routes test` simulates only installed plugins (install name or
+  alias). A reported name that differs from the install name is warned once
+  per process (`ResetNameMismatchWarningsForTest`). The `plugin conformance`
+  name checks (`Name_*`) only pass or warn: `StatusWarn` never changes the
+  exit code or certification, and a check that cannot run warns rather than
+  skips, because `Certify` counts every skip as unverified.
 
 ### Router (`internal/router/`)
 
 - A `$0.00` result is valid and does not fall back; only nil/empty does.
+- Routing entries are resolved to clients once in `NewRouter`
+  (`configFor`, keyed by client); `UnmatchedEntries` lists the rest, which
+  `createRouterForEngine` warns about unless they name an installed plugin
+  that was not loaded. With one plugin, a feature rule cannot keep it off a
+  feature: an empty router result falls back to every client.
 - Higher priority number wins. No routing config means no router. The engine
   then asks every client whose advertised providers include the resource, or
   that advertise none. The same filter applies when a configured router returns

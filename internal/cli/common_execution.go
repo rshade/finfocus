@@ -204,6 +204,7 @@ func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*p
 	}
 	log.Debug().Ctx(ctx).Int("plugin_count", len(clients)).Msg("plugins opened")
 	pluginhost.ReplacePluginEnvDigests(clients)
+	warnUnmatchedAdapter(ctx, adapter, clients)
 
 	return clients, cleanup, nil
 }
@@ -816,8 +817,67 @@ func createRouterForEngine(ctx context.Context, cfg *config.Config, clients []*p
 			Msg("failed to create router, using advertised-provider matching")
 		return nil
 	}
+	warnUnmatchedRoutes(ctx, r.UnmatchedEntries())
 
 	return router.NewEngineAdapter(r)
+}
+
+// warnUnmatchedAdapter warns when no opened plugin answers to the --adapter
+// value by install name, catalog alias, or reported name, so a typo does not
+// return an empty result silently.
+func warnUnmatchedAdapter(ctx context.Context, adapter string, clients []*pluginhost.Client) {
+	if adapter == "" {
+		return
+	}
+	for _, client := range clients {
+		if client.MatchesName(adapter) {
+			return
+		}
+	}
+	logging.FromContext(ctx).Warn().Ctx(ctx).
+		Str("component", "cli").
+		Str("adapter", adapter).
+		Msg("no loaded plugin answers to the --adapter value")
+}
+
+// warnUnmatchedRoutes warns about routing entries that refer to no loaded
+// plugin, since their restrictions then apply to nothing. An entry naming an
+// installed plugin that is not loaded (--adapter narrowed the set, or it
+// failed to start, which is logged where it fails) is not warned about.
+func warnUnmatchedRoutes(ctx context.Context, unmatched []string) {
+	if len(unmatched) == 0 {
+		return
+	}
+	installed := installedPluginNames()
+	log := logging.FromContext(ctx)
+	for _, name := range unmatched {
+		if installed[name] {
+			continue
+		}
+		log.Warn().Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "create_router").
+			Str("plugin", name).
+			Msg("routing entry matches no loaded plugin; its feature and pattern restrictions are not applied")
+	}
+}
+
+// installedPluginNames returns the install names and catalog aliases of the
+// installed plugins, read without launching any. A listing error yields an
+// empty set, so every unmatched entry is reported.
+func installedPluginNames() map[string]bool {
+	names := make(map[string]bool)
+	plugins, _, err := registry.NewDefault().ListLatestPlugins()
+	if err != nil {
+		return names
+	}
+	for _, plugin := range plugins {
+		names[plugin.Name] = true
+		for _, alias := range registry.CatalogAliases(plugin.Name) {
+			names[alias] = true
+		}
+	}
+	return names
 }
 
 // sumTotalCosts returns the sum of TotalCost across all results.

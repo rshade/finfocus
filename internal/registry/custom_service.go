@@ -103,6 +103,9 @@ func filterCustomPlugins(available []CustomPlugin) ([]CustomPlugin, error) {
 	return filtered, nil
 }
 
+// builtinNames returns every name the built-in catalog claims: each entry's
+// name and its aliases (former names). A custom entry may use none of them,
+// or routing and --adapter could read the name as two plugins.
 func builtinNames() (map[string]struct{}, error) {
 	entries, err := GetAllPluginEntries()
 	if err != nil {
@@ -111,6 +114,9 @@ func builtinNames() (map[string]struct{}, error) {
 	names := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
 		names[entry.Name] = struct{}{}
+		for _, alias := range entry.Aliases {
+			names[alias] = struct{}{}
+		}
 	}
 	return names, nil
 }

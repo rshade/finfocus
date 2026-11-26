@@ -39,6 +39,42 @@ matching status, so they run with the built-in probe only and are skipped
 when you set `--provider`. `plugin certify` counts a skipped probe as not
 certified.
 
+### Plugin Name Checks
+
+Every plugin reports its install name, the `<name>` in
+`~/.finfocus/plugins/<name>/<version>/` and in its binary filename
+`finfocus-plugin-<name>`. Return that name from `Name()` and from
+`GetPluginInfo`, and use it for every result `Source`. Declare it once as a
+constant (`const PluginName = "<name>"`). `finfocus plugin init` generates
+one.
+
+The suite checks the name three ways:
+
+| Check | Warns when |
+| --- | --- |
+| `Name_MatchesInstallName` | `Name()` differs from the install name |
+| `Name_MatchesPluginInfo` | `GetPluginInfo` reports another name, or isn't implemented |
+| `Name_IsCanonicalForm` | The name has uppercase letters, doubled hyphens, or the `finfocus-plugin-` prefix |
+
+These checks only warn. A warning appears in the table, JSON, and JUnit
+reports and in the summary count, but it never fails the run, changes the
+exit code, or blocks `plugin certify`.
+
+The install name comes from the plugin directory that holds the binary, or
+else from its filename. For a binary built outside that layout, pass the name:
+
+```bash
+finfocus plugin conformance --expected-name acme-cost ./bin/finfocus-plugin-acme-cost
+```
+
+FinFocus still routes to a plugin whose names differ, and logs a warning. To
+rename a published plugin, first add its old name to the plugin's entry in
+the FinFocus plugin catalog (`aliases`), so routing rules and `--adapter`
+values written with the old name keep working. Because the catalog is
+built into FinFocus, an older FinFocus release doesn't know the alias.
+Release the renamed plugin after the FinFocus release that adds the alias,
+and tell users to upgrade FinFocus before they upgrade the plugin.
+
 ## Best Practices
 
 1. **Error Handling**: Return appropriate gRPC error codes

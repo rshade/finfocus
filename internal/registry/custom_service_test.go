@@ -105,3 +105,23 @@ func TestCustomRegistryInstallRequiresConfirmationAndChecksum(t *testing.T) {
 	_, statErr = os.Stat(result.Path)
 	require.ErrorIs(t, statErr, os.ErrNotExist)
 }
+
+// A custom registry cannot offer a plugin under a built-in plugin's former
+// name (a catalog alias): routing and --adapter would then read that name two
+// ways.
+func TestCustomRegistryCatalogRejectsBuiltinAliases(t *testing.T) {
+	t.Setenv("FINFOCUS_CATALOG_FILE", "")
+
+	names, err := builtinNames()
+	require.NoError(t, err)
+	assert.Contains(t, names, "aws-public")
+	assert.Contains(t, names, "finfocus-plugin-aws-public", "aliases are reserved like names")
+
+	plugins, err := filterCustomPlugins([]CustomPlugin{
+		{Source: config.PluginRegistrySource{Name: "a"}, Entry: RegistryEntry{Name: "finfocus-plugin-aws-public"}},
+		{Source: config.PluginRegistrySource{Name: "a"}, Entry: RegistryEntry{Name: "unique"}},
+	})
+	require.NoError(t, err)
+	require.Len(t, plugins, 1)
+	assert.Equal(t, "unique", plugins[0].Entry.Name)
+}

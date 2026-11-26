@@ -137,6 +137,33 @@ optional `SupportsProvider` interface.
 
 More in `references/testing.md` and `references/core-contract.md`.
 
+## Naming conformance
+
+A plugin has one name: its install name, the `<name>` in
+`~/.finfocus/plugins/<name>/<version>/` and in the binary file
+`finfocus-plugin-<name>`. Report that exact string from `Name()` and from
+`GetPluginInfo`, and use it for every result `Source` and for the logger's
+`plugin_name`.
+
+- Declare it once as an exported constant, `const PluginName = "<name>"`,
+  and use the constant everywhere: `pluginsdk.NewBasePlugin(PluginName)`,
+  the plugin info `Name`, `pluginsdk.NewPluginLogger(PluginName, ...)`, and
+  every `Source:` field. `finfocus plugin init` generates the constant.
+- `finfocus plugin conformance <binary>` runs three name checks:
+  `Name_MatchesInstallName`, `Name_MatchesPluginInfo`, and
+  `Name_IsCanonicalForm`. They only warn: a warning never fails the run,
+  changes the exit code, or blocks certification. For a binary outside the
+  install layout, pass `--expected-name <name>`.
+- Core accepts the install name, a former name listed in its plugin catalog,
+  or the reported name, so a mismatch still routes. It logs a warning, and
+  output columns show the reported name.
+- Renaming a published plugin breaks configs written with the old name
+  unless the finfocus plugin catalog lists the old name in the entry's
+  `aliases`. Land that catalog change in finfocus before releasing the
+  rename.
+
+Find stray copies and fix each warning with `references/naming.md`.
+
 ## Common pitfalls
 
 - Core does not set `PORT`. Use `--port` or `FINFOCUS_PLUGIN_PORT`; the SDK's

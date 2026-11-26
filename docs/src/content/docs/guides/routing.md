@@ -170,11 +170,29 @@ routing:
 
 #### `name` (required)
 
-The plugin identifier. Must match an installed plugin name from `finfocus plugin list`.
+The plugin identifier. Use the plugin's install name, as `finfocus plugin list`
+shows it:
 
 ```yaml
 - name: aws-public
 ```
+
+FinFocus also accepts two other names for the same plugin:
+
+- The name the plugin reports, which the Adapter column of cost output shows.
+  For most plugins it's the install name.
+- A former name that the plugin catalog lists for the plugin. Older
+  aws-public releases report `finfocus-plugin-aws-public`, so
+  `name: finfocus-plugin-aws-public` keeps working. `finfocus config validate`
+  accepts it, warns that the name is being retired (or, once the plugin
+  reports `aws-public`, that it's a former name), and suggests `aws-public`.
+
+`--adapter`, `--usage-source`, and `scoring.plugin` accept the same names.
+
+A `name` that matches no loaded plugin applies to nothing: its `features` and
+`patterns` restrictions aren't enforced. `finfocus config validate` reports it
+as `plugin not found`, `finfocus config routes test` lists it under
+`Warnings`, and cost commands log a warning naming it.
 
 #### `features` (optional)
 
@@ -491,6 +509,27 @@ gcp-public  1.0.0    gcp          ProjectedCosts, ActualCosts      healthy
    ```bash
    finfocus cost projected --debug --pulumi-json plan.json
    ```
+
+### Routing Rule Has No Effect
+
+**Symptoms**: a plugin receives requests for a feature its rule excludes, or
+a pattern rule never selects its plugin.
+
+**Solutions**:
+
+1. Check the entry's `name` against the installed plugins:
+
+   ```bash
+   finfocus config validate
+   finfocus config routes test aws:ec2/instance:Instance
+   ```
+
+   The entry appears in a `plugin not found` error or a routes-test warning.
+   When the message says `did you mean "<name>"?`, use that name.
+
+2. Look for the run-time warning
+   `routing entry matches no loaded plugin; its feature and pattern restrictions are not applied`
+   in the log.
 
 ### Fallback Not Working
 
