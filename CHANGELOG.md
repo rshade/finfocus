@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.11](https://github.com/rshade/finfocus/compare/v0.5.10...v0.5.11) (2026-11-26)
+
+
+### Added
+
+* **estimate:** show pricing inputs first in What-If ([#2288](https://github.com/rshade/finfocus/issues/2288)) ([088f547](https://github.com/rshade/finfocus/commit/088f547724adaac6a5e1565d926345c0a33da950))
+* **pluginhost:** pool opted-in plugins and pass per-request credentials ([#2291](https://github.com/rshade/finfocus/issues/2291)) ([6a48675](https://github.com/rshade/finfocus/commit/6a486757a6c655c774761050881fbb26f38a3570))
+* **router:** match plugins by install name, catalog alias, or reported name ([#2287](https://github.com/rshade/finfocus/issues/2287)) ([a9ce486](https://github.com/rshade/finfocus/commit/a9ce48684539121b9b096a61e34f3bc43fbf1a0f))
+* **webui:** add a Cluster view for cost cluster allocation ([#2285](https://github.com/rshade/finfocus/issues/2285)) ([a008af0](https://github.com/rshade/finfocus/commit/a008af08a95ac81867f72f39fd8be5720fac021f))
+
+
+### Fixed
+
+* check overlay aliases and batch verdicts per install ([#2301](https://github.com/rshade/finfocus/issues/2301)) ([976e5a6](https://github.com/rshade/finfocus/commit/976e5a681f2b91ce192f22f05297a85c135912cc))
+
 ## [0.5.10](https://github.com/rshade/finfocus/compare/v0.5.9...v0.5.10) (2026-11-20)
 
 
