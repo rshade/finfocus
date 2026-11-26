@@ -263,6 +263,9 @@ malformed input files, bad dates) exit 2 through `toValidationError`
 - **TUI changes**: render the view and read it, then run
   `go test -run TestGolden ./internal/tui/...` (`UPDATE_GOLDEN=1` to
   regenerate). `assert.Contains` alone is not enough.
+- **Refused connections**: assert the `dial tcp` prefix, never
+  `connection refused`. Windows words it differently, and only the nightly
+  runs the full unit suite there. Use a privileged port (2, 3), not a closed listener.
 - **Expected plugin failures**: log expected errors with `t.Logf`; fail only
   when the required error is absent. `connection refused`, `context deadline
   exceeded`, or `EOF` in logs of a passing test are normal.
@@ -358,6 +361,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   prefixes must not start with `v`.
 - Nested modules must pin the same `finfocus-spec` as the root `go.mod`; CI
   compares them.
+- `k8s.io/kube-openapi` in a nested module must be the version
+  `k8s.io/apimachinery` requires; never bump it alone (#2290). `go mod tidy`
+  accepts a mismatch, and only a build fails. Renovate is turned off for it.
 - release-please gives a commit to every package whose files it touches, and
   `BEGIN_COMMIT_OVERRIDE` rewrites it for all of them. Land a `finfocus-spec`
   bump on its own as `deps: bump finfocus-spec to vX.Y.Z` before the feature
