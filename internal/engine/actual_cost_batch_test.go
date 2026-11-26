@@ -386,6 +386,50 @@ func TestActualCostAndErrorsBatchesPluginsThatShareAReportedName(t *testing.T) {
 	assert.Empty(t, recB.unary)
 }
 
+func TestActualCostAndErrorsBatchVerdictAnswersOnlyForItsPlugin(t *testing.T) {
+	t.Parallel()
+	from, to, _ := actualWindow()
+
+	recA := &actualCallRecorder{itemResult: map[string]func(*pbc.ResourceDescriptor) *pbc.ResourceCostResult{
+		"i-001": func(res *pbc.ResourceDescriptor) *pbc.ResourceCostResult {
+			return &pbc.ResourceCostResult{
+				Resource: res,
+				Result: &pbc.ResourceCostResult_Error{Error: &pbc.ResourceError{
+					Code: int32(codes.NotFound), Message: "no such resource",
+				}},
+			}
+		},
+	}}
+	recB := &actualCallRecorder{}
+	twinA := makeBatchCapableClient("twin", recA.api(t))
+	twinA.InstallName = "twin-a"
+	twinB := makeBatchCapableClient("twin", recB.api(t))
+	twinB.InstallName = "twin-b"
+	router := &mockRouter{
+		selectPluginsFunc: func(context.Context, ResourceDescriptor, string) []PluginMatch {
+			return []PluginMatch{
+				{Client: twinA, Priority: 10, Fallback: true},
+				{Client: twinB, Priority: 5, Fallback: true},
+			}
+		},
+	}
+	eng := New([]*pluginhost.Client{twinA, twinB}, nil).WithRouter(router)
+
+	result, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), ActualCostRequest{
+		Resources: []ResourceDescriptor{instanceWithProps("i-001", nil)},
+		From:      from, To: to,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, [][]string{{"i-001"}}, recA.batches)
+	assert.Equal(t, []string{"i-001"}, recB.unary,
+		"the fallback is asked itself, not answered by the batch of another plugin with its name")
+	require.Len(t, result.Errors, 1, "only the first install failed")
+	assert.Contains(t, result.Errors[0].Error.Error(), "no such resource")
+	require.Len(t, result.Results, 1)
+	assert.InDelta(t, 1.0, result.Results[0].TotalCost, 1e-9)
+}
+
 func TestActualCostAndErrorsAdapterBatchesTheNamedPlugin(t *testing.T) {
 	t.Parallel()
 	from, to, _ := actualWindow()

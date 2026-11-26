@@ -104,3 +104,25 @@ func TestCatalogAliases(t *testing.T) {
 
 	assert.Equal(t, []string{"acme-legacy"}, registry.CatalogAliases("acme"))
 }
+
+func TestCatalogOverlayNamesCheckedAgainstEmbedded(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "catalog.json")
+	write := func(body string) {
+		t.Helper()
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+	}
+	t.Setenv("FINFOCUS_CATALOG_FILE", path)
+
+	write(`{"schema_version":"1","plugins":{"acme":{
+		"name":"acme","repository":"rshade/finfocus-plugin-acme","aliases":["finfocus-plugin-aws-public"]}}}`)
+	_, err := registry.GetAllPluginEntries()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"finfocus-plugin-aws-public" is a name of both "acme" and "aws-public"`)
+	_, err = registry.GetPlugin("acme")
+	require.Error(t, err)
+
+	// Replacing the embedded entry frees its alias for the overlay's own copy.
+	write(`{"schema_version":"1","plugins":{"aws-public":{
+		"name":"aws-public","repository":"rshade/finfocus-plugin-aws-public","aliases":["finfocus-plugin-aws-public"]}}}`)
+	assert.Equal(t, []string{"finfocus-plugin-aws-public"}, registry.CatalogAliases("aws-public"))
+}
