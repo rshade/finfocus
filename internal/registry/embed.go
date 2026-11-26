@@ -137,7 +137,21 @@ func overlayEntries() ([]RegistryEntry, error) {
 	for _, entry := range doc.Plugins {
 		extras = append(extras, entry)
 	}
-	if namesErr := ValidateCatalogNames(extras); namesErr != nil {
+	reg, err := GetEmbeddedRegistry()
+	if err != nil {
+		return nil, err
+	}
+	// An overlay entry replaces the embedded entry of the same name, so names
+	// and aliases must be unique across the merged catalog, not only within
+	// the overlay.
+	effective := slices.Clone(extras)
+	for _, entry := range reg.Plugins {
+		replaced := slices.ContainsFunc(extras, func(e RegistryEntry) bool { return e.Name == entry.Name })
+		if !replaced {
+			effective = append(effective, entry)
+		}
+	}
+	if namesErr := ValidateCatalogNames(effective); namesErr != nil {
 		return nil, fmt.Errorf("catalog overlay: %w", namesErr)
 	}
 	return extras, nil
