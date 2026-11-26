@@ -29,6 +29,10 @@ type ESCConfig struct {
 type ESCPluginConfig struct {
 	Environments *[]string `json:"environments,omitempty" yaml:"environments,omitempty"`
 	Variables    []string  `json:"variables,omitempty"    yaml:"variables,omitempty"`
+	// Credentials maps a credential name the plugin reads from a call to the
+	// ESC variable that holds it. It opts the plugin in to one process for
+	// stacks whose credentials differ (specs/2023-per-request-credentials/).
+	Credentials map[string]string `json:"credentials,omitempty" yaml:"credentials,omitempty"`
 }
 
 // escCatalogNames, when set, adds catalog plugin names to the unknown-plugin check.
@@ -75,6 +79,8 @@ func (c *Config) getESCValue(parts []string) (any, error) {
 			return derefStrings(plugin.Environments), nil
 		case escKeyVariables:
 			return append([]string(nil), plugin.Variables...), nil
+		case escKeyCredentials:
+			return maps.Clone(plugin.Credentials), nil
 		}
 	}
 	return nil, fmt.Errorf("unknown esc setting: %s", strings.Join(parts, "."))
@@ -153,6 +159,7 @@ func (c *Config) FirstESCError() error {
 const (
 	escKeyEnvironments = "environments"
 	escKeyVariables    = "variables"
+	escKeyCredentials  = "credentials"
 )
 
 func (c *Config) escFindings() ([]escFinding, []escFinding) {
@@ -172,6 +179,7 @@ func (c *Config) escFindings() ([]escFinding, []escFinding) {
 		base := "esc.plugins." + name
 		errs = append(errs, refFindings(base+".environments", plugin.Environments)...)
 		errs = append(errs, variableFindings(base, plugin.Variables)...)
+		errs = append(errs, credentialFindings(base+"."+escKeyCredentials, plugin.Credentials)...)
 		if _, ok := known[name]; !ok {
 			warns = append(warns, escFinding{
 				path:    base,
@@ -215,6 +223,37 @@ func variableFindings(path string, names []string) []escFinding {
 				message: fmt.Sprintf("%s: %s is reserved for plugin startup", item, name),
 			})
 		}
+	}
+	return out
+}
+
+// credentialFindings checks a credential map. Its messages never repeat an
+// entry: a name or a value typed in the wrong place may be the secret itself.
+func credentialFindings(path string, credentials map[string]string) []escFinding {
+	if len(credentials) == 0 {
+		return nil
+	}
+	var out []escFinding
+	add := func(text string) {
+		out = append(out, escFinding{path: path, message: path + ": " + text})
+	}
+	names := make(map[string]string, len(credentials))
+	badVariable, reserved := false, false
+	for name, variable := range credentials {
+		names[name] = "x"
+		badVariable = badVariable || !envNamePattern.MatchString(variable)
+		reserved = reserved || reservedEnvName(variable)
+	}
+	if _, err := pluginsdk.NewCredentials(names); err != nil {
+		add(fmt.Sprintf("a credential name must start with a letter, hold only letters, digits, - and _, "+
+			"differ from the others by more than letter case, and have at most %d characters; at most %d are allowed",
+			pluginsdk.MaxCredentialNameLen, pluginsdk.MaxCredentialEntries))
+	}
+	if badVariable {
+		add("every value must be an environment variable name")
+	}
+	if reserved {
+		add("a value names a variable reserved for plugin startup")
 	}
 	return out
 }
@@ -263,7 +302,10 @@ func PluginOptionsForESC(cfg *ESCConfig) map[string]esc.PluginOptions {
 	}
 	out := make(map[string]esc.PluginOptions, len(cfg.Plugins))
 	for name, plugin := range cfg.Plugins {
-		item := esc.PluginOptions{Variables: append([]string(nil), plugin.Variables...)}
+		item := esc.PluginOptions{
+			Variables:   append([]string(nil), plugin.Variables...),
+			Credentials: maps.Clone(plugin.Credentials),
+		}
 		if plugin.Environments != nil {
 			list := append([]string(nil), (*plugin.Environments)...)
 			item.Environments = &list
@@ -285,6 +327,7 @@ func CloneESC(cfg *ESCConfig) *ESCConfig {
 		for name, plugin := range cloned.Plugins {
 			plugin.Environments = cloneStringPtr(plugin.Environments)
 			plugin.Variables = append([]string(nil), plugin.Variables...)
+			plugin.Credentials = maps.Clone(plugin.Credentials)
 			cloned.Plugins[name] = plugin
 		}
 	}

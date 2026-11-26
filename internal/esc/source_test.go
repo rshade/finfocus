@@ -308,6 +308,21 @@ func TestSourceSelectionOrder(t *testing.T) {
 	assert.Empty(t, disabled.Delivery(context.Background(), "other").Values)
 }
 
+func TestSourceCredentials(t *testing.T) {
+	t.Parallel()
+	assert.Nil(t, (*Source)(nil).Credentials("recorder"))
+	want := map[string]string{"token": "RECORDER_TOKEN"}
+	src := NewSource(Options{PerPlugin: map[string]PluginOptions{
+		"recorder": {Credentials: map[string]string{"token": "RECORDER_TOKEN"}},
+	}})
+
+	src.Credentials("recorder")["token"] = "CHANGED"
+	src.Options().PerPlugin["recorder"].Credentials["token"] = "CHANGED"
+	assert.Equal(t, want, src.Credentials("recorder"))
+	assert.Equal(t, want, src.Fresh().Credentials("recorder"))
+	assert.Nil(t, src.Credentials("other"))
+}
+
 func TestSourceOptionsFreshAndContext(t *testing.T) {
 	t.Parallel()
 	assert.Empty(t, (*Source)(nil).Options().PerPlugin)

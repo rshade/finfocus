@@ -173,6 +173,20 @@ func TestResolveDeliveredEnv_ConfiguredVariables(t *testing.T) {
 	assert.Empty(t, other.Origins)
 }
 
+func TestResolveDeliveredEnv_DeclaredCredentialVariables(t *testing.T) {
+	t.Parallel()
+	ctx := esc.WithSource(context.Background(), esc.NewSource(esc.Options{
+		PerPlugin: map[string]esc.PluginOptions{
+			"aws": {Credentials: map[string]string{"access_key_id": "AWS_ACCESS_KEY_ID"}},
+		},
+	}))
+	from := esc.Delivery{Values: map[string]string{"AWS_ACCESS_KEY_ID": "from-esc", "OTHER": "hidden"}}
+
+	assert.Equal(t, []string{"AWS_ACCESS_KEY_ID=from-esc"},
+		ResolveDeliveredEnv(ctx, "aws", nil, nil, nil, nil, from).Pairs)
+	assert.Empty(t, ResolveDeliveredEnv(ctx, "scorer", nil, nil, nil, nil, from).Pairs)
+}
+
 //nolint:paralleltest // mutates the process-wide plugin environment digest
 func TestPluginEnvDigestRoundTrip(t *testing.T) {
 	ResetPluginEnvDigestsForTest()

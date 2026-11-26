@@ -4,8 +4,10 @@ import (
 	"context"
 
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
@@ -45,8 +47,8 @@ func TraceInterceptor() grpc.UnaryClientInterceptor {
 			Str("trace_id", traceID).
 			Msg("making gRPC call to plugin")
 
-		// Invoke the actual RPC
-		err := invoker(ctx, method, req, reply, cc, opts...)
+		// Invoke the actual RPC. A plugin error can repeat a credential the call carried.
+		err := maskCredentials(ctx, invoker(ctx, method, req, reply, cc, opts...))
 
 		// Log result. InvalidArgument and Unimplemented are handled declines.
 		if err != nil {
@@ -116,4 +118,18 @@ func grpcFailureLevel(err error) zerolog.Level {
 		return zerolog.DebugLevel
 	}
 	return zerolog.WarnLevel
+}
+
+// dialPlugin creates the connection to a plugin address, traced as ax.GRPCDial
+// does. ax.GRPCDial itself would record a plugin's error before its credentials
+// are masked. Every launcher uses this, so masking holds for each connection.
+func dialPlugin(ctx context.Context, address string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return grpc.NewClient(address, append([]grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(credentialStats{otelgrpc.NewClientHandler()}),
+		grpc.WithUnaryInterceptor(TraceInterceptor()),
+	}, opts...)...)
 }

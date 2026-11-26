@@ -43,9 +43,11 @@ type Client struct {
 	// registry, so a config written before a rename keeps matching.
 	Aliases  []string
 	Metadata *proto.PluginMetadata
-	Conn     *grpc.ClientConn
-	API      proto.CostSourceClient
-	Close    func() error
+	// Conn is the plugin connection. A holder of a pooled process that reads
+	// per-request credentials gets one that attaches its own to every call.
+	Conn  grpc.ClientConnInterface
+	API   proto.CostSourceClient
+	Close func() error
 	// DeliveredDigest hashes the settings this plugin process received.
 	// Empty means nothing was delivered, and cache keys stay unchanged.
 	DeliveredDigest string
@@ -68,12 +70,24 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 // launchInputs is what a launch resolves from its context before the process
 // starts. sources is the one read of settings inputs that every resolution of
 // this launch uses, including ESC values the plugin is allowed only after it
-// advertises them.
+// advertises them. Only the pool sets credentials.
 type launchInputs struct {
 	installName string
 	named       bool
-	delivered   Delivered
+	start       launchState
 	sources     settingSources
+	credentials credentialPlan
+}
+
+// launchState is what one process of a launch receives. channel means the
+// declared credentials are left out, so it must read them from each call.
+type launchState struct {
+	delivered Delivered
+	settings  []*pbc.PluginSetting
+	channel   bool
+	// unproven means a process without the credentials did not announce its
+	// port, so this one has them in its environment.
+	unproven bool
 }
 
 func resolveLaunchInputs(ctx context.Context) launchInputs {
@@ -81,43 +95,63 @@ func resolveLaunchInputs(ctx context.Context) launchInputs {
 	if !named {
 		return launchInputs{}
 	}
-	sources := readSettingSources(ctx, installName)
-	return launchInputs{
+	in := launchInputs{
 		installName: installName,
 		named:       true,
-		delivered:   sources.resolve(ctx, installName, nil),
-		sources:     sources,
+		sources:     readSettingSources(ctx, installName),
+	}
+	in.start = in.state(ctx, nil, false)
+	return in
+}
+
+// state resolves what a process with these advertised settings receives. With
+// channel, the ESC values of the declared credentials are left out.
+func (in launchInputs) state(ctx context.Context, settings []*pbc.PluginSetting, channel bool) launchState {
+	sources := in.sources
+	if channel {
+		sources.escOffer = withoutVariables(sources.escOffer, in.credentials.withheld)
+	}
+	return launchState{
+		delivered: sources.resolve(ctx, in.installName, settings),
+		settings:  settings,
+		channel:   channel,
 	}
 }
 
-// launchOutcome is what a successful launch ended with: the environment the
-// final process received and the GetPluginInfo answer it gave (nil when the
-// call failed or is not implemented).
+// stateFor resolves what a process that gave this GetPluginInfo answer
+// receives. Without an answer the known settings apply, and the credentials
+// stay in the environment.
+func (in launchInputs) stateFor(
+	ctx context.Context, info *pbc.GetPluginInfoResponse, known []*pbc.PluginSetting,
+) launchState {
+	if info != nil {
+		known = info.GetSettings()
+	}
+	return in.state(ctx, known, in.credentials.usable() && advertisesCredentials(info))
+}
+
+// launchOutcome is what a successful launch ended with: what the final process
+// received and the GetPluginInfo answer it gave (nil when the call failed or
+// is not implemented).
 type launchOutcome struct {
-	delivered Delivered
-	info      *pbc.GetPluginInfoResponse
+	state launchState
+	info  *pbc.GetPluginInfoResponse
 }
 
 func launchClient(
 	ctx context.Context, launcher Launcher, binPath string, in launchInputs,
 ) (*Client, launchOutcome, error) {
-	delivered := in.delivered
-	launchCtx := ctx
-	if in.named {
-		launchCtx = WithDeliveredEnv(ctx, delivered)
-	}
-
-	started, err := connectPlugin(launchCtx, launcher, binPath)
+	started, state, err := connectState(ctx, launcher, binPath, in, in.start)
 	if err != nil {
 		return nil, launchOutcome{}, err
 	}
 	if in.named {
-		started, delivered, err = applyAdvertisedSettings(ctx, launcher, binPath, in, started)
+		started, state, err = applyAdvertisedSettings(ctx, launcher, binPath, in, started, state)
 		if err != nil {
 			return nil, launchOutcome{}, err
 		}
 	}
-	outcome := launchOutcome{delivered: delivered, info: started.info}
+	outcome := launchOutcome{state: state, info: started.info}
 
 	client := &Client{
 		Name:            started.name,
@@ -125,7 +159,7 @@ func launchClient(
 		Conn:            started.conn,
 		API:             started.api,
 		Close:           started.idempotentClose(),
-		DeliveredDigest: delivered.Digest,
+		DeliveredDigest: state.delivered.Digest,
 	}
 	if started.info == nil {
 		return client, outcome, nil
@@ -141,47 +175,103 @@ func launchClient(
 	return client, outcome, nil
 }
 
+// connectState starts a process that receives state. A process left without
+// its credentials will read them from calls, so it must announce its port
+// before the host connects: that proves the host talks to the process it
+// launched. One that does not is replaced by a process that has them, and the
+// returned state says so.
+func connectState(
+	ctx context.Context, launcher Launcher, binPath string, in launchInputs, state launchState,
+) (pluginConnection, launchState, error) {
+	if state.channel {
+		started, err := connectPlugin(
+			withAnnouncedPortRequired(WithDeliveredEnv(ctx, state.delivered)), launcher, binPath)
+		if !errors.Is(err, errPortNotAnnounced) {
+			return started, state, err
+		}
+		logging.FromContext(ctx).Warn().
+			Str("component", "pluginhost").
+			Str("operation", "start_plugin").
+			Str("plugin", in.installName).
+			Msg("plugin did not announce its port; per-request credentials are off for this process")
+		state = in.state(ctx, state.settings, false)
+		state.unproven = true
+	}
+	if in.named {
+		ctx = WithDeliveredEnv(ctx, state.delivered)
+	}
+	started, err := connectPlugin(ctx, launcher, binPath)
+	return started, state, err
+}
+
 // applyAdvertisedSettings restarts the process once when GetPluginInfo names
-// variables the first launch did not receive. A second difference is kept. It
-// reuses the settings sources read before the launch, so the environment it
-// delivers is the one a pool keyed the process by.
+// variables the first launch did not receive, or says that credentials can
+// come with each call. A second difference is kept, except that a process left
+// without its credentials must read them from calls: if it does not say so, it
+// is replaced by one that has them. It reuses the settings sources read before
+// the launch, so the environment it delivers is the one a pool keyed the
+// process by.
 func applyAdvertisedSettings(
 	ctx context.Context,
 	launcher Launcher,
 	binPath string,
 	in launchInputs,
 	started pluginConnection,
-) (pluginConnection, Delivered, error) {
-	delivered, installName := in.delivered, in.installName
-	if started.info == nil {
-		return started, delivered, nil
+	state launchState,
+) (pluginConnection, launchState, error) {
+	if state.unproven || started.info == nil && !state.channel {
+		return started, state, nil
 	}
-	next := in.sources.resolve(ctx, installName, started.info.GetSettings())
-	if sameDelivery(delivered, next) {
+	next := in.stateFor(ctx, started.info, state.settings)
+	if sameDelivery(state.delivered, next.delivered) && (state.channel || !next.channel) {
 		return started, next, nil
 	}
-	if closeErr := started.closeFn(); closeErr != nil {
+	started, next, err := restartPlugin(ctx, launcher, binPath, in, started, next)
+	if err != nil {
+		return pluginConnection{}, launchState{}, err
+	}
+	if !next.channel {
+		// A process that replaced an unproven one received next, as below.
+		if started.info != nil && !next.unproven {
+			next = in.state(ctx, started.info.GetSettings(), false)
+		}
+		return started, next, nil
+	}
+	settled := in.stateFor(ctx, started.info, next.settings)
+	if settled.channel {
+		// The process received next, even if it now advertises other settings.
+		return started, next, nil
+	}
+	if sameDelivery(next.delivered, settled.delivered) {
+		return started, settled, nil
+	}
+	return restartPlugin(ctx, launcher, binPath, in, started, settled)
+}
+
+// restartPlugin replaces a running process by one that receives next.
+func restartPlugin(
+	ctx context.Context,
+	launcher Launcher,
+	binPath string,
+	in launchInputs,
+	running pluginConnection,
+	next launchState,
+) (pluginConnection, launchState, error) {
+	if closeErr := running.closeFn(); closeErr != nil {
 		logging.FromContext(ctx).Warn().
 			Str("component", "pluginhost").
 			Str("operation", "restart_plugin").
-			Str("plugin", installName).
+			Str("plugin", in.installName).
 			Err(closeErr).
 			Msg("closing plugin before applying advertised settings")
 	}
 	logging.FromContext(ctx).Debug().
 		Str("component", "pluginhost").
 		Str("operation", "restart_plugin").
-		Str("plugin", installName).
-		Int("count", len(next.Pairs)).
+		Str("plugin", in.installName).
+		Int("count", len(next.delivered.Pairs)).
 		Msg("restarting plugin to apply advertised settings")
-	restarted, err := connectPlugin(WithDeliveredEnv(ctx, next), launcher, binPath)
-	if err != nil {
-		return pluginConnection{}, Delivered{}, err
-	}
-	if restarted.info != nil {
-		next = in.sources.resolve(ctx, installName, restarted.info.GetSettings())
-	}
-	return restarted, next, nil
+	return connectState(ctx, launcher, binPath, in, next)
 }
 
 func sameDelivery(left, right Delivered) bool {

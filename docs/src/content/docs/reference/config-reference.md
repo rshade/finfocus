@@ -141,6 +141,7 @@ injected into the plugin process.
 | `esc.environments` | String list | References used for every plugin. Replaces the stack's ESC imports. |
 | `esc.plugins.<name>.environments` | String list | References for that plugin. Replaces `esc.environments` and the stack imports. |
 | `esc.plugins.<name>.variables` | String list | Extra variable names that plugin may receive from ESC. |
+| `esc.plugins.<name>.credentials` | Map | Credential names the plugin reads from a call, each with the ESC variable for it. Lets stacks with different credentials [share one process](../guides/esc-credentials.md#share-one-plugin-process-between-stacks). Edit it in the file: `config set` doesn't accept it. |
 
 A missing `environments` key means "no preference": finfocus uses the stack
 imports. An empty list (`[]`) turns ESC off for what that key covers. A
@@ -150,7 +151,7 @@ disables ESC for every plugin that doesn't set its own list.
 A project `esc` section replaces the global `esc` section as a whole, the
 same way every other top-level section merges. Keys under `esc` aren't
 secrets. `config get` and the Config page show the references and the
-variable names.
+variable names. Messages about `credentials` never repeat an entry.
 
 `config set` takes a comma-separated list:
 
@@ -173,6 +174,9 @@ contact Pulumi Cloud.
 | Malformed reference | `esc.environments[0]: invalid ESC environment reference "a//b": empty segment` |
 | Bad variable name | `esc.plugins.vantage.variables[1]: invalid environment variable name "1BAD"` |
 | Reserved variable | `esc.plugins.vantage.variables[0]: FINFOCUS_PLUGIN_PORT is reserved for plugin startup` |
+| Bad credential name | `esc.plugins.aws-ce.credentials: a credential name must start with a letter, ...` |
+| Bad credential variable | `esc.plugins.aws-ce.credentials: every value must be an environment variable name` |
+| Reserved credential variable | `esc.plugins.aws-ce.credentials: a value names a variable reserved for plugin startup` |
 | Unknown plugin | `esc.plugins.foo: no plugin named "foo" is installed` (warning) |
 | Wrong JSON type | The usual type-mismatch error for `esc.environments` |
 

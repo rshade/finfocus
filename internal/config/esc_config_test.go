@@ -65,3 +65,31 @@ func TestESCProjectReplacesGlobal(t *testing.T) {
 	assert.Equal(t, []string{"proj/env"}, *cfg.ESC.Environments)
 	assert.Empty(t, cfg.ESC.Plugins)
 }
+
+func TestESCCredentialsRoundTripAndCopies(t *testing.T) {
+	t.Parallel()
+	var cfg Config
+	require.NoError(t, json.Unmarshal([]byte(`{"esc": {"plugins": {"recorder": {
+		"credentials": {"access_key_id": "AWS_ACCESS_KEY_ID"}}}}}`), &cfg))
+	want := map[string]string{"access_key_id": "AWS_ACCESS_KEY_ID"}
+	assert.Equal(t, want, cfg.ESC.Plugins["recorder"].Credentials)
+
+	cloned := CloneESC(cfg.ESC)
+	cloned.Plugins["recorder"].Credentials["access_key_id"] = "CHANGED"
+	options := PluginOptionsForESC(cfg.ESC)
+	options["recorder"].Credentials["access_key_id"] = "CHANGED"
+	assert.Equal(t, want, cfg.ESC.Plugins["recorder"].Credentials)
+}
+
+func TestESCCredentialsAreEditedInTheFile(t *testing.T) {
+	t.Parallel()
+	cfg := &Config{ESC: &ESCConfig{Plugins: map[string]ESCPluginConfig{
+		"recorder": {Credentials: map[string]string{"token": "RECORDER_TOKEN"}},
+	}}}
+	got, err := cfg.Get("esc.plugins.recorder.credentials")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"token": "RECORDER_TOKEN"}, got)
+
+	_, settable := LookupSetting("esc.plugins.recorder.credentials")
+	assert.False(t, settable)
+}

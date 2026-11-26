@@ -118,6 +118,9 @@ func ResolveDeliveredEnv(
 				allowed[name] = true
 			}
 		}
+		for _, name := range src.Credentials(plugin) {
+			allowed[name] = true
+		}
 	}
 	return finishDelivered(ctx, plugin, parentSet, effective, allowed, fromESC)
 }

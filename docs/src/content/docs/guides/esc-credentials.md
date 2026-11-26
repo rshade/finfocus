@@ -68,6 +68,50 @@ Another plugin that opens the same environment doesn't receive
 the log-file variable, and the trace id) are rejected and are never taken
 from ESC.
 
+### Share one plugin process between stacks
+
+`finfocus --web --stack dev,prod` runs a plugin once when every stack gives it
+the same environment. Stacks whose credentials differ each start their own
+copy. To share one process between them, name the plugin's credentials in
+`config.hujson`:
+
+```json
+{
+  "esc": {
+    "plugins": {
+      "aws-ce": {
+        "credentials": {
+          "access_key_id": "AWS_ACCESS_KEY_ID",
+          "secret_access_key": "AWS_SECRET_ACCESS_KEY",
+          "session_token": "AWS_SESSION_TOKEN"
+        }
+      }
+    }
+  }
+}
+```
+
+Each key is a credential name that the plugin documents. Each value is the ESC
+variable for it. The plugin may receive those variables without an entry in
+`variables`.
+
+FinFocus shares the process only when the plugin reports that it reads
+credentials from each call and announces its port on its own output, as plugins
+built with the SDK do. The process then starts without those ESC values,
+and FinFocus sends the values of the stack that makes a call with that call. A
+stack without them sends none, and the plugin uses the credentials it inherits
+from the shell. Stacks that differ in any other value keep separate processes.
+
+In every other case the variables stay in the plugin's environment, in a
+process that stacks with different credentials don't use. That covers
+single-stack runs, every other command, a plugin that doesn't read credentials
+from calls, and a value that can't be sent with a call. The limits are 16
+credentials, 4096 printable ASCII characters for each value, and 16384
+characters for all values. A JSON key file with line breaks doesn't fit.
+
+A shared process handles the credentials of several stacks. Declare
+`credentials` only for a plugin you trust to keep them apart.
+
 ### Self-hosted Pulumi Cloud
 
 `PULUMI_ACCESS_TOKEN` is sent only to a backend selected by
